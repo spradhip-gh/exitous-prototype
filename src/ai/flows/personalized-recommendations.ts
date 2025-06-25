@@ -13,10 +13,10 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ProfileDataSchema = z.object({
-  birthYear: z.number().describe('The user\'s birth year.'),
+  birthYear: z.number().describe("The user's birth year."),
   state: z.string().describe('The state the user lives in.'),
   gender: z.string().describe('The gender the user identifies with.'),
-  maritalStatus: z.string().describe('The user\'s marital status.'),
+  maritalStatus: z.string().describe("The user's marital status."),
   hasChildrenUnder13: z.boolean().describe('Whether the user has children under 13.'),
   hasExpectedChildren: z.boolean().describe('Whether the user has expected children.'),
   impactedPeopleCount: z
@@ -24,17 +24,17 @@ const ProfileDataSchema = z.object({
     .describe(
       'The number of other adults or children moderately or greatly impacted by income loss.'
     ),
-  livingStatus: z.string().describe('The user\'s living status.'),
-  citizenshipStatus: z.string().describe('The user\'s citizenship or residence status.'),
+  livingStatus: z.string().describe("The user's living status."),
+  citizenshipStatus: z.string().describe("The user's citizenship or residence status."),
   pastLifeEvents: z.array(z.string()).describe('Life events experienced in the past 9 months.'),
   hasChildrenAges18To26: z.boolean().describe('Whether the user has children ages 18-26.'),
 });
 
 const LayoffDetailsSchema = z.object({
-  workStatus: z.string().describe('The user\'s work status.'),
-  startDate: z.string().describe('The user\'s start date (ISO string).'),
+  workStatus: z.string().describe("The user's work status."),
+  startDate: z.string().describe("The user's start date (ISO string)."),
   notificationDate: z.string().describe('The date the user was notified of layoff (ISO string).'),
-  finalDate: z.string().describe('The user\'s final date of employment (ISO string).'),
+  finalDate: z.string().describe("The user's final date of employment (ISO string)."),
   workState: z.string().describe('The state where the user\'s work was based.'),
   relocationPaid: z.string().describe('If the company paid for relocation.'),
   relocationDate: z.string().optional().describe('Date of relocation (ISO string).'),
@@ -66,7 +66,7 @@ const LayoffDetailsSchema = z.object({
 
 const PersonalizedRecommendationsInputSchema = z.object({
   profileData: ProfileDataSchema.describe('The user profile data.'),
-  layoffDetails: LayoffDetailsSchema.describe('Details about the user\'s layoff.'),
+  layoffDetails: LayoffDetailsSchema.describe("Details about the user's layoff."),
 });
 
 export type PersonalizedRecommendationsInput = z.infer<
@@ -74,11 +74,14 @@ export type PersonalizedRecommendationsInput = z.infer<
 >;
 
 const RecommendationItemSchema = z.object({
+  taskId: z.string().describe("A unique, kebab-case identifier for the task (e.g., 'review-severance-agreement')."),
   task: z.string().describe('The specific, actionable task for the user to complete.'),
   category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").'),
   timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Immediately", "Within 1 week", "By [specific date based on user input]").'),
   details: z.string().describe('Additional details or context for the recommendation.'),
+  endDate: z.string().optional().describe("A specific deadline or key date for this task in 'YYYY-MM-DD' format, if applicable. Extract this from user-provided dates like coverage end dates."),
 });
+
 
 export type RecommendationItem = z.infer<typeof RecommendationItemSchema>;
 
@@ -143,7 +146,13 @@ Here are the user's layoff details:
 - Had EAP: {{{layoffDetails.hadEAP}}}
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
-Based on all this information, generate a structured list of critical, time-sensitive recommendations. For each recommendation, provide a specific task, a category (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being"), a suggested timeline for action (e.g., "Immediately", "Within 1 week", "By [specific date]"), and any important details or context.
+Based on all this information, generate a structured list of critical, time-sensitive recommendations. For each recommendation, provide:
+1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details').
+2.  A specific 'task' for the user to complete.
+3.  A 'category' (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").
+4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
+5.  Important 'details' or context.
+6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. Otherwise, leave 'endDate' empty.
 `,
 });
 
