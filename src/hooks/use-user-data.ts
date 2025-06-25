@@ -21,7 +21,31 @@ export function useUserData() {
 
       const assessmentJson = localStorage.getItem(ASSESSMENT_KEY);
       if (assessmentJson) {
-        setAssessmentData(JSON.parse(assessmentJson));
+        const parsedData = JSON.parse(assessmentJson);
+        
+        // Manually convert date strings back to Date objects
+        const dateKeys: (keyof AssessmentData)[] = [
+          'startDate', 'notificationDate', 'finalDate', 'relocationDate',
+          'internalMessagingAccessEndDate', 'emailAccessEndDate', 'networkDriveAccessEndDate',
+          'layoffPortalAccessEndDate', 'hrPayrollSystemAccessEndDate',
+          'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate',
+          'eapCoverageEndDate'
+        ];
+        
+        for (const key of dateKeys) {
+            // Check if the key exists and has a value before converting
+            if (parsedData[key]) {
+                const date = new Date(parsedData[key]);
+                // Ensure the parsed date is valid before assigning
+                if (!isNaN(date.getTime())) {
+                    parsedData[key] = date;
+                } else {
+                    // If the stored string is not a valid date, treat it as not set.
+                    parsedData[key] = undefined;
+                }
+            }
+        }
+        setAssessmentData(parsedData);
       }
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
