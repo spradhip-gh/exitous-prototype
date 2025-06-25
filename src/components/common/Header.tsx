@@ -7,7 +7,7 @@ export default function Header() {
       <div className="container flex h-14 items-center">
         <Link href="/" className="flex items-center gap-2">
           <Compass className="h-6 w-6 text-primary" />
-          <span className="font-headline text-xl font-bold">Layoff Compass</span>
+          <span className="font-headline text-xl font-bold">Exitous</span>
         </Link>
       </div>
     </header>

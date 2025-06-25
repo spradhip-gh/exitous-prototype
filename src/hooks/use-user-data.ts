@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
 import type { AssessmentData } from '@/lib/schemas';
 
-const PROFILE_KEY = 'layoff-compass-profile';
-const ASSESSMENT_KEY = 'layoff-compass-assessment';
+const PROFILE_KEY = 'exitous-profile';
+const ASSESSMENT_KEY = 'exitous-assessment';
 
 export function useUserData() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
