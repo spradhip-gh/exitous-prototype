@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useUserData } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Briefcase,
@@ -89,11 +91,27 @@ export default function TimelineDashboard() {
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
-            <CardDescription>
-              Here’s a timeline of recommended actions and resources based on your profile and layoff details.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
+              <CardDescription>
+                Here’s a timeline of recommended actions and resources based on your profile and layoff details.
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+              <Link href="/profile" passHref>
+                  <Button variant="outline" size="sm">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Profile
+                  </Button>
+              </Link>
+              <Link href="/assessment" passHref>
+                  <Button variant="outline" size="sm">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Assessment
+                  </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading && <LoadingSkeleton />}
