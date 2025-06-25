@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { CheckCircle, Edit, ListChecks } from 'lucide-react';
+import { CheckCircle, Edit, ListChecks, Briefcase } from 'lucide-react';
 
 export default function ProgressTracker() {
   const { profileData, assessmentData } = useUserData();
@@ -21,7 +21,7 @@ export default function ProgressTracker() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Welcome to Your Dashboard</CardTitle>
             <CardDescription>
-              Complete your profile and emotional assessment to unlock personalized recommendations and next steps.
+              Complete your profile and layoff details to unlock personalized recommendations and next steps.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -68,14 +68,14 @@ export default function ProgressTracker() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">Emotional Assessment</CardTitle>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+              <CardTitle className="text-lg font-medium">Layoff Details</CardTitle>
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
                 {assessmentData
-                  ? 'Your assessment is complete. You can retake it anytime.'
-                  : 'A quick check-in to understand how you\'re feeling.'}
+                  ? 'Your layoff details are saved. You can edit them if needed.'
+                  : 'Provide specifics about your layoff for a tailored plan.'}
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
@@ -90,7 +90,7 @@ export default function ProgressTracker() {
               <Progress value={assessmentProgress} className="w-full mb-4" />
               <Link href="/assessment" passHref>
                 <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
-                  {assessmentData ? 'Retake Assessment' : 'Start Assessment'}
+                  {assessmentData ? 'Edit Details' : 'Add Layoff Details'}
                 </Button>
               </Link>
                {!profileData && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}

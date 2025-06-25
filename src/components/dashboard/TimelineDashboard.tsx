@@ -25,7 +25,6 @@ export default function TimelineDashboard() {
         setIsLoading(true);
         setError(null);
         
-        // Transform data to match AI schema
         const transformedProfileData = {
           birthYear: profileData.birthYear,
           state: profileData.state,
@@ -40,9 +39,27 @@ export default function TimelineDashboard() {
           hasChildrenAges18To26: profileData.hasChildrenAges18To26.startsWith('Yes'),
         };
 
+        // Convert dates to ISO strings for the AI flow
+        const transformedAssessmentData = {
+          ...assessmentData,
+          startDate: assessmentData.startDate?.toISOString(),
+          notificationDate: assessmentData.notificationDate?.toISOString(),
+          finalDate: assessmentData.finalDate?.toISOString(),
+          relocationDate: assessmentData.relocationDate?.toISOString(),
+          internalMessagingAccessEndDate: assessmentData.internalMessagingAccessEndDate?.toISOString(),
+          emailAccessEndDate: assessmentData.emailAccessEndDate?.toISOString(),
+          networkDriveAccessEndDate: assessmentData.networkDriveAccessEndDate?.toISOString(),
+          layoffPortalAccessEndDate: assessmentData.layoffPortalAccessEndDate?.toISOString(),
+          hrPayrollSystemAccessEndDate: assessmentData.hrPayrollSystemAccessEndDate?.toISOString(),
+          medicalCoverageEndDate: assessmentData.medicalCoverageEndDate?.toISOString(),
+          dentalCoverageEndDate: assessmentData.dentalCoverageEndDate?.toISOString(),
+          visionCoverageEndDate: assessmentData.visionCoverageEndDate?.toISOString(),
+          eapCoverageEndDate: assessmentData.eapCoverageEndDate?.toISOString(),
+        };
+
         const result = await getPersonalizedRecommendations({
           profileData: transformedProfileData,
-          assessmentData: assessmentData,
+          layoffDetails: transformedAssessmentData,
         });
         setRecommendations(result);
       } catch (e) {
@@ -63,7 +80,7 @@ export default function TimelineDashboard() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
             <CardDescription>
-              Here’s a timeline of recommended actions and resources based on your profile and assessment.
+              Here’s a timeline of recommended actions and resources based on your profile and layoff details.
             </CardDescription>
           </CardHeader>
           <CardContent>

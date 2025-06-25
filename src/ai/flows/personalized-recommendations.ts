@@ -29,13 +29,43 @@ const ProfileDataSchema = z.object({
   hasChildrenAges18To26: z.boolean().describe('Whether the user has children ages 18-26.'),
 });
 
-const AssessmentDataSchema = z.object({
-  emotionalState: z.string().describe('The user\'s emotional state from the assessment.'),
+const LayoffDetailsSchema = z.object({
+  workStatus: z.string().describe('The user\'s work status.'),
+  startDate: z.string().describe('The user\'s start date (ISO string).'),
+  notificationDate: z.string().describe('The date the user was notified of layoff (ISO string).'),
+  finalDate: z.string().describe('The user\'s final date of employment (ISO string).'),
+  workState: z.string().describe('The state where the user\'s work was based.'),
+  relocationPaid: z.string().describe('If the company paid for relocation.'),
+  relocationDate: z.string().optional().describe('Date of relocation (ISO string).'),
+  unionMember: z.string().describe('If the user was a union member.'),
+  workArrangement: z.string().describe('The user\'s work arrangement (remote, hybrid, etc.).'),
+  workArrangementOther: z.string().optional().describe('Details if work arrangement was "Other".'),
+  workVisa: z.string().describe('The user\'s work visa status.'),
+  onLeave: z.array(z.string()).describe('Types of leave the user was on.'),
+  usedLeaveManagement: z.string().optional().describe('If the user was using a leave management system.'),
+  accessSystems: z.array(z.string()).optional().describe('Internal systems the user still has access to.'),
+  internalMessagingAccessEndDate: z.string().optional().describe('End date for messaging access (ISO string).'),
+  emailAccessEndDate: z.string().optional().describe('End date for email access (ISO string).'),
+  networkDriveAccessEndDate: z.string().optional().describe('End date for network drive access (ISO string).'),
+  layoffPortalAccessEndDate: z.string().optional().describe('End date for layoff portal access (ISO string).'),
+  hrPayrollSystemAccessEndDate: z.string().optional().describe('End date for HR/payroll system access (ISO string).'),
+  hadMedicalInsurance: z.string().describe('If the user had medical insurance.'),
+  medicalCoverage: z.string().optional().describe('Who was covered by medical insurance.'),
+  medicalCoverageEndDate: z.string().optional().describe('End date for medical coverage (ISO string).'),
+  hadDentalInsurance: z.string().describe('If the user had dental insurance.'),
+  dentalCoverage: z.string().optional().describe('Who was covered by dental insurance.'),
+  dentalCoverageEndDate: z.string().optional().describe('End date for dental coverage (ISO string).'),
+  hadVisionInsurance: z.string().describe('If the user had vision insurance.'),
+  visionCoverage: z.string().optional().describe('Who was covered by vision insurance.'),
+  visionCoverageEndDate: z.string().optional().describe('End date for vision coverage (ISO string).'),
+  hadEAP: z.string().describe('If the user had EAP access.'),
+  eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
+
 
 const PersonalizedRecommendationsInputSchema = z.object({
   profileData: ProfileDataSchema.describe('The user profile data.'),
-  assessmentData: AssessmentDataSchema.describe('The user assessment data.'),
+  layoffDetails: LayoffDetailsSchema.describe('Details about the user\'s layoff.'),
 });
 
 export type PersonalizedRecommendationsInput = z.infer<
@@ -45,7 +75,7 @@ export type PersonalizedRecommendationsInput = z.infer<
 const PersonalizedRecommendationsOutputSchema = z.object({
   recommendations: z
     .array(z.string())
-    .describe('Personalized recommendations for resources, support networks, and career advice.'),
+    .describe('Personalized recommendations for resources, support networks, and career advice. These should be actionable next steps.'),
 });
 
 export type PersonalizedRecommendationsOutput = z.infer<
@@ -62,7 +92,48 @@ const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
-  prompt: `Based on the user's profile and emotional assessment, provide personalized recommendations for resources, support networks, and career advice. The recommendations should be tailored to their specific situation and needs.\n\nHere is the user's profile data:\nBirth Year: {{{profileData.birthYear}}}\nState: {{{profileData.state}}}\nGender: {{{profileData.gender}}}\nMarital Status: {{{profileData.maritalStatus}}}\nHas Children Under 13: {{{profileData.hasChildrenUnder13}}}\nHas Expected Children: {{{profileData.hasExpectedChildren}}}\nImpacted People Count: {{{profileData.impactedPeopleCount}}}\nLiving Status: {{{profileData.livingStatus}}}\nCitizenship Status: {{{profileData.citizenshipStatus}}}\nPast Life Events: {{#each profileData.pastLifeEvents}}{{{this}}}, {{/each}}\nHas Children Ages 18 to 26: {{{profileData.hasChildrenAges18To26}}}\n\nHere is the user's assessment data:\nEmotional State: {{{assessmentData.emotionalState}}}\n\nRecommendations:`,
+  prompt: `You are an expert career counselor and legal advisor specializing in layoffs. Based on the user's profile and detailed layoff circumstances, provide a concise, actionable, and personalized list of recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
+
+Here is the user's profile data:
+- Birth Year: {{{profileData.birthYear}}}
+- State of Residence: {{{profileData.state}}}
+- Gender: {{{profileData.gender}}}
+- Marital Status: {{{profileData.maritalStatus}}}
+- Has Children Under 13: {{{profileData.hasChildrenUnder13}}}
+- Has Expected Children: {{{profileData.hasExpectedChildren}}}
+- People Impacted by Layoff: {{{profileData.impactedPeopleCount}}}
+- Living Status: {{{profileData.livingStatus}}}
+- Citizenship Status: {{{profileData.citizenshipStatus}}}
+- Recent Major Life Events: {{#each profileData.pastLifeEvents}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Has Children Ages 18-26: {{{profileData.hasChildrenAges18To26}}}
+
+Here are the user's layoff details:
+- Work Status: {{{layoffDetails.workStatus}}}
+- Employment Start Date: {{{layoffDetails.startDate}}}
+- Layoff Notification Date: {{{layoffDetails.notificationDate}}}
+- Final Day of Employment: {{{layoffDetails.finalDate}}}
+- Work Location State: {{{layoffDetails.workState}}}
+- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}
+{{#if layoffDetails.relocationDate}}- Relocation Date: {{{layoffDetails.relocationDate}}}{{/if}}
+- Union Member: {{{layoffDetails.unionMember}}}
+- Work Arrangement: {{{layoffDetails.workArrangement}}}
+{{#if layoffDetails.workArrangementOther}}- Other Arrangement Details: {{{layoffDetails.workArrangementOther}}}{{/if}}
+- Work Visa: {{{layoffDetails.workVisa}}}
+- On Leave During Layoff: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{#if layoffDetails.usedLeaveManagement}}- Used Leave Management System: {{{layoffDetails.usedLeaveManagement}}}{{/if}}
+- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{#if layoffDetails.emailAccessEndDate}}- Email Access Ends: {{{layoffDetails.emailAccessEndDate}}}{{/if}}
+- Had Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}}
+{{#if layoffDetails.medicalCoverageEndDate}}- Medical Coverage Ends: {{{layoffDetails.medicalCoverageEndDate}}}{{/if}}
+- Had Dental Insurance: {{{layoffDetails.hadDentalInsurance}}}
+{{#if layoffDetails.dentalCoverageEndDate}}- Dental Coverage Ends: {{{layoffDetails.dentalCoverageEndDate}}}{{/if}}
+- Had Vision Insurance: {{{layoffDetails.hadVisionInsurance}}}
+{{#if layoffDetails.visionCoverageEndDate}}- Vision Coverage Ends: {{{layoffDetails.visionCoverageEndDate}}}{{/if}}
+- Had EAP: {{{layoffDetails.hadEAP}}}
+{{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
+
+Based on all this information, generate a list of critical, time-sensitive recommendations.
+`,
 });
 
 const personalizedRecommendationsFlow = ai.defineFlow(
