@@ -6,6 +6,7 @@
  * - getPersonalizedRecommendations - A function that generates personalized recommendations based on user profile and assessment data.
  * - PersonalizedRecommendationsInput - The input type for the getPersonalizedRecommendations function.
  * - PersonalizedRecommendationsOutput - The return type for the getPersonalizedRecommendations function.
+ * - RecommendationItem - The type for a single recommendation item.
  */
 
 import {ai} from '@/ai/genkit';
@@ -72,11 +73,21 @@ export type PersonalizedRecommendationsInput = z.infer<
   typeof PersonalizedRecommendationsInputSchema
 >;
 
+const RecommendationItemSchema = z.object({
+  task: z.string().describe('The specific, actionable task for the user to complete.'),
+  category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").'),
+  timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Immediately", "Within 1 week", "By [specific date based on user input]").'),
+  details: z.string().describe('Additional details or context for the recommendation.'),
+});
+
+export type RecommendationItem = z.infer<typeof RecommendationItemSchema>;
+
 const PersonalizedRecommendationsOutputSchema = z.object({
   recommendations: z
-    .array(z.string())
-    .describe('Personalized recommendations for resources, support networks, and career advice. These should be actionable next steps.'),
+    .array(RecommendationItemSchema)
+    .describe('A structured list of personalized recommendations. Each recommendation should have a task, category, timeline, and details.'),
 });
+
 
 export type PersonalizedRecommendationsOutput = z.infer<
   typeof PersonalizedRecommendationsOutputSchema
@@ -92,7 +103,7 @@ const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
-  prompt: `You are an expert career counselor and legal advisor specializing in layoffs. Based on the user's profile and detailed layoff circumstances, provide a concise, actionable, and personalized list of recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
+  prompt: `You are an expert career counselor and legal advisor specializing in layoffs. Based on the user's profile and detailed layoff circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
 
 Here is the user's profile data:
 - Birth Year: {{{profileData.birthYear}}}
@@ -132,7 +143,7 @@ Here are the user's layoff details:
 - Had EAP: {{{layoffDetails.hadEAP}}}
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
-Based on all this information, generate a list of critical, time-sensitive recommendations.
+Based on all this information, generate a structured list of critical, time-sensitive recommendations. For each recommendation, provide a specific task, a category (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being"), a suggested timeline for action (e.g., "Immediately", "Within 1 week", "By [specific date]"), and any important details or context.
 `,
 });
 

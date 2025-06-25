@@ -2,11 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { useUserData } from '@/hooks/use-user-data';
-import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
+import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+
+const categoryIcons: { [key: string]: React.ElementType } = {
+  "Healthcare": Briefcase,
+  "Finances": Banknote,
+  "Job Search": ListChecks,
+  "Legal": Scale,
+  "Well-being": HeartHandshake,
+  "default": Calendar,
+};
 
 export default function TimelineDashboard() {
   const { profileData, assessmentData } = useUserData();
@@ -87,7 +99,18 @@ export default function TimelineDashboard() {
             {isLoading && <LoadingSkeleton />}
             {error && <ErrorAlert message={error} />}
             {!isLoading && !error && recommendations && (
-              <Timeline recommendations={recommendations.recommendations} />
+               <Tabs defaultValue="timeline" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="timeline">Timeline View</TabsTrigger>
+                  <TabsTrigger value="table">Table View</TabsTrigger>
+                </TabsList>
+                <TabsContent value="timeline" className="mt-6">
+                  <Timeline recommendations={recommendations.recommendations} />
+                </TabsContent>
+                <TabsContent value="table" className="mt-6">
+                  <RecommendationsTable recommendations={recommendations.recommendations} />
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
@@ -123,20 +146,65 @@ function ErrorAlert({ message }: { message: string }) {
   );
 }
 
-function Timeline({ recommendations }: { recommendations: string[] }) {
+function Timeline({ recommendations }: { recommendations: RecommendationItem[] }) {
+  if (!recommendations || recommendations.length === 0) {
+    return <p className="text-muted-foreground text-center">No recommendations available.</p>;
+  }
   return (
-    <div className="relative pl-8">
-      <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-border"></div>
-      {recommendations.map((item, index) => (
-        <div key={index} className="relative mb-8">
-          <div className="absolute -left-1.5 top-1.5 h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background">
-             <span className="text-primary-foreground font-bold text-xs">{index + 1}</span>
+    <div className="relative pl-6">
+      <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-border -translate-x-1/2"></div>
+      {recommendations.map((item, index) => {
+        const Icon = categoryIcons[item.category] || categoryIcons.default;
+        return (
+          <div key={index} className="relative mb-8 flex items-start gap-4">
+            <div className="absolute left-2.5 top-1.5 h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background -translate-x-1/2">
+               <Icon className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div className="pl-8 pt-0.5">
+              <p className="text-sm font-semibold text-muted-foreground">{item.timeline}</p>
+              <div className="flex items-center gap-2 mb-1">
+                 <p className="text-base font-semibold text-foreground">{item.task}</p>
+                 <Badge variant="secondary">{item.category}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{item.details}</p>
+            </div>
           </div>
-          <div className="pl-8">
-            <p className="text-base text-foreground">{item}</p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
+}
+
+
+function RecommendationsTable({ recommendations }: { recommendations: RecommendationItem[] }) {
+    if (!recommendations || recommendations.length === 0) {
+      return <p className="text-muted-foreground text-center">No recommendations available.</p>;
+    }
+    return (
+        <Card>
+          <Table>
+              <TableHeader>
+                  <TableRow>
+                      <TableHead className="w-[120px]">Timeline</TableHead>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Category</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {recommendations.map((item, index) => (
+                      <TableRow key={index}>
+                          <TableCell>{item.timeline}</TableCell>
+                          <TableCell>
+                            <p className="font-medium">{item.task}</p>
+                            <p className="text-xs text-muted-foreground">{item.details}</p>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{item.category}</Badge>
+                          </TableCell>
+                      </TableRow>
+                  ))}
+              </TableBody>
+          </Table>
+        </Card>
+    );
 }
