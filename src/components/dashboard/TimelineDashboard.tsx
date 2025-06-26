@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { useUserData } from '@/hooks/use-user-data';
@@ -116,6 +116,38 @@ export default function TimelineDashboard() {
     fetchRecommendations();
   }, [profileData, assessmentData]);
 
+  const sortedRecommendations = useMemo(() => {
+    if (!recommendations?.recommendations) {
+      return [];
+    }
+
+    const getDateValue = (dateStr: string | undefined) => {
+      if (!dateStr) return Infinity;
+      // Dates are 'YYYY-MM-DD'. new Date() parses this as UTC.
+      // This is fine for sorting as long as it's consistent.
+      return new Date(dateStr).getTime();
+    };
+
+    return [...recommendations.recommendations].sort((a, b) => {
+      const aDate = taskDateOverrides[a.taskId] || a.endDate;
+      const bDate = taskDateOverrides[b.taskId] || b.endDate;
+      
+      const aValue = getDateValue(aDate);
+      const bValue = getDateValue(bDate);
+
+      const aHasDate = aValue !== Infinity;
+      const bHasDate = bValue !== Infinity;
+
+      if (aHasDate && bHasDate) return aValue - bValue;
+      if (aHasDate) return -1;
+      if (bHasDate) return 1;
+      
+      // If dates are the same or both are undefined, preserve original AI order.
+      // The AI is prompted to sort by urgency, so this is a good fallback.
+      return 0;
+    });
+  }, [recommendations, taskDateOverrides]);
+
   if (isLoading) {
     return (
         <div className="p-4 md:p-8">
@@ -136,7 +168,7 @@ export default function TimelineDashboard() {
     );
   }
   
-  const hasRecommendations = recommendations && recommendations.recommendations.length > 0;
+  const hasRecommendations = sortedRecommendations.length > 0;
 
   return (
     <div className="p-4 md:p-8">
@@ -201,7 +233,7 @@ export default function TimelineDashboard() {
                         </TabsList>
                         <TabsContent value="timeline" className="mt-6">
                             <Timeline 
-                                recommendations={recommendations.recommendations} 
+                                recommendations={sortedRecommendations} 
                                 completedTasks={completedTasks}
                                 toggleTaskCompletion={toggleTaskCompletion}
                                 taskDateOverrides={taskDateOverrides}
@@ -210,7 +242,7 @@ export default function TimelineDashboard() {
                         </TabsContent>
                         <TabsContent value="table" className="mt-6">
                             <RecommendationsTable 
-                                recommendations={recommendations.recommendations} 
+                                recommendations={sortedRecommendations} 
                                 completedTasks={completedTasks}
                                 toggleTaskCompletion={toggleTaskCompletion}
                                 taskDateOverrides={taskDateOverrides}

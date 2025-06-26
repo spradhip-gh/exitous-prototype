@@ -146,7 +146,7 @@ Here are the user's layoff details:
 - Had EAP: {{{layoffDetails.hadEAP}}}
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
-Based on all this information, generate a structured list of critical, time-sensitive recommendations. For each recommendation, provide:
+Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
 1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details').
 2.  A specific 'task' for the user to complete.
 3.  A 'category' (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").
