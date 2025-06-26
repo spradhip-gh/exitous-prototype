@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { useUserData } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
@@ -49,7 +48,6 @@ export default function TimelineDashboard() {
     updateTaskDate,
     clearData,
   } = useUserData();
-  const router = useRouter();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +55,7 @@ export default function TimelineDashboard() {
 
   const handleClearData = () => {
     clearData();
-    router.push('/');
+    window.location.reload();
   };
 
   useEffect(() => {
