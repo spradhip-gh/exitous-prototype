@@ -48,11 +48,9 @@ function HrFormEditor() {
     const [questions, setQuestions] = useState<Record<string, Question>>({});
     const [isEditing, setIsEditing] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (companyName && !isUserDataLoading) {
-            setIsLoading(true);
             const allConfigs = getAllCompanyConfigs();
             const companyData = allConfigs[companyName] as CompanyConfig | undefined;
             
@@ -65,7 +63,6 @@ function HrFormEditor() {
                 })
             }
             setQuestions(finalQuestions);
-            setIsLoading(false);
         }
     }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions]);
 
@@ -115,7 +112,7 @@ function HrFormEditor() {
     const masterQuestionForEdit = currentQuestion ? masterQuestions[currentQuestion.id] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && new Date(masterQuestionForEdit.lastUpdated!) > new Date(currentQuestion.lastUpdated);
 
-    if (isLoading) {
+    if (isUserDataLoading) {
         return (
             <div className="p-4 md:p-8">
                 <div className="mx-auto max-w-4xl space-y-8">
