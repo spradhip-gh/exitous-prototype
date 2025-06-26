@@ -63,7 +63,7 @@ export default function ProfileForm() {
 
     function onSubmit(data: ProfileData) {
         saveProfileData(data);
-        router.push('/assessment');
+        router.push('/');
     }
 
     const onInvalid = () => {
@@ -252,7 +252,7 @@ export default function ProfileForm() {
                 </Card>
 
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}
+                    {form.formState.isSubmitting ? 'Saving...' : 'Save Profile'}
                 </Button>
             </form>
         </Form>
