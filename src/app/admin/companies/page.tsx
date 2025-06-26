@@ -83,7 +83,7 @@ export default function CompanyManagementPage() {
   
   const handleEditClick = (company: CompanyAssignment) => {
     setEditingCompany(company);
-    setEditedMaxUsers(company.maxUsers.toString());
+    setEditedMaxUsers(company.maxUsers?.toString() ?? '');
     setIsEditDialogOpen(true);
   }
 
@@ -187,50 +187,53 @@ export default function CompanyManagementPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {companyDataWithStats.length > 0 ? companyDataWithStats.map(assignment => (
-                            <TableRow key={assignment.companyName}>
-                                <TableCell className="font-medium">{assignment.companyName}</TableCell>
-                                <TableCell>{assignment.hrManagerEmail}</TableCell>
-                                <TableCell>
-                                    <Badge variant={assignment.version === 'pro' ? 'default' : 'secondary'} className={assignment.version === 'pro' ? 'bg-green-600' : ''}>
-                                        {assignment.version.charAt(0).toUpperCase() + assignment.version.slice(1)}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-center">{assignment.usersAdded}</TableCell>
-                                <TableCell className="text-center">{assignment.maxUsers}</TableCell>
-                                <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex justify-end items-center gap-1">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(assignment)}>
-                                            <Pencil className="h-4 w-4" />
-                                            <span className="sr-only">Edit</span>
-                                        </Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <Trash2 className="h-4 w-4" />
-                                                    <span className="sr-only">Delete</span>
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This will delete the company and its HR assignment. This action cannot be undone. User and form data for this company will remain but will be inaccessible.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteCompany(assignment.companyName)}>
-                                                        Yes, Delete
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        )) : (
+                        {companyDataWithStats.length > 0 ? companyDataWithStats.map(assignment => {
+                            const version = assignment.version || 'basic';
+                            return (
+                                <TableRow key={assignment.companyName}>
+                                    <TableCell className="font-medium">{assignment.companyName}</TableCell>
+                                    <TableCell>{assignment.hrManagerEmail}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={version === 'pro' ? 'default' : 'secondary'} className={version === 'pro' ? 'bg-green-600' : ''}>
+                                            {version.charAt(0).toUpperCase() + version.slice(1)}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center">{assignment.usersAdded}</TableCell>
+                                    <TableCell className="text-center">{assignment.maxUsers ?? '—'}</TableCell>
+                                    <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end items-center gap-1">
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(assignment)}>
+                                                <Pencil className="h-4 w-4" />
+                                                <span className="sr-only">Edit</span>
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will delete the company and its HR assignment. This action cannot be undone. User and form data for this company will remain but will be inaccessible.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteCompany(assignment.companyName)}>
+                                                            Yes, Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        }) : (
                             <TableRow>
                                 <TableCell colSpan={7} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
                             </TableRow>
@@ -259,7 +262,7 @@ export default function CompanyManagementPage() {
                             onChange={(e) => setEditedMaxUsers(e.target.value)} 
                         />
                     </div>
-                    {editingCompany?.version === 'basic' && (
+                    {(editingCompany?.version || 'basic') === 'basic' && (
                          <Card className="bg-muted/50">
                             <CardHeader>
                                 <CardTitle className="text-base">Upgrade to Pro</CardTitle>
@@ -268,7 +271,7 @@ export default function CompanyManagementPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardFooter>
-                                <Button size="sm" onClick={() => handleUpgrade(editingCompany.companyName)}>Upgrade to Pro</Button>
+                                <Button size="sm" onClick={() => handleUpgrade(editingCompany!.companyName)}>Upgrade to Pro</Button>
                             </CardFooter>
                         </Card>
                     )}
