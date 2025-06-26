@@ -89,6 +89,33 @@ export default function AssessmentForm() {
         resolver: zodResolver(assessmentSchema),
     });
 
+    const { watch, setValue, getValues } = form;
+    const watchedFinalDate = watch('finalDate');
+    const watchedHadMedical = watch('hadMedicalInsurance');
+    const watchedHadDental = watch('hadDentalInsurance');
+    const watchedHadVision = watch('hadVisionInsurance');
+    const watchedHadEAP = watch('hadEAP');
+
+    useEffect(() => {
+        if (watchedFinalDate && !isNaN(new Date(watchedFinalDate).getTime())) {
+            const finalDate = new Date(watchedFinalDate);
+            const lastDayOfMonth = new Date(finalDate.getFullYear(), finalDate.getMonth() + 1, 0);
+
+            if (watchedHadMedical === 'Yes' && !getValues('medicalCoverageEndDate')) {
+                setValue('medicalCoverageEndDate', lastDayOfMonth);
+            }
+            if (watchedHadDental === 'Yes' && !getValues('dentalCoverageEndDate')) {
+                setValue('dentalCoverageEndDate', lastDayOfMonth);
+            }
+            if (watchedHadVision === 'Yes' && !getValues('visionCoverageEndDate')) {
+                setValue('visionCoverageEndDate', lastDayOfMonth);
+            }
+            if (watchedHadEAP === 'Yes' && !getValues('eapCoverageEndDate')) {
+                setValue('eapCoverageEndDate', lastDayOfMonth);
+            }
+        }
+    }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, setValue, getValues]);
+
     useEffect(() => {
         if (isUserDataLoading) return;
 
