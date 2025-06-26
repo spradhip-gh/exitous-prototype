@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,12 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
             <Button variant={pathname === '/admin/companies' ? 'default' : 'ghost'} className="w-full justify-start">
               <Building className="mr-2" />
               Company Management
+            </Button>
+          </Link>
+           <Link href="/admin/platform-users">
+            <Button variant={pathname === '/admin/platform-users' ? 'default' : 'ghost'} className="w-full justify-start">
+              <UserCog className="mr-2" />
+              Platform Users
             </Button>
           </Link>
         </>

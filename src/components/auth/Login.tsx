@@ -13,12 +13,13 @@ import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
-  const { getAllCompanyConfigs, getCompanyForHr } = useUserData();
+  const { getAllCompanyConfigs, getCompanyForHr, getPlatformUserRole } = useUserData();
   const { toast } = useToast();
   
   const [endUserEmail, setEndUserEmail] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [hrEmail, setHrEmail] = useState('');
+  const [platformUserEmail, setPlatformUserEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleEndUserLogin = (e: React.FormEvent) => {
@@ -77,9 +78,26 @@ export default function Login() {
     }, 500);
   }
 
-  const handleSimpleLogin = (role: 'consultant' | 'admin') => {
-    login({ role });
-  };
+  const handlePlatformLogin = (role: 'admin' | 'consultant') => (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const validatedRole = getPlatformUserRole(platformUserEmail);
+    
+    setTimeout(() => {
+        setIsLoading(false);
+        if (validatedRole === role) {
+            login({ role: validatedRole, email: platformUserEmail });
+        } else {
+            toast({
+                title: "Login Failed",
+                description: "This email is not registered for this role.",
+                variant: "destructive"
+            });
+        }
+    }, 500);
+  }
+
 
   return (
     <Card className="w-full max-w-md">
@@ -132,16 +150,28 @@ export default function Login() {
                 </form>
             </TabsContent>
             <TabsContent value="consultant" className="pt-6">
-                 <p className="text-center text-sm text-muted-foreground mb-4">Continue to the consultant review dashboard.</p>
-                <Button onClick={() => handleSimpleLogin('consultant')} className="w-full" size="lg">
-                    Continue as Consultant
-                </Button>
+                 <form onSubmit={handlePlatformLogin('consultant')} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="consultant-email">Consultant Email</Label>
+                        <Input id="consultant-email" type="email" placeholder="consultant@email.com" value={platformUserEmail} onChange={e => setPlatformUserEmail(e.target.value)} required />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading && <Loader2 className="animate-spin mr-2" />}
+                        Login as Consultant
+                    </Button>
+                </form>
             </TabsContent>
              <TabsContent value="admin" className="pt-6">
-                 <p className="text-center text-sm text-muted-foreground mb-4">Continue to the master administration panel.</p>
-                <Button onClick={() => handleSimpleLogin('admin')} className="w-full" size="lg">
-                    Continue as Admin
-                </Button>
+                <form onSubmit={handlePlatformLogin('admin')} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="admin-email">Admin Email</Label>
+                        <Input id="admin-email" type="email" placeholder="admin@email.com" value={platformUserEmail} onChange={e => setPlatformUserEmail(e.target.value)} required />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading && <Loader2 className="animate-spin mr-2" />}
+                        Login as Admin
+                    </Button>
+                </form>
             </TabsContent>
         </Tabs>
       </CardContent>

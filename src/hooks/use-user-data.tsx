@@ -14,6 +14,7 @@ const COMPANY_CONFIGS_KEY = 'exitous-company-configs';
 const MASTER_QUESTIONS_KEY = 'exitous-master-questions';
 const COMPANY_ASSIGNMENTS_KEY = 'exitous-company-assignments';
 const ASSESSMENT_COMPLETIONS_KEY = 'exitous-assessment-completions';
+const PLATFORM_USERS_KEY = 'exitous-platform-users';
 
 export interface CompanyUser {
   email: string;
@@ -32,6 +33,11 @@ export interface CompanyAssignment {
     maxUsers: number;
 }
 
+export interface PlatformUser {
+    email: string;
+    role: 'admin' | 'consultant';
+}
+
 
 export function useUserData() {
   const { auth } = useAuth();
@@ -43,6 +49,7 @@ export function useUserData() {
   const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
   const [assessmentCompletions, setAssessmentCompletions] = useState<Record<string, boolean>>({});
+  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -91,9 +98,19 @@ export function useUserData() {
       const completionsJson = localStorage.getItem(ASSESSMENT_COMPLETIONS_KEY);
       if (completionsJson) setAssessmentCompletions(JSON.parse(completionsJson));
 
+      const platformUsersJson = localStorage.getItem(PLATFORM_USERS_KEY);
+      if (platformUsersJson) {
+        setPlatformUsers(JSON.parse(platformUsersJson));
+      } else {
+        // Add a default admin to prevent getting locked out.
+        const defaultUsers: PlatformUser[] = [{ email: 'admin@example.com', role: 'admin' }];
+        setPlatformUsers(defaultUsers);
+        localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(defaultUsers));
+      }
+
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY].forEach(k => localStorage.removeItem(k));
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY, PLATFORM_USERS_KEY].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
@@ -230,6 +247,30 @@ export function useUserData() {
     });
   }, []);
 
+  const addPlatformUser = useCallback((user: PlatformUser) => {
+    setPlatformUsers(prev => {
+      if (prev.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
+        return prev;
+      }
+      const newUsers = [...prev, user];
+      localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(newUsers));
+      return newUsers;
+    });
+  }, []);
+
+  const deletePlatformUser = useCallback((email: string) => {
+    setPlatformUsers(prev => {
+      const newUsers = prev.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+      localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(newUsers));
+      return newUsers;
+    });
+  }, []);
+
+  const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | null => {
+    const user = platformUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    return user ? user.role : null;
+  }, [platformUsers]);
+
   const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
@@ -286,6 +327,7 @@ export function useUserData() {
     companyAssignments,
     companyAssignmentForHr,
     assessmentCompletions,
+    platformUsers,
     addCompanyAssignment,
     deleteCompanyAssignment,
     updateCompanyAssignment,
@@ -301,5 +343,8 @@ export function useUserData() {
     saveCompanyUsers,
     getCompanyConfig,
     getAllCompanyConfigs,
+    addPlatformUser,
+    deletePlatformUser,
+    getPlatformUserRole,
   };
 }
