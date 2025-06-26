@@ -50,7 +50,7 @@ export function useUserData() {
   const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
   const [assessmentCompletions, setAssessmentCompletions] = useState<Record<string, boolean>>({});
   const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
-  const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null>(null);
+  const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -117,13 +117,13 @@ export function useUserData() {
   }, []);
   
   useEffect(() => {
-    if (auth?.role === 'hr' && auth.companyName && companyAssignments.length > 0) {
+    if (auth?.role === 'hr' && auth.companyName && !isLoading) {
         const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
         setCompanyAssignmentForHr(assignment || null);
-    } else {
+    } else if (!auth || auth.role !== 'hr') {
         setCompanyAssignmentForHr(null);
     }
-  }, [auth, companyAssignments]);
+  }, [auth, companyAssignments, isLoading]);
 
   const saveProfileData = useCallback((data: ProfileData) => {
     try {

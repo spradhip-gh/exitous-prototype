@@ -112,7 +112,7 @@ function HrFormEditor() {
     const masterQuestionForEdit = currentQuestion ? masterQuestions[currentQuestion.id] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && new Date(masterQuestionForEdit.lastUpdated!) > new Date(currentQuestion.lastUpdated);
 
-    if (isUserDataLoading) {
+    if (isUserDataLoading || companyAssignmentForHr === undefined) {
         return (
             <div className="p-4 md:p-8">
                 <div className="mx-auto max-w-4xl space-y-8">
@@ -138,11 +138,11 @@ function HrFormEditor() {
             <div className="p-4 md:p-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><ShieldAlert /> Access Denied</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><ShieldAlert /> Pro Feature</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p>Your company's plan does not include form editing capabilities.</p>
-                        <p className="text-sm text-muted-foreground mt-2">Please contact an administrator to upgrade to the Pro version.</p>
+                        <p>Managing the assessment is only available in the Pro version.</p>
+                        <p className="text-sm text-muted-foreground mt-2">To enable question editing, please contact an administrator to upgrade to the Pro version.</p>
                     </CardContent>
                 </Card>
             </div>
