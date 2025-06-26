@@ -68,12 +68,12 @@ export default function DailyBanner() {
           src="https://placehold.co/1200x300.png"
           alt="Calming banner image"
           fill
-          className="object-cover"
+          className="object-cover z-0"
           data-ai-hint={imageHint}
           priority
         />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60 z-10" />
+        <div className="absolute inset-0 flex items-center justify-center p-4 z-20">
           <p className="text-center text-xl font-semibold text-white md:text-2xl drop-shadow-md">
             {message}
           </p>
