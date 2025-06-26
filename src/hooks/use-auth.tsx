@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
-const AUTH_KEY = 'exitous-auth-state';
+const AUTH_KEY = 'exitbetter-auth-state';
 
 export interface AuthState {
   role: UserRole;
@@ -52,10 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.removeItem(AUTH_KEY);
       // also clear user data on logout
-      localStorage.removeItem('exitous-profile');
-      localStorage.removeItem('exitous-assessment');
-      localStorage.removeItem('exitous-completed-tasks');
-      localStorage.removeItem('exitous-task-date-overrides');
+      localStorage.removeItem('exitbetter-profile');
+      localStorage.removeItem('exitbetter-assessment');
+      localStorage.removeItem('exitbetter-completed-tasks');
+      localStorage.removeItem('exitbetter-task-date-overrides');
       setAuthState(null);
     } catch (error) {
       console.error('Failed to clear auth state from local storage', error);

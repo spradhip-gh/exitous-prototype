@@ -6,15 +6,15 @@ import type { AssessmentData } from '@/lib/schemas';
 import { getDefaultQuestions, Question } from '@/lib/questions';
 import { useAuth } from './use-auth';
 
-const PROFILE_KEY = 'exitous-profile';
-const ASSESSMENT_KEY = 'exitous-assessment';
-const COMPLETED_TASKS_KEY = 'exitous-completed-tasks';
-const TASK_DATE_OVERRIDES_KEY = 'exitous-task-date-overrides';
-const COMPANY_CONFIGS_KEY = 'exitous-company-configs';
-const MASTER_QUESTIONS_KEY = 'exitous-master-questions';
-const COMPANY_ASSIGNMENTS_KEY = 'exitous-company-assignments';
-const ASSESSMENT_COMPLETIONS_KEY = 'exitous-assessment-completions';
-const PLATFORM_USERS_KEY = 'exitous-platform-users';
+const PROFILE_KEY = 'exitbetter-profile';
+const ASSESSMENT_KEY = 'exitbetter-assessment';
+const COMPLETED_TASKS_KEY = 'exitbetter-completed-tasks';
+const TASK_DATE_OVERRIDES_KEY = 'exitbetter-task-date-overrides';
+const COMPANY_CONFIGS_KEY = 'exitbetter-company-configs';
+const MASTER_QUESTIONS_KEY = 'exitbetter-master-questions';
+const COMPANY_ASSIGNMENTS_KEY = 'exitbetter-company-assignments';
+const ASSESSMENT_COMPLETIONS_KEY = 'exitbetter-assessment-completions';
+const PLATFORM_USERS_KEY = 'exitbetter-platform-users';
 
 export interface CompanyUser {
   email: string;

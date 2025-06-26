@@ -54,7 +54,7 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/logo.png"
-            alt="Exitous Logo"
+            alt="ExitBetter Logo"
             width={120}
             height={31}
             priority

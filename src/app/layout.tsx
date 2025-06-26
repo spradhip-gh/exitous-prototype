@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth.tsx';
 
 export const metadata: Metadata = {
-  title: 'Exitous',
+  title: 'ExitBetter',
   description: 'A web application that helps users through layoffs.',
 };
 

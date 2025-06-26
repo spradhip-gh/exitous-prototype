@@ -102,7 +102,7 @@ export default function Login() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-center font-headline text-2xl">Welcome to Layoff Compass</CardTitle>
+        <CardTitle className="text-center font-headline text-2xl">Welcome to ExitBetter</CardTitle>
         <CardDescription className="text-center">Please select your role to continue</CardDescription>
       </CardHeader>
       <CardContent>
