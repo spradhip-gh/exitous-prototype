@@ -163,6 +163,12 @@ export default function AssessmentForm() {
             description: "Please review the form and fill out all required fields.",
             variant: "destructive",
         });
+        setTimeout(() => {
+            const firstErrorElement = document.querySelector('[aria-invalid="true"]');
+            if (firstErrorElement) {
+                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
     };
     
     const companyName = auth?.companyName || "your previous company";
