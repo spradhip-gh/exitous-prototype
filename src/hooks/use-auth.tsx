@@ -6,7 +6,7 @@ export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
 const AUTH_KEY = 'exitous-auth-state';
 
-interface AuthState {
+export interface AuthState {
   role: UserRole;
   email?: string;
   companyId?: string;
@@ -16,8 +16,7 @@ interface AuthState {
 interface AuthContextType {
   auth: AuthState | null;
   loading: boolean;
-  setRole: (role: UserRole) => void; // For simple roles like HR/Consultant
-  login: (email: string, companyId: string, companyName: string) => void; // For end-user
+  login: (authData: AuthState) => void;
   logout: () => void;
 }
 
@@ -39,22 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, []);
-
-  const setRole = useCallback((role: UserRole) => {
-    try {
-      const newAuthState: AuthState = { role };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(newAuthState));
-      setAuthState(newAuthState);
-    } catch (error) {
-      console.error('Failed to save auth role to local storage', error);
-    }
-  }, []);
   
-  const login = useCallback((email: string, companyId: string, companyName: string) => {
+  const login = useCallback((authData: AuthState) => {
     try {
-      const newAuthState: AuthState = { role: 'end-user', email, companyId, companyName };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(newAuthState));
-      setAuthState(newAuthState);
+      localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+      setAuthState(authData);
     } catch (error) {
       console.error('Failed to save auth state to local storage', error);
     }
@@ -75,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ auth, loading, setRole, login, logout }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

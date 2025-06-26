@@ -7,19 +7,27 @@ import Header from '@/components/common/Header';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building } from 'lucide-react';
 
 function AdminNav({ role }: { role: 'hr' | 'consultant' | 'admin' }) {
   const pathname = usePathname();
   return (
     <nav className="grid items-start gap-2">
        {role === 'admin' && (
-        <Link href="/admin/forms">
-          <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start">
-            <Wrench className="mr-2" />
-            Master Form Editor
-          </Button>
-        </Link>
+        <>
+          <Link href="/admin/forms">
+            <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start">
+              <Wrench className="mr-2" />
+              Master Form Editor
+            </Button>
+          </Link>
+           <Link href="/admin/companies">
+            <Button variant={pathname === '/admin/companies' ? 'default' : 'ghost'} className="w-full justify-start">
+              <Building className="mr-2" />
+              Company Management
+            </Button>
+          </Link>
+        </>
       )}
       {role === 'hr' && (
         <>

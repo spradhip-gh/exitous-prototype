@@ -11,7 +11,7 @@ const COMPLETED_TASKS_KEY = 'exitous-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitous-task-date-overrides';
 const COMPANY_CONFIGS_KEY = 'exitous-company-configs';
 const MASTER_QUESTIONS_KEY = 'exitous-master-questions';
-
+const COMPANY_ASSIGNMENTS_KEY = 'exitous-company-assignments';
 
 export interface CompanyUser {
   email: string;
@@ -23,6 +23,12 @@ export interface CompanyConfig {
   users: CompanyUser[];
 }
 
+export interface CompanyAssignment {
+    companyName: string;
+    hrManagerEmail: string;
+}
+
+
 export function useUserData() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
@@ -30,6 +36,7 @@ export function useUserData() {
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
   const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
+  const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -70,11 +77,13 @@ export function useUserData() {
         setMasterQuestions(initialQuestions);
         localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(initialQuestions));
       }
+      
+      const assignmentsJson = localStorage.getItem(COMPANY_ASSIGNMENTS_KEY);
+      if (assignmentsJson) setCompanyAssignments(JSON.parse(assignmentsJson));
 
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
-      // Clear all keys on error to prevent inconsistent state
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY].forEach(k => localStorage.removeItem(k));
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +139,7 @@ export function useUserData() {
 
   const saveCompanyQuestions = useCallback((companyName: string, questions: Record<string, Question>) => {
     setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: { ...prev[companyName], questions: questions, users: prev[companyName]?.users || [] }};
+        const newConfigs = { ...prev, [companyName]: { ...(prev[companyName] || {}), questions: questions, users: prev[companyName]?.users || [] }};
         try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
         } catch (error) { console.error('Failed to save company configs', error); }
@@ -140,13 +149,50 @@ export function useUserData() {
 
   const saveCompanyUsers = useCallback((companyName: string, users: CompanyUser[]) => {
     setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: { ...prev[companyName], questions: prev[companyName]?.questions || {}, users: users }};
+        const newConfigs = { ...prev, [companyName]: { ...(prev[companyName] || {}), questions: prev[companyName]?.questions || {}, users: users }};
         try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
         } catch (error) { console.error('Failed to save company users', error); }
         return newConfigs;
     });
   }, []);
+  
+  const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
+    return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
+  }, [companyAssignments]);
+
+  const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
+    setCompanyAssignments(prev => {
+      const newAssignments = [...prev, assignment];
+      try {
+        localStorage.setItem(COMPANY_ASSIGNMENTS_KEY, JSON.stringify(newAssignments));
+      } catch (error) { console.error('Failed to save company assignments', error); }
+      return newAssignments;
+    });
+    setCompanyConfigs(prev => {
+      const newConfigs = { ...prev };
+      if (!newConfigs[assignment.companyName]) {
+          newConfigs[assignment.companyName] = {
+              questions: masterQuestions,
+              users: []
+          };
+          try {
+            localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
+          } catch(e) { console.error('Failed to initialize company config', e) }
+      }
+      return newConfigs;
+    });
+  }, [masterQuestions]);
+
+  const deleteCompanyAssignment = useCallback((companyName: string) => {
+    setCompanyAssignments(prev => {
+        const newAssignments = prev.filter(a => a.companyName !== companyName);
+        localStorage.setItem(COMPANY_ASSIGNMENTS_KEY, JSON.stringify(newAssignments));
+        return newAssignments;
+    });
+  }, []);
+
+  const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
     const baseQuestions = masterQuestions;
@@ -189,6 +235,11 @@ export function useUserData() {
     taskDateOverrides,
     isLoading,
     masterQuestions,
+    companyAssignments,
+    addCompanyAssignment,
+    deleteCompanyAssignment,
+    getAllCompanyAssignments,
+    getCompanyForHr,
     saveProfileData,
     saveAssessmentData,
     toggleTaskCompletion,

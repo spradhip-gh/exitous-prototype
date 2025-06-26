@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FormControl } from "@/components/ui/form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -42,42 +41,39 @@ export default function FormEditorSwitchPage() {
 
 function HrFormEditor() {
     const { toast } = useToast();
-    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions } = useUserData();
-    const [companyName, setCompanyName] = useState("");
+    const { auth } = useAuth();
+    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions, isLoading: isUserDataLoading } = useUserData();
+    
+    const companyName = auth?.companyName;
     const [questions, setQuestions] = useState<Record<string, Question>>({});
     const [isEditing, setIsEditing] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleLoadConfig = () => {
-        if (!companyName) {
-            toast({ title: "Company Name Required", variant: "destructive" });
-            return;
+    useEffect(() => {
+        if (companyName && !isUserDataLoading) {
+            setIsLoading(true);
+            const allConfigs = getAllCompanyConfigs();
+            const companyData = allConfigs[companyName] as CompanyConfig | undefined;
+            
+            const finalQuestions = { ...masterQuestions };
+            if (companyData?.questions) {
+                Object.keys(companyData.questions).forEach(qId => {
+                    if (finalQuestions[qId]) { 
+                        finalQuestions[qId] = { ...finalQuestions[qId], ...companyData.questions[qId] };
+                    }
+                })
+            }
+            setQuestions(finalQuestions);
+            setIsLoading(false);
         }
-        setIsLoading(true);
-        const allConfigs = getAllCompanyConfigs();
-        const companyData = allConfigs[companyName] as CompanyConfig | undefined;
-        
-        // Start with master questions, then overlay company-specific customizations
-        const finalQuestions = { ...masterQuestions };
-        if (companyData?.questions) {
-            Object.keys(companyData.questions).forEach(qId => {
-                if (finalQuestions[qId]) { // only overwrite if it exists in master
-                    finalQuestions[qId] = companyData.questions[qId];
-                }
-            })
-        }
-        setQuestions(finalQuestions);
-        toast({ title: "Configuration Loaded", description: `Displaying configuration for ${companyName}.` });
-        setIsLoading(false);
-    };
+    }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions]);
 
     const handleSaveConfig = () => {
         if (!companyName) {
             toast({ title: "Company Name Required", variant: "destructive" });
             return;
         }
-        // When HR saves, they are "syncing" with the current master version they are seeing.
         const questionsToSave = { ...questions };
         Object.keys(questionsToSave).forEach(qId => {
             const masterQ = masterQuestions[qId];
@@ -119,27 +115,39 @@ function HrFormEditor() {
     const masterQuestionForEdit = currentQuestion ? masterQuestions[currentQuestion.id] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && new Date(masterQuestionForEdit.lastUpdated!) > new Date(currentQuestion.lastUpdated);
 
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8">
+                <div className="mx-auto max-w-4xl space-y-8">
+                     <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+        );
+    }
+    
+    if (!companyName) {
+        return (
+            <div className="p-4 md:p-8">
+                <Card>
+                    <CardHeader><CardTitle>No Company Assigned</CardTitle></CardHeader>
+                    <CardContent><p>Your account is not assigned to a company. Please contact an administrator.</p></CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">Assessment Question Editor</h1>
-                    <p className="text-muted-foreground">Manage company-specific assessment forms. Enter a company name to load or create a configuration.</p>
+                    <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>.</p>
                 </div>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Company Configuration</CardTitle>
-                        <CardDescription>Enter a company name and click "Load" to begin.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex gap-2">
-                        <Input placeholder="Enter Company Name (e.g., Acme Inc.)" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-                        <Button onClick={handleLoadConfig} disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : "Load"}</Button>
-                    </CardContent>
-                </Card>
+                
                 <Card>
                     <CardHeader>
                         <CardTitle>Manage Questions</CardTitle>
-                        <CardDescription>Enable, disable, or edit questions for <span className="font-bold">{companyName || "the selected company"}</span>.</CardDescription>
+                        <CardDescription>Enable, disable, or edit questions for your company.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
@@ -152,9 +160,9 @@ function HrFormEditor() {
                                     return (
                                         <div key={question.id} className="flex items-center space-x-3">
                                             {hasBeenUpdated && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
-                                            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => handleToggleQuestion(question.id)} disabled={!companyName}/>
+                                            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => handleToggleQuestion(question.id)} />
                                             <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)} disabled={!companyName}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                                         </div>
                                     );
                                 })}
@@ -164,7 +172,7 @@ function HrFormEditor() {
                         ))}
                     </CardContent>
                 </Card>
-                 <Button onClick={handleSaveConfig} className="w-full" disabled={!companyName}>Save Configuration for {companyName || "..."}</Button>
+                 <Button onClick={handleSaveConfig} className="w-full">Save Configuration for {companyName}</Button>
             </div>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -205,6 +213,11 @@ function HrFormEditor() {
                                     <Textarea id="question-options" value={currentQuestion.options.join('\n')} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options.length + 1}/>
                                 </div>
                             )}
+                             <div className="space-y-2">
+                                <Label htmlFor="default-value">Default Value</Label>
+                                <Input id="default-value" value={Array.isArray(currentQuestion.defaultValue) ? currentQuestion.defaultValue.join(',') : currentQuestion.defaultValue || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, defaultValue: e.target.value })}/>
+                                <p className="text-xs text-muted-foreground">For checkboxes, separate multiple default values with a comma.</p>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>
@@ -329,7 +342,7 @@ function AdminFormEditor() {
                             <div className="space-y-2">
                                 <Label htmlFor="question-id">Question ID</Label>
                                 <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value }))} disabled={!isNewQuestion}/>
-                                {!isNewQuestion && <CardDescription>ID cannot be changed after creation.</CardDescription>}
+                                {!isNewQuestion && <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="question-label">Question Text</Label>
@@ -376,4 +389,3 @@ function AdminFormEditor() {
         </div>
     );
 }
-    

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth, UserRole } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
 import { User, Briefcase, UserCheck, Shield } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,13 @@ import { useUserData } from '@/hooks/use-user-data';
 import { Loader2 } from 'lucide-react';
 
 export default function Login() {
-  const { setRole, login } = useAuth();
-  const { getAllCompanyConfigs } = useUserData();
+  const { login } = useAuth();
+  const { getAllCompanyConfigs, getCompanyForHr } = useUserData();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
+  
+  const [endUserEmail, setEndUserEmail] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [hrEmail, setHrEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleEndUserLogin = (e: React.FormEvent) => {
@@ -25,16 +27,17 @@ export default function Login() {
 
     const allConfigs = getAllCompanyConfigs();
     let foundUser = false;
+    let companyNameForUser = '';
 
     for (const companyName in allConfigs) {
         const company = allConfigs[companyName];
         if (company.users) {
             const user = company.users.find(
-                u => u.email.toLowerCase() === email.toLowerCase() && u.companyId === companyId
+                u => u.email.toLowerCase() === endUserEmail.toLowerCase() && u.companyId === companyId
             );
             if (user) {
-                login(user.email, user.companyId, companyName);
                 foundUser = true;
+                companyNameForUser = companyName;
                 break;
             }
         }
@@ -42,7 +45,9 @@ export default function Login() {
 
     setTimeout(() => {
         setIsLoading(false);
-        if (!foundUser) {
+        if (foundUser) {
+            login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
+        } else {
             toast({
                 title: "Login Failed",
                 description: "Invalid email or Company ID. Please check your credentials.",
@@ -52,8 +57,28 @@ export default function Login() {
     }, 500);
   };
   
-  const handleSelectRole = (role: UserRole) => {
-    setRole(role);
+  const handleHrLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const companyAssignment = getCompanyForHr(hrEmail);
+
+    setTimeout(() => {
+        setIsLoading(false);
+        if (companyAssignment) {
+            login({ role: 'hr', email: hrEmail, companyName: companyAssignment.companyName });
+        } else {
+            toast({
+                title: "Login Failed",
+                description: "This email is not registered as an HR Manager for any company.",
+                variant: "destructive"
+            });
+        }
+    }, 500);
+  }
+
+  const handleSimpleLogin = (role: 'consultant' | 'admin') => {
+    login({ role });
   };
 
   return (
@@ -82,7 +107,7 @@ export default function Login() {
                 <form onSubmit={handleEndUserLogin} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                        <Input id="email" type="email" placeholder="you@company.com" value={endUserEmail} onChange={e => setEndUserEmail(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="companyId">Company ID</Label>
@@ -95,20 +120,26 @@ export default function Login() {
                 </form>
             </TabsContent>
              <TabsContent value="hr" className="pt-6">
-                 <p className="text-center text-sm text-muted-foreground mb-4">Continue to the HR administration panel.</p>
-                <Button onClick={() => handleSelectRole('hr')} className="w-full" size="lg">
-                    Continue as HR Manager
-                </Button>
+                <form onSubmit={handleHrLogin} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="hr-email">HR Manager Email</Label>
+                        <Input id="hr-email" type="email" placeholder="hr.manager@company.com" value={hrEmail} onChange={e => setHrEmail(e.target.value)} required />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading && <Loader2 className="animate-spin mr-2" />}
+                        Login as HR Manager
+                    </Button>
+                </form>
             </TabsContent>
             <TabsContent value="consultant" className="pt-6">
                  <p className="text-center text-sm text-muted-foreground mb-4">Continue to the consultant review dashboard.</p>
-                <Button onClick={() => handleSelectRole('consultant')} className="w-full" size="lg">
+                <Button onClick={() => handleSimpleLogin('consultant')} className="w-full" size="lg">
                     Continue as Consultant
                 </Button>
             </TabsContent>
              <TabsContent value="admin" className="pt-6">
                  <p className="text-center text-sm text-muted-foreground mb-4">Continue to the master administration panel.</p>
-                <Button onClick={() => handleSelectRole('admin')} className="w-full" size="lg">
+                <Button onClick={() => handleSimpleLogin('admin')} className="w-full" size="lg">
                     Continue as Admin
                 </Button>
             </TabsContent>
