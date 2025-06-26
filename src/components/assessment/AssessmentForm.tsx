@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { assessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { usStates } from '@/lib/states';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +70,7 @@ const insuranceCoverageOptions = ['Only me', 'Me and spouse', 'Me and family', '
 export default function AssessmentForm() {
     const router = useRouter();
     const { saveAssessmentData, assessmentData, profileData } = useUserData();
+    const { toast } = useToast();
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(assessmentSchema),
@@ -113,12 +115,20 @@ export default function AssessmentForm() {
         saveAssessmentData(data);
         router.push('/');
     }
+
+    const onInvalid = () => {
+        toast({
+            title: "Incomplete Assessment",
+            description: "Please review the form and fill out all required fields.",
+            variant: "destructive",
+        });
+    };
     
     const companyName = "your previous company";
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Work & Employment Details</CardTitle>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema, type ProfileData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ const lifeEvents = [
 export default function ProfileForm() {
     const router = useRouter();
     const { saveProfileData, profileData } = useUserData();
+    const { toast } = useToast();
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
@@ -57,9 +59,17 @@ export default function ProfileForm() {
         router.push('/assessment');
     }
 
+    const onInvalid = () => {
+        toast({
+            title: "Incomplete Profile",
+            description: "Please review the form and fill out all required fields.",
+            variant: "destructive",
+        });
+    };
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Basic Information</CardTitle>
@@ -77,9 +87,9 @@ export default function ProfileForm() {
                                 <FormLabel>What state do you live in?</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
-                                    <SelectContent><SelectContent>
+                                    <SelectContent>
                                         {usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                    </SelectContent></SelectContent>
+                                    </SelectContent>
                                 </Select>
                                 <FormMessage />
                             </FormItem>
