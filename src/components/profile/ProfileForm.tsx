@@ -7,6 +7,7 @@ import { usStates } from '@/lib/states';
 import { profileSchema, type ProfileData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +37,7 @@ export default function ProfileForm() {
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
-        defaultValues: profileData || {
+        defaultValues: {
             birthYear: undefined,
             state: '',
             gender: '',
@@ -51,6 +52,12 @@ export default function ProfileForm() {
             hasChildrenAges18To26: '',
         },
     });
+
+    useEffect(() => {
+        if (profileData) {
+            form.reset(profileData);
+        }
+    }, [profileData, form]);
 
     const watchedGender = form.watch('gender');
 
@@ -85,7 +92,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="state" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What state do you live in?</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -98,7 +105,7 @@ export default function ProfileForm() {
                             <FormItem className="space-y-3">
                                 <FormLabel>Which gender do you identify with?</FormLabel>
                                 <FormControl>
-                                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-1">
+                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1">
                                         {['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'].map(g => (
                                             <FormItem key={g} className="flex items-center space-x-3 space-y-0">
                                                 <FormControl><RadioGroupItem value={g} /></FormControl>
@@ -128,7 +135,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="maritalStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What’s your marital status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -139,7 +146,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="hasChildrenUnder13" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have children under age 13?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -150,7 +157,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="hasChildrenAges18To26" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have children ages 18 - 26?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -161,7 +168,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="hasExpectedChildren" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have 1 or more children expected (by birth or adoption)?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -172,7 +179,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="impactedPeopleCount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your layoff?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -188,7 +195,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="livingStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Which best describes your living status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {['Homeowner', 'Renter', 'Corporate housing', 'Other', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -199,7 +206,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="citizenshipStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What term best describes your citizenship or residence status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
                                     {[
                                         'U.S. citizen', 'Permanent U.S. resident (green card holder), not a citizen',
                                         'Pending I-485; working on an Employment Authorization Document (EAD) based on a pending I-485 (C9 class)',

@@ -7,6 +7,7 @@ import { assessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { usStates } from '@/lib/states';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,12 +70,12 @@ const insuranceCoverageOptions = ['Only me', 'Me and spouse', 'Me and family', '
 
 export default function AssessmentForm() {
     const router = useRouter();
-    const { saveAssessmentData, assessmentData, profileData } = useUserData();
+    const { saveAssessmentData, assessmentData } = useUserData();
     const { toast } = useToast();
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(assessmentSchema),
-        defaultValues: assessmentData || {
+        defaultValues: {
             workStatus: '',
             workState: '',
             relocationPaid: '',
@@ -89,6 +90,12 @@ export default function AssessmentForm() {
             hadEAP: '',
         },
     });
+
+    useEffect(() => {
+        if (assessmentData) {
+            form.reset(assessmentData);
+        }
+    }, [assessmentData, form]);
 
     const watchedFields = form.watch([
         'relocationPaid',
@@ -137,7 +144,7 @@ export default function AssessmentForm() {
                         <FormField control={form.control} name="workStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Which best describes your work status?</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
                                     <SelectContent>{workStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -199,7 +206,7 @@ export default function AssessmentForm() {
                         <FormField control={form.control} name="workState" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What state was your work based in?</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
                                     <SelectContent>{usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -215,7 +222,7 @@ export default function AssessmentForm() {
                         <FormField control={form.control} name="relocationPaid" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Did {companyName} pay for you to relocate to your current residence?</FormLabel>
-                                <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
+                                <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem>
@@ -245,7 +252,7 @@ export default function AssessmentForm() {
                         <FormField control={form.control} name="unionMember" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Did you belong to a union at the time of the layoff?</FormLabel>
-                                <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
+                                <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
                                     <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem>
@@ -257,7 +264,7 @@ export default function AssessmentForm() {
                         <FormField control={form.control} name="workArrangement" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Which best describes your work arrangement at the time of the layoff?</FormLabel>
-                                <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-wrap gap-4">
+                                <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-wrap gap-4">
                                     {workArrangements.map(wa => <FormItem key={wa} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={wa} /></FormControl><FormLabel className="font-normal">{wa}</FormLabel></FormItem>)}
                                 </RadioGroup></FormControl>
                                 <FormMessage />
@@ -272,7 +279,7 @@ export default function AssessmentForm() {
                          <FormField control={form.control} name="workVisa" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Were you on any of these work visas at the time of the layoff?</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a visa status" /></SelectTrigger></FormControl>
                                     <SelectContent>{workVisas.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -301,7 +308,7 @@ export default function AssessmentForm() {
                             <FormField control={form.control} name="usedLeaveManagement" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Were you utilizing leave management (e.g., Tilt, Cocoon)?</FormLabel>
-                                    <FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
+                                    <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
                                         <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem>
                                         <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem>
                                         <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem>
@@ -341,31 +348,31 @@ export default function AssessmentForm() {
                         
                         <Separator />
                         
-                        <FormField control={form.control} name="hadMedicalInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have medical insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="hadMedicalInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have medical insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
                         {watchedHadMedical === 'Yes' && (<div className="pl-6 space-y-4">
-                            <FormField control={form.control} name="medicalCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
+                            <FormField control={form.control} name="medicalCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
                             <FormField control={form.control} name="medicalCoverageEndDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Last day of coverage?</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>{field.value?format(field.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                         </div>)}
                         
                         <Separator />
                         
-                        <FormField control={form.control} name="hadDentalInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have dental insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="hadDentalInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have dental insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
                         {watchedHadDental === 'Yes' && (<div className="pl-6 space-y-4">
-                            <FormField control={form.control} name="dentalCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
+                            <FormField control={form.control} name="dentalCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
                             <FormField control={form.control} name="dentalCoverageEndDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Last day of coverage?</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>{field.value?format(field.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                         </div>)}
                         
                         <Separator />
 
-                        <FormField control={form.control} name="hadVisionInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have vision insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="hadVisionInsurance" render={({ field }) => ( <FormItem><FormLabel>Did you have vision insurance through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
                         {watchedHadVision === 'Yes' && (<div className="pl-6 space-y-4">
-                            <FormField control={form.control} name="visionCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
+                            <FormField control={form.control} name="visionCoverage" render={({ field }) => (<FormItem><FormLabel>Who was covered?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-wrap gap-4">{insuranceCoverageOptions.map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} />
                             <FormField control={form.control} name="visionCoverageEndDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Last day of coverage?</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>{field.value?format(field.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                         </div>)}
 
                         <Separator />
 
-                        <FormField control={form.control} name="hadEAP" render={({ field }) => ( <FormItem><FormLabel>Did you have access to the Employee Assistance Program (EAP) through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="hadEAP" render={({ field }) => ( <FormItem><FormLabel>Did you have access to the Employee Assistance Program (EAP) through {companyName}?</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure" /></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
                         {watchedHadEAP === 'Yes' && (<div className="pl-6 space-y-4">
                             <FormField control={form.control} name="eapCoverageEndDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Last day of EAP coverage?</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>{field.value?format(field.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>
                         </div>)}
