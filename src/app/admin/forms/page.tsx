@@ -12,7 +12,7 @@ import { useUserData, CompanyConfig } from "@/hooks/use-user-data.tsx";
 import { getDefaultQuestions, Question } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy } from "lucide-react";
+import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy, ShieldAlert } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,7 +42,7 @@ export default function FormEditorSwitchPage() {
 function HrFormEditor() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions, isLoading: isUserDataLoading } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions, isLoading: isUserDataLoading, companyAssignmentForHr } = useUserData();
     
     const companyName = auth?.companyName;
     const [questions, setQuestions] = useState<Record<string, Question>>({});
@@ -131,6 +131,22 @@ function HrFormEditor() {
                 <Card>
                     <CardHeader><CardTitle>No Company Assigned</CardTitle></CardHeader>
                     <CardContent><p>Your account is not assigned to a company. Please contact an administrator.</p></CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    if (companyAssignmentForHr?.version === 'basic') {
+        return (
+            <div className="p-4 md:p-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><ShieldAlert /> Access Denied</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>Your company's plan does not include form editing capabilities.</p>
+                        <p className="text-sm text-muted-foreground mt-2">Please contact an administrator to upgrade to the Pro version.</p>
+                    </CardContent>
                 </Card>
             </div>
         );

@@ -28,6 +28,8 @@ export interface CompanyConfig {
 export interface CompanyAssignment {
     companyName: string;
     hrManagerEmail: string;
+    version: 'basic' | 'pro';
+    maxUsers: number;
 }
 
 
@@ -41,6 +43,7 @@ export function useUserData() {
   const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
   const [assessmentCompletions, setAssessmentCompletions] = useState<Record<string, boolean>>({});
+  const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -95,6 +98,15 @@ export function useUserData() {
       setIsLoading(false);
     }
   }, []);
+  
+  useEffect(() => {
+    if (auth?.role === 'hr' && auth.companyName && companyAssignments.length > 0) {
+        const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
+        setCompanyAssignmentForHr(assignment || null);
+    } else {
+        setCompanyAssignmentForHr(null);
+    }
+  }, [auth, companyAssignments]);
 
   const saveProfileData = useCallback((data: ProfileData) => {
     try {
@@ -200,6 +212,16 @@ export function useUserData() {
     });
   }, [masterQuestions]);
 
+  const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
+    setCompanyAssignments(prev => {
+        const newAssignments = prev.map(a => 
+            a.companyName === companyName ? { ...a, ...updates } : a
+        );
+        localStorage.setItem(COMPANY_ASSIGNMENTS_KEY, JSON.stringify(newAssignments));
+        return newAssignments;
+    });
+  }, []);
+
   const deleteCompanyAssignment = useCallback((companyName: string) => {
     setCompanyAssignments(prev => {
         const newAssignments = prev.filter(a => a.companyName !== companyName);
@@ -262,9 +284,11 @@ export function useUserData() {
     isLoading,
     masterQuestions,
     companyAssignments,
+    companyAssignmentForHr,
     assessmentCompletions,
     addCompanyAssignment,
     deleteCompanyAssignment,
+    updateCompanyAssignment,
     getAllCompanyAssignments,
     getCompanyForHr,
     saveProfileData,

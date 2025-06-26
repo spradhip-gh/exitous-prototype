@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 export default function UserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyUsers, assessmentCompletions } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, assessmentCompletions, companyAssignmentForHr } = useUserData();
 
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -39,6 +39,12 @@ export default function UserManagement() {
             toast({ title: "All Fields Required", description: "Please enter both an email and a Company ID.", variant: "destructive" });
             return;
         }
+
+        if (companyAssignmentForHr && users.length >= companyAssignmentForHr.maxUsers) {
+            toast({ title: "User Limit Reached", description: `You have reached the maximum of ${companyAssignmentForHr.maxUsers} users for your plan.`, variant: "destructive" });
+            return;
+        }
+
         if (users.some(u => u.email.toLowerCase() === newUserEmail.toLowerCase())) {
             toast({ title: "User Exists", description: "A user with this email address already exists for this company.", variant: "destructive" });
             return;
@@ -65,7 +71,7 @@ export default function UserManagement() {
     
     if (isLoading) {
         return (
-            <div className="space-y-8 p-4 md:p-8">
+            <div className="p-4 md:p-8 space-y-8">
                 <Skeleton className="h-48 w-full" />
                 <Skeleton className="h-64 w-full" />
             </div>
@@ -86,11 +92,14 @@ export default function UserManagement() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="p-4 md:p-8 space-y-8">
             <Card>
                 <CardHeader>
                     <CardTitle>Add New User</CardTitle>
-                    <CardDescription>Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
+                    <CardDescription>
+                        Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.
+                        You have added {users.length} of {companyAssignmentForHr?.maxUsers ?? 'N/A'} users.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="grid sm:grid-cols-3 gap-4">
