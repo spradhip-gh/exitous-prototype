@@ -3,12 +3,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { assessmentSchema, type AssessmentData } from '@/lib/schemas';
+import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { getDefaultQuestions, Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
+import type { z } from 'zod';
 
 
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,48 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Info } from 'lucide-react';
+
+export default function AssessmentForm() {
+    const { getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
+    const { auth } = useAuth();
+    
+    const [questions, setQuestions] = useState<Question[] | null>(null);
+    const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
+
+    useEffect(() => {
+        if (!isUserDataLoading) {
+            const config = getCompanyConfig(auth?.companyName);
+            const allQuestions = Object.values(config);
+            const activeQuestions = allQuestions.filter(q => q.isActive);
+            const sortedActiveQuestions = activeQuestions.sort((a, b) => {
+                 const allQuestionDefaults = getDefaultQuestions();
+                 return allQuestionDefaults.findIndex(q => q.id === a.id) - allQuestionDefaults.findIndex(q => q.id === b.id);
+            });
+            setQuestions(sortedActiveQuestions);
+            
+            const activeIds = sortedActiveQuestions.map(q => q.id);
+            setDynamicSchema(buildAssessmentSchema(activeIds as (keyof AssessmentData)[]));
+        }
+    }, [isUserDataLoading, getCompanyConfig, auth?.companyName]);
+
+    if (!questions || !dynamicSchema) {
+        return (
+            <div className="space-y-6">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
+                        <CardContent className="space-y-6">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        )
+    }
+
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} />;
+}
 
 
 const renderFormControl = (question: Question, field: any, form: any) => {
@@ -79,17 +122,14 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     }
 }
 
-export default function AssessmentForm() {
+function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Question[], dynamicSchema: z.ZodObject<any> }) {
     const router = useRouter();
-    const { assessmentData, saveAssessmentData, getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
+    const { assessmentData, saveAssessmentData } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
-    const [questions, setQuestions] = useState<Question[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
     const form = useForm<AssessmentData>({
-        resolver: zodResolver(assessmentSchema),
+        resolver: zodResolver(dynamicSchema),
     });
 
     const { watch, setValue, getValues } = form;
@@ -120,24 +160,11 @@ export default function AssessmentForm() {
     }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, setValue, getValues]);
 
     useEffect(() => {
-        if (isUserDataLoading) return;
-
-        const config = getCompanyConfig(auth?.companyName);
-        const allQuestions = Object.values(config);
-        const activeQuestions = allQuestions.filter(q => q.isActive);
-        const sortedActiveQuestions = activeQuestions.sort((a, b) => {
-             const allQuestionDefaults = getDefaultQuestions();
-             return allQuestionDefaults.findIndex(q => q.id === a.id) - allQuestionDefaults.findIndex(q => q.id === b.id);
-        });
-        setQuestions(sortedActiveQuestions);
-        
-        // Apply initial values
-        // Priority: 1. Saved user data, 2. Company defaults, 3. Empty form
         if (!form.formState.isDirty) {
             const initialValues = assessmentData ? assessmentData : {};
         
             if (!assessmentData) { // only apply config defaults if no saved data
-                sortedActiveQuestions.forEach(q => {
+                questions.forEach(q => {
                     if (q.defaultValue && q.defaultValue.length > 0) {
                         (initialValues as any)[q.id] = q.defaultValue;
                     }
@@ -145,9 +172,7 @@ export default function AssessmentForm() {
             }
             form.reset(initialValues);
         }
-
-        setIsLoading(false);
-    }, [auth, getCompanyConfig, assessmentData, isUserDataLoading, form]);
+    }, [questions, assessmentData, form]);
 
 
     const watchedFields = form.watch();
@@ -181,22 +206,6 @@ export default function AssessmentForm() {
         return acc;
     }, {} as Record<string, Question[]>);
 
-
-    if(isLoading) {
-        return (
-            <div className="space-y-6">
-                {[...Array(3)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
-                        <CardContent className="space-y-6">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        )
-    }
 
     return (
         <TooltipProvider>
