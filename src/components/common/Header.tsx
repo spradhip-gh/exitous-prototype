@@ -30,11 +30,12 @@ const roleNames = {
     'end-user': 'End User',
     'hr': 'HR Manager',
     'consultant': 'Consultant',
+    'admin': 'Admin',
 };
 
 export default function Header() {
   const { auth, logout } = useAuth();
-  const { clearData } = useUserData();
+  const { clearData, companyAssignmentForHr } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -63,14 +64,19 @@ export default function Header() {
         {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">
-                    {auth.role === 'end-user' ? auth.email : roleNames[auth.role]}
+                    {auth.role === 'end-user' ? auth.email : roleNames[auth.role as keyof typeof roleNames]}
                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  {auth.role === 'end-user' ? `Logged in as:` : 'Current Role:'}
-                  <p className="font-normal truncate">{auth.role === 'end-user' ? auth.email : roleNames[auth.role]}</p>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none truncate">{auth.email}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {roleNames[auth.role as keyof typeof roleNames]}
+                      {auth.role === 'hr' && companyAssignmentForHr && ` (${(companyAssignmentForHr.version || 'basic').charAt(0).toUpperCase() + (companyAssignmentForHr.version || 'basic').slice(1)})`}
+                    </p>
+                  </div>
                 </DropdownMenuLabel>
                  <DropdownMenuSeparator />
                  

@@ -122,7 +122,7 @@ function HrFormEditor() {
         );
     }
     
-    if (!companyName) {
+    if (!companyName || !companyAssignmentForHr) {
         return (
             <div className="p-4 md:p-8">
                 <Card>
@@ -133,7 +133,7 @@ function HrFormEditor() {
         );
     }
 
-    if (companyAssignmentForHr?.version === 'basic') {
+    if ((companyAssignmentForHr.version || 'basic') === 'basic') {
         return (
             <div className="p-4 md:p-8">
                 <Card>
