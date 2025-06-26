@@ -16,6 +16,7 @@ import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy } from "lucide-react
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormControl } from "@/components/ui/form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function FormEditorSwitchPage() {
@@ -337,7 +338,7 @@ function AdminFormEditor() {
                             <div className="space-y-2">
                                 <Label htmlFor="question-section">Section</Label>
                                 <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, section: v as any}))} value={currentQuestion.section}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Work & Employment Details">Work & Employment Details</SelectItem>
                                         <SelectItem value="Work Circumstances">Work Circumstances</SelectItem>
@@ -348,7 +349,7 @@ function AdminFormEditor() {
                             <div className="space-y-2">
                                 <Label htmlFor="question-type">Question Type</Label>
                                 <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="text">Text</SelectItem>
                                         <SelectItem value="select">Select</SelectItem>
@@ -375,3 +376,4 @@ function AdminFormEditor() {
         </div>
     );
 }
+    
