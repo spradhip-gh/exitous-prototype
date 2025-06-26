@@ -1,6 +1,7 @@
 'use client';
 import Header from '@/components/common/Header';
 import DashboardNav from '@/components/dashboard/DashboardNav';
+import Footer from '@/components/common/Footer';
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <Footer />
     </div>
   );
 }

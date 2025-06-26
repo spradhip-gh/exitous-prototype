@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Users, UserCheck, Wrench, Building, UserCog } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import Footer from '@/components/common/Footer';
 
 function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
   const pathname = usePathname();
@@ -103,6 +104,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Skeleton className="h-64 w-full" />
           </div>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -118,6 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
+      <Footer />
     </div>
   );
 }

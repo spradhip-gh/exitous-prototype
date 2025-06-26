@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import Login from '@/components/auth/Login';
 import Header from '@/components/common/Header';
+import Footer from '@/components/common/Footer';
 
 export default function Home() {
   const { auth, loading } = useAuth();
@@ -44,6 +45,7 @@ export default function Home() {
                 <Skeleton className="h-10 w-full" />
             </div>
         </main>
+        <Footer />
       </div>
     );
   }
@@ -54,6 +56,7 @@ export default function Home() {
        <main className="flex flex-1 items-center justify-center p-4">
          <Login />
        </main>
+       <Footer />
      </div>
   );
 }
