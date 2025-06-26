@@ -1,10 +1,8 @@
-import Header from '@/components/common/Header';
 import ProfileForm from '@/components/profile/ProfileForm';
 
 export default function ProfilePage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header />
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-2xl space-y-6">
           <div>

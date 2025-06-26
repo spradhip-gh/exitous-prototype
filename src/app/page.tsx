@@ -1,42 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Header from '@/components/common/Header';
-import ProgressTracker from '@/components/dashboard/ProgressTracker';
-import TimelineDashboard from '@/components/dashboard/TimelineDashboard';
-import { useUserData } from '@/hooks/use-user-data';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import RoleSelector from '@/components/auth/RoleSelector';
+import Header from '@/components/common/Header';
 
 export default function Home() {
-  const { profileData, assessmentData, isLoading } = useUserData();
-  const [isClient, setIsClient] = useState(false);
+  const { role, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    if (!loading && role) {
+      switch (role) {
+        case 'end-user':
+          router.push('/dashboard');
+          break;
+        case 'hr':
+          router.push('/admin/forms');
+          break;
+        case 'consultant':
+          router.push('/admin/review');
+          break;
+        default:
+          break;
+      }
+    }
+  }, [role, loading, router]);
 
-  if (!isClient || isLoading) {
+  if (loading || role) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
-        <main className="flex-1 p-4 md:p-8">
-          <div className="mx-auto max-w-4xl space-y-8">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
+        <main className="flex flex-1 items-center justify-center p-4">
+            <div className="w-full max-w-md space-y-4">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
         </main>
       </div>
     );
   }
 
-  const isComplete = !!profileData && !!assessmentData;
-
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <main className="flex-1">
-        {isComplete ? <TimelineDashboard /> : <ProgressTracker />}
-      </main>
-    </div>
+     <div className="flex min-h-screen w-full flex-col">
+       <Header />
+       <main className="flex flex-1 items-center justify-center p-4">
+         <RoleSelector />
+       </main>
+     </div>
   );
 }

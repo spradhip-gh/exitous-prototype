@@ -61,7 +61,7 @@ export default function ProgressTracker() {
                 )}
               </div>
               <Progress value={profileProgress} className="w-full mb-4" />
-              <Link href="/profile" passHref>
+              <Link href="/dashboard/profile" passHref>
                 <Button className="w-full">
                   {profileData ? <><Edit className="mr-2 h-4 w-4" /> Edit Profile</> : 'Complete Profile'}
                 </Button>
@@ -91,7 +91,7 @@ export default function ProgressTracker() {
                 )}
               </div>
               <Progress value={assessmentProgress} className="w-full mb-4" />
-              <Link href="/assessment" passHref>
+              <Link href="/dashboard/assessment" passHref>
                 <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
                   {assessmentData ? 'Edit Details' : 'Add Layoff Details'}
                 </Button>

@@ -120,7 +120,7 @@ export default function AssessmentForm() {
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData(data);
-        router.push('/');
+        router.push('/dashboard');
     }
 
     const onInvalid = () => {

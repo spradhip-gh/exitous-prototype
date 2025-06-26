@@ -63,7 +63,7 @@ export default function ProfileForm() {
 
     function onSubmit(data: ProfileData) {
         saveProfileData(data);
-        router.push('/');
+        router.push('/dashboard');
     }
 
     const onInvalid = () => {

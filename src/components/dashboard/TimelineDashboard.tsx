@@ -181,13 +181,13 @@ export default function TimelineDashboard() {
               </p>
             </div>
             <div className="flex flex-row gap-2 flex-shrink-0 flex-wrap">
-              <Link href="/profile" passHref>
+              <Link href="/dashboard/profile" passHref>
                   <Button variant="outline" size="sm">
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Profile
                   </Button>
               </Link>
-              <Link href="/assessment" passHref>
+              <Link href="/dashboard/assessment" passHref>
                   <Button variant="outline" size="sm">
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Assessment
