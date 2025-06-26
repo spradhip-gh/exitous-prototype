@@ -69,7 +69,7 @@ export default function ProfileForm() {
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
         });
-        router.push('/dashboard/assessment');
+        router.push('/dashboard');
     }
 
     const onInvalid = (errors) => {
