@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function UserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyUsers } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, assessmentCompletions } = useUserData();
 
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -119,6 +120,7 @@ export default function UserManagement() {
                             <TableRow>
                                 <TableHead>Email Address</TableHead>
                                 <TableHead>Company ID</TableHead>
+                                <TableHead>Assessment Status</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -127,6 +129,13 @@ export default function UserManagement() {
                                 <TableRow key={user.email}>
                                     <TableCell className="font-medium">{user.email}</TableCell>
                                     <TableCell>{user.companyId}</TableCell>
+                                    <TableCell>
+                                        {assessmentCompletions?.[user.email] ? (
+                                            <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
+                                        ) : (
+                                            <Badge variant="outline">Not Started</Badge>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
                                             <Trash2 className="h-4 w-4" />
@@ -136,7 +145,7 @@ export default function UserManagement() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

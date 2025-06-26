@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
 import type { AssessmentData } from '@/lib/schemas';
 import { getDefaultQuestions, Question } from '@/lib/questions';
+import { useAuth } from './use-auth';
 
 const PROFILE_KEY = 'exitous-profile';
 const ASSESSMENT_KEY = 'exitous-assessment';
@@ -12,6 +13,7 @@ const TASK_DATE_OVERRIDES_KEY = 'exitous-task-date-overrides';
 const COMPANY_CONFIGS_KEY = 'exitous-company-configs';
 const MASTER_QUESTIONS_KEY = 'exitous-master-questions';
 const COMPANY_ASSIGNMENTS_KEY = 'exitous-company-assignments';
+const ASSESSMENT_COMPLETIONS_KEY = 'exitous-assessment-completions';
 
 export interface CompanyUser {
   email: string;
@@ -30,6 +32,7 @@ export interface CompanyAssignment {
 
 
 export function useUserData() {
+  const { auth } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
@@ -37,6 +40,7 @@ export function useUserData() {
   const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
+  const [assessmentCompletions, setAssessmentCompletions] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -81,9 +85,12 @@ export function useUserData() {
       const assignmentsJson = localStorage.getItem(COMPANY_ASSIGNMENTS_KEY);
       if (assignmentsJson) setCompanyAssignments(JSON.parse(assignmentsJson));
 
+      const completionsJson = localStorage.getItem(ASSESSMENT_COMPLETIONS_KEY);
+      if (completionsJson) setAssessmentCompletions(JSON.parse(completionsJson));
+
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY].forEach(k => localStorage.removeItem(k));
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
@@ -100,8 +107,17 @@ export function useUserData() {
     try {
       localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(data));
       setAssessmentData(data);
+
+      if (auth?.role === 'end-user' && auth.email) {
+        setAssessmentCompletions(prev => {
+            const newCompletions = { ...prev, [auth.email!]: true };
+            localStorage.setItem(ASSESSMENT_COMPLETIONS_KEY, JSON.stringify(newCompletions));
+            return newCompletions;
+        });
+      }
+
     } catch (error) { console.error('Failed to save assessment data', error); }
-  }, []);
+  }, [auth]);
 
   const toggleTaskCompletion = useCallback((taskId: string) => {
     setCompletedTasks(prev => {
@@ -225,8 +241,18 @@ export function useUserData() {
       setAssessmentData(null);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
+      
+      if (auth?.role === 'end-user' && auth.email) {
+        setAssessmentCompletions(prev => {
+            const newCompletions = { ...prev };
+            delete newCompletions[auth.email!];
+            localStorage.setItem(ASSESSMENT_COMPLETIONS_KEY, JSON.stringify(newCompletions));
+            return newCompletions;
+        });
+      }
+
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, []);
+  }, [auth]);
 
   return {
     profileData,
@@ -236,6 +262,7 @@ export function useUserData() {
     isLoading,
     masterQuestions,
     companyAssignments,
+    assessmentCompletions,
     addCompanyAssignment,
     deleteCompanyAssignment,
     getAllCompanyAssignments,

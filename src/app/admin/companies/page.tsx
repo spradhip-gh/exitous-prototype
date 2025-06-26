@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,13 @@ import {
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
-  const { companyAssignments, addCompanyAssignment, deleteCompanyAssignment } = useUserData();
+  const { 
+    companyAssignments, 
+    addCompanyAssignment, 
+    deleteCompanyAssignment,
+    getAllCompanyConfigs,
+    assessmentCompletions 
+  } = useUserData();
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newHrEmail, setNewHrEmail] = useState('');
 
@@ -51,6 +57,19 @@ export default function CompanyManagementPage() {
     deleteCompanyAssignment(companyName);
     toast({ title: "Company Removed", description: `${companyName} and its assignment have been removed.` });
   };
+  
+  const allConfigs = getAllCompanyConfigs();
+  const companyDataWithStats = companyAssignments.map(assignment => {
+      const companyConfig = allConfigs[assignment.companyName];
+      const users = companyConfig?.users || [];
+      const usersAdded = users.length;
+      const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
+      return {
+          ...assignment,
+          usersAdded,
+          assessmentsCompleted
+      };
+  });
 
   return (
     <div className="p-4 md:p-8">
@@ -95,14 +114,18 @@ export default function CompanyManagementPage() {
                         <TableRow>
                             <TableHead>Company Name</TableHead>
                             <TableHead>HR Manager Email</TableHead>
+                            <TableHead>Users Added</TableHead>
+                            <TableHead>Assessments Completed</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {companyAssignments.length > 0 ? companyAssignments.map(assignment => (
+                        {companyDataWithStats.length > 0 ? companyDataWithStats.map(assignment => (
                             <TableRow key={assignment.companyName}>
                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
                                 <TableCell>{assignment.hrManagerEmail}</TableCell>
+                                <TableCell className="text-center">{assignment.usersAdded}</TableCell>
+                                <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
                                 <TableCell className="text-right">
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -130,7 +153,7 @@ export default function CompanyManagementPage() {
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
+                                <TableCell colSpan={5} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
