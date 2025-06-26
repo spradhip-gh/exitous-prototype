@@ -142,7 +142,7 @@ function HrFormEditor() {
                     </CardHeader>
                     <CardContent>
                         <p>Managing the assessment is only available in the Pro version.</p>
-                        <p className="text-sm text-muted-foreground mt-2">To enable question editing, please contact an administrator to upgrade to the Pro version.</p>
+                        <p className="text-sm text-muted-foreground mt-2">To enable question editing, please contact sales@exitous.co to upgrade to the Pro version.</p>
                     </CardContent>
                 </Card>
             </div>
