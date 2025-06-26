@@ -4,6 +4,7 @@ export interface Question {
     section: "Work & Employment Details" | "Work Circumstances" | "Systems & Benefits Access";
     type: "select" | "radio" | "checkbox" | "date" | "text";
     isActive: boolean;
+    defaultValue?: string | string[];
     options?: string[];
     placeholder?: string;
     description?: string;
@@ -52,6 +53,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "select",
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Select a status",
         options: [
             'Contract employee: Employed for a predefined period to provide work according to contract terms',
@@ -68,6 +70,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -76,6 +79,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -84,6 +88,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -92,6 +97,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "select",
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Select a state",
         options: [ 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming' ],
     },
@@ -102,6 +108,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -110,6 +117,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -118,6 +126,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Onsite', 'Hybrid', 'Remote', 'Other'],
     },
     { 
@@ -126,6 +135,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'select',
         isActive: true,
+        defaultValue: undefined,
         placeholder: "Select a visa status",
         options: [
             'H-1B', 'H-2A / H-2B', 'H-3', 'I', 'L-1A / L-1B', 'O visa', 'P', 'R', 'TN (NAFTA/USMCA)',
@@ -141,6 +151,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'checkbox',
         isActive: true,
+        defaultValue: undefined,
         description: 'Select all that apply.',
         options: [
             'Maternity/paternity leave', 'Caregiver leave', 'FMLA', 'Sick / health / medical leave',
@@ -155,6 +166,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'checkbox',
         isActive: true,
+        defaultValue: undefined,
         options: [
             'Internal messaging system (e.g., Slack, Google Chat, Teams)', 'Email', 
             'Network drive & files', 'Special layoff portal', 'HR/Payroll system (e.g., ADP, Workday)'
@@ -166,6 +178,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -174,6 +187,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -182,6 +196,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -190,6 +205,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
+        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
 ];

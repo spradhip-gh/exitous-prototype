@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation';
 import { assessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
-import { z } from 'zod';
+import { useEffect, useState } from 'react';
 import { getDefaultQuestions, Question } from '@/lib/questions';
 
 
@@ -20,7 +19,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { cn } from '@/lib/utils';
@@ -81,48 +79,46 @@ const renderFormControl = (question: Question, field: any, form: any) => {
 
 export default function AssessmentForm() {
     const router = useRouter();
-    const { profileData, assessmentData, saveAssessmentData, getCompanyConfig } = useUserData();
+    const { profileData, assessmentData, saveAssessmentData, getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
     const { toast } = useToast();
     
     const [questions, setQuestions] = useState<Question[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const formSchema = useMemo(() => {
-        const activeQuestionIds = questions.filter(q => q.isActive).map(q => q.id);
-        
-        // This is a simplified version. A real implementation might need a more robust
-        // dynamic schema generation based on question types and validations.
-        // For now, we use the static `assessmentSchema` which covers all possible fields.
-        return assessmentSchema;
-    }, [questions]);
-    
     const form = useForm<AssessmentData>({
-        resolver: zodResolver(formSchema),
-        defaultValues: assessmentData || {},
+        resolver: zodResolver(assessmentSchema),
     });
 
     useEffect(() => {
-        if (profileData?.companyName) {
-            const config = getCompanyConfig(profileData.companyName);
-            const allQuestions = Object.values(config);
-            const activeQuestions = allQuestions.filter(q => q.isActive);
-            const sortedActiveQuestions = activeQuestions.sort((a, b) => {
-                 const allQuestionDefaults = getDefaultQuestions();
-                 return allQuestionDefaults.findIndex(q => q.id === a.id) - allQuestionDefaults.findIndex(q => q.id === b.id);
-            });
-            setQuestions(sortedActiveQuestions);
-        } else {
-             const activeQuestions = getDefaultQuestions().filter(q => q.isActive);
-             setQuestions(activeQuestions);
-        }
-        setIsLoading(false);
-    }, [profileData, getCompanyConfig]);
+        if (isUserDataLoading) return;
 
-    useEffect(() => {
-        if (assessmentData) {
-            form.reset(assessmentData);
+        const config = getCompanyConfig(profileData?.companyName);
+        const allQuestions = Object.values(config);
+        const activeQuestions = allQuestions.filter(q => q.isActive);
+        const sortedActiveQuestions = activeQuestions.sort((a, b) => {
+             const allQuestionDefaults = getDefaultQuestions();
+             return allQuestionDefaults.findIndex(q => q.id === a.id) - allQuestionDefaults.findIndex(q => q.id === b.id);
+        });
+        setQuestions(sortedActiveQuestions);
+        
+        // Apply initial values
+        // Priority: 1. Saved user data, 2. Company defaults, 3. Empty form
+        if (!form.formState.isDirty) {
+            const initialValues = assessmentData ? assessmentData : {};
+        
+            if (!assessmentData) { // only apply config defaults if no saved data
+                sortedActiveQuestions.forEach(q => {
+                    if (q.defaultValue && q.defaultValue.length > 0) {
+                        (initialValues as any)[q.id] = q.defaultValue;
+                    }
+                });
+            }
+            form.reset(initialValues);
         }
-    }, [assessmentData, form]);
+
+        setIsLoading(false);
+    }, [profileData, getCompanyConfig, assessmentData, isUserDataLoading, form]);
+
 
     const watchedFields = form.watch();
 

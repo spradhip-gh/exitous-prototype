@@ -140,12 +140,15 @@ export function useUserData() {
   }, []);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
+    const defaultConfig: Record<string, Question> = {};
+    getDefaultQuestions().forEach(q => defaultConfig[q.id] = q);
+
     if (!companyName || !companyConfigs[companyName]) {
-      const defaultConfig: Record<string, Question> = {};
-      getDefaultQuestions().forEach(q => defaultConfig[q.id] = q);
       return defaultConfig;
     }
-    return companyConfigs[companyName];
+    
+    // Ensure all default questions are present in the returned config
+    return { ...defaultConfig, ...companyConfigs[companyName] };
   }, [companyConfigs]);
 
   const clearData = useCallback(() => {

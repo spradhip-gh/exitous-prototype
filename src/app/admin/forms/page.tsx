@@ -12,6 +12,9 @@ import { getDefaultQuestions, Question } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormControl } from "@/components/ui/form";
+
 
 export default function FormEditorPage() {
     const { toast } = useToast();
@@ -102,6 +105,44 @@ export default function FormEditorPage() {
     }, {} as Record<string, Question[]>);
 
 
+    const renderDefaultValueControl = (question: Question | null) => {
+        if (!question) return null;
+    
+        const handleDefaultChange = (value: string | undefined) => {
+            // use an empty string to represent "no default"
+            setCurrentQuestion(prev => prev ? { ...prev, defaultValue: value || undefined } : null);
+        };
+    
+        if (question.type === 'text') {
+            return <Input 
+                placeholder="Enter default text" 
+                value={question.defaultValue as string || ''}
+                onChange={(e) => handleDefaultChange(e.target.value)}
+            />;
+        }
+    
+        if (question.type === 'select' || question.type === 'radio') {
+            return (
+                <Select onValueChange={handleDefaultChange} value={question.defaultValue as string || ''}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a default answer" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        <SelectItem value="">No Default</SelectItem>
+                        {question.options?.map(option => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            );
+        }
+    
+        return <p className="text-sm text-muted-foreground pt-2">Default values are not supported for this question type.</p>;
+    }
+
+
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -172,10 +213,10 @@ export default function FormEditorPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Question</DialogTitle>
-                        <DialogDescription>Modify the question text and answer options.</DialogDescription>
+                        <DialogDescription>Modify the question text, answer options, and default value.</DialogDescription>
                     </DialogHeader>
                     {currentQuestion && (
-                        <div className="space-y-4 py-4">
+                        <div className="space-y-6 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="question-label">Question Text</Label>
                                 <Textarea 
@@ -196,6 +237,12 @@ export default function FormEditorPage() {
                                     />
                                 </div>
                              )}
+                             <Separator />
+                             <div className="space-y-2">
+                                <Label>Default Answer</Label>
+                                <CardDescription>Set a default value. This will be pre-selected for the user.</CardDescription>
+                                {renderDefaultValueControl(currentQuestion)}
+                             </div>
                         </div>
                     )}
                     <DialogFooter>
