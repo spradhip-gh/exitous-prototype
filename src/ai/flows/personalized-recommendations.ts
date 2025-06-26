@@ -31,18 +31,18 @@ const ProfileDataSchema = z.object({
 });
 
 const LayoffDetailsSchema = z.object({
-  workStatus: z.string().describe("The user's work status."),
-  startDate: z.string().describe("The user's start date (ISO string)."),
-  notificationDate: z.string().describe('The date the user was notified of layoff (ISO string).'),
-  finalDate: z.string().describe("The user's final date of employment (ISO string)."),
-  workState: z.string().describe('The state where the user\'s work was based.'),
-  relocationPaid: z.string().describe('If the company paid for relocation.'),
+  workStatus: z.string().optional().describe("The user's work status."),
+  startDate: z.string().optional().describe("The user's start date (ISO string)."),
+  notificationDate: z.string().optional().describe('The date the user was notified of layoff (ISO string).'),
+  finalDate: z.string().optional().describe("The user's final date of employment (ISO string)."),
+  workState: z.string().optional().describe('The state where the user\'s work was based.'),
+  relocationPaid: z.string().optional().describe('If the company paid for relocation.'),
   relocationDate: z.string().optional().describe('Date of relocation (ISO string).'),
-  unionMember: z.string().describe('If the user was a union member.'),
-  workArrangement: z.string().describe('The user\'s work arrangement (remote, hybrid, etc.).'),
+  unionMember: z.string().optional().describe('If the user was a union member.'),
+  workArrangement: z.string().optional().describe('The user\'s work arrangement (remote, hybrid, etc.).'),
   workArrangementOther: z.string().optional().describe('Details if work arrangement was "Other".'),
-  workVisa: z.string().describe('The user\'s work visa status.'),
-  onLeave: z.array(z.string()).describe('Types of leave the user was on.'),
+  workVisa: z.string().optional().describe('The user\'s work visa status.'),
+  onLeave: z.array(z.string()).optional().describe('Types of leave the user was on.'),
   usedLeaveManagement: z.string().optional().describe('If the user was using a leave management system.'),
   accessSystems: z.array(z.string()).optional().describe('Internal systems the user still has access to.'),
   internalMessagingAccessEndDate: z.string().optional().describe('End date for messaging access (ISO string).'),
@@ -50,16 +50,16 @@ const LayoffDetailsSchema = z.object({
   networkDriveAccessEndDate: z.string().optional().describe('End date for network drive access (ISO string).'),
   layoffPortalAccessEndDate: z.string().optional().describe('End date for layoff portal access (ISO string).'),
   hrPayrollSystemAccessEndDate: z.string().optional().describe('End date for HR/payroll system access (ISO string).'),
-  hadMedicalInsurance: z.string().describe('If the user had medical insurance.'),
+  hadMedicalInsurance: z.string().optional().describe('If the user had medical insurance.'),
   medicalCoverage: z.string().optional().describe('Who was covered by medical insurance.'),
   medicalCoverageEndDate: z.string().optional().describe('End date for medical coverage (ISO string).'),
-  hadDentalInsurance: z.string().describe('If the user had dental insurance.'),
+  hadDentalInsurance: z.string().optional().describe('If the user had dental insurance.'),
   dentalCoverage: z.string().optional().describe('Who was covered by dental insurance.'),
   dentalCoverageEndDate: z.string().optional().describe('End date for dental coverage (ISO string).'),
-  hadVisionInsurance: z.string().describe('If the user had vision insurance.'),
+  hadVisionInsurance: z.string().optional().describe('If the user had vision insurance.'),
   visionCoverage: z.string().optional().describe('Who was covered by vision insurance.'),
   visionCoverageEndDate: z.string().optional().describe('End date for vision coverage (ISO string).'),
-  hadEAP: z.string().describe('If the user had EAP access.'),
+  hadEAP: z.string().optional().describe('If the user had EAP access.'),
   eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
 
@@ -122,28 +122,28 @@ Here is the user's profile data:
 - Has Children Ages 18-26: {{{profileData.hasChildrenAges18To26}}}
 
 Here are the user's layoff details:
-- Work Status: {{{layoffDetails.workStatus}}}
-- Employment Start Date: {{{layoffDetails.startDate}}}
-- Layoff Notification Date: {{{layoffDetails.notificationDate}}}
-- Final Day of Employment: {{{layoffDetails.finalDate}}}
-- Work Location State: {{{layoffDetails.workState}}}
-- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}
+{{#if layoffDetails.workStatus}}- Work Status: {{{layoffDetails.workStatus}}}{{/if}}
+{{#if layoffDetails.startDate}}- Employment Start Date: {{{layoffDetails.startDate}}}{{/if}}
+{{#if layoffDetails.notificationDate}}- Layoff Notification Date: {{{layoffDetails.notificationDate}}}{{/if}}
+{{#if layoffDetails.finalDate}}- Final Day of Employment: {{{layoffDetails.finalDate}}}{{/if}}
+{{#if layoffDetails.workState}}- Work Location State: {{{layoffDetails.workState}}}{{/if}}
+{{#if layoffDetails.relocationPaid}}- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}{{/if}}
 {{#if layoffDetails.relocationDate}}- Relocation Date: {{{layoffDetails.relocationDate}}}{{/if}}
-- Union Member: {{{layoffDetails.unionMember}}}
-- Work Arrangement: {{{layoffDetails.workArrangement}}}
+{{#if layoffDetails.unionMember}}- Union Member: {{{layoffDetails.unionMember}}}{{/if}}
+{{#if layoffDetails.workArrangement}}- Work Arrangement: {{{layoffDetails.workArrangement}}}{{/if}}
 {{#if layoffDetails.workArrangementOther}}- Other Arrangement Details: {{{layoffDetails.workArrangementOther}}}{{/if}}
-- Work Visa: {{{layoffDetails.workVisa}}}
-- On Leave During Layoff: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{#if layoffDetails.workVisa}}- Work Visa: {{{layoffDetails.workVisa}}}{{/if}}
+{{#if layoffDetails.onLeave}}- On Leave During Layoff: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
 {{#if layoffDetails.usedLeaveManagement}}- Used Leave Management System: {{{layoffDetails.usedLeaveManagement}}}{{/if}}
-- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+{{#if layoffDetails.accessSystems}}- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
 {{#if layoffDetails.emailAccessEndDate}}- Email Access Ends: {{{layoffDetails.emailAccessEndDate}}}{{/if}}
-- Had Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}}
+{{#if layoffDetails.hadMedicalInsurance}}- Had Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}}{{/if}}
 {{#if layoffDetails.medicalCoverageEndDate}}- Medical Coverage Ends: {{{layoffDetails.medicalCoverageEndDate}}}{{/if}}
-- Had Dental Insurance: {{{layoffDetails.hadDentalInsurance}}}
+{{#if layoffDetails.hadDentalInsurance}}- Had Dental Insurance: {{{layoffDetails.hadDentalInsurance}}}{{/if}}
 {{#if layoffDetails.dentalCoverageEndDate}}- Dental Coverage Ends: {{{layoffDetails.dentalCoverageEndDate}}}{{/if}}
-- Had Vision Insurance: {{{layoffDetails.hadVisionInsurance}}}
+{{#if layoffDetails.hadVisionInsurance}}- Had Vision Insurance: {{{layoffDetails.hadVisionInsurance}}}{{/if}}
 {{#if layoffDetails.visionCoverageEndDate}}- Vision Coverage Ends: {{{layoffDetails.visionCoverageEndDate}}}{{/if}}
-- Had EAP: {{{layoffDetails.hadEAP}}}
+{{#if layoffDetails.hadEAP}}- Had EAP: {{{layoffDetails.hadEAP}}}{{/if}}
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
 Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
