@@ -4,16 +4,16 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import RoleSelector from '@/components/auth/RoleSelector';
+import Login from '@/components/auth/Login';
 import Header from '@/components/common/Header';
 
 export default function Home() {
-  const { role, loading } = useAuth();
+  const { auth, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && role) {
-      switch (role) {
+    if (!loading && auth?.role) {
+      switch (auth.role) {
         case 'end-user':
           router.push('/dashboard');
           break;
@@ -27,9 +27,9 @@ export default function Home() {
           break;
       }
     }
-  }, [role, loading, router]);
+  }, [auth, loading, router]);
 
-  if (loading || role) {
+  if (loading || auth?.role) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -49,7 +49,7 @@ export default function Home() {
      <div className="flex min-h-screen w-full flex-col">
        <Header />
        <main className="flex flex-1 items-center justify-center p-4">
-         <RoleSelector />
+         <Login />
        </main>
      </div>
   );

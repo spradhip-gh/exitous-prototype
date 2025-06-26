@@ -4,48 +4,78 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | null;
 
-const AUTH_KEY = 'exitous-auth-role';
+const AUTH_KEY = 'exitous-auth-state';
+
+interface AuthState {
+  role: UserRole;
+  email?: string;
+  companyId?: string;
+  companyName?: string;
+}
 
 interface AuthContextType {
-  role: UserRole;
+  auth: AuthState | null;
   loading: boolean;
-  setRole: (role: UserRole) => void;
+  setRole: (role: UserRole) => void; // For simple roles like HR/Consultant
+  login: (email: string, companyId: string, companyName: string) => void; // For end-user
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<UserRole>(null);
+  const [auth, setAuthState] = useState<AuthState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     try {
-      const storedRole = localStorage.getItem(AUTH_KEY) as UserRole;
-      if (storedRole) {
-        setRoleState(storedRole);
+      const storedAuth = localStorage.getItem(AUTH_KEY);
+      if (storedAuth) {
+        setAuthState(JSON.parse(storedAuth));
       }
     } catch (error) {
-      console.error('Failed to load auth role from local storage', error);
+      console.error('Failed to load auth state from local storage', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const setRole = useCallback((newRole: UserRole) => {
+  const setRole = useCallback((role: UserRole) => {
     try {
-      if (newRole) {
-        localStorage.setItem(AUTH_KEY, newRole);
-      } else {
-        localStorage.removeItem(AUTH_KEY);
-      }
-      setRoleState(newRole);
+      const newAuthState: AuthState = { role };
+      localStorage.setItem(AUTH_KEY, JSON.stringify(newAuthState));
+      setAuthState(newAuthState);
     } catch (error) {
       console.error('Failed to save auth role to local storage', error);
     }
   }, []);
+  
+  const login = useCallback((email: string, companyId: string, companyName: string) => {
+    try {
+      const newAuthState: AuthState = { role: 'end-user', email, companyId, companyName };
+      localStorage.setItem(AUTH_KEY, JSON.stringify(newAuthState));
+      setAuthState(newAuthState);
+    } catch (error) {
+      console.error('Failed to save auth state to local storage', error);
+    }
+  }, []);
+  
+  const logout = useCallback(() => {
+    try {
+      localStorage.removeItem(AUTH_KEY);
+      // also clear user data on logout
+      localStorage.removeItem('exitous-profile');
+      localStorage.removeItem('exitous-assessment');
+      localStorage.removeItem('exitous-completed-tasks');
+      localStorage.removeItem('exitous-task-date-overrides');
+      setAuthState(null);
+    } catch (error) {
+      console.error('Failed to clear auth state from local storage', error);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ role, loading, setRole }}>
+    <AuthContext.Provider value={{ auth, loading, setRole, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

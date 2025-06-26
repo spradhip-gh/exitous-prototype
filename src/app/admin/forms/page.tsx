@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useUserData } from "@/hooks/use-user-data";
+import { useUserData } from "@/hooks/use-user-data.tsx";
 import { getDefaultQuestions, Question } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +18,7 @@ import { FormControl } from "@/components/ui/form";
 
 export default function FormEditorPage() {
     const { toast } = useToast();
-    const { saveCompanyConfig, getCompanyConfig } = useUserData();
+    const { saveCompanyQuestions, getCompanyConfig } = useUserData();
 
     const [companyName, setCompanyName] = useState("");
     const [questions, setQuestions] = useState<Record<string, Question>>({});
@@ -65,7 +65,7 @@ export default function FormEditorPage() {
             });
             return;
         }
-        saveCompanyConfig(companyName, questions);
+        saveCompanyQuestions(companyName, questions);
         toast({
             title: "Configuration Saved",
             description: `Settings for ${companyName} have been updated.`,

@@ -11,12 +11,22 @@ const COMPLETED_TASKS_KEY = 'exitous-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitous-task-date-overrides';
 const COMPANY_CONFIGS_KEY = 'exitous-company-configs';
 
+export interface CompanyUser {
+  email: string;
+  companyId: string;
+}
+
+export interface CompanyConfig {
+  questions: Record<string, Question>;
+  users: CompanyUser[];
+}
+
 export function useUserData() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
-  const [companyConfigs, setCompanyConfigs] = useState<Record<string, Record<string, Question>>>({});
+  const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -127,9 +137,16 @@ export function useUserData() {
     });
   }, []);
 
-  const saveCompanyConfig = useCallback((companyName: string, config: Record<string, Question>) => {
+  const saveCompanyQuestions = useCallback((companyName: string, questions: Record<string, Question>) => {
     setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: config };
+        const newConfigs = { 
+            ...prev, 
+            [companyName]: {
+                ...prev[companyName],
+                questions: questions,
+                users: prev[companyName]?.users || []
+            }
+        };
         try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
         } catch (error) {
@@ -139,16 +156,39 @@ export function useUserData() {
     });
   }, []);
 
+  const saveCompanyUsers = useCallback((companyName: string, users: CompanyUser[]) => {
+    setCompanyConfigs(prev => {
+        const newConfigs = { 
+            ...prev,
+            [companyName]: {
+                ...prev[companyName],
+                questions: prev[companyName]?.questions || {},
+                users: users,
+            }
+        };
+        try {
+            localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
+        } catch (error) {
+            console.error('Failed to save company users to local storage', error);
+        }
+        return newConfigs;
+    });
+  }, []);
+
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
     const defaultConfig: Record<string, Question> = {};
     getDefaultQuestions().forEach(q => defaultConfig[q.id] = q);
 
-    if (!companyName || !companyConfigs[companyName]) {
+    if (!companyName || !companyConfigs[companyName]?.questions) {
       return defaultConfig;
     }
     
     // Ensure all default questions are present in the returned config
-    return { ...defaultConfig, ...companyConfigs[companyName] };
+    return { ...defaultConfig, ...companyConfigs[companyName].questions };
+  }, [companyConfigs]);
+
+  const getAllCompanyConfigs = useCallback(() => {
+    return companyConfigs;
   }, [companyConfigs]);
 
   const clearData = useCallback(() => {
@@ -178,7 +218,9 @@ export function useUserData() {
     toggleTaskCompletion,
     updateTaskDate,
     clearData,
-    saveCompanyConfig,
+    saveCompanyQuestions,
+    saveCompanyUsers,
     getCompanyConfig,
+    getAllCompanyConfigs,
   };
 }

@@ -8,6 +8,7 @@ import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { getDefaultQuestions, Question } from '@/lib/questions';
+import { useAuth } from '@/hooks/use-auth';
 
 
 import { Button } from '@/components/ui/button';
@@ -80,7 +81,8 @@ const renderFormControl = (question: Question, field: any, form: any) => {
 
 export default function AssessmentForm() {
     const router = useRouter();
-    const { profileData, assessmentData, saveAssessmentData, getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
+    const { assessmentData, saveAssessmentData, getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
+    const { auth } = useAuth();
     const { toast } = useToast();
     
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -120,7 +122,7 @@ export default function AssessmentForm() {
     useEffect(() => {
         if (isUserDataLoading) return;
 
-        const config = getCompanyConfig(profileData?.companyName);
+        const config = getCompanyConfig(auth?.companyName);
         const allQuestions = Object.values(config);
         const activeQuestions = allQuestions.filter(q => q.isActive);
         const sortedActiveQuestions = activeQuestions.sort((a, b) => {
@@ -145,7 +147,7 @@ export default function AssessmentForm() {
         }
 
         setIsLoading(false);
-    }, [profileData, getCompanyConfig, assessmentData, isUserDataLoading, form]);
+    }, [auth, getCompanyConfig, assessmentData, isUserDataLoading, form]);
 
 
     const watchedFields = form.watch();
@@ -163,7 +165,7 @@ export default function AssessmentForm() {
         });
     };
     
-    const companyName = profileData?.companyName || "your previous company";
+    const companyName = auth?.companyName || "your previous company";
 
     const groupedQuestions = questions.reduce((acc, q) => {
         if (!acc[q.section]) {

@@ -8,6 +8,7 @@ import { profileSchema, type ProfileData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,13 +34,13 @@ const lifeEvents = [
 export default function ProfileForm() {
     const router = useRouter();
     const { saveProfileData, profileData } = useUserData();
+    const { auth } = useAuth();
     const { toast } = useToast();
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
             birthYear: undefined,
-            companyName: '',
             state: '',
             gender: '',
             genderSelfDescribe: '',
@@ -68,7 +69,7 @@ export default function ProfileForm() {
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
         });
-        router.push('/dashboard');
+        router.push('/dashboard/assessment');
     }
 
     const onInvalid = (errors) => {
@@ -86,19 +87,15 @@ export default function ProfileForm() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Basic Information</CardTitle>
+                        <CardDescription>
+                            Your company is: <span className="font-bold">{auth?.companyName || 'N/A'}</span>
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="birthYear" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What’s your birth year?</FormLabel>
                                 <FormControl><Input type="number" placeholder="YYYY" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="companyName" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>What’s the name of the company that laid you off?</FormLabel>
-                                <FormControl><Input placeholder="e.g., Acme Inc." {...field} value={field.value ?? ''} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -266,7 +263,7 @@ export default function ProfileForm() {
                 </Card>
 
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Saving...' : 'Save Profile'}
+                    {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}
                 </Button>
             </form>
         </Form>

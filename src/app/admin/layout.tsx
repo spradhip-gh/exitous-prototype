@@ -1,22 +1,57 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Header from '@/components/common/Header';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { FileText, Users, UserCheck } from 'lucide-react';
+
+function AdminNav({ role }: { role: 'hr' | 'consultant' }) {
+  const pathname = usePathname();
+  return (
+    <nav className="grid items-start gap-2">
+      {role === 'hr' && (
+        <>
+          <Link href="/admin/forms">
+            <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start">
+              <FileText className="mr-2" />
+              Form Editor
+            </Button>
+          </Link>
+          <Link href="/admin/users">
+            <Button variant={pathname === '/admin/users' ? 'default' : 'ghost'} className="w-full justify-start">
+              <Users className="mr-2" />
+              User Management
+            </Button>
+          </Link>
+        </>
+      )}
+      {role === 'consultant' && (
+        <Link href="/admin/review">
+          <Button variant={pathname === '/admin/review' ? 'default' : 'ghost'} className="w-full justify-start">
+            <UserCheck className="mr-2" />
+            Review Queue
+          </Button>
+        </Link>
+      )}
+    </nav>
+  )
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { role, loading } = useAuth();
+  const { auth, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && role !== 'hr' && role !== 'consultant') {
+    if (!loading && auth?.role !== 'hr' && auth?.role !== 'consultant') {
       router.push('/');
     }
-  }, [role, loading, router]);
+  }, [auth, loading, router]);
 
-  if (loading || (role !== 'hr' && role !== 'consultant')) {
+  if (loading || (auth?.role !== 'hr' && auth?.role !== 'consultant')) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -33,7 +68,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
-      {children}
+      <div className="flex flex-1">
+        <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
+          <AdminNav role={auth.role as 'hr' | 'consultant'} />
+        </aside>
+        <main className="flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

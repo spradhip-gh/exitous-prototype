@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Building, ChevronsUpDown, User, UserCheck } from 'lucide-react';
+import { ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 
@@ -21,11 +21,11 @@ const roleNames = {
 };
 
 export default function Header() {
-  const { role, setRole } = useAuth();
+  const { auth, logout } = useAuth();
   const router = useRouter();
 
-  const handleRoleChange = (newRole: 'end-user' | 'hr' | 'consultant' | null) => {
-    setRole(newRole);
+  const handleLogout = () => {
+    logout();
     router.push('/');
   }
 
@@ -42,30 +42,20 @@ export default function Header() {
           />
         </Link>
 
-        {role && <DropdownMenu>
+        {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">
-                    {roleNames[role]}
+                    {auth.role === 'end-user' ? auth.email : roleNames[auth.role]}
                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Switch Role</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleRoleChange('end-user')}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>End User</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleRoleChange('hr')}>
-                    <Building className="mr-2 h-4 w-4" />
-                    <span>HR Manager</span>
-                </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => handleRoleChange('consultant')}>
-                    <UserCheck className="mr-2 h-4 w-4" />
-                    <span>Consultant</span>
-                </DropdownMenuItem>
+                <DropdownMenuLabel>
+                  {auth.role === 'end-user' ? `Logged in as:` : 'Current Role:'}
+                  <p className="font-normal truncate">{auth.role === 'end-user' ? auth.email : roleNames[auth.role]}</p>
+                </DropdownMenuLabel>
                  <DropdownMenuSeparator />
-                 <DropdownMenuItem onClick={() => handleRoleChange(null)}>
+                 <DropdownMenuItem onClick={handleLogout}>
                     <span>Log Out</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
