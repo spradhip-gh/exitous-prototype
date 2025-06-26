@@ -1,84 +1,98 @@
 'use client';
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useUserData } from "@/hooks/use-user-data.tsx";
+import { useUserData, CompanyConfig } from "@/hooks/use-user-data.tsx";
 import { getDefaultQuestions, Question } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormControl } from "@/components/ui/form";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
-export default function FormEditorPage() {
+export default function FormEditorSwitchPage() {
+    const { auth } = useAuth();
+
+    if (auth?.role === 'admin') {
+        return <AdminFormEditor />;
+    }
+
+    if (auth?.role === 'hr') {
+        return <HrFormEditor />;
+    }
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className="mx-auto max-w-4xl space-y-8">
+                 <Skeleton className="h-64 w-full" />
+            </div>
+        </div>
+    );
+}
+
+
+function HrFormEditor() {
     const { toast } = useToast();
-    const { saveCompanyQuestions, getCompanyConfig } = useUserData();
-
+    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions } = useUserData();
     const [companyName, setCompanyName] = useState("");
     const [questions, setQuestions] = useState<Record<string, Question>>({});
     const [isEditing, setIsEditing] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        const initialQuestions: Record<string, Question> = {};
-        getDefaultQuestions().forEach(q => {
-            initialQuestions[q.id] = q;
-        });
-        setQuestions(initialQuestions);
-    }, []);
-
     const handleLoadConfig = () => {
         if (!companyName) {
-            toast({
-                title: "Company Name Required",
-                description: "Please enter a company name to load its configuration.",
-                variant: "destructive"
-            });
+            toast({ title: "Company Name Required", variant: "destructive" });
             return;
         }
         setIsLoading(true);
-        // Simulate loading
-        setTimeout(() => {
-            const config = getCompanyConfig(companyName);
-            setQuestions(config);
-            toast({
-                title: "Configuration Loaded",
-                description: `Displaying configuration for ${companyName}.`,
-            });
-            setIsLoading(false);
-        }, 500);
+        const allConfigs = getAllCompanyConfigs();
+        const companyData = allConfigs[companyName] as CompanyConfig | undefined;
+        
+        // Start with master questions, then overlay company-specific customizations
+        const finalQuestions = { ...masterQuestions };
+        if (companyData?.questions) {
+            Object.keys(companyData.questions).forEach(qId => {
+                if (finalQuestions[qId]) { // only overwrite if it exists in master
+                    finalQuestions[qId] = companyData.questions[qId];
+                }
+            })
+        }
+        setQuestions(finalQuestions);
+        toast({ title: "Configuration Loaded", description: `Displaying configuration for ${companyName}.` });
+        setIsLoading(false);
     };
 
     const handleSaveConfig = () => {
         if (!companyName) {
-            toast({
-                title: "Company Name Required",
-                description: "Please enter a company name to save the configuration.",
-                variant: "destructive"
-            });
+            toast({ title: "Company Name Required", variant: "destructive" });
             return;
         }
-        saveCompanyQuestions(companyName, questions);
-        toast({
-            title: "Configuration Saved",
-            description: `Settings for ${companyName} have been updated.`,
+        // When HR saves, they are "syncing" with the current master version they are seeing.
+        const questionsToSave = { ...questions };
+        Object.keys(questionsToSave).forEach(qId => {
+            const masterQ = masterQuestions[qId];
+            if (masterQ) {
+                questionsToSave[qId].lastUpdated = masterQ.lastUpdated;
+            }
         });
+
+        saveCompanyQuestions(companyName, questionsToSave);
+        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
     };
 
     const handleToggleQuestion = (questionId: string) => {
         setQuestions(prev => ({
             ...prev,
-            [questionId]: {
-                ...prev[questionId],
-                isActive: !prev[questionId].isActive,
-            }
+            [questionId]: { ...prev[questionId], isActive: !prev[questionId].isActive }
         }));
     };
 
@@ -89,10 +103,7 @@ export default function FormEditorPage() {
 
     const handleSaveEdit = () => {
         if (currentQuestion) {
-            setQuestions(prev => ({
-                ...prev,
-                [currentQuestion.id]: currentQuestion,
-            }));
+            setQuestions(prev => ({ ...prev, [currentQuestion.id]: currentQuestion }));
         }
         setIsEditing(false);
         setCurrentQuestion(null);
@@ -104,98 +115,196 @@ export default function FormEditorPage() {
         return acc;
     }, {} as Record<string, Question[]>);
 
-
-    const renderDefaultValueControl = (question: Question | null) => {
-        if (!question) return null;
-    
-        const handleDefaultChange = (value: string | undefined) => {
-            // use an empty string to represent "no default"
-            setCurrentQuestion(prev => prev ? { ...prev, defaultValue: value || undefined } : null);
-        };
-    
-        if (question.type === 'text') {
-            return <Input 
-                placeholder="Enter default text" 
-                value={question.defaultValue as string || ''}
-                onChange={(e) => handleDefaultChange(e.target.value)}
-            />;
-        }
-    
-        if (question.type === 'select' || question.type === 'radio') {
-            return (
-                <Select onValueChange={handleDefaultChange} value={question.defaultValue as string || ''}>
-                    <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a default answer" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        <SelectItem value="">No Default</SelectItem>
-                        {question.options?.map(option => (
-                            <SelectItem key={option} value={option}>{option}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            );
-        }
-    
-        return <p className="text-sm text-muted-foreground pt-2">Default values are not supported for this question type.</p>;
-    }
-
+    const masterQuestionForEdit = currentQuestion ? masterQuestions[currentQuestion.id] : null;
+    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && new Date(masterQuestionForEdit.lastUpdated!) > new Date(currentQuestion.lastUpdated);
 
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">Assessment Question Editor</h1>
-                    <p className="text-muted-foreground">
-                        Create and manage company-specific assessment forms. Enter a company name to load or create a new configuration.
-                    </p>
+                    <p className="text-muted-foreground">Manage company-specific assessment forms. Enter a company name to load or create a configuration.</p>
                 </div>
-                
                 <Card>
                     <CardHeader>
                         <CardTitle>Company Configuration</CardTitle>
                         <CardDescription>Enter a company name and click "Load" to begin.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex gap-2">
-                        <Input 
-                            placeholder="Enter Company Name (e.g., Acme Inc.)"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                        />
-                        <Button onClick={handleLoadConfig} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : "Load"}
-                        </Button>
+                        <Input placeholder="Enter Company Name (e.g., Acme Inc.)" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                        <Button onClick={handleLoadConfig} disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : "Load"}</Button>
                     </CardContent>
                 </Card>
-
                 <Card>
                     <CardHeader>
                         <CardTitle>Manage Questions</CardTitle>
-                        <CardDescription>
-                            Enable, disable, or edit questions for the assessment. Your changes will apply to <span className="font-bold">{companyName || "the selected company"}</span>.
-                        </CardDescription>
+                        <CardDescription>Enable, disable, or edit questions for <span className="font-bold">{companyName || "the selected company"}</span>.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
                             <div key={section}>
                                 <h3 className="font-semibold mb-4 text-lg">{section}</h3>
                                 <div className="space-y-4">
-                                {sectionQuestions.sort((a,b) => getDefaultQuestions().findIndex(q => q.id === a.id) - getDefaultQuestions().findIndex(q => q.id === b.id)).map((question) => (
-                                    <div key={question.id} className="flex items-center space-x-3">
-                                        <Checkbox 
-                                            id={question.id} 
-                                            checked={question.isActive}
-                                            onCheckedChange={() => handleToggleQuestion(question.id)}
-                                            disabled={!companyName}
-                                        />
-                                        <Label htmlFor={question.id} className="font-normal text-sm flex-1">
-                                            {question.label}
-                                        </Label>
-                                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)} disabled={!companyName}>
-                                            <Pencil className="h-4 w-4 mr-2" /> Edit
-                                        </Button>
+                                {sectionQuestions.sort((a,b) => getDefaultQuestions().findIndex(q => q.id === a.id) - getDefaultQuestions().findIndex(q => q.id === b.id)).map((question) => {
+                                    const masterQ = masterQuestions[question.id];
+                                    const hasBeenUpdated = masterQ && question.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+                                    return (
+                                        <div key={question.id} className="flex items-center space-x-3">
+                                            {hasBeenUpdated && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
+                                            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => handleToggleQuestion(question.id)} disabled={!companyName}/>
+                                            <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)} disabled={!companyName}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                                        </div>
+                                    );
+                                })}
+                                </div>
+                                <Separator className="my-6" />
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+                 <Button onClick={handleSaveConfig} className="w-full" disabled={!companyName}>Save Configuration for {companyName || "..."}</Button>
+            </div>
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Question</DialogTitle>
+                        <DialogDescription>Modify the question text, answer options, and default value.</DialogDescription>
+                    </DialogHeader>
+                    {currentQuestion && (
+                        <div className="space-y-6 py-4">
+                            {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
+                                <Alert variant="default" className="bg-primary/5 border-primary/50">
+                                    <BellDot className="h-4 w-4 !text-primary" />
+                                    <AlertTitle>Update Available</AlertTitle>
+                                    <AlertDescription className="space-y-2">
+                                        The master version of this question has changed. You can apply the updates below.
+                                        <div className="text-xs space-y-1 pt-2">
+                                            <p><strong className="text-foreground">New Text:</strong> {masterQuestionForEdit.label}</p>
+                                            {masterQuestionForEdit.options && <p><strong className="text-foreground">New Options:</strong> {masterQuestionForEdit.options.join(', ')}</p>}
+                                        </div>
+                                        <Button size="sm" variant="outline" className="mt-2" onClick={() => {
+                                            setCurrentQuestion({
+                                                ...currentQuestion,
+                                                label: masterQuestionForEdit.label,
+                                                options: masterQuestionForEdit.options,
+                                            });
+                                            toast({ title: "Updates Applied", description: "Remember to save your configuration." });
+                                        }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <div className="space-y-2">
+                                <Label htmlFor="question-label">Question Text</Label>
+                                <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/>
+                            </div>
+                            {currentQuestion.options && currentQuestion.options.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="question-options">Answer Options (one per line)</Label>
+                                    <Textarea id="question-options" value={currentQuestion.options.join('\n')} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options.length + 1}/>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button onClick={handleSaveEdit}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+
+function AdminFormEditor() {
+    const { toast } = useToast();
+    const { masterQuestions, saveMasterQuestions } = useUserData();
+    const [questions, setQuestions] = useState<Record<string, Question>>(masterQuestions);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isNewQuestion, setIsNewQuestion] = useState(false);
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+
+    useEffect(() => {
+        setQuestions(masterQuestions);
+    }, [masterQuestions]);
+
+    const handleSaveConfig = () => {
+        saveMasterQuestions(questions);
+        toast({ title: "Master Configuration Saved" });
+    };
+
+    const handleEditClick = (question: Question) => {
+        setCurrentQuestion({ ...question });
+        setIsNewQuestion(false);
+        setIsEditing(true);
+    };
+    
+    const handleAddNewClick = () => {
+        setCurrentQuestion({
+            id: '',
+            label: '',
+            section: 'Work & Employment Details',
+            type: 'text',
+            isActive: true,
+            options: [],
+        });
+        setIsNewQuestion(true);
+        setIsEditing(true);
+    };
+
+    const handleDeleteClick = (questionId: string) => {
+        setQuestions(prev => {
+            const newQ = { ...prev };
+            delete newQ[questionId];
+            return newQ;
+        });
+        toast({ title: "Question Deleted", description: "Remember to save your changes." });
+    };
+
+    const handleSaveEdit = () => {
+        if (!currentQuestion || !currentQuestion.id) {
+            toast({ title: "Invalid ID", description: "Question ID cannot be empty.", variant: "destructive" });
+            return;
+        }
+        if (isNewQuestion && questions[currentQuestion.id]) {
+            toast({ title: "Duplicate ID", description: "A question with this ID already exists.", variant: "destructive" });
+            return;
+        }
+        setQuestions(prev => ({ ...prev, [currentQuestion.id!]: currentQuestion as Question }));
+        setIsEditing(false);
+        setCurrentQuestion(null);
+    };
+
+    const groupedQuestions = Object.values(questions).reduce((acc, q) => {
+        if (!acc[q.section]) acc[q.section] = [];
+        acc[q.section].push(q);
+        return acc;
+    }, {} as Record<string, Question[]>);
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className="mx-auto max-w-4xl space-y-8">
+                <div className="space-y-2">
+                    <h1 className="font-headline text-3xl font-bold">Master Question Editor</h1>
+                    <p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies.</p>
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Master Question List</CardTitle>
+                        <CardDescription>These changes will become the new defaults for all company configurations.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                            <div key={section}>
+                                <h3 className="font-semibold mb-4 text-lg">{section}</h3>
+                                <div className="space-y-4">
+                                {sectionQuestions.map((question) => (
+                                    <div key={question.id} className="flex items-center space-x-3 group">
+                                        <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => setQuestions(q => ({...q, [question.id]: {...question, isActive: !question.isActive}}))} />
+                                        <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+                                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => handleDeleteClick(question.id)}><Trash2 className="h-4 w-4" /></Button>
                                     </div>
                                 ))}
                                 </div>
@@ -203,52 +312,62 @@ export default function FormEditorPage() {
                             </div>
                         ))}
                     </CardContent>
+                    <CardFooter className="border-t pt-6">
+                        <Button variant="outline" onClick={handleAddNewClick}><PlusCircle className="mr-2" />Add New Question</Button>
+                    </CardFooter>
                 </Card>
-                 <Button onClick={handleSaveConfig} className="w-full" disabled={!companyName}>
-                    Save Configuration for {companyName || "..."}
-                </Button>
+                 <Button onClick={handleSaveConfig} className="w-full">Save Master Configuration</Button>
             </div>
-
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Edit Question</DialogTitle>
-                        <DialogDescription>Modify the question text, answer options, and default value.</DialogDescription>
+                        <DialogTitle>{isNewQuestion ? 'Add New Question' : 'Edit Question'}</DialogTitle>
                     </DialogHeader>
                     {currentQuestion && (
                         <div className="space-y-6 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="question-label">Question Text</Label>
-                                <Textarea 
-                                    id="question-label"
-                                    value={currentQuestion.label}
-                                    onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}
-                                />
+                                <Label htmlFor="question-id">Question ID</Label>
+                                <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value }))} disabled={!isNewQuestion}/>
+                                {!isNewQuestion && <CardDescription>ID cannot be changed after creation.</CardDescription>}
                             </div>
-                             {currentQuestion.options && currentQuestion.options.length > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="question-label">Question Text</Label>
+                                <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => ({ ...q, label: e.target.value }))}/>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="question-section">Section</Label>
+                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, section: v as any}))} value={currentQuestion.section}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Work & Employment Details">Work & Employment Details</SelectItem>
+                                        <SelectItem value="Work Circumstances">Work Circumstances</SelectItem>
+                                        <SelectItem value="Systems & Benefits Access">Systems & Benefits Access</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="question-type">Question Type</Label>
+                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="text">Text</SelectItem>
+                                        <SelectItem value="select">Select</SelectItem>
+                                        <SelectItem value="radio">Radio</SelectItem>
+                                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                                        <SelectItem value="date">Date</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="question-options">Answer Options</Label>
-                                    <CardDescription>Enter one option per line.</CardDescription>
-                                    <Textarea
-                                        id="question-options"
-                                        value={currentQuestion.options.join('\n')}
-                                        onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })}
-                                        rows={currentQuestion.options.length + 1}
-                                    />
+                                    <Label htmlFor="question-options">Answer Options (one per line)</Label>
+                                    <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => ({...q, options: e.target.value.split('\n')}))} rows={currentQuestion.options?.length || 3}/>
                                 </div>
                              )}
-                             <Separator />
-                             <div className="space-y-2">
-                                <Label>Default Answer</Label>
-                                <CardDescription>Set a default value. This will be pre-selected for the user.</CardDescription>
-                                {renderDefaultValueControl(currentQuestion)}
-                             </div>
                         </div>
                     )}
                     <DialogFooter>
-                        <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                        </DialogClose>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                         <Button onClick={handleSaveEdit}>Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>

@@ -17,6 +17,9 @@ export default function Home() {
         case 'end-user':
           router.push('/dashboard');
           break;
+        case 'admin':
+          router.push('/admin/forms');
+          break;
         case 'hr':
           router.push('/admin/forms');
           break;

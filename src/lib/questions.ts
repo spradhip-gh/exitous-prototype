@@ -8,6 +8,7 @@ export interface Question {
     options?: string[];
     placeholder?: string;
     description?: string;
+    lastUpdated?: string; // ISO date string
 }
 
 // A helper type from schemas, simplified for this context

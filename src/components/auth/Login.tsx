@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, UserRole } from '@/hooks/use-auth';
-import { User, Briefcase, UserCheck } from 'lucide-react';
+import { User, Briefcase, UserCheck, Shield } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,7 +64,7 @@ export default function Login() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="end-user" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="end-user">
                     <User className="mr-2 h-4 w-4"/> User
                 </TabsTrigger>
@@ -73,6 +73,9 @@ export default function Login() {
                 </TabsTrigger>
                 <TabsTrigger value="consultant">
                     <UserCheck className="mr-2 h-4 w-4"/> Consultant
+                </TabsTrigger>
+                 <TabsTrigger value="admin">
+                    <Shield className="mr-2 h-4 w-4"/> Admin
                 </TabsTrigger>
             </TabsList>
             <TabsContent value="end-user" className="pt-6">
@@ -101,6 +104,12 @@ export default function Login() {
                  <p className="text-center text-sm text-muted-foreground mb-4">Continue to the consultant review dashboard.</p>
                 <Button onClick={() => handleSelectRole('consultant')} className="w-full" size="lg">
                     Continue as Consultant
+                </Button>
+            </TabsContent>
+             <TabsContent value="admin" className="pt-6">
+                 <p className="text-center text-sm text-muted-foreground mb-4">Continue to the master administration panel.</p>
+                <Button onClick={() => handleSelectRole('admin')} className="w-full" size="lg">
+                    Continue as Admin
                 </Button>
             </TabsContent>
         </Tabs>

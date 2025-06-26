@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-export type UserRole = 'end-user' | 'hr' | 'consultant' | null;
+export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
 const AUTH_KEY = 'exitous-auth-state';
 

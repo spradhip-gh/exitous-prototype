@@ -7,12 +7,20 @@ import Header from '@/components/common/Header';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench } from 'lucide-react';
 
-function AdminNav({ role }: { role: 'hr' | 'consultant' }) {
+function AdminNav({ role }: { role: 'hr' | 'consultant' | 'admin' }) {
   const pathname = usePathname();
   return (
     <nav className="grid items-start gap-2">
+       {role === 'admin' && (
+        <Link href="/admin/forms">
+          <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start">
+            <Wrench className="mr-2" />
+            Master Form Editor
+          </Button>
+        </Link>
+      )}
       {role === 'hr' && (
         <>
           <Link href="/admin/forms">
@@ -46,12 +54,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && auth?.role !== 'hr' && auth?.role !== 'consultant') {
+    if (!loading && auth?.role !== 'hr' && auth?.role !== 'consultant' && auth?.role !== 'admin') {
       router.push('/');
     }
   }, [auth, loading, router]);
 
-  if (loading || (auth?.role !== 'hr' && auth?.role !== 'consultant')) {
+  if (loading || (auth?.role !== 'hr' && auth?.role !== 'consultant' && auth?.role !== 'admin')) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -70,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Header />
       <div className="flex flex-1">
         <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
-          <AdminNav role={auth.role as 'hr' | 'consultant'} />
+          <AdminNav role={auth.role as 'hr' | 'consultant' | 'admin'} />
         </aside>
         <main className="flex-1">
           {children}
