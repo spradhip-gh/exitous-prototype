@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
 import { format } from 'date-fns';
 import { useUserData } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Trash2 } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -16,18 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import DailyBanner from './DailyBanner';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Briefcase,
@@ -46,17 +35,11 @@ export default function TimelineDashboard() {
     toggleTaskCompletion,
     taskDateOverrides,
     updateTaskDate,
-    clearData,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const handleClearData = () => {
-    clearData();
-    window.location.reload();
-  };
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -180,43 +163,9 @@ export default function TimelineDashboard() {
                 Here’s a timeline of recommended actions based on your details.
               </p>
             </div>
-            <div className="flex flex-row gap-2 flex-shrink-0 flex-wrap">
-              <Link href="/dashboard/profile" passHref>
-                  <Button variant="outline" size="sm">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Profile
-                  </Button>
-              </Link>
-              <Link href="/dashboard/assessment" passHref>
-                  <Button variant="outline" size="sm">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Assessment
-                  </Button>
-              </Link>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Start Over
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete all your saved profile and assessment data. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearData}>
-                      Yes, Start Over
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
         </div>
+        
+        <DailyBanner />
 
         {assessmentData && <ImportantDates assessmentData={assessmentData} />}
 

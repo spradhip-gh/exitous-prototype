@@ -10,9 +10,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useUserData } from '@/hooks/use-user-data';
 import { useRouter } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const roleNames = {
     'end-user': 'End User',
@@ -22,12 +34,18 @@ const roleNames = {
 
 export default function Header() {
   const { auth, logout } = useAuth();
+  const { clearData } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
     logout();
     router.push('/');
   }
+
+  const handleStartOver = () => {
+    clearData();
+    window.location.reload(); // Reload to force state reset and redirect to progress tracker
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -55,6 +73,35 @@ export default function Header() {
                   <p className="font-normal truncate">{auth.role === 'end-user' ? auth.email : roleNames[auth.role]}</p>
                 </DropdownMenuLabel>
                  <DropdownMenuSeparator />
+                 
+                 {auth.role === 'end-user' && (
+                    <>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Trash2 className="mr-2" />
+                            <span>Start Over</span>
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete all your saved profile and assessment data. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleStartOver}>
+                              Yes, Start Over
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <DropdownMenuSeparator />
+                    </>
+                 )}
+
                  <DropdownMenuItem onClick={handleLogout}>
                     <span>Log Out</span>
                 </DropdownMenuItem>
