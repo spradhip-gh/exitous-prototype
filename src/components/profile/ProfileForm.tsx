@@ -39,6 +39,7 @@ export default function ProfileForm() {
         resolver: zodResolver(profileSchema),
         defaultValues: {
             birthYear: undefined,
+            companyName: '',
             state: '',
             gender: '',
             genderSelfDescribe: '',
@@ -63,10 +64,15 @@ export default function ProfileForm() {
 
     function onSubmit(data: ProfileData) {
         saveProfileData(data);
+        toast({
+          title: "Profile Saved",
+          description: "Your profile has been successfully saved.",
+        });
         router.push('/dashboard');
     }
 
-    const onInvalid = () => {
+    const onInvalid = (errors) => {
+        console.log(errors)
         toast({
             title: "Incomplete Profile",
             description: "Please review the form and fill out all required fields.",
@@ -85,14 +91,21 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="birthYear" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What’s your birth year?</FormLabel>
-                                <FormControl><Input type="number" placeholder="YYYY" {...field} /></FormControl>
+                                <FormControl><Input type="number" placeholder="YYYY" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="companyName" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>What’s the name of the company that laid you off?</FormLabel>
+                                <FormControl><Input placeholder="e.g., Acme Inc." {...field} value={field.value ?? ''} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="state" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What state do you live in?</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value ?? ''}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -105,7 +118,7 @@ export default function ProfileForm() {
                             <FormItem className="space-y-3">
                                 <FormLabel>Which gender do you identify with?</FormLabel>
                                 <FormControl>
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-1">
+                                    <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="flex flex-col space-y-1">
                                         {['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'].map(g => (
                                             <FormItem key={g} className="flex items-center space-x-3 space-y-0">
                                                 <FormControl><RadioGroupItem value={g} /></FormControl>
@@ -121,7 +134,7 @@ export default function ProfileForm() {
                              <FormField control={form.control} name="genderSelfDescribe" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="sr-only">Self-describe gender</FormLabel>
-                                    <FormControl><Input placeholder="Please specify" {...field} /></FormControl>
+                                    <FormControl><Input placeholder="Please specify" {...field} value={field.value ?? ''} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
@@ -135,7 +148,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="maritalStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What’s your marital status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -146,7 +159,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="hasChildrenUnder13" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have children under age 13?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -157,7 +170,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="hasChildrenAges18To26" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have children ages 18 - 26?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -168,7 +181,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="hasExpectedChildren" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Do you have 1 or more children expected (by birth or adoption)?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['Yes, 1 or more', 'No', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -179,7 +192,7 @@ export default function ProfileForm() {
                          <FormField control={form.control} name="impactedPeopleCount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your layoff?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -195,7 +208,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="livingStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Which best describes your living status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['Homeowner', 'Renter', 'Corporate housing', 'Other', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>
                                     ))}
@@ -206,7 +219,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="citizenshipStatus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What term best describes your citizenship or residence status?</FormLabel>
-                                <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-1">
+                                <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {[
                                         'U.S. citizen', 'Permanent U.S. resident (green card holder), not a citizen',
                                         'Pending I-485; working on an Employment Authorization Document (EAD) based on a pending I-485 (C9 class)',
@@ -233,9 +246,10 @@ export default function ProfileForm() {
                                                 <Checkbox
                                                     checked={field.value?.includes(item.label)}
                                                     onCheckedChange={(checked) => {
+                                                        const value = field.value || [];
                                                         return checked
-                                                        ? field.onChange([...(field.value || []), item.label])
-                                                        : field.onChange(field.value?.filter((value) => value !== item.label));
+                                                        ? field.onChange([...value, item.label])
+                                                        : field.onChange(value?.filter((v) => v !== item.label));
                                                     }}
                                                 />
                                             </FormControl>

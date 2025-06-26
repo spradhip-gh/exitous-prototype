@@ -5,6 +5,7 @@ export const profileSchema = z.object({
         .number({ required_error: 'Birth year is required.' })
         .min(1920, 'Please enter a valid year.')
         .max(new Date().getFullYear() - 16, 'You must be at least 16 years old.'),
+    companyName: z.string().min(1, 'Company name is required.'),
     state: z.string().min(1, 'State is required.'),
     gender: z.string().min(1, 'Gender is required.'),
     genderSelfDescribe: z.string().optional(),
