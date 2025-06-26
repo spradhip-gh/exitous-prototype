@@ -124,7 +124,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
 
 function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Question[], dynamicSchema: z.ZodObject<any> }) {
     const router = useRouter();
-    const { assessmentData, saveAssessmentData } = useUserData();
+    const { profileData, assessmentData, saveAssessmentData } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
@@ -158,6 +158,33 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
             }
         }
     }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, setValue, getValues]);
+    
+    useEffect(() => {
+        if (!profileData) return;
+
+        const hasChildren = profileData.hasChildrenUnder13?.startsWith('Yes') || profileData.hasChildrenAges18To26?.startsWith('Yes');
+        const isMarried = profileData.maritalStatus === 'Married';
+
+        let defaultCoverage: string | null = null;
+        if (hasChildren) {
+            defaultCoverage = 'Me and family';
+        } else if (isMarried) {
+            defaultCoverage = 'Me and spouse';
+        }
+
+        if (defaultCoverage) {
+            if (watchedHadMedical === 'Yes' && !getValues('medicalCoverage')) {
+                setValue('medicalCoverage', defaultCoverage);
+            }
+            if (watchedHadDental === 'Yes' && !getValues('dentalCoverage')) {
+                setValue('dentalCoverage', defaultCoverage);
+            }
+            if (watchedHadVision === 'Yes' && !getValues('visionCoverage')) {
+                setValue('visionCoverage', defaultCoverage);
+            }
+        }
+    }, [profileData, watchedHadMedical, watchedHadDental, watchedHadVision, setValue, getValues]);
+
 
     useEffect(() => {
         if (!form.formState.isDirty) {
