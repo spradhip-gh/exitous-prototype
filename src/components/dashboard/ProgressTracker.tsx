@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CheckCircle, Edit, ListChecks, Briefcase } from 'lucide-react';
+import DailyBanner from './DailyBanner';
 
 export default function ProgressTracker() {
   const { profileData, assessmentData } = useUserData();
@@ -17,6 +18,8 @@ export default function ProgressTracker() {
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
+        <DailyBanner />
+
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Welcome to Your Dashboard</CardTitle>
