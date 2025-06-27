@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import ProgressTracker from '@/components/dashboard/ProgressTracker';
 import TimelineDashboard from '@/components/dashboard/TimelineDashboard';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {

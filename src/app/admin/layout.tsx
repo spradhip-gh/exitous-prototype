@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/common/Header';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { FileText, Users, UserCheck, Wrench, Building, UserCog } from 'lucide-react';

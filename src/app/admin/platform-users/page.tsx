@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

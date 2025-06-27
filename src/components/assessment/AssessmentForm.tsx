@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { getDefaultQuestions, Question } from '@/lib/questions';

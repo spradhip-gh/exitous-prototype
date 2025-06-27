@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema, type ProfileData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';

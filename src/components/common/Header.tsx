@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronsUpDown, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useRouter } from 'next/navigation';
 import {
   AlertDialog,
