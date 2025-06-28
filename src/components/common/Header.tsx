@@ -33,7 +33,7 @@ const roleNames = {
     'admin': 'Admin',
 };
 
-export default function Header() {
+export default function Header({ children }: { children?: React.ReactNode }) {
   const { auth, logout, startUserView, stopUserView } = useAuth();
   const { clearData, companyAssignmentForHr } = useUserData();
   const router = useRouter();
@@ -61,15 +61,18 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <Image
-            src="/logo.png"
-            alt="ExitBetter Logo"
-            width={120}
-            height={31}
-            priority
-          />
-        </Link>
+        <div className="flex items-center gap-4">
+          {children}
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="ExitBetter Logo"
+              width={120}
+              height={31}
+              priority
+            />
+          </Link>
+        </div>
 
         {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>

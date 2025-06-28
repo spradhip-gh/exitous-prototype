@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/common/Header';
@@ -8,39 +8,53 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
+  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
+
+  const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
   return (
-    <nav className="grid items-start gap-2">
+    <nav className="grid items-start gap-2 text-sm font-medium">
        {role === 'admin' && (
         <>
           <Link href="/admin/forms">
-            <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start">
+            <Button variant={getVariant('/admin/forms')} className="w-full justify-start">
               <Wrench className="mr-2" />
               Master Form Editor
             </Button>
           </Link>
-           <Link href="/admin/companies">
-            <Button variant={pathname === '/admin/companies' ? 'default' : 'ghost'} className="w-full justify-start">
-              <Building className="mr-2" />
-              Company Management
-            </Button>
-          </Link>
-           <Link href="/admin/users">
-            <Button variant={pathname === '/admin/users' ? 'default' : 'ghost'} className="w-full justify-start">
-              <Users className="mr-2" />
-              User Management
-            </Button>
-          </Link>
+           <Collapsible open={isManagementOpen} onOpenChange={setIsManagementOpen} className="w-full">
+              <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-start">
+                    <Building className="mr-2" />
+                    Management
+                    <ChevronRight className={cn("ml-auto h-4 w-4 transition-transform", isManagementOpen && 'rotate-90')} />
+                  </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-1 py-1 pl-7">
+                  <Link href="/admin/companies">
+                    <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
+                        Company Management
+                    </Button>
+                  </Link>
+                  <Link href="/admin/users">
+                    <Button variant={getVariant('/admin/users')} className="w-full justify-start text-sm font-normal">
+                        User Management
+                    </Button>
+                  </Link>
+              </CollapsibleContent>
+            </Collapsible>
            <Link href="/admin/platform-users">
-            <Button variant={pathname === '/admin/platform-users' ? 'default' : 'ghost'} className="w-full justify-start">
+            <Button variant={getVariant('/admin/platform-users')} className="w-full justify-start">
               <UserCog className="mr-2" />
               Platform Users
             </Button>
@@ -54,7 +68,7 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
               <TooltipTrigger asChild>
                 <div className="w-full">
                   <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className={cn(isFormEditorDisabled && 'pointer-events-none')}>
-                    <Button variant={pathname === '/admin/forms' ? 'default' : 'ghost'} className="w-full justify-start" disabled={isFormEditorDisabled}>
+                    <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
                       <FileText className="mr-2" />
                       Form Editor
                     </Button>
@@ -70,7 +84,7 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
           </TooltipProvider>
 
           <Link href="/admin/users">
-            <Button variant={pathname === '/admin/users' ? 'default' : 'ghost'} className="w-full justify-start">
+            <Button variant={getVariant('/admin/users')} className="w-full justify-start">
               <Users className="mr-2" />
               User Management
             </Button>
@@ -79,7 +93,7 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
       )}
       {role === 'consultant' && (
         <Link href="/admin/review">
-          <Button variant={pathname === '/admin/review' ? 'default' : 'ghost'} className="w-full justify-start">
+          <Button variant={getVariant('/admin/review')} className="w-full justify-start">
             <UserCheck className="mr-2" />
             Review Queue
           </Button>
@@ -114,13 +128,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     );
   }
+  
+  const navContent = <AdminNav role={auth.role as any} version={companyAssignmentForHr?.version} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header />
+      <Header>
+        <div className="md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle Navigation</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-4 pt-12">
+              {navContent}
+            </SheetContent>
+          </Sheet>
+        </div>
+      </Header>
       <div className="flex flex-1">
         <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
-          <AdminNav role={auth.role as any} version={companyAssignmentForHr?.version} />
+          {navContent}
         </aside>
         <main className="flex-1">
           {children}
