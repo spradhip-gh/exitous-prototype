@@ -17,10 +17,10 @@ import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical } 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -189,6 +189,7 @@ function HrFormEditor() {
                 } else {
                     // Only save overrides, not the full master question
                     const masterQ = masterQuestions[q.id];
+                    if (!masterQ) return; // Should not happen
                     const override: Partial<Question> = {};
                     let hasChanged = false;
                     
@@ -304,27 +305,34 @@ function HrFormEditor() {
 
         } else { // It's an update
             const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+            
+            setAllQuestions(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
+
+            // if section changed, move it
             if (updatedQuestion.isCustom) {
-                 // if section changed, move it
                 const oldSectionId = allQuestions[updatedQuestion.id!]?.section;
                 if (oldSectionId !== updatedQuestion.section) {
                      setOrderedSections(prev => {
                         const newSections = JSON.parse(JSON.stringify(prev));
-                        const questionToMove = { ...updatedQuestion };
+                        let questionToMove: Question | null = null;
                         
-                        // Remove from old section
-                        let oldSection = newSections.find((s: HrOrderedSection) => s.id === oldSectionId);
-                        if (oldSection) {
-                            oldSection.questions = oldSection.questions.filter((q: Question) => q.id !== updatedQuestion.id);
-                        }
+                        // Find and remove from old section
+                        newSections.forEach((section: HrOrderedSection) => {
+                            const qIndex = section.questions.findIndex((q: Question) => q.id === updatedQuestion.id);
+                            if (qIndex > -1) {
+                                [questionToMove] = section.questions.splice(qIndex, 1);
+                            }
+                        });
 
-                        // Add to new section
-                        let newSection = newSections.find((s: HrOrderedSection) => s.id === updatedQuestion.section);
-                        if (newSection) {
-                            newSection.questions.push(questionToMove);
-                        } else {
-                            // Create new section if it doesn't exist
-                            newSections.push({ id: updatedQuestion.section!, questions: [questionToMove] });
+                        if (questionToMove) {
+                             // Add to new section
+                            let newSection = newSections.find((s: HrOrderedSection) => s.id === updatedQuestion.section);
+                            if (newSection) {
+                                newSection.questions.push({ ...questionToMove, section: updatedQuestion.section });
+                            } else {
+                                // Create new section if it doesn't exist
+                                newSections.push({ id: updatedQuestion.section!, questions: [{ ...questionToMove, section: updatedQuestion.section }] });
+                            }
                         }
                         
                         return newSections.filter((s: HrOrderedSection) => s.questions.length > 0);
@@ -335,14 +343,12 @@ function HrFormEditor() {
                         questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
                     })));
                 }
-            } else {
+            } else { // It's a non-custom question, just update in place
                  setOrderedSections(prev => prev.map(s => ({
                     ...s,
                     questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
                 })));
             }
-             setAllQuestions(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
-
         }
 
         setIsEditing(false);
@@ -356,32 +362,50 @@ function HrFormEditor() {
 
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
-    
-        if (over && active.id !== over.id) {
-            const activeSection = orderedSections.find(s => s.questions.some(q => q.id === active.id));
-            const overSection = orderedSections.find(s => s.questions.some(q => q.id === over.id));
-        
-            if (activeSection && overSection && activeSection.id !== overSection.id) {
-                toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
-                return;
-            }
 
-            setOrderedSections((sections) => {
-                const activeSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === active.id));
-                const overSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === over.id));
-        
-                if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
-                    return sections;
-                }
-                
-                const newSections = [...sections];
-                const activeQuestionIndex = newSections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
-                const overQuestionIndex = newSections[overSectionIndex].questions.findIndex(q => q.id === over.id);
-                
-                newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
-                return newSections;
-            });
+        if (!over || active.id === over.id) {
+            return;
         }
+        
+        const activeId = String(active.id);
+        const overId = String(over.id);
+
+        // Find the section containing the active item
+        const activeSectionIndex = orderedSections.findIndex(s => s.questions.some(q => q.id === activeId));
+        if (activeSectionIndex === -1) return;
+
+        // Find the section containing the over item
+        const overSectionIndex = orderedSections.findIndex(s => s.questions.some(q => q.id === overId));
+        if (overSectionIndex === -1) return;
+
+        // Prevent moving between sections via drag-and-drop
+        if (activeSectionIndex !== overSectionIndex) {
+            toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
+            return;
+        }
+
+        const currentQuestions = orderedSections[activeSectionIndex].questions;
+        
+        const oldIndex = currentQuestions.findIndex(q => q.id === activeId);
+        const newIndex = currentQuestions.findIndex(q => q.id === overId);
+
+        // Check if the dragged item is a custom question (only custom questions should be draggable)
+        if (!currentQuestions[oldIndex]?.isCustom) {
+            return;
+        }
+        
+        // Create the new list of questions
+        const reorderedQuestions = arrayMove(currentQuestions, oldIndex, newIndex);
+
+        // Update the state immutably
+        setOrderedSections(prevSections => {
+            const newSections = [...prevSections];
+            newSections[activeSectionIndex] = {
+                ...newSections[activeSectionIndex],
+                questions: reorderedQuestions,
+            };
+            return newSections;
+        });
     }
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom ? masterQuestions[currentQuestion.id!] : null;
@@ -439,7 +463,7 @@ function HrFormEditor() {
                         <CardDescription>Enable, disable, or edit questions. Drag and drop custom questions to reorder.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                             {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
                                 <div key={section}>
                                     <h3 className="font-semibold mb-4 text-lg">{section}</h3>
@@ -522,7 +546,7 @@ function HrFormEditor() {
                              {currentQuestion.isCustom && (
                                 <div className="space-y-2">
                                 <Label htmlFor="question-type">Question Type</Label>
-                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
+                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any, options: [] }))} value={currentQuestion.type}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="text">Text</SelectItem>
@@ -713,7 +737,7 @@ function AdminFormEditor() {
             return;
         }
         
-        const finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() };
+        const finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
 
         if (isCreatingNewSection) {
             if (!newSectionName.trim()) {
@@ -831,7 +855,7 @@ function AdminFormEditor() {
                         <CardDescription>These changes will become the new defaults for all company configurations.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                             <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
                                 {orderedSections.map(section => (
                                     <SortableSection
@@ -897,7 +921,7 @@ function AdminFormEditor() {
                             )}
                             <div className="space-y-2">
                                 <Label htmlFor="question-type">Question Type</Label>
-                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
+                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any, options: [] }))} value={currentQuestion.type}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="text">Text</SelectItem>
@@ -925,12 +949,3 @@ function AdminFormEditor() {
         </div>
     );
 }
-
-    
-
-    
-
-    
-
-
-
