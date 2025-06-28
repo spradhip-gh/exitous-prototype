@@ -108,7 +108,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void }) {
+function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
         id: question.id,
         disabled: !question.isCustom
@@ -119,8 +119,6 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, on
         transition,
     };
     
-    const masterQ = getDefaultQuestions().find(q => q.id === question.id);
-    const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
@@ -546,16 +544,21 @@ function HrFormEditor() {
                                     <h3 className="font-semibold mb-4 text-lg">{section}</h3>
                                     <SortableContext items={sectionQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
                                         <div className="space-y-2">
-                                            {sectionQuestions.map((question) => (
-                                                <HrSortableQuestionItem
-                                                    key={question.id}
-                                                    question={question}
-                                                    onToggleActive={handleToggleQuestion}
-                                                    onEdit={handleEditClick}
-                                                    onDelete={handleDeleteCustom}
-                                                    onAddSub={handleAddNewCustomClick}
-                                                />
-                                            ))}
+                                            {sectionQuestions.map((question) => {
+                                                const masterQ = masterQuestions[question.id];
+                                                const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+                                                return (
+                                                    <HrSortableQuestionItem
+                                                        key={question.id}
+                                                        question={question}
+                                                        onToggleActive={handleToggleQuestion}
+                                                        onEdit={handleEditClick}
+                                                        onDelete={handleDeleteCustom}
+                                                        onAddSub={handleAddNewCustomClick}
+                                                        hasBeenUpdated={hasBeenUpdated}
+                                                    />
+                                                )
+                                            })}
                                         </div>
                                     </SortableContext>
                                     <Separator className="my-6" />
