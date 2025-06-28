@@ -4,9 +4,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
 import { type AssessmentData } from '@/lib/schemas';
-import { getDefaultQuestions } from '@/lib/questions';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
+import {
+  getCompanyAssignments, saveCompanyAssignments,
+  getCompanyConfigs, saveCompanyConfigs,
+  getPlatformUsers, savePlatformUsers,
+  getMasterQuestions, saveMasterQuestions,
+  getAssessmentCompletions, saveAssessmentCompletions,
+} from '@/lib/demo-data';
 
 
 const PROFILE_KEY = 'exitbetter-profile';
@@ -39,60 +45,29 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
-// --- DEMO DATA ---
-// This data now acts as the shared, consistent backend for the demo.
-
-const demoAssignments: CompanyAssignment[] = [
-    { companyName: 'Globex Corp', hrManagerEmail: 'hr@globex.com', version: 'pro', maxUsers: 50 },
-    { companyName: 'Initech', hrManagerEmail: 'hr@initech.com', version: 'basic', maxUsers: 10 }
-];
-
-const demoConfigs: Record<string, CompanyConfig> = {
-    'Globex Corp': {
-        questions: {},
-        users: [
-            { email: 'employee1@globex.com', companyId: 'G123' },
-            { email: 'employee2@globex.com', companyId: 'G456' }
-        ],
-        customQuestions: {},
-        questionOrderBySection: {}
-    },
-    'Initech': {
-        questions: {},
-        users: [
-            { email: 'employee@initech.com', companyId: 'I-99' }
-        ],
-        customQuestions: {},
-        questionOrderBySection: {}
-    }
-};
-
-const demoPlatformUsers: PlatformUser[] = [
-    { email: 'admin@exitous.co', role: 'admin' },
-    { email: 'consultant@exitous.co', role: 'consultant' }
-];
-
-const demoAssessmentCompletions: Record<string, boolean> = {
-    'employee1@globex.com': true,
-};
-
-
 // --- HELPER FUNCTIONS ---
 
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
-    const questionMapWithSubs: Record<string, Question> = {};
-     Object.keys(flatQuestionMap).forEach(key => {
-        questionMapWithSubs[key] = { ...flatQuestionMap[key], subQuestions: [] };
+    // Use a deep copy to avoid mutation issues.
+    const questionMapWithSubs: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
+    
+    // Ensure all questions have a subQuestions array.
+    Object.values(questionMapWithSubs).forEach(q => {
+        if (!q.subQuestions) {
+            q.subQuestions = [];
+        }
     });
 
     const rootQuestions: Question[] = [];
 
     Object.values(questionMapWithSubs).forEach(q => {
         if (q.parentId && questionMapWithSubs[q.parentId]) {
+            // This is a sub-question, add it to its parent.
             questionMapWithSubs[q.parentId].subQuestions!.push(q);
         } else {
+            // This is a root-level question.
             rootQuestions.push(q);
         }
     });
@@ -115,12 +90,12 @@ export function useUserData() {
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
   
-  // Shared data is now loaded from the hardcoded demo set, not localStorage.
-  const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
-  const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
-  const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
-  const [assessmentCompletions, setAssessmentCompletions] = useState<Record<string, boolean>>({});
-  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+  // Shared data state now acts as a reactive layer over the in-memory store.
+  const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
+  const [masterQuestions, setMasterQuestionsState] = useState<Record<string, Question>>({});
+  const [companyAssignments, setCompanyAssignmentsState] = useState<CompanyAssignment[]>([]);
+  const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
+  const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -163,24 +138,12 @@ export function useUserData() {
       const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
       
-      // Load shared data from hardcoded demo objects
-      setCompanyAssignments(demoAssignments);
-      setCompanyConfigs(demoConfigs);
-      setPlatformUsers(demoPlatformUsers);
-      setAssessmentCompletions(demoAssessmentCompletions);
-      
-      // Initialize master questions from defaults
-      const defaultQuestions = getDefaultQuestions();
-      const flatMap: Record<string, Question> = {};
-      const processQuestion = (q: Question) => {
-          const { subQuestions, ...rest } = q;
-          flatMap[q.id] = { ...rest, lastUpdated: new Date().toISOString() };
-          if (subQuestions) {
-              subQuestions.forEach(processQuestion);
-          }
-      };
-      defaultQuestions.forEach(q => processQuestion(q));
-      setMasterQuestions(flatMap);
+      // Load shared data from our in-memory store into the reactive state
+      setCompanyAssignmentsState(getCompanyAssignments());
+      setCompanyConfigsState(getCompanyConfigs());
+      setPlatformUsersState(getPlatformUsers());
+      setAssessmentCompletionsState(getAssessmentCompletions());
+      setMasterQuestionsState(getMasterQuestions());
       
     } catch (error) {
       console.error('Failed to load user data', error);
@@ -194,12 +157,12 @@ export function useUserData() {
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
-        const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
+        const assignment = getCompanyAssignments().find(a => a.companyName === auth.companyName);
         setCompanyAssignmentForHr(assignment || null);
     } else if (!auth || auth.role !== 'hr') {
         setCompanyAssignmentForHr(null);
     }
-  }, [auth, companyAssignments, isLoading]);
+  }, [auth, isLoading]);
 
   const saveProfileData = useCallback((data: ProfileData) => {
     try {
@@ -214,10 +177,9 @@ export function useUserData() {
       setAssessmentData(data);
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        setAssessmentCompletions(prev => {
-            const newCompletions = { ...prev, [auth.email!]: true };
-            return newCompletions;
-        });
+        const newCompletions = { ...getAssessmentCompletions(), [auth.email!]: true };
+        saveAssessmentCompletions(newCompletions);
+        setAssessmentCompletionsState(newCompletions);
       }
     } catch (error) { console.error('Failed to save assessment data', error); }
   }, [auth, assessmentKey]);
@@ -248,82 +210,87 @@ export function useUserData() {
     Object.values(questionsWithTimestamps).forEach(q => {
         q.lastUpdated = new Date().toISOString();
     });
-    setMasterQuestions(questionsWithTimestamps);
+    saveMasterQuestions(questionsWithTimestamps);
+    setMasterQuestionsState(questionsWithTimestamps);
   }, []);
   
   const saveCompanyConfig = useCallback((companyName: string, config: CompanyConfig) => {
-    setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: config };
-        return newConfigs;
-    });
+    const newConfigs = { ...getCompanyConfigs(), [companyName]: config };
+    saveCompanyConfigs(newConfigs);
+    setCompanyConfigsState(newConfigs);
   }, []);
 
   const saveCompanyUsers = useCallback((companyName: string, users: CompanyUser[]) => {
-    setCompanyConfigs(prev => {
-        const config = prev[companyName] || { questions: {}, users: [] };
-        const newConfigs = { ...prev, [companyName]: { ...config, users: users }};
-        return newConfigs;
-    });
+    const currentConfigs = getCompanyConfigs();
+    const config = currentConfigs[companyName] || { questions: {}, users: [] };
+    const newConfigs = { ...currentConfigs, [companyName]: { ...config, users: users }};
+    saveCompanyConfigs(newConfigs);
+    setCompanyConfigsState(newConfigs);
   }, []);
   
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
-    return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
-  }, [companyAssignments]);
+    return getCompanyAssignments().find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
+  }, []);
 
   const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
-    setCompanyAssignments(prev => [...prev, assignment]);
-    setCompanyConfigs(prev => {
-      const newConfigs = { ...prev };
-      if (!newConfigs[assignment.companyName]) {
-          newConfigs[assignment.companyName] = {
-              questions: {},
-              users: [],
-              customQuestions: {},
-              questionOrderBySection: {}
-          };
-      }
-      return newConfigs;
-    });
+    const newAssignments = [...getCompanyAssignments(), assignment];
+    saveCompanyAssignments(newAssignments);
+    setCompanyAssignmentsState(newAssignments);
+
+    const currentConfigs = getCompanyConfigs();
+    if (!currentConfigs[assignment.companyName]) {
+      const newConfigs = { ...currentConfigs, [assignment.companyName]: { questions: {}, users: [], customQuestions: {}, questionOrderBySection: {} } };
+      saveCompanyConfigs(newConfigs);
+      setCompanyConfigsState(newConfigs);
+    }
   }, []);
 
   const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
-    setCompanyAssignments(prev => 
-        prev.map(a => a.companyName === companyName ? { ...a, ...updates } : a)
-    );
+    const newAssignments = getCompanyAssignments().map(a => a.companyName === companyName ? { ...a, ...updates } : a);
+    saveCompanyAssignments(newAssignments);
+    setCompanyAssignmentsState(newAssignments);
   }, []);
 
   const deleteCompanyAssignment = useCallback((companyName: string) => {
-    setCompanyAssignments(prev => prev.filter(a => a.companyName !== companyName));
+    const newAssignments = getCompanyAssignments().filter(a => a.companyName !== companyName);
+    saveCompanyAssignments(newAssignments);
+    setCompanyAssignmentsState(newAssignments);
   }, []);
 
   const addPlatformUser = useCallback((user: PlatformUser) => {
-    setPlatformUsers(prev => {
-      if (prev.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
-        return prev;
-      }
-      return [...prev, user];
-    });
+    const currentUsers = getPlatformUsers();
+    if (currentUsers.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
+      return;
+    }
+    const newUsers = [...currentUsers, user];
+    savePlatformUsers(newUsers);
+    setPlatformUsersState(newUsers);
   }, []);
 
   const deletePlatformUser = useCallback((email: string) => {
-    setPlatformUsers(prev => prev.filter(u => u.email.toLowerCase() !== email.toLowerCase()));
+    const newUsers = getPlatformUsers().filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    savePlatformUsers(newUsers);
+    setPlatformUsersState(newUsers);
   }, []);
 
   const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | null => {
-    const user = platformUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = getPlatformUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
     return user ? user.role : null;
-  }, [platformUsers]);
+  }, []);
 
-  const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
+  const getAllCompanyAssignments = useCallback(() => getCompanyAssignments(), []);
 
   const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true): Question[] => {
-    if (isLoading || Object.keys(masterQuestions).length === 0) return [];
+    const masterQs = getMasterQuestions();
+    const companyCfgs = getCompanyConfigs();
 
-    const companyConfig = companyName ? companyConfigs[companyName] : undefined;
+    if (Object.keys(masterQs).length === 0) return [];
+
+    const companyConfig = companyName ? companyCfgs[companyName] : undefined;
     
     // Create a deep copy to avoid mutating the master questions state
     const combinedFlatMap = JSON.parse(JSON.stringify({
-        ...masterQuestions,
+        ...masterQs,
         ...(companyConfig?.customQuestions || {})
     }));
     
@@ -354,10 +321,10 @@ export function useUserData() {
     }
     
     return questionTree;
-}, [companyConfigs, masterQuestions, isLoading]);
+}, []);
 
 
-  const getAllCompanyConfigs = useCallback(() => companyConfigs, [companyConfigs]);
+  const getAllCompanyConfigs = useCallback(() => getCompanyConfigs(), []);
 
   const clearData = useCallback(() => {
     try {
@@ -371,11 +338,11 @@ export function useUserData() {
       setTaskDateOverrides({});
       
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        setAssessmentCompletions(prev => {
-            const newCompletions = { ...prev };
-            delete newCompletions[auth.email!];
-            return newCompletions;
-        });
+        const currentCompletions = getAssessmentCompletions();
+        const newCompletions = { ...currentCompletions };
+        delete newCompletions[auth.email!];
+        saveAssessmentCompletions(newCompletions);
+        setAssessmentCompletionsState(newCompletions);
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
