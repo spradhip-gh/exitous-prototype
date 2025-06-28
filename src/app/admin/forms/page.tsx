@@ -137,38 +137,40 @@ function HrFormEditor() {
             Object.assign(combinedQuestions, companyCustomQuestions);
             setAllQuestions(combinedQuestions);
 
-            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
-            
-            const sections = masterSections.map(sectionName => {
-                let orderedIds = companyQuestionOrder[sectionName];
-                const masterIdsInSection = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
-                const customIdsInSection = Object.keys(companyCustomQuestions).filter(id => companyCustomQuestions[id].section === sectionName);
+            // Get all sections from both master and custom questions to avoid missing any
+            const allSectionsFromMaster = [...new Set(Object.values(masterQuestions).map(q => q.section))];
+            const allSectionsFromCustom = [...new Set(Object.values(companyCustomQuestions).map(q => q.section))];
+            const allUniqueSections = [...new Set([...allSectionsFromMaster, ...allSectionsFromCustom])];
 
-                if (!orderedIds) {
-                    // Default order: all master questions, then all custom questions
-                    orderedIds = [...masterIdsInSection, ...customIdsInSection];
-                } else {
-                    // Ensure all master and custom questions are present in the order array
-                    const allKnownIds = new Set(orderedIds);
-                    [...masterIdsInSection, ...customIdsInSection].forEach(id => {
-                        if (!allKnownIds.has(id)) {
-                             // Add new questions to the end of the section
-                            if (masterIdsInSection.includes(id)) {
-                                orderedIds.unshift(id); // New default questions go to the top
-                            } else {
-                                orderedIds.push(id); // New custom questions go to the bottom
-                            }
-                        }
-                    });
-                     // Filter out any IDs that no longer exist
-                    orderedIds = orderedIds.filter(id => combinedQuestions[id]);
-                }
+            const sections = allUniqueSections.map(sectionName => {
+                // Determine all question IDs that should be in this section
+                const masterIdsInSection = Object.values(masterQuestions)
+                    .filter(q => q.section === sectionName)
+                    .map(q => q.id);
+                const customIdsInSection = Object.keys(companyCustomQuestions)
+                    .filter(id => companyCustomQuestions[id].section === sectionName);
+                
+                const allCurrentIdsForSection = new Set([...masterIdsInSection, ...customIdsInSection]);
+
+                // Start with the saved order, filtering out any stale IDs
+                let orderedIds = (companyQuestionOrder[sectionName] || [])
+                    .filter(id => allCurrentIdsForSection.has(id));
+                
+                const orderedIdsSet = new Set(orderedIds);
+
+                // Find any new master questions (not in saved order) and add them to the top
+                const newMasterIds = masterIdsInSection.filter(id => !orderedIdsSet.has(id));
+                orderedIds.unshift(...newMasterIds);
+                
+                // Find any new custom questions and add them to the bottom
+                const newCustomIds = customIdsInSection.filter(id => !orderedIdsSet.has(id));
+                orderedIds.push(...newCustomIds);
                 
                 const questionsForSection = orderedIds.map(id => combinedQuestions[id]).filter(Boolean);
                 return { id: sectionName, questions: questionsForSection };
             });
 
-            setOrderedSections(sections);
+            setOrderedSections(sections.filter(s => s.questions.length > 0));
         }
     }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions]);
 
@@ -280,6 +282,9 @@ function HrFormEditor() {
                 const sectionIndex = newSections.findIndex(s => s.id === newQuestion.section);
                 if (sectionIndex > -1) {
                     newSections[sectionIndex].questions.push(newQuestion);
+                } else {
+                    // If section is new, create it
+                    newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
                 return newSections;
             });
@@ -291,15 +296,22 @@ function HrFormEditor() {
                 if (oldSection !== updatedQuestion.section) {
                      setOrderedSections(prev => {
                         const newSections = [...prev];
-                        const oldSectionIndex = newSections.findIndex(s => s.id === oldSection);
-                        const newSectionIndex = newSections.findIndex(s => s.id === updatedQuestion.section);
+                        let oldSectionIndex = newSections.findIndex(s => s.id === oldSection);
+                        
+                        // Remove from old section
                         if (oldSectionIndex > -1) {
                             newSections[oldSectionIndex].questions = newSections[oldSectionIndex].questions.filter(q => q.id !== updatedQuestion.id);
                         }
+
+                        // Add to new section
+                        let newSectionIndex = newSections.findIndex(s => s.id === updatedQuestion.section);
                          if (newSectionIndex > -1) {
                             newSections[newSectionIndex].questions.push(updatedQuestion);
+                        } else {
+                            // If new section doesn't exist, create it
+                            newSections.push({ id: updatedQuestion.section!, questions: [updatedQuestion] });
                         }
-                        return newSections;
+                        return newSections.filter(s => s.questions.length > 0);
                     });
                 } else {
                      setOrderedSections(prev => prev.map(s => ({
@@ -899,3 +911,5 @@ function AdminFormEditor() {
         </div>
     );
 }
+
+    
