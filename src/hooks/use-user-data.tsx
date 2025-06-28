@@ -45,7 +45,7 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
-const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
+export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
     const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
@@ -338,8 +338,8 @@ export function useUserData() {
 
   const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
-  const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true) => {
-    if (isLoading || Object.keys(masterQuestions).length === 0) return {};
+  const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true): Question[] => {
+    if (isLoading || Object.keys(masterQuestions).length === 0) return [];
 
     const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
@@ -375,19 +375,7 @@ export function useUserData() {
         questionTree = filterActive(questionTree);
     }
     
-    // Correctly flatten the final tree back into a map that includes ALL nodes.
-    const finalMap: Record<string, Question> = {};
-    const stack: Question[] = [...questionTree];
-    while (stack.length > 0) {
-        const question = stack.pop()!;
-        if (question.subQuestions && question.subQuestions.length > 0) {
-            stack.push(...question.subQuestions);
-        }
-        // The map should not contain the subQuestions array itself, only the parentId link
-        const { subQuestions, ...rest } = question;
-        finalMap[question.id] = rest as Question;
-    }
-    return finalMap;
+    return questionTree;
 }, [companyConfigs, masterQuestions, isLoading]);
 
 

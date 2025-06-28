@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,43 +45,6 @@ export default function FormEditorSwitchPage() {
         </div>
     );
 }
-
-// ##################################
-// #      SHARED UTILITY            #
-// ##################################
-
-/**
- * Reconstructs a nested question tree from a flat map of questions.
- * @param flatMap A record of questions, where the key is the question ID.
- * @returns An array of root-level questions, with sub-questions nested inside.
- */
-const buildTreeFromFlatMap = (flatMap: Record<string, Question>): Question[] => {
-    if (!flatMap || Object.keys(flatMap).length === 0) return [];
-    
-    // Deep copy to avoid mutating the original data
-    const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatMap));
-    const rootQuestions: Question[] = [];
-
-    // First pass: initialize subQuestions array on every question object
-    Object.values(questionMap).forEach(q => {
-        q.subQuestions = [];
-    });
-
-    // Second pass: link children to their parents
-    Object.values(questionMap).forEach(q => {
-        if (q.parentId && questionMap[q.parentId]) {
-            // The check for `subQuestions` array is a bit redundant due to the first pass, but safe.
-            if (!questionMap[q.parentId].subQuestions) {
-                questionMap[q.parentId].subQuestions = [];
-            }
-            questionMap[q.parentId].subQuestions!.push(q);
-        } else {
-            rootQuestions.push(q);
-        }
-    });
-
-    return rootQuestions;
-};
 
 
 // ##################################
@@ -268,18 +231,25 @@ function HrFormEditor() {
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
-    const getFullQuestionTree = useCallback(() => {
-        if (!companyName || isUserDataLoading || Object.keys(masterQuestions).length === 0) return {};
-        return getCompanyConfig(companyName, false); // Get ALL questions, not just active ones for the editor.
-    }, [companyName, isUserDataLoading, masterQuestions, getCompanyConfig]);
-
-
     useEffect(() => {
         if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
-            const combinedQuestionsMap = getCompanyConfig(companyName, false);
-            const questionTree = buildTreeFromFlatMap(combinedQuestionsMap);
+            const questionTree = getCompanyConfig(companyName, false);
             
-            setAllQuestions(combinedQuestionsMap);
+            const flattenTree = (questions: Question[]): Record<string, Question> => {
+                const map: Record<string, Question> = {};
+                const recurse = (qs: Question[]) => {
+                    for (const q of qs) {
+                        const { subQuestions, ...rest } = q;
+                        map[q.id] = rest as Question;
+                        if (subQuestions) {
+                            recurse(subQuestions);
+                        }
+                    }
+                }
+                recurse(questions);
+                return map;
+            }
+            setAllQuestions(flattenTree(questionTree));
 
             const companyData = getAllCompanyConfigs()[companyName] as CompanyConfig | undefined;
             const companyQuestionOrder = companyData?.questionOrderBySection || {};
@@ -828,7 +798,7 @@ function AdminFormEditor() {
 
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
-            const rootQuestions = buildTreeFromFlatMap(masterQuestions);
+            const rootQuestions = buildQuestionTreeFromMap(masterQuestions);
             updateOrderedSections(rootQuestions);
         }
     }, [masterQuestions, updateOrderedSections]);
@@ -891,7 +861,7 @@ function AdminFormEditor() {
             if (!questionToDelete) return;
             
             // Recursively delete children first
-            Object.values(newMaster).forEach(q => {
+            Object.values(newMaster).forEach((q: any) => {
                 if (q.parentId === idToDelete) {
                     deleteRecursive(q.id);
                 }
