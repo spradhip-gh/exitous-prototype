@@ -50,17 +50,23 @@ export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Questio
     
     const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
     const rootQuestions: Question[] = [];
+    const questionArray = Object.values(questionMap);
 
-    Object.values(questionMap).forEach(q => {
+    // Initialize subQuestions array for all
+    questionArray.forEach(q => {
         q.subQuestions = [];
     });
 
-    Object.values(questionMap).forEach(q => {
-        if (q.parentId && questionMap[q.parentId]) {
-            if (!questionMap[q.parentId].subQuestions) {
-                questionMap[q.parentId].subQuestions = [];
-            }
-            questionMap[q.parentId].subQuestions!.push(q);
+    // Create a map for easy lookup
+    const mapById: Record<string, Question> = {};
+    questionArray.forEach(q => {
+        mapById[q.id] = q;
+    });
+
+    // Link sub-questions to parents
+    questionArray.forEach(q => {
+        if (q.parentId && mapById[q.parentId]) {
+            mapById[q.parentId].subQuestions!.push(q);
         } else {
             rootQuestions.push(q);
         }
@@ -133,22 +139,12 @@ export function useUserData() {
       if (masterQuestionsJson) {
         setMasterQuestions(JSON.parse(masterQuestionsJson));
       } else {
+        // Since the source is now flat, this is much simpler.
         const defaultQuestions = getDefaultQuestions();
         const flatMap: Record<string, Question> = {};
-        const recurseAndFlatten = (questions: Question[], parentId?: string) => {
-            questions.forEach(q => {
-                const { subQuestions, ...rest } = q;
-                const newQuestion: any = { ...rest, lastUpdated: new Date().toISOString() };
-                if (parentId) {
-                    newQuestion.parentId = parentId;
-                }
-                flatMap[q.id] = newQuestion;
-                if (subQuestions && subQuestions.length > 0) {
-                    recurseAndFlatten(subQuestions, q.id);
-                }
-            });
-        };
-        recurseAndFlatten(defaultQuestions);
+        defaultQuestions.forEach(q => {
+            flatMap[q.id] = { ...q, lastUpdated: new Date().toISOString() };
+        });
         setMasterQuestions(flatMap);
         localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(flatMap));
       }
