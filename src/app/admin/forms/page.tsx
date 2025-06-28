@@ -1,5 +1,3 @@
-
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -224,7 +222,6 @@ function HrFormEditor() {
     } = useUserData();
     
     const companyName = auth?.companyName;
-    const [allQuestions, setAllQuestions] = useState<Record<string, Question>>({});
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
     
     const [isEditing, setIsEditing] = useState(false);
@@ -234,36 +231,26 @@ function HrFormEditor() {
     useEffect(() => {
         if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
             const questionTree = getCompanyConfig(companyName, false);
-            
-            const flattenTree = (questions: Question[]): Record<string, Question> => {
-                const map: Record<string, Question> = {};
-                const recurse = (qs: Question[]) => {
-                    for (const q of qs) {
-                        const { subQuestions, ...rest } = q;
-                        map[q.id] = rest as Question;
-                        if (subQuestions) {
-                            recurse(subQuestions);
-                        }
-                    }
-                }
-                recurse(questions);
-                return map;
-            }
-            setAllQuestions(flattenTree(questionTree));
-
             const companyData = getAllCompanyConfigs()[companyName] as CompanyConfig | undefined;
             const companyQuestionOrder = companyData?.questionOrderBySection || {};
 
-            const topLevelQuestions = questionTree;
-
+            const sectionsMap: Record<string, Question[]> = {};
+            questionTree.forEach(q => {
+                if (!q.section) return;
+                if (!sectionsMap[q.section]) sectionsMap[q.section] = [];
+                sectionsMap[q.section].push(q);
+            });
+            
             const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
-            const allCurrentSections = [...new Set(topLevelQuestions.map(q => q.section as string))];
-            masterSectionOrder.push(...allCurrentSections.filter(s => !masterSectionOrder.includes(s)));
+            Object.keys(sectionsMap).forEach(s => {
+                if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
+            });
 
             const sections = masterSectionOrder.map(sectionName => {
-                const savedOrder = companyQuestionOrder[sectionName] || [];
-                const questionsInSection = topLevelQuestions.filter(q => q.section === sectionName);
+                const questionsInSection = sectionsMap[sectionName];
+                if (!questionsInSection || questionsInSection.length === 0) return null;
 
+                const savedOrder = companyQuestionOrder[sectionName] || [];
                 const currentIds = new Set(questionsInSection.map(q => q.id));
                 let orderedIds = savedOrder.filter(id => currentIds.has(id));
                 const orderedIdsSet = new Set(orderedIds);
@@ -278,12 +265,11 @@ function HrFormEditor() {
                     }
                 });
                 
-                const questionsForSection = orderedIds.map(id => topLevelQuestions.find(q => q.id === id)).filter(Boolean);
+                const questionsForSection = orderedIds.map(id => questionsInSection.find(q => q.id === id)).filter(Boolean) as Question[];
+                return { id: sectionName, questions: questionsForSection };
+            }).filter((s): s is HrOrderedSection => s !== null);
 
-                return { id: sectionName, questions: questionsForSection as Question[] };
-            });
-
-            setOrderedSections(sections.filter(s => s.questions.length > 0));
+            setOrderedSections(sections);
         }
     }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
 
@@ -532,7 +518,7 @@ function HrFormEditor() {
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
-    const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions || {}).map(q => q.section))], [masterQuestions]);
+    const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions || {}).filter(q => !q.parentId).map(q => q.section))], [masterQuestions]);
 
     if (isUserDataLoading || companyAssignmentForHr === undefined) {
         return <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8"><Skeleton className="h-64 w-full" /></div></div>;
@@ -766,22 +752,29 @@ function AdminFormEditor() {
     const [newSectionName, setNewSectionName] = useState("");
 
     const updateOrderedSections = useCallback((rootQuestions: Question[]) => {
-        const defaultQuestionOrder = getDefaultQuestions().filter(q => !q.parentId);
-        const defaultSectionOrder = [...new Set(defaultQuestionOrder.map(q => q.section))];
-        
-        const allCurrentSections = [...new Set(rootQuestions.map(q => q.section))];
-        allCurrentSections.forEach(s => {
-            if (!defaultSectionOrder.includes(s)) defaultSectionOrder.push(s);
+        const sectionsMap: Record<string, Question[]> = {};
+        rootQuestions.forEach(q => {
+            if (!q.section) return;
+            if (!sectionsMap[q.section]) sectionsMap[q.section] = [];
+            sectionsMap[q.section].push(q);
         });
 
-        const sections = defaultSectionOrder.map(sectionName => {
+        const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
+        Object.keys(sectionsMap).forEach(s => {
+            if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
+        });
+
+        const defaultQuestionOrder = getDefaultQuestions().filter(q => !q.parentId);
+
+        const sections = masterSectionOrder.map(sectionName => {
+            const questionsInSection = sectionsMap[sectionName];
+            if (!questionsInSection || questionsInSection.length === 0) return null;
+
             const defaultIdsInSection = defaultQuestionOrder
                 .filter(q => q.section === sectionName)
                 .map(q => q.id);
 
-            const allQuestionsInSection = rootQuestions.filter(q => q.section === sectionName);
-
-            allQuestionsInSection.sort((a, b) => {
+            questionsInSection.sort((a, b) => {
                 const indexA = defaultIdsInSection.indexOf(a.id);
                 const indexB = defaultIdsInSection.indexOf(b.id);
                 if (indexA !== -1 && indexB !== -1) return indexA - indexB;
@@ -790,8 +783,8 @@ function AdminFormEditor() {
                 return a.id.localeCompare(b.id);
             });
 
-            return { id: sectionName, questions: allQuestionsInSection };
-        }).filter(s => s.questions.length > 0);
+            return { id: sectionName, questions: questionsInSection };
+        }).filter((s): s is OrderedSection => s !== null);
 
         setOrderedSections(sections);
     }, []);
@@ -860,14 +853,12 @@ function AdminFormEditor() {
             const questionToDelete = newMaster[idToDelete];
             if (!questionToDelete) return;
             
-            // Recursively delete children first
             Object.values(newMaster).forEach((q: any) => {
                 if (q.parentId === idToDelete) {
                     deleteRecursive(q.id);
                 }
             });
             
-            // Delete the question itself
             delete newMaster[idToDelete];
         }
 
