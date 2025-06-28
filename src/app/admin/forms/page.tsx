@@ -251,6 +251,8 @@ function AdminFormEditor() {
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
+    const [newSectionName, setNewSectionName] = useState("");
 
     useEffect(() => {
         setQuestions(masterQuestions);
@@ -265,19 +267,23 @@ function AdminFormEditor() {
         setCurrentQuestion({ ...question });
         setIsNewQuestion(false);
         setIsEditing(true);
+        setIsCreatingNewSection(false);
+        setNewSectionName("");
     };
     
     const handleAddNewClick = () => {
         setCurrentQuestion({
             id: '',
             label: '',
-            section: 'Work & Employment Details',
+            section: '',
             type: 'text',
             isActive: true,
             options: [],
         });
         setIsNewQuestion(true);
         setIsEditing(true);
+        setIsCreatingNewSection(false);
+        setNewSectionName("");
     };
 
     const handleDeleteClick = (questionId: string) => {
@@ -294,15 +300,34 @@ function AdminFormEditor() {
             toast({ title: "Invalid ID", description: "Question ID cannot be empty.", variant: "destructive" });
             return;
         }
+        
+        const finalQuestion = { ...currentQuestion };
+
+        if (isCreatingNewSection) {
+            if (!newSectionName.trim()) {
+                toast({ title: "New Section Required", description: "Please enter a name for the new section.", variant: "destructive" });
+                return;
+            }
+            finalQuestion.section = newSectionName.trim();
+        }
+        
+        if (!finalQuestion.section) {
+            toast({ title: "Section Required", description: "Please select or create a section for the question.", variant: "destructive" });
+            return;
+        }
+
         if (isNewQuestion && questions[currentQuestion.id]) {
             toast({ title: "Duplicate ID", description: "A question with this ID already exists.", variant: "destructive" });
             return;
         }
-        setQuestions(prev => ({ ...prev, [currentQuestion.id!]: currentQuestion as Question }));
+        setQuestions(prev => ({ ...prev, [finalQuestion.id!]: finalQuestion as Question }));
         setIsEditing(false);
         setCurrentQuestion(null);
+        setIsCreatingNewSection(false);
+        setNewSectionName("");
     };
-
+    
+    const existingSections = [...new Set(Object.values(questions).map(q => q.section))];
     const groupedQuestions = Object.values(questions).reduce((acc, q) => {
         if (!acc[q.section]) acc[q.section] = [];
         acc[q.section].push(q);
@@ -363,15 +388,32 @@ function AdminFormEditor() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="question-section">Section</Label>
-                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, section: v as any}))} value={currentQuestion.section}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                <Select 
+                                    onValueChange={(v) => {
+                                        if (v === 'CREATE_NEW') {
+                                            setIsCreatingNewSection(true);
+                                            setCurrentQuestion(q => ({ ...q, section: '' }));
+                                        } else {
+                                            setIsCreatingNewSection(false);
+                                            setCurrentQuestion(q => ({ ...q, section: v as any}));
+                                        }
+                                    }} 
+                                    value={isCreatingNewSection ? 'CREATE_NEW' : currentQuestion.section || ''}
+                                >
+                                    <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Work & Employment Details">Work & Employment Details</SelectItem>
-                                        <SelectItem value="Work Circumstances">Work Circumstances</SelectItem>
-                                        <SelectItem value="Systems & Benefits Access">Systems & Benefits Access</SelectItem>
+                                        {existingSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        <Separator className="my-1" />
+                                        <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {isCreatingNewSection && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-section-name">New Section Name</Label>
+                                    <Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" />
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <Label htmlFor="question-type">Question Type</Label>
                                 <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
