@@ -88,7 +88,8 @@ export function buildAssessmentSchema(activeQuestionIds: (keyof AssessmentData)[
   });
 
 
-  let schema = z.object(shape);
+  // Apply passthrough here to allow for custom questions.
+  let schema: any = z.object(shape).passthrough();
 
   // Conditionally apply refinements only if the triggering question is active
   if (activeIds.has('relocationPaid')) {
@@ -161,6 +162,5 @@ export function buildAssessmentSchema(activeQuestionIds: (keyof AssessmentData)[
         });
   }
 
-  // Allow unknown keys to pass through, for custom questions
-  return schema.passthrough();
+  return schema;
 }
