@@ -238,7 +238,7 @@ function HrFormEditor() {
 
     const handleAddNewCustomClick = () => {
         setCurrentQuestion({
-            id: '',
+            id: '', // Will be auto-generated
             label: '',
             section: orderedSections[0]?.id || '',
             type: 'text',
@@ -267,15 +267,24 @@ function HrFormEditor() {
         if (!currentQuestion) return;
 
         if (isNewCustom) {
-            if (!currentQuestion.id || !currentQuestion.label || !currentQuestion.section) {
-                toast({ title: "Missing Fields", description: "ID, Label, and Section are required.", variant: "destructive" });
+            if (!companyName || !currentQuestion.label || !currentQuestion.section) {
+                toast({ title: "Missing Fields", description: "Label and Section are required.", variant: "destructive" });
                 return;
             }
-             if (allQuestions[currentQuestion.id]) {
-                toast({ title: "ID already exists", description: "This question ID is already in use.", variant: "destructive" });
-                return;
+
+            const customQuestionPrefix = `${companyName.toLowerCase().replace(/\s+/g, '-')}-custom-`;
+            const existingCustomIds = Object.keys(allQuestions).filter(id => id.startsWith(customQuestionPrefix));
+            let newIdNumber = 1;
+            if (existingCustomIds.length > 0) {
+                const highestNumber = Math.max(0, ...existingCustomIds.map(id => {
+                    const numPart = id.replace(customQuestionPrefix, '');
+                    return parseInt(numPart, 10) || 0;
+                }));
+                newIdNumber = highestNumber + 1;
             }
-            const newQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+            const newId = `${customQuestionPrefix}${newIdNumber}`;
+
+            const newQuestion = { ...currentQuestion, id: newId, lastUpdated: new Date().toISOString() } as Question;
             setAllQuestions(prev => ({...prev, [newQuestion.id]: newQuestion }));
             setOrderedSections(prev => {
                 const newSections = [...prev];
@@ -283,7 +292,6 @@ function HrFormEditor() {
                 if (sectionIndex > -1) {
                     newSections[sectionIndex].questions.push(newQuestion);
                 } else {
-                    // If section is new, create it
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
                 return newSections;
@@ -480,13 +488,6 @@ function HrFormEditor() {
                                     </AlertDescription>
                                 </Alert>
                             )}
-                             {currentQuestion.isCustom && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="question-id">Question ID</Label>
-                                    <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewCustom}/>
-                                    {!isNewCustom && <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>}
-                                </div>
-                             )}
                             <div className="space-y-2">
                                 <Label htmlFor="question-label">Question Text</Label>
                                 <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/>
@@ -911,6 +912,8 @@ function AdminFormEditor() {
         </div>
     );
 }
+
+    
 
     
 
