@@ -115,10 +115,13 @@ export default function CompanyManagementPage() {
       const users = companyConfig?.users || [];
       const usersAdded = users.length;
       const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
+      const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
+
       return {
           ...assignment,
           usersAdded,
-          assessmentsCompleted
+          assessmentsCompleted,
+          modifiedQuestionCount
       };
   });
 
@@ -183,6 +186,7 @@ export default function CompanyManagementPage() {
                             <TableHead>Users Added</TableHead>
                             <TableHead>Max Users</TableHead>
                             <TableHead>Assessments Done</TableHead>
+                            <TableHead>Custom Qs</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -201,6 +205,7 @@ export default function CompanyManagementPage() {
                                     <TableCell className="text-center">{assignment.usersAdded}</TableCell>
                                     <TableCell className="text-center">{assignment.maxUsers ?? '—'}</TableCell>
                                     <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
+                                    <TableCell className="text-center">{assignment.modifiedQuestionCount}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end items-center gap-1">
                                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(assignment)}>
@@ -235,7 +240,7 @@ export default function CompanyManagementPage() {
                             )
                         }) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
+                                <TableCell colSpan={8} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>

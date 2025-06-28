@@ -36,7 +36,7 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start">
                     <Building className="mr-2" />
-                    Management
+                    Customers
                     <ChevronRight className={cn("ml-auto h-4 w-4 transition-transform", isManagementOpen && 'rotate-90')} />
                   </Button>
               </CollapsibleTrigger>
