@@ -1,8 +1,9 @@
 
+
 export interface Question {
-    id: string; // Can be keyof AssessmentData or a custom string for new questions
+    id: string; // Corresponds to a field in AssessmentData or a custom ID
     label: string;
-    section: "Work & Employment Details" | "Work Circumstances" | "Systems & Benefits Access" | string; // Allow custom section names in the future
+    section: string;
     type: "select" | "radio" | "checkbox" | "date" | "text";
     isActive: boolean;
     isCustom?: boolean;
@@ -11,44 +12,11 @@ export interface Question {
     placeholder?: string;
     description?: string;
     lastUpdated?: string; // ISO date string
+    // New properties for sub-questions
+    triggerValue?: string; // The value of the parent that triggers this sub-question. If present, it's a sub-question.
+    subQuestions?: Question[]; // Array of sub-questions.
+    parentId?: string; // ID of the parent question.
 }
-
-// A helper type from schemas, simplified for this context
-export interface AssessmentData {
-    workStatus: string;
-    startDate: Date;
-    notificationDate: Date;
-    finalDate: Date;
-    workState: string;
-    relocationPaid: string;
-    relocationDate?: Date;
-    unionMember: string;
-    workArrangement: string;
-    workArrangementOther?: string;
-    workVisa: string;
-    onLeave: string[];
-    usedLeaveManagement?: string;
-    accessSystems?: string[];
-    internalMessagingAccessEndDate?: Date;
-    emailAccessEndDate?: Date;
-    networkDriveAccessEndDate?: Date;
-    layoffPortalAccessEndDate?: Date;
-    hrPayrollSystemAccessEndDate?: Date;
-    hadMedicalInsurance: string;
-    medicalCoverage?: string;
-    medicalCoverageEndDate?: Date;
-    hadDentalInsurance: string;
-    dentalCoverage?: string;
-    dentalCoverageEndDate?: Date;
-    hadVisionInsurance: string;
-    visionCoverage?: string;
-    visionCoverageEndDate?: Date;
-    hadEAP: string;
-    eapCoverageEndDate?: Date;
-    // This allows for custom properties from custom questions
-    [key: string]: any; 
-}
-
 
 export const getDefaultQuestions = (): Question[] => [
     // Work & Employment Details
@@ -58,7 +26,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "select",
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Select a status",
         options: [
             'Contract employee: Employed for a predefined period to provide work according to contract terms',
@@ -75,7 +42,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -84,7 +50,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -93,7 +58,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Pick a date",
     },
     { 
@@ -102,7 +66,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "select",
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Select a state",
         options: [ 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming' ],
     },
@@ -113,8 +76,10 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
+        subQuestions: [
+            { id: 'relocationDate', parentId: 'relocationPaid', triggerValue: 'Yes', label: 'Date of your relocation', type: 'date', isActive: true, section: "Work Circumstances", placeholder: 'Pick a date' }
+        ]
     },
     { 
         id: 'unionMember', 
@@ -122,7 +87,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
     },
     { 
@@ -131,8 +95,10 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Onsite', 'Hybrid', 'Remote', 'Other'],
+        subQuestions: [
+            { id: 'workArrangementOther', parentId: 'workArrangement', triggerValue: 'Other', label: 'Please specify other work arrangement', type: 'text', isActive: true, section: "Work Circumstances", placeholder: 'Please specify' }
+        ]
     },
     { 
         id: 'workVisa', 
@@ -140,7 +106,6 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'select',
         isActive: true,
-        defaultValue: undefined,
         placeholder: "Select a visa status",
         options: [
             'H-1B', 'H-2A / H-2B', 'H-3', 'I', 'L-1A / L-1B', 'O visa', 'P', 'R', 'TN (NAFTA/USMCA)',
@@ -156,12 +121,23 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work Circumstances",
         type: 'checkbox',
         isActive: true,
-        defaultValue: undefined,
         description: 'Select all that apply.',
         options: [
             'Maternity/paternity leave', 'Caregiver leave', 'FMLA', 'Sick / health / medical leave',
             'Short- / long-term disability leave', 'Bereavement leave', 'Sabbatical leave',
             'Witness leave', 'Jury duty leave', 'Military leave', 'Other leave', 'None of the above'
+        ],
+        subQuestions: [
+             { 
+                 id: 'usedLeaveManagement', 
+                 parentId: 'onLeave',
+                 triggerValue: 'NOT_NONE', // Special case handler
+                 label: 'Were you utilizing leave management (e.g., Tilt, Cocoon)?', 
+                 type: 'radio', 
+                 isActive: true,
+                 section: 'Work Circumstances',
+                 options: ['Yes', 'No', 'Unsure']
+             }
         ]
     },
     // Systems & Benefits Access
@@ -171,11 +147,17 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'checkbox',
         isActive: true,
-        defaultValue: undefined,
         options: [
             'Internal messaging system (e.g., Slack, Google Chat, Teams)', 'Email', 
             'Network drive & files', 'Special layoff portal', 'HR/Payroll system (e.g., ADP, Workday)'
         ],
+        subQuestions: [
+            { id: 'internalMessagingAccessEndDate', parentId: 'accessSystems', triggerValue: 'Internal messaging system (e.g., Slack, Google Chat, Teams)', label: 'Messaging Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'emailAccessEndDate', parentId: 'accessSystems', triggerValue: 'Email', label: 'Email Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'networkDriveAccessEndDate', parentId: 'accessSystems', triggerValue: 'Network drive & files', label: 'Network Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'layoffPortalAccessEndDate', parentId: 'accessSystems', triggerValue: 'Special layoff portal', label: 'Portal Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'hrPayrollSystemAccessEndDate', parentId: 'accessSystems', triggerValue: 'HR/Payroll system (e.g., ADP, Workday)', label: 'HR/Payroll Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+        ]
     },
     { 
         id: 'hadMedicalInsurance', 
@@ -183,8 +165,11 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
+        subQuestions: [
+            { id: 'medicalCoverage', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'medicalCoverageEndDate', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+        ]
     },
     { 
         id: 'hadDentalInsurance', 
@@ -192,8 +177,11 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
+        subQuestions: [
+            { id: 'dentalCoverage', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'dentalCoverageEndDate', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+        ]
     },
     { 
         id: 'hadVisionInsurance', 
@@ -201,8 +189,11 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
+        subQuestions: [
+            { id: 'visionCoverage', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'visionCoverageEndDate', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+        ]
     },
     { 
         id: 'hadEAP', 
@@ -210,7 +201,9 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
-        defaultValue: undefined,
         options: ['Yes', 'No', 'Unsure'],
+        subQuestions: [
+             { id: 'eapCoverageEndDate', parentId: 'hadEAP', triggerValue: 'Yes', label: 'Last day of EAP coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+        ]
     },
 ];

@@ -4,8 +4,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
 import type { AssessmentData } from '@/lib/schemas';
-import { getDefaultQuestions, Question } from '@/lib/questions';
+import { getDefaultQuestions } from '@/lib/questions';
 import { useAuth } from './use-auth';
+import type { Question } from '@/lib/questions';
+
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -42,7 +44,7 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
-export { Question };
+export type { Question };
 
 
 export function useUserData() {
@@ -75,13 +77,24 @@ export function useUserData() {
       const assessmentJson = localStorage.getItem(assessmentKey);
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
-        const dateKeys: (keyof AssessmentData)[] = ['startDate', 'notificationDate', 'finalDate', 'relocationDate', 'internalMessagingAccessEndDate', 'emailAccessEndDate', 'networkDriveAccessEndDate', 'layoffPortalAccessEndDate', 'hrPayrollSystemAccessEndDate', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
-        for (const key of dateKeys) {
-            if (parsedData[key]) {
-                const date = new Date(parsedData[key]);
-                parsedData[key] = !isNaN(date.getTime()) ? date : undefined;
+        // Recursively find and convert date strings to Date objects
+        const convertDates = (obj: any) => {
+            if (obj && typeof obj === 'object') {
+                for (const key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        if (typeof obj[key] === 'string' && key.toLowerCase().includes('date')) {
+                            const date = new Date(obj[key]);
+                            if (!isNaN(date.getTime())) {
+                                obj[key] = date;
+                            }
+                        } else if (typeof obj[key] === 'object') {
+                            convertDates(obj[key]);
+                        }
+                    }
+                }
             }
-        }
+        };
+        convertDates(parsedData);
         setAssessmentData(parsedData);
       } else {
         setAssessmentData(null);
@@ -192,9 +205,12 @@ export function useUserData() {
   const saveMasterQuestions = useCallback((questions: Record<string, Question>) => {
     try {
         const questionsWithTimestamps = { ...questions };
-        Object.keys(questionsWithTimestamps).forEach(id => {
-            questionsWithTimestamps[id] = { ...questionsWithTimestamps[id], lastUpdated: new Date().toISOString() };
-        });
+        const setTimestamps = (q: Question) => {
+            q.lastUpdated = new Date().toISOString();
+            q.subQuestions?.forEach(setTimestamps);
+        }
+        Object.values(questionsWithTimestamps).forEach(setTimestamps);
+        
         localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(questionsWithTimestamps));
         setMasterQuestions(questionsWithTimestamps);
     } catch (error) {
@@ -297,37 +313,77 @@ export function useUserData() {
   const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
-    const finalConfig: Record<string, Question> = {};
-    if (isLoading) return finalConfig;
+    if (isLoading) return {};
 
-    const baseQuestions = masterQuestions;
-    const companyConfig = companyName ? companyConfigs[companyName] : undefined;
-    const companyOverrides = companyConfig?.questions || {};
-    const customQuestions = companyConfig?.customQuestions || {};
+    const baseQuestions = { ...masterQuestions };
 
-    // Combine all questions
-    const allQuestions: Record<string, Question> = {};
-    // Start with master questions
-    Object.keys(baseQuestions).forEach(id => {
-        allQuestions[id] = {...baseQuestions[id]};
-    });
-    // Apply company overrides
-    Object.keys(companyOverrides).forEach(id => {
-        if (allQuestions[id]) {
-            allQuestions[id] = {...allQuestions[id], ...companyOverrides[id]};
+    // Function to recursively apply overrides and custom questions
+    const applyCompanyConfig = (questions: Record<string, Question>, companyConfig?: CompanyConfig): Record<string, Question> => {
+        if (!companyConfig) return questions;
+        const companyOverrides = companyConfig.questions || {};
+        const customQuestions = companyConfig.customQuestions || {};
+
+        const result: Record<string, Question> = {};
+
+        const processQuestion = (q: Question): Question => {
+            let processedQ = { ...q };
+            if (companyOverrides[q.id]) {
+                processedQ = { ...processedQ, ...companyOverrides[q.id] };
+            }
+             if (customQuestions[q.id]) { // Custom question could be an override itself
+                processedQ = { ...processedQ, ...customQuestions[q.id] };
+            }
+            if (processedQ.subQuestions) {
+                processedQ.subQuestions = processedQ.subQuestions.map(processQuestion);
+            }
+             // Add any custom sub-questions
+            const customSubs = Object.values(customQuestions).filter(cq => cq.parentId === q.id);
+            if(customSubs.length > 0) {
+              processedQ.subQuestions = [...(processedQ.subQuestions || []), ...customSubs];
+            }
+
+            return processedQ;
+        };
+        
+        // Process base questions
+        for (const id in questions) {
+            result[id] = processQuestion(questions[id]);
         }
-    });
-    // Add custom questions
-    Object.assign(allQuestions, customQuestions);
+        
+        // Add top-level custom questions
+        for(const id in customQuestions) {
+            if(!customQuestions[id].parentId) {
+                result[id] = customQuestions[id];
+            }
+        }
+
+        return result;
+    };
+    
+    const companyData = companyName ? companyConfigs[companyName] : undefined;
+    const configuredQuestions = applyCompanyConfig(baseQuestions, companyData);
 
     // Filter by active questions
-    Object.keys(allQuestions).forEach(id => {
-        if (allQuestions[id].isActive) {
-            finalConfig[id] = allQuestions[id];
+    const activeConfig: Record<string, Question> = {};
+    const filterActive = (q: Question) => {
+      if (q.isActive) {
+        const newQ = {...q};
+        if(newQ.subQuestions) {
+          newQ.subQuestions = newQ.subQuestions.filter(filterActive);
+        }
+        return newQ;
+      }
+      return null;
+    }
+    
+    Object.values(configuredQuestions).forEach(q => {
+        const activeQ = filterActive(q);
+        if (activeQ) {
+            activeConfig[activeQ.id] = activeQ;
         }
     });
-    
-    return finalConfig;
+
+    return activeConfig;
 
   }, [companyConfigs, masterQuestions, isLoading]);
 

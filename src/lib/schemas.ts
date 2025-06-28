@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Question } from './questions';
 
 export const profileSchema = z.object({
     birthYear: z.coerce
@@ -60,107 +61,76 @@ const baseAssessmentFields = {
 
 export type AssessmentData = z.infer<z.ZodObject<typeof baseAssessmentFields>>;
 
-export function buildAssessmentSchema(activeQuestionIds: (keyof AssessmentData)[]) {
-  const activeIds = new Set(activeQuestionIds);
+export function buildAssessmentSchema(activeQuestions: Question[]) {
+  const getAllQuestionIds = (questions: Question[]): string[] => {
+    let ids: string[] = [];
+    questions.forEach(q => {
+      ids.push(q.id);
+      if (q.subQuestions) {
+        ids = [...ids, ...getAllQuestionIds(q.subQuestions)];
+      }
+    });
+    return ids;
+  };
+
+  const activeIds = new Set(getAllQuestionIds(activeQuestions));
   const shape: any = {};
 
   for (const key in baseAssessmentFields) {
-      const fieldKey = key as keyof AssessmentData;
-      if (activeIds.has(fieldKey)) {
-          shape[fieldKey] = baseAssessmentFields[fieldKey];
+    const fieldKey = key as keyof AssessmentData;
+    if (activeIds.has(fieldKey)) {
+      shape[fieldKey] = baseAssessmentFields[fieldKey];
+    } else {
+      if (baseAssessmentFields[fieldKey] && !baseAssessmentFields[fieldKey].isOptional()) {
+        shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
       } else {
-          // If the question is not active, the field is not required.
-          // The base schema already defines conditional fields as optional.
-          if (baseAssessmentFields[fieldKey] && !baseAssessmentFields[fieldKey].isOptional()){
-             shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
-          }
+         shape[fieldKey] = baseAssessmentFields[fieldKey];
       }
+    }
   }
 
-  // Ensure conditional fields are present in the shape if their trigger is active
-  const conditionalFields: (keyof AssessmentData)[] = [
-    'relocationDate', 'workArrangementOther', 'usedLeaveManagement', 'internalMessagingAccessEndDate', 'emailAccessEndDate',
-    'networkDriveAccessEndDate', 'layoffPortalAccessEndDate', 'hrPayrollSystemAccessEndDate', 'medicalCoverage', 'medicalCoverageEndDate',
-    'dentalCoverage', 'dentalCoverageEndDate', 'visionCoverage', 'visionCoverageEndDate', 'eapCoverageEndDate'
-  ];
-  conditionalFields.forEach(field => {
-      shape[field] = baseAssessmentFields[field];
-  });
-
-
-  // Apply passthrough here to allow for custom questions.
   let schema: any = z.object(shape).passthrough();
 
-  // Conditionally apply refinements only if the triggering question is active
-  if (activeIds.has('relocationPaid')) {
-    schema = schema.refine(data => data.relocationPaid !== 'Yes' || data.relocationDate !== undefined, {
-        message: 'Relocation date is required.',
-        path: ['relocationDate'],
-    });
-  }
-  if (activeIds.has('workArrangement')) {
-      schema = schema.refine(data => data.workArrangement !== 'Other' || (data.workArrangementOther && data.workArrangementOther.length > 0), {
-          message: 'Please specify your work arrangement.',
-          path: ['workArrangementOther'],
-      });
-  }
-  if (activeIds.has('onLeave')) {
-      schema = schema.refine(data => !(data.onLeave && data.onLeave.length > 0 && !data.onLeave.includes('None of the above')) || !!data.usedLeaveManagement, {
-          message: 'This field is required.',
-          path: ['usedLeaveManagement']
-      });
-  }
-  if (activeIds.has('hadMedicalInsurance')) {
-      schema = schema.refine(data => data.hadMedicalInsurance !== 'Yes' || !!data.medicalCoverage, {
-          message: 'This field is required.',
-          path: ['medicalCoverage'],
-      }).refine(data => data.hadMedicalInsurance !== 'Yes' || !!data.medicalCoverageEndDate, {
-          message: 'This field is required.',
-          path: ['medicalCoverageEndDate'],
-      });
-  }
-   if (activeIds.has('hadDentalInsurance')) {
-      schema = schema.refine(data => data.hadDentalInsurance !== 'Yes' || !!data.dentalCoverage, {
-          message: 'This field is required.',
-          path: ['dentalCoverage'],
-      }).refine(data => data.hadDentalInsurance !== 'Yes' || !!data.dentalCoverageEndDate, {
-          message: 'This field is required.',
-          path: ['dentalCoverageEndDate'],
-      });
-  }
-  if (activeIds.has('hadVisionInsurance')) {
-      schema = schema.refine(data => data.hadVisionInsurance !== 'Yes' || !!data.visionCoverage, {
-          message: 'This field is required.',
-          path: ['visionCoverage'],
-      }).refine(data => data.hadVisionInsurance !== 'Yes' || !!data.visionCoverageEndDate, {
-          message: 'This field is required.',
-          path: ['visionCoverageEndDate'],
-      });
-  }
-  if (activeIds.has('hadEAP')) {
-      schema = schema.refine(data => data.hadEAP !== 'Yes' || !!data.eapCoverageEndDate, {
-          message: 'This field is required.',
-          path: ['eapCoverageEndDate'],
-      });
-  }
-  if (activeIds.has('accessSystems')) {
-      schema = schema
-        .refine(data => !data.accessSystems?.includes('Internal messaging system (e.g., Slack, Google Chat, Teams)') || !!data.internalMessagingAccessEndDate, {
-            message: 'End date is required.', path: ['internalMessagingAccessEndDate'],
-        })
-        .refine(data => !data.accessSystems?.includes('Email') || !!data.emailAccessEndDate, {
-            message: 'End date is required.', path: ['emailAccessEndDate'],
-        })
-        .refine(data => !data.accessSystems?.includes('Network drive & files') || !!data.networkDriveAccessEndDate, {
-            message: 'End date is required.', path: ['networkDriveAccessEndDate'],
-        })
-        .refine(data => !data.accessSystems?.includes('Special layoff portal') || !!data.layoffPortalAccessEndDate, {
-            message: 'End date is required.', path: ['layoffPortalAccessEndDate'],
-        })
-        .refine(data => !data.accessSystems?.includes('HR/Payroll system (e.g., ADP, Workday)') || !!data.hrPayrollSystemAccessEndDate, {
-            message: 'End date is required.', path: ['hrPayrollSystemAccessEndDate'],
+  const addRefinements = (questions: Question[]) => {
+    questions.forEach(q => {
+      if (q.subQuestions) {
+        q.subQuestions.forEach(subQ => {
+          if (!activeIds.has(subQ.id)) return;
+          
+          schema = schema.refine((data: any) => {
+            const parentValue = data[q.id];
+            
+            // Determine if sub-question is triggered
+            let isTriggered = false;
+            if (q.type === 'checkbox') {
+              if (subQ.triggerValue === 'NOT_NONE') {
+                isTriggered = Array.isArray(parentValue) && parentValue.length > 0 && !parentValue.includes('None of the above');
+              } else {
+                isTriggered = Array.isArray(parentValue) && parentValue.includes(subQ.triggerValue);
+              }
+            } else {
+              isTriggered = parentValue === subQ.triggerValue;
+            }
+
+            // If not triggered, validation passes
+            if (!isTriggered) return true;
+            
+            // If triggered, value must be present
+            const subValue = data[subQ.id];
+            return subValue !== undefined && subValue !== null && subValue !== '' && (!Array.isArray(subValue) || subValue.length > 0);
+          }, {
+            message: `${subQ.label} is required.`,
+            path: [subQ.id],
+          });
         });
-  }
+        
+        // Recurse for deeper nesting
+        addRefinements(q.subQuestions);
+      }
+    });
+  };
+
+  addRefinements(activeQuestions);
 
   return schema;
 }

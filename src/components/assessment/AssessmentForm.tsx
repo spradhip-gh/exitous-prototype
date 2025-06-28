@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,7 +9,7 @@ import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
-import { getDefaultQuestions, Question } from '@/lib/questions';
+import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
 
@@ -28,77 +29,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Info } from 'lucide-react';
-
-export default function AssessmentForm() {
-    const { getCompanyConfig, getAllCompanyConfigs, masterQuestions, isLoading: isUserDataLoading } = useUserData();
-    const { auth } = useAuth();
-    
-    const [questions, setQuestions] = useState<Question[] | null>(null);
-    const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
-
-    useEffect(() => {
-        if (!isUserDataLoading && auth?.companyName) {
-            const allConfigs = getAllCompanyConfigs();
-            const companyData = allConfigs[auth.companyName];
-            const companyQuestionOrder = companyData?.questionOrderBySection || {};
-
-            const questionMap = getCompanyConfig(auth.companyName);
-            
-            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
-            
-            const activeQuestions: Question[] = [];
-            const processedIds = new Set<string>();
-
-            masterSections.forEach(sectionName => {
-                let orderedIds = companyQuestionOrder[sectionName];
-
-                if (!orderedIds) {
-                    orderedIds = getDefaultQuestions().filter(q => q.section === sectionName).map(q => q.id);
-                }
-
-                orderedIds.forEach(id => {
-                    const question = questionMap[id];
-                    if (question && question.isActive) {
-                        activeQuestions.push(question);
-                    }
-                    processedIds.add(id);
-                });
-            });
-
-            // Add any active questions that weren't in the ordered sections (e.g. new questions in a new section)
-            Object.values(questionMap).forEach(q => {
-                if(q.isActive && !processedIds.has(q.id)) {
-                    activeQuestions.push(q);
-                }
-            });
-
-
-            setQuestions(activeQuestions);
-            
-            const activeIds = activeQuestions.map(q => q.id);
-            setDynamicSchema(buildAssessmentSchema(activeIds as (keyof AssessmentData)[]));
-        }
-    }, [isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, auth?.companyName]);
-
-    if (!questions || !dynamicSchema) {
-        return (
-            <div className="space-y-6">
-                {[...Array(3)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
-                        <CardContent className="space-y-6">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        )
-    }
-
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} />;
-}
-
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     switch (question.type) {
@@ -132,7 +62,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
              return (
                 <div className="space-y-2">
                     {question.options?.map((item) => (
-                    <FormField key={item} control={form.control} name={question.id} render={({ field: f }) => {
+                    <FormField key={item} control={form.control} name={question.id as any} render={({ field: f }) => {
                         return (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl><Checkbox checked={f.value?.includes(item)} onCheckedChange={(checked) => {
                                 const value = f.value || [];
@@ -151,6 +81,130 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     }
 }
 
+const QuestionRenderer = ({ question, form, companyName }: { question: Question, form: any, companyName: string }) => {
+    const watchedValue = form.watch(question.id);
+    
+    return (
+        <div className="space-y-6">
+            <FormField
+                key={question.id}
+                control={form.control}
+                name={question.id as keyof AssessmentData}
+                render={({ field }) => (
+                <FormItem>
+                    <div className='flex items-center gap-1'>
+                        <FormLabel>{question.label.replace('{companyName}', companyName)}</FormLabel>
+                        {question.description && (
+                            <Tooltip delayDuration={200}>
+                                <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
+                                <TooltipContent><p className="max-w-xs">{question.description}</p></TooltipContent>
+                            </Tooltip>
+                        )}
+                    </div>
+                    {renderFormControl(question, field, form)}
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            
+            {question.subQuestions && question.subQuestions.length > 0 && (
+                <div className="pl-6 border-l-2 ml-4 space-y-6">
+                    {question.subQuestions.map(subQuestion => {
+                        let isTriggered = false;
+                        if(question.type === 'checkbox') {
+                            if (subQuestion.triggerValue === 'NOT_NONE') {
+                                isTriggered = Array.isArray(watchedValue) && watchedValue.length > 0 && !watchedValue.includes('None of the above');
+                            } else {
+                                isTriggered = Array.isArray(watchedValue) && watchedValue.includes(subQuestion.triggerValue);
+                            }
+                        } else {
+                            isTriggered = watchedValue === subQuestion.triggerValue;
+                        }
+
+                        if (isTriggered) {
+                           return <QuestionRenderer key={subQuestion.id} question={subQuestion} form={form} companyName={companyName} />
+                        }
+                        return null;
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+export default function AssessmentForm() {
+    const { getCompanyConfig, getAllCompanyConfigs, masterQuestions, isLoading: isUserDataLoading } = useUserData();
+    const { auth } = useAuth();
+    
+    const [questions, setQuestions] = useState<Question[] | null>(null);
+    const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
+
+    useEffect(() => {
+        if (!isUserDataLoading && auth?.companyName) {
+            const allConfigs = getAllCompanyConfigs();
+            const companyData = allConfigs[auth.companyName];
+            const companyQuestionOrder = companyData?.questionOrderBySection || {};
+
+            const questionMap = getCompanyConfig(auth.companyName);
+            
+            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
+            
+            const activeQuestions: Question[] = [];
+            const processedIds = new Set<string>();
+
+            masterSections.forEach(sectionName => {
+                let orderedIds = companyQuestionOrder[sectionName];
+
+                if (!orderedIds) {
+                    // Fallback to default order if no custom order is set
+                    const defaultQuestions = getDefaultQuestions();
+                    orderedIds = defaultQuestions
+                        .filter(q => q.section === sectionName)
+                        .map(q => q.id);
+                }
+
+                orderedIds.forEach(id => {
+                    const question = questionMap[id];
+                    if (question && question.isActive && !processedIds.has(id)) {
+                        activeQuestions.push(question);
+                        processedIds.add(id);
+                    }
+                });
+            });
+
+            // Add any active questions that weren't in the ordered sections
+            Object.values(questionMap).forEach(q => {
+                if(q.isActive && !processedIds.has(q.id)) {
+                    activeQuestions.push(q);
+                }
+            });
+
+
+            setQuestions(activeQuestions);
+            setDynamicSchema(buildAssessmentSchema(activeQuestions));
+        }
+    }, [isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, auth?.companyName]);
+
+    if (!questions || !dynamicSchema) {
+        return (
+            <div className="space-y-6">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
+                        <CardContent className="space-y-6">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        )
+    }
+
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} />;
+}
+
 function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Question[], dynamicSchema: z.ZodObject<any> }) {
     const router = useRouter();
     const { profileData, assessmentData, saveAssessmentData } = useUserData();
@@ -163,75 +217,75 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
 
     const { watch, setValue, getValues } = form;
     const watchedFinalDate = watch('finalDate');
-    const watchedHadMedical = watch('hadMedicalInsurance');
-    const watchedHadDental = watch('hadDentalInsurance');
-    const watchedHadVision = watch('hadVisionInsurance');
-    const watchedHadEAP = watch('hadEAP');
 
     useEffect(() => {
+        // Auto-fill coverage end dates based on final employment date
         if (watchedFinalDate && !isNaN(new Date(watchedFinalDate).getTime())) {
             const finalDate = new Date(watchedFinalDate);
             const lastDayOfMonth = new Date(finalDate.getFullYear(), finalDate.getMonth() + 1, 0);
 
-            if (watchedHadMedical === 'Yes' && !getValues('medicalCoverageEndDate')) {
-                setValue('medicalCoverageEndDate', lastDayOfMonth);
-            }
-            if (watchedHadDental === 'Yes' && !getValues('dentalCoverageEndDate')) {
-                setValue('dentalCoverageEndDate', lastDayOfMonth);
-            }
-            if (watchedHadVision === 'Yes' && !getValues('visionCoverageEndDate')) {
-                setValue('visionCoverageEndDate', lastDayOfMonth);
-            }
-            if (watchedHadEAP === 'Yes' && !getValues('eapCoverageEndDate')) {
-                setValue('eapCoverageEndDate', lastDayOfMonth);
-            }
+            const coverageToEndOfMonth: (keyof AssessmentData)[] = [
+                'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'
+            ];
+            coverageToEndOfMonth.forEach(field => {
+                // Only set if the corresponding insurance is 'Yes' and the date isn't already set
+                const insuranceField = field.replace('CoverageEndDate', 'hadInsurance') as keyof AssessmentData;
+                if(field === 'hadEAP') insuranceField = 'hadEAP'; // special case
+                
+                if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
+                    setValue(field as any, lastDayOfMonth);
+                }
+            });
         }
-    }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, setValue, getValues]);
+    }, [watchedFinalDate, getValues, setValue]);
     
     useEffect(() => {
+        // Auto-fill insurance coverage type based on profile data
         if (!profileData) return;
 
         const hasChildren = profileData.hasChildrenUnder13?.startsWith('Yes') || profileData.hasChildrenAges18To26?.startsWith('Yes');
         const isMarried = profileData.maritalStatus === 'Married';
 
         let defaultCoverage: string | null = null;
-        if (hasChildren) {
-            defaultCoverage = 'Me and family';
-        } else if (isMarried) {
-            defaultCoverage = 'Me and spouse';
-        }
+        if (hasChildren) defaultCoverage = 'Me and family';
+        else if (isMarried) defaultCoverage = 'Me and spouse';
 
         if (defaultCoverage) {
-            if (watchedHadMedical === 'Yes' && !getValues('medicalCoverage')) {
-                setValue('medicalCoverage', defaultCoverage);
-            }
-            if (watchedHadDental === 'Yes' && !getValues('dentalCoverage')) {
-                setValue('dentalCoverage', defaultCoverage);
-            }
-            if (watchedHadVision === 'Yes' && !getValues('visionCoverage')) {
-                setValue('visionCoverage', defaultCoverage);
-            }
+             const coverageFields: (keyof AssessmentData)[] = ['medicalCoverage', 'dentalCoverage', 'visionCoverage'];
+             coverageFields.forEach(field => {
+                const insuranceField = field.replace('Coverage', 'hadInsurance') as keyof AssessmentData;
+                 if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
+                    setValue(field as any, defaultCoverage);
+                }
+             });
         }
-    }, [profileData, watchedHadMedical, watchedHadDental, watchedHadVision, setValue, getValues]);
+    }, [profileData, getValues, setValue, watch('hadMedicalInsurance'), watch('hadDentalInsurance'), watch('hadVisionInsurance')]);
 
 
     useEffect(() => {
         if (!form.formState.isDirty) {
-            const initialValues = assessmentData ? assessmentData : {};
-        
+            const getDefaults = (q: Question) => {
+                let defaults: Record<string, any> = {};
+                if (q.defaultValue && q.defaultValue.length > 0) {
+                    defaults[q.id] = q.defaultValue;
+                }
+                if (q.subQuestions) {
+                    q.subQuestions.forEach(subQ => {
+                        Object.assign(defaults, getDefaults(subQ));
+                    });
+                }
+                return defaults;
+            }
+
+            let initialValues = assessmentData ? assessmentData : {};
             if (!assessmentData) { // only apply config defaults if no saved data
                 questions.forEach(q => {
-                    if (q.defaultValue && q.defaultValue.length > 0) {
-                        (initialValues as any)[q.id] = q.defaultValue;
-                    }
+                   Object.assign(initialValues, getDefaults(q))
                 });
             }
             form.reset(initialValues);
         }
     }, [questions, assessmentData, form]);
-
-
-    const watchedFields = form.watch();
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData(data);
@@ -255,10 +309,12 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
     const companyName = auth?.companyName || "your previous company";
 
     const groupedQuestions = questions.reduce((acc, q) => {
-        if (!acc[q.section]) {
-            acc[q.section] = [];
+        if (q.section) {
+             if (!acc[q.section]) {
+                acc[q.section] = [];
+            }
+            acc[q.section].push(q);
         }
-        acc[q.section].push(q);
         return acc;
     }, {} as Record<string, Question[]>);
 
@@ -274,37 +330,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                         </CardHeader>
                         <CardContent className="space-y-6">
                            {sectionQuestions.map(q => (
-                             <FormField
-                                key={q.id}
-                                control={form.control}
-                                name={q.id as keyof AssessmentData}
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{q.label.replace('{companyName}', companyName)}</FormLabel>
-                                    {q.description && <FormDescription>{q.description}</FormDescription>}
-                                    {renderFormControl(q, field, form)}
-                                    <FormMessage />
-
-                                    {/* Conditional fields */}
-                                    {q.id === 'relocationPaid' && watchedFields.relocationPaid === 'Yes' && <FormField control={form.control} name="relocationDate" render={({ field: f }) => (<FormItem className="flex flex-col pt-4"><FormLabel>Date of your relocation</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                    {q.id === 'workArrangement' && watchedFields.workArrangement === 'Other' && <FormField control={form.control} name="workArrangementOther" render={({ field: f }) => (<FormItem className="pt-2"><FormLabel className="sr-only">Other work arrangement</FormLabel><FormControl><Input placeholder="Please specify" {...f} /></FormControl><FormMessage /></FormItem>)} />}
-                                    {q.id === 'onLeave' && watchedFields.onLeave && watchedFields.onLeave.length > 0 && !watchedFields.onLeave.includes('None of the above') && <FormField control={form.control} name="usedLeaveManagement" render={({ field: f }) => (<FormItem className="pt-4"><FormLabel>Were you utilizing leave management (e.g., Tilt, Cocoon)?</FormLabel><FormControl><RadioGroup onValueChange={f.onChange} value={f.value} className="flex space-x-4 pt-2"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Yes"/></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="No"/></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Unsure"/></FormControl><FormLabel className="font-normal">Unsure</FormLabel></FormItem></RadioGroup></FormControl><FormMessage/></FormItem>)}/>}
-                                    
-                                    {q.id === 'accessSystems' && <div className="space-y-4 pt-4 pl-6">
-                                        {watchedFields.accessSystems?.includes('Internal messaging system (e.g., Slack, Google Chat, Teams)') && <FormField control={form.control} name="internalMessagingAccessEndDate" render={({ field: f }) => (<FormItem className="flex flex-col"><FormLabel>Messaging Access Ends</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                        {watchedFields.accessSystems?.includes('Email') && <FormField control={form.control} name="emailAccessEndDate" render={({ field: f }) => (<FormItem className="flex flex-col"><FormLabel>Email Access Ends</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                        {watchedFields.accessSystems?.includes('Network drive & files') && <FormField control={form.control} name="networkDriveAccessEndDate" render={({ field: f }) => (<FormItem className="flex flex-col"><FormLabel>Network Access Ends</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                        {watchedFields.accessSystems?.includes('Special layoff portal') && <FormField control={form.control} name="layoffPortalAccessEndDate" render={({ field: f }) => (<FormItem className="flex flex-col"><FormLabel>Portal Access Ends</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                        {watchedFields.accessSystems?.includes('HR/Payroll system (e.g., ADP, Workday)') && <FormField control={form.control} name="hrPayrollSystemAccessEndDate" render={({ field: f }) => (<FormItem className="flex flex-col"><FormLabel>HR/Payroll Access Ends</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/>}
-                                    </div>}
-
-                                    {q.id === 'hadMedicalInsurance' && watchedFields.hadMedicalInsurance === 'Yes' && (<div className="pl-6 space-y-4 pt-4"><FormField control={form.control} name="medicalCoverage" render={({ field: f }) => (<FormItem><div className="flex items-center gap-1"><FormLabel>Who was covered?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This is pre-filled based on your profile. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><FormControl><RadioGroup onValueChange={f.onChange} value={f.value} className="flex flex-wrap gap-4">{['Only me', 'Me and spouse', 'Me and family', 'Unsure'].map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} /><FormField control={form.control} name="medicalCoverageEndDate" render={({ field:f }) => (<FormItem className="flex flex-col"><div className="flex items-center gap-1"><FormLabel>Last day of coverage?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/></div>)}
-                                    {q.id === 'hadDentalInsurance' && watchedFields.hadDentalInsurance === 'Yes' && (<div className="pl-6 space-y-4 pt-4"><FormField control={form.control} name="dentalCoverage" render={({ field:f }) => (<FormItem><div className="flex items-center gap-1"><FormLabel>Who was covered?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This is pre-filled based on your profile. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><FormControl><RadioGroup onValueChange={f.onChange} value={f.value} className="flex flex-wrap gap-4">{['Only me', 'Me and spouse', 'Me and family', 'Unsure'].map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} /><FormField control={form.control} name="dentalCoverageEndDate" render={({ field:f }) => (<FormItem className="flex flex-col"><div className="flex items-center gap-1"><FormLabel>Last day of coverage?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/></div>)}
-                                    {q.id === 'hadVisionInsurance' && watchedFields.hadVisionInsurance === 'Yes' && (<div className="pl-6 space-y-4 pt-4"><FormField control={form.control} name="visionCoverage" render={({ field:f }) => (<FormItem><div className="flex items-center gap-1"><FormLabel>Who was covered?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This is pre-filled based on your profile. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><FormControl><RadioGroup onValueChange={f.onChange} value={f.value} className="flex flex-wrap gap-4">{['Only me', 'Me and spouse', 'Me and family', 'Unsure'].map(o=><FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o}/></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}</RadioGroup></FormControl><FormMessage/></FormItem>)} /><FormField control={form.control} name="visionCoverageEndDate" render={({ field:f }) => (<FormItem className="flex flex-col"><div className="flex items-center gap-1"><FormLabel>Last day of coverage?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/></div>)}
-                                    {q.id === 'hadEAP' && watchedFields.hadEAP === 'Yes' && (<div className="pl-6 space-y-4 pt-4"><FormField control={form.control} name="eapCoverageEndDate" render={({ field:f }) => (<FormItem className="flex flex-col"><div className="flex items-center gap-1"><FormLabel>Last day of EAP coverage?</FormLabel><Tooltip delayDuration={200}><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent><p className="max-w-xs">This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect.</p></TooltipContent></Tooltip></div><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!f.value && "text-muted-foreground")}>{f.value?format(f.value, "PPP"):<span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50"/></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={f.value} onSelect={f.onChange} initialFocus/></PopoverContent></Popover><FormMessage/></FormItem>)}/></div>)}
-                                </FormItem>
-                                )}
-                            />
+                             <QuestionRenderer key={q.id} question={q} form={form} companyName={companyName} />
                            ))}
                         </CardContent>
                     </Card>
