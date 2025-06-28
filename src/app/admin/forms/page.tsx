@@ -286,40 +286,56 @@ function HrFormEditor() {
 
             const newQuestion = { ...currentQuestion, id: newId, lastUpdated: new Date().toISOString() } as Question;
             setAllQuestions(prev => ({...prev, [newQuestion.id]: newQuestion }));
+            
             setOrderedSections(prev => {
                 const newSections = [...prev];
                 const sectionIndex = newSections.findIndex(s => s.id === newQuestion.section);
                 if (sectionIndex > -1) {
-                    newSections[sectionIndex].questions.push(newQuestion);
+                    newSections[sectionIndex] = {
+                        ...newSections[sectionIndex],
+                        questions: [...newSections[sectionIndex].questions, newQuestion]
+                    };
                 } else {
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
                 return newSections;
             });
+
         } else { // It's an update
             const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
             if (updatedQuestion.isCustom) {
                  // if section changed, move it
-                const oldSection = allQuestions[updatedQuestion.id]?.section;
+                const oldSection = allQuestions[updatedQuestion.id!]?.section;
                 if (oldSection !== updatedQuestion.section) {
                      setOrderedSections(prev => {
-                        const newSections = [...prev];
-                        let oldSectionIndex = newSections.findIndex(s => s.id === oldSection);
-                        
-                        // Remove from old section
-                        if (oldSectionIndex > -1) {
-                            newSections[oldSectionIndex].questions = newSections[oldSectionIndex].questions.filter(q => q.id !== updatedQuestion.id);
+                        let questionToMove: Question | null = { ...updatedQuestion };
+                        let sectionsWithRemoval = prev.map(section => {
+                            if (section.id === oldSection) {
+                                return {
+                                    ...section,
+                                    questions: section.questions.filter(q => q.id !== updatedQuestion.id)
+                                };
+                            }
+                            return section;
+                        });
+
+                        let sectionExists = false;
+                        let sectionsWithAddition = sectionsWithRemoval.map(section => {
+                            if (section.id === updatedQuestion.section) {
+                                sectionExists = true;
+                                return {
+                                    ...section,
+                                    questions: [...section.questions, questionToMove!]
+                                };
+                            }
+                            return section;
+                        });
+
+                        if (!sectionExists) {
+                            sectionsWithAddition.push({ id: updatedQuestion.section!, questions: [questionToMove!] });
                         }
 
-                        // Add to new section
-                        let newSectionIndex = newSections.findIndex(s => s.id === updatedQuestion.section);
-                         if (newSectionIndex > -1) {
-                            newSections[newSectionIndex].questions.push(updatedQuestion);
-                        } else {
-                            // If new section doesn't exist, create it
-                            newSections.push({ id: updatedQuestion.section!, questions: [updatedQuestion] });
-                        }
-                        return newSections.filter(s => s.questions.length > 0);
+                        return sectionsWithAddition.filter(s => s.questions.length > 0);
                     });
                 } else {
                      setOrderedSections(prev => prev.map(s => ({
