@@ -68,8 +68,8 @@ const demoConfigs: Record<string, CompanyConfig> = {
 };
 
 const demoPlatformUsers: PlatformUser[] = [
-    { email: 'admin@example.com', role: 'admin' },
-    { email: 'consultant@example.com', role: 'consultant' }
+    { email: 'admin@exitous.co', role: 'admin' },
+    { email: 'consultant@exitous.co', role: 'consultant' }
 ];
 
 const demoAssessmentCompletions: Record<string, boolean> = {
