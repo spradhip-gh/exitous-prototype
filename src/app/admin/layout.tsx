@@ -33,6 +33,12 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
               Company Management
             </Button>
           </Link>
+           <Link href="/admin/users">
+            <Button variant={pathname === '/admin/users' ? 'default' : 'ghost'} className="w-full justify-start">
+              <Users className="mr-2" />
+              User Management
+            </Button>
+          </Link>
            <Link href="/admin/platform-users">
             <Button variant={pathname === '/admin/platform-users' ? 'default' : 'ghost'} className="w-full justify-start">
               <UserCog className="mr-2" />
