@@ -343,10 +343,11 @@ export function useUserData() {
 
     const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
-    let combinedFlatMap = {
+    // Create a deep copy to avoid mutating the master questions state
+    const combinedFlatMap = JSON.parse(JSON.stringify({
         ...masterQuestions,
         ...(companyConfig?.customQuestions || {})
-    };
+    }));
     
     if (companyConfig?.questions) {
         for (const id in companyConfig.questions) {
@@ -373,13 +374,20 @@ export function useUserData() {
         };
         questionTree = filterActive(questionTree);
     }
-
-    const treeAsMap: Record<string, Question> = {};
-    questionTree.forEach(q => {
-        treeAsMap[q.id] = q;
-    });
-
-    return treeAsMap;
+    
+    // Correctly flatten the final tree back into a map that includes ALL nodes.
+    const finalMap: Record<string, Question> = {};
+    const stack: Question[] = [...questionTree];
+    while (stack.length > 0) {
+        const question = stack.pop()!;
+        if (question.subQuestions && question.subQuestions.length > 0) {
+            stack.push(...question.subQuestions);
+        }
+        // The map should not contain the subQuestions array itself, only the parentId link
+        const { subQuestions, ...rest } = question;
+        finalMap[question.id] = rest as Question;
+    }
+    return finalMap;
 }, [companyConfigs, masterQuestions, isLoading]);
 
 
