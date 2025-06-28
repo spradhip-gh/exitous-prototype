@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -45,14 +46,44 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
+const demoAssignments: CompanyAssignment[] = [
+    { companyName: 'Globex Corp', hrManagerEmail: 'hr@globex.com', version: 'pro', maxUsers: 50 },
+    { companyName: 'Initech', hrManagerEmail: 'hr@initech.com', version: 'basic', maxUsers: 10 }
+];
+
+const demoConfigs: Record<string, CompanyConfig> = {
+    'Globex Corp': {
+        questions: {},
+        users: [
+            { email: 'employee1@globex.com', companyId: 'G123' },
+            { email: 'employee2@globex.com', companyId: 'G456' }
+        ],
+        customQuestions: {},
+        questionOrderBySection: {}
+    },
+    'Initech': {
+        questions: {},
+        users: [
+            { email: 'employee@initech.com', companyId: 'I-99' }
+        ],
+        customQuestions: {},
+        questionOrderBySection: {}
+    }
+};
+
+const demoPlatformUsers: PlatformUser[] = [
+    { email: 'admin@example.com', role: 'admin' },
+    { email: 'consultant@example.com', role: 'consultant' }
+];
+
+
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
+    // Use a more robust copy method instead of JSON.stringify
     const questionMapWithSubs: Record<string, Question> = {};
-    
-    // Create new objects to avoid mutation and initialize subQuestions array
-    Object.values(flatQuestionMap).forEach(q => {
-        questionMapWithSubs[q.id] = { ...q, subQuestions: [] };
+    Object.keys(flatQuestionMap).forEach(key => {
+        questionMapWithSubs[key] = { ...flatQuestionMap[key], subQuestions: [] };
     });
 
     const rootQuestions: Question[] = [];
@@ -129,8 +160,21 @@ export function useUserData() {
       const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
       
+      const assignmentsJson = localStorage.getItem(COMPANY_ASSIGNMENTS_KEY);
+      if (assignmentsJson) {
+        setCompanyAssignments(JSON.parse(assignmentsJson));
+      } else {
+        setCompanyAssignments(demoAssignments);
+        localStorage.setItem(COMPANY_ASSIGNMENTS_KEY, JSON.stringify(demoAssignments));
+      }
+      
       const configsJson = localStorage.getItem(COMPANY_CONFIGS_KEY);
-      if (configsJson) setCompanyConfigs(JSON.parse(configsJson));
+      if (configsJson) {
+        setCompanyConfigs(JSON.parse(configsJson));
+      } else {
+        setCompanyConfigs(demoConfigs);
+        localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(demoConfigs));
+      }
       
       const masterQuestionsJson = localStorage.getItem(MASTER_QUESTIONS_KEY);
       if (masterQuestionsJson) {
@@ -138,16 +182,18 @@ export function useUserData() {
       } else {
         const defaultQuestions = getDefaultQuestions();
         const flatMap: Record<string, Question> = {};
-        defaultQuestions.forEach(q => {
-            flatMap[q.id] = { ...q, lastUpdated: new Date().toISOString() };
-        });
+        const processQuestion = (q: Question) => {
+            const { subQuestions, ...rest } = q;
+            flatMap[q.id] = { ...rest, lastUpdated: new Date().toISOString() };
+            if (subQuestions) {
+                subQuestions.forEach(processQuestion);
+            }
+        };
+        defaultQuestions.forEach(processQuestion);
         setMasterQuestions(flatMap);
         localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(flatMap));
       }
       
-      const assignmentsJson = localStorage.getItem(COMPANY_ASSIGNMENTS_KEY);
-      if (assignmentsJson) setCompanyAssignments(JSON.parse(assignmentsJson));
-
       const completionsJson = localStorage.getItem(ASSESSMENT_COMPLETIONS_KEY);
       if (completionsJson) setAssessmentCompletions(JSON.parse(completionsJson));
 
@@ -155,9 +201,8 @@ export function useUserData() {
       if (platformUsersJson) {
         setPlatformUsers(JSON.parse(platformUsersJson));
       } else {
-        const defaultUsers: PlatformUser[] = [{ email: 'admin@example.com', role: 'admin' }];
-        setPlatformUsers(defaultUsers);
-        localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(defaultUsers));
+        setPlatformUsers(demoPlatformUsers);
+        localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(demoPlatformUsers));
       }
 
     } catch (error) {
