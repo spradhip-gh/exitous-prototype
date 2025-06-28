@@ -152,9 +152,9 @@ function HrFormEditor() {
                 
                 const allCurrentIdsForSection = new Set([...masterIdsInSection, ...customIdsInSection]);
 
-                // Start with the saved order, filtering out any stale IDs
-                let orderedIds = (companyQuestionOrder[sectionName] || [])
-                    .filter(id => allCurrentIdsForSection.has(id));
+                // Start with the UNIQUE saved order, filtering out any stale IDs
+                const uniqueSavedOrder = [...new Set(companyQuestionOrder[sectionName] || [])];
+                let orderedIds = uniqueSavedOrder.filter(id => allCurrentIdsForSection.has(id));
                 
                 const orderedIdsSet = new Set(orderedIds);
 
@@ -911,5 +911,7 @@ function AdminFormEditor() {
         </div>
     );
 }
+
+    
 
     
