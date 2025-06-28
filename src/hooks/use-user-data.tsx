@@ -48,29 +48,26 @@ export interface PlatformUser {
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
-    const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
+    const questionMapWithSubs: Record<string, Question> = {};
+    
+    // Create new objects to avoid mutation and initialize subQuestions array
+    Object.values(flatQuestionMap).forEach(q => {
+        questionMapWithSubs[q.id] = { ...q, subQuestions: [] };
+    });
+
     const rootQuestions: Question[] = [];
-    const questionArray = Object.values(questionMap);
-
-    // Initialize subQuestions array for all
-    questionArray.forEach(q => {
-        q.subQuestions = [];
-    });
-
-    // Create a map for easy lookup
-    const mapById: Record<string, Question> = {};
-    questionArray.forEach(q => {
-        mapById[q.id] = q;
-    });
 
     // Link sub-questions to parents
-    questionArray.forEach(q => {
-        if (q.parentId && mapById[q.parentId]) {
-            mapById[q.parentId].subQuestions!.push(q);
+    Object.values(questionMapWithSubs).forEach(q => {
+        if (q.parentId && questionMapWithSubs[q.parentId]) {
+            // This is a sub-question, push it to its parent
+            questionMapWithSubs[q.parentId].subQuestions!.push(q);
         } else {
+            // This is a root-level question
             rootQuestions.push(q);
         }
     });
+
     return rootQuestions;
 };
 
@@ -139,7 +136,6 @@ export function useUserData() {
       if (masterQuestionsJson) {
         setMasterQuestions(JSON.parse(masterQuestionsJson));
       } else {
-        // Since the source is now flat, this is much simpler.
         const defaultQuestions = getDefaultQuestions();
         const flatMap: Record<string, Question> = {};
         defaultQuestions.forEach(q => {
