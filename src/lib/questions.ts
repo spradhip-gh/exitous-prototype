@@ -50,7 +50,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'notificationDate', 
-        label: 'On what date were you notified you were being laid off?',
+        label: 'On what date were you notified of your exit?',
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
@@ -96,7 +96,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'unionMember', 
-        label: 'Did you belong to a union at the time of the layoff?', 
+        label: 'Did you belong to a union at the time of your exit?', 
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
@@ -104,7 +104,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'workArrangement', 
-        label: 'Which best describes your work arrangement at the time of the layoff?', 
+        label: 'Which best describes your work arrangement at the time of your exit?', 
         section: "Work Circumstances",
         type: 'radio',
         isActive: true,
@@ -124,7 +124,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'workVisa', 
-        label: 'Were you on any of these work visas at the time of the layoff?', 
+        label: 'Were you on any of these work visas at the time of your exit?', 
         section: "Work Circumstances",
         type: 'select',
         isActive: true,

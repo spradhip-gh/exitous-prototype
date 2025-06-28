@@ -66,7 +66,7 @@ const LayoffDetailsSchema = z.object({
 
 const PersonalizedRecommendationsInputSchema = z.object({
   profileData: ProfileDataSchema.describe('The user profile data.'),
-  layoffDetails: LayoffDetailsSchema.describe("Details about the user's layoff."),
+  layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
 });
 
 export type PersonalizedRecommendationsInput = z.infer<
@@ -106,7 +106,7 @@ const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
-  prompt: `You are an expert career counselor and legal advisor specializing in layoffs. Based on the user's profile and detailed layoff circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
+  prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
 
 Here is the user's profile data:
 - Birth Year: {{{profileData.birthYear}}}
@@ -121,10 +121,10 @@ Here is the user's profile data:
 - Recent Major Life Events: {{#each profileData.pastLifeEvents}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 - Has Children Ages 18-26: {{{profileData.hasChildrenAges18To26}}}
 
-Here are the user's layoff details:
+Here are the user's exit details:
 {{#if layoffDetails.workStatus}}- Work Status: {{{layoffDetails.workStatus}}}{{/if}}
 {{#if layoffDetails.startDate}}- Employment Start Date: {{{layoffDetails.startDate}}}{{/if}}
-{{#if layoffDetails.notificationDate}}- Layoff Notification Date: {{{layoffDetails.notificationDate}}}{{/if}}
+{{#if layoffDetails.notificationDate}}- Exit Notification Date: {{{layoffDetails.notificationDate}}}{{/if}}
 {{#if layoffDetails.finalDate}}- Final Day of Employment: {{{layoffDetails.finalDate}}}{{/if}}
 {{#if layoffDetails.workState}}- Work Location State: {{{layoffDetails.workState}}}{{/if}}
 {{#if layoffDetails.relocationPaid}}- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}{{/if}}
@@ -133,7 +133,7 @@ Here are the user's layoff details:
 {{#if layoffDetails.workArrangement}}- Work Arrangement: {{{layoffDetails.workArrangement}}}{{/if}}
 {{#if layoffDetails.workArrangementOther}}- Other Arrangement Details: {{{layoffDetails.workArrangementOther}}}{{/if}}
 {{#if layoffDetails.workVisa}}- Work Visa: {{{layoffDetails.workVisa}}}{{/if}}
-{{#if layoffDetails.onLeave}}- On Leave During Layoff: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
+{{#if layoffDetails.onLeave}}- On Leave During Exit: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
 {{#if layoffDetails.usedLeaveManagement}}- Used Leave Management System: {{{layoffDetails.usedLeaveManagement}}}{{/if}}
 {{#if layoffDetails.accessSystems}}- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
 {{#if layoffDetails.emailAccessEndDate}}- Email Access Ends: {{{layoffDetails.emailAccessEndDate}}}{{/if}}

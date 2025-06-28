@@ -21,7 +21,7 @@ export default function ProgressTracker() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Welcome to Your Dashboard</CardTitle>
             <CardDescription>
-              Complete your profile and layoff details to unlock personalized recommendations and next steps.
+              Complete your profile and exit details to unlock personalized recommendations and next steps.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -68,14 +68,14 @@ export default function ProgressTracker() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">Layoff Details</CardTitle>
+              <CardTitle className="text-lg font-medium">Exit Details</CardTitle>
               <Briefcase className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
                 {assessmentData
-                  ? 'Your layoff details are saved. You can edit them if needed.'
-                  : 'Provide specifics about your layoff for a tailored plan.'}
+                  ? 'Your exit details are saved. You can edit them if needed.'
+                  : 'Provide specifics about your exit for a tailored plan.'}
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
@@ -90,7 +90,7 @@ export default function ProgressTracker() {
               <Progress value={assessmentProgress} className="w-full mb-4" />
               <Link href="/dashboard/assessment" passHref>
                 <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
-                  {assessmentData ? 'Edit Details' : 'Add Layoff Details'}
+                  {assessmentData ? 'Edit Details' : 'Add Exit Details'}
                 </Button>
               </Link>
                {!profileData && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}

@@ -188,7 +188,7 @@ export default function ProfileForm() {
                         <Separator/>
                          <FormField control={form.control} name="impactedPeopleCount" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your layoff?</FormLabel>
+                                <FormLabel>Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your exit?</FormLabel>
                                 <RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="space-y-1">
                                     {['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'].map(s => (
                                         <FormItem key={s} className="flex items-center space-x-3"><FormControl><RadioGroupItem value={s} /></FormControl><FormLabel className="font-normal">{s}</FormLabel></FormItem>

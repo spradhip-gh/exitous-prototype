@@ -211,7 +211,7 @@ function ImportantDates({ assessmentData }) {
     if (!assessmentData) return null;
 
     const dates = [
-        { label: 'Layoff Notification', date: assessmentData.notificationDate, icon: Bell },
+        { label: 'Exit Notification', date: assessmentData.notificationDate, icon: Bell },
         { label: 'Final Day of Employment', date: assessmentData.finalDate, icon: CalendarX2 },
         { label: 'Medical Coverage Ends', date: assessmentData.medicalCoverageEndDate, icon: Stethoscope },
         { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
