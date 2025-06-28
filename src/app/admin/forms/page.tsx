@@ -232,9 +232,6 @@ function HrFormEditor() {
 
     const getFullQuestionTree = useCallback(() => {
         if (!companyName || isUserDataLoading || Object.keys(masterQuestions).length === 0) return {};
-        
-        // This function from useUserData now correctly merges master, company overrides, and custom questions.
-        // It returns a flat map, but the question objects inside have their subQuestions array intact.
         return getCompanyConfig(companyName, false); // Get ALL questions, not just active ones for the editor.
     }, [companyName, isUserDataLoading, masterQuestions, getCompanyConfig]);
 
@@ -295,7 +292,6 @@ function HrFormEditor() {
                     if(q.parentId) { // It's a custom sub-question on a master question
                          customQuestions[q.id] = q;
                     }
-                    // else it's a sub-question of a master question, handle it
                 } else {
                     const override: Partial<Question> = {};
                     let hasChanged = false;
@@ -310,7 +306,6 @@ function HrFormEditor() {
                     if (hasChanged) companyOverrides[q.id] = override;
                 }
             }
-            // Recurse for sub-questions
             q.subQuestions?.forEach(processQuestionForSave);
         };
 
@@ -462,13 +457,12 @@ function HrFormEditor() {
                     return newSections;
                 });
             }
-        } else { // It's an update
+        } else { 
              setOrderedSections(prev => {
                 const newSections = JSON.parse(JSON.stringify(prev));
                 const findAndUpdate = (questions: Question[]) => {
                     for (let i = 0; i < questions.length; i++) {
                         if (questions[i].id === newQuestion.id) {
-                            // Preserve subquestions if they exist on the original
                             const subs = questions[i].subQuestions;
                             questions[i] = newQuestion;
                             if (subs) questions[i].subQuestions = subs;
@@ -506,7 +500,6 @@ function HrFormEditor() {
         });
 
         if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
-            toast({ title: "Move sections via Edit", description: "Questions can only be reordered within the same section." });
             return;
         }
 
@@ -526,9 +519,9 @@ function HrFormEditor() {
         });
     }
     
-    const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom ? masterQuestions[currentQuestion.id!] : null;
+    const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
-    const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions).map(q => q.section))], [masterQuestions]);
+    const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions || {}).map(q => q.section))], [masterQuestions]);
 
     if (isUserDataLoading || companyAssignmentForHr === undefined) {
         return <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8"><Skeleton className="h-64 w-full" /></div></div>;
@@ -761,14 +754,11 @@ function AdminFormEditor() {
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
 
-    const updateOrderedSections = useCallback((questions: Record<string, Question>) => {
-        const questionMap = JSON.parse(JSON.stringify(questions)); 
-        const topLevelQuestions = Object.values(questionMap).filter((q: any) => !q.parentId);
-
+    const updateOrderedSections = useCallback((rootQuestions: Question[]) => {
         const defaultQuestionOrder = getDefaultQuestions().filter(q => !q.parentId);
         const defaultSectionOrder = [...new Set(defaultQuestionOrder.map(q => q.section))];
         
-        const allCurrentSections = [...new Set(topLevelQuestions.map((q: any) => q.section))];
+        const allCurrentSections = [...new Set(rootQuestions.map(q => q.section))];
         allCurrentSections.forEach(s => {
             if (!defaultSectionOrder.includes(s)) defaultSectionOrder.push(s);
         });
@@ -778,7 +768,7 @@ function AdminFormEditor() {
                 .filter(q => q.section === sectionName)
                 .map(q => q.id);
 
-            const allQuestionsInSection = topLevelQuestions.filter((q: any) => q.section === sectionName);
+            const allQuestionsInSection = rootQuestions.filter(q => q.section === sectionName);
 
             allQuestionsInSection.sort((a, b) => {
                 const indexA = defaultIdsInSection.indexOf(a.id);
@@ -797,23 +787,42 @@ function AdminFormEditor() {
 
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
-            updateOrderedSections(masterQuestions);
+            const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(masterQuestions));
+            const rootQuestions: Question[] = [];
+
+            Object.values(questionMap).forEach(q => {
+                q.subQuestions = [];
+            });
+
+            Object.values(questionMap).forEach(q => {
+                if (q.parentId && questionMap[q.parentId]) {
+                    if (!questionMap[q.parentId].subQuestions) {
+                        questionMap[q.parentId].subQuestions = [];
+                    }
+                    questionMap[q.parentId].subQuestions!.push(q);
+                } else {
+                    rootQuestions.push(q);
+                }
+            });
+
+            updateOrderedSections(rootQuestions);
         }
     }, [masterQuestions, updateOrderedSections]);
 
     const handleSaveConfig = () => {
         const newQuestions: Record<string, Question> = {};
         
-        const processQuestion = (q: Question) => {
-            newQuestions[q.id] = q;
+        const processQuestion = (q: Question, sectionId: string) => {
+            const { subQuestions, ...rest } = q;
+            newQuestions[q.id] = { ...rest, section: sectionId };
             if (q.subQuestions) {
-                q.subQuestions.forEach(processQuestion);
+                q.subQuestions.forEach(sq => processQuestion(sq, sectionId));
             }
         };
 
         orderedSections.forEach(section => {
             section.questions.forEach(question => {
-                processQuestion({ ...question, section: section.id });
+                processQuestion(question, section.id);
             });
         });
 
@@ -852,9 +861,19 @@ function AdminFormEditor() {
 
     const handleDeleteClick = (questionId: string) => {
         let newMaster = JSON.parse(JSON.stringify(masterQuestions));
-        delete newMaster[questionId];
+        
+        const deleteRecursive = (idToDelete: string) => {
+            const questionToDelete = newMaster[idToDelete];
+            if (!questionToDelete) return;
+            
+            if (questionToDelete.subQuestions) {
+                questionToDelete.subQuestions.forEach(subQ => deleteRecursive(subQ.id));
+            }
+            delete newMaster[idToDelete];
+        }
 
-        // Also remove from any subQuestion arrays
+        deleteRecursive(questionId);
+
         for (const qId in newMaster) {
             if (newMaster[qId].subQuestions) {
                 const subIndex = newMaster[qId].subQuestions.findIndex(sq => sq.id === questionId);
@@ -865,8 +884,7 @@ function AdminFormEditor() {
         }
         
         saveMasterQuestions(newMaster);
-        updateOrderedSections(newMaster);
-        toast({ title: "Question Deleted", description: "Remember to save your changes." });
+        toast({ title: "Question Deleted" });
     };
 
     const handleSaveEdit = () => {
@@ -881,54 +899,14 @@ function AdminFormEditor() {
         
         const newMaster = JSON.parse(JSON.stringify(masterQuestions));
         
-        if (isNewQuestion) {
-            if (finalQuestion.parentId) {
-                const parent = findQuestionInMap(newMaster, finalQuestion.parentId);
-                if(parent) {
-                    if(!parent.subQuestions) parent.subQuestions = [];
-                    parent.subQuestions.push(finalQuestion);
-                }
-            }
-            newMaster[finalQuestion.id] = finalQuestion;
-        } else {
-             // Find and update the question, wherever it is.
-            const findAndUpdate = (obj: Record<string, any>, id: string, newQ: Question): boolean => {
-                if (obj[id]) {
-                    const subs = obj[id].subQuestions;
-                    obj[id] = newQ;
-                    if(subs) obj[id].subQuestions = subs;
-                    return true;
-                }
-                for(const key in obj) {
-                    if (obj[key].subQuestions) {
-                         const subIndex = obj[key].subQuestions.findIndex(sq => sq.id === id);
-                         if(subIndex > -1) {
-                             const subs = obj[key].subQuestions[subIndex].subQuestions;
-                             obj[key].subQuestions[subIndex] = newQ;
-                             if (subs) obj[key].subQuestions[subIndex].subQuestions = subs;
-                             return true;
-                         }
-                    }
-                }
-                return false;
-            }
-            findAndUpdate(newMaster, finalQuestion.id, finalQuestion);
-        }
-
+        newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
+       
         saveMasterQuestions(newMaster);
-        updateOrderedSections(newMaster);
         setIsEditing(false); setCurrentQuestion(null); setIsCreatingNewSection(false); setNewSectionName("");
     };
 
     const findQuestionInMap = (map: Record<string, Question>, id: string): Question | null => {
-        if (map[id]) return map[id];
-        for (const key in map) {
-            if (map[key].subQuestions) {
-                const found = map[key].subQuestions?.find(q => q.id === id);
-                if (found) return found;
-            }
-        }
-        return null;
+        return map[id] || null;
     }
 
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));

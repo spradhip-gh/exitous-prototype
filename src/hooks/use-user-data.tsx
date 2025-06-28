@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
-import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
+import { type AssessmentData } from '@/lib/schemas';
 import { getDefaultQuestions } from '@/lib/questions';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
@@ -45,6 +45,30 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
+const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
+    if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
+    
+    const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
+    const rootQuestions: Question[] = [];
+
+    Object.values(questionMap).forEach(q => {
+        q.subQuestions = [];
+    });
+
+    Object.values(questionMap).forEach(q => {
+        if (q.parentId && questionMap[q.parentId]) {
+            if (!questionMap[q.parentId].subQuestions) {
+                questionMap[q.parentId].subQuestions = [];
+            }
+            questionMap[q.parentId].subQuestions!.push(q);
+        } else {
+            rootQuestions.push(q);
+        }
+    });
+    return rootQuestions;
+};
+
+
 export function useUserData() {
   const { auth } = useAuth();
   
@@ -68,14 +92,12 @@ export function useUserData() {
   useEffect(() => {
     setIsLoading(true);
     try {
-      // User-specific data (regular or preview)
       const profileJson = localStorage.getItem(profileKey);
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
 
       const assessmentJson = localStorage.getItem(assessmentKey);
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
-        // Recursively find and convert date strings to Date objects
         const convertDates = (obj: any) => {
             if (obj && typeof obj === 'object') {
                 for (const key in obj) {
@@ -104,7 +126,6 @@ export function useUserData() {
       const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
       
-      // Admin/HR data (not preview-specific)
       const configsJson = localStorage.getItem(COMPANY_CONFIGS_KEY);
       if (configsJson) setCompanyConfigs(JSON.parse(configsJson));
       
@@ -112,16 +133,24 @@ export function useUserData() {
       if (masterQuestionsJson) {
         setMasterQuestions(JSON.parse(masterQuestionsJson));
       } else {
-        const initialQuestions: Record<string, Question> = {};
-        const addQuestionRecursively = (q: Question) => {
-            initialQuestions[q.id] = { ...q, lastUpdated: new Date().toISOString() };
-            if (q.subQuestions) {
-                q.subQuestions.forEach(addQuestionRecursively);
-            }
+        const defaultQuestions = getDefaultQuestions();
+        const flatMap: Record<string, Question> = {};
+        const recurseAndFlatten = (questions: Question[], parentId?: string) => {
+            questions.forEach(q => {
+                const { subQuestions, ...rest } = q;
+                const newQuestion: any = { ...rest, lastUpdated: new Date().toISOString() };
+                if (parentId) {
+                    newQuestion.parentId = parentId;
+                }
+                flatMap[q.id] = newQuestion;
+                if (subQuestions && subQuestions.length > 0) {
+                    recurseAndFlatten(subQuestions, q.id);
+                }
+            });
         };
-        getDefaultQuestions().forEach(addQuestionRecursively);
-        setMasterQuestions(initialQuestions);
-        localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(initialQuestions));
+        recurseAndFlatten(defaultQuestions);
+        setMasterQuestions(flatMap);
+        localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(flatMap));
       }
       
       const assignmentsJson = localStorage.getItem(COMPANY_ASSIGNMENTS_KEY);
@@ -134,7 +163,6 @@ export function useUserData() {
       if (platformUsersJson) {
         setPlatformUsers(JSON.parse(platformUsersJson));
       } else {
-        // Add a default admin to prevent getting locked out.
         const defaultUsers: PlatformUser[] = [{ email: 'admin@example.com', role: 'admin' }];
         setPlatformUsers(defaultUsers);
         localStorage.setItem(PLATFORM_USERS_KEY, JSON.stringify(defaultUsers));
@@ -142,7 +170,6 @@ export function useUserData() {
 
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
-      // Clear all keys on error to prevent corrupted state
       [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY, PLATFORM_USERS_KEY,
        `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`
       ].forEach(k => localStorage.removeItem(k));
@@ -207,14 +234,9 @@ export function useUserData() {
   const saveMasterQuestions = useCallback((questions: Record<string, Question>) => {
     try {
         const questionsWithTimestamps = { ...questions };
-        const setTimestamps = (q: Question) => {
-            q.lastUpdated = new Date().toISOString();
-            q.subQuestions?.forEach(setTimestamps);
-        }
         Object.values(questionsWithTimestamps).forEach(q => {
-             if (q.subQuestions) setTimestamps(q);
+            q.lastUpdated = new Date().toISOString();
         });
-        
         localStorage.setItem(MASTER_QUESTIONS_KEY, JSON.stringify(questionsWithTimestamps));
         setMasterQuestions(questionsWithTimestamps);
     } catch (error) {
@@ -321,59 +343,43 @@ export function useUserData() {
 
     const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
-    // Start with a deep copy of master questions to avoid any mutation issues.
-    const configuredQuestions = JSON.parse(JSON.stringify(masterQuestions));
-
-    if (companyConfig) {
-        const companyOverrides = companyConfig.questions || {};
-        const customQuestions = companyConfig.customQuestions || {};
-
-        const processQuestionTree = (question: Question) => {
-            if (companyOverrides[question.id]) {
-                Object.assign(question, companyOverrides[question.id]);
-            }
-            if (question.subQuestions) {
-                question.subQuestions.forEach(processQuestionTree);
-            }
-            const customSubs = Object.values(customQuestions).filter(cq => cq.parentId === question.id);
-            if (customSubs.length > 0) {
-                question.subQuestions = [...(question.subQuestions || []), ...JSON.parse(JSON.stringify(customSubs))];
-            }
-        };
-
-        Object.values(configuredQuestions).forEach(processQuestionTree);
-        
-        Object.values(customQuestions).forEach(cq => {
-            if (!cq.parentId) {
-                configuredQuestions[cq.id] = JSON.parse(JSON.stringify(cq));
-            }
-        });
-    }
-
-    if (!activeOnly) {
-        return configuredQuestions;
-    }
-
-    const activeConfig: Record<string, Question> = {};
-    const filterActive = (question: Question): Question | null => {
-        if (!question.isActive) {
-            return null;
-        }
-        const activeQuestion = { ...question };
-        if (activeQuestion.subQuestions) {
-            activeQuestion.subQuestions = activeQuestion.subQuestions.map(filterActive).filter(Boolean) as Question[];
-        }
-        return activeQuestion;
+    let combinedFlatMap = {
+        ...masterQuestions,
+        ...(companyConfig?.customQuestions || {})
     };
-
-    Object.values(configuredQuestions).forEach(q => {
-        const activeQ = filterActive(q);
-        if (activeQ) {
-            activeConfig[q.id] = activeQ;
+    
+    if (companyConfig?.questions) {
+        for (const id in companyConfig.questions) {
+            if (combinedFlatMap[id]) {
+                Object.assign(combinedFlatMap[id], companyConfig.questions[id]);
+            }
         }
+    }
+    
+    let questionTree = buildQuestionTreeFromMap(combinedFlatMap);
+
+    if (activeOnly) {
+        const filterActive = (questions: Question[]): Question[] => {
+            return questions
+                .map(q => {
+                    if (!q.isActive) return null;
+                    const newQ = { ...q };
+                    if (newQ.subQuestions) {
+                        newQ.subQuestions = filterActive(newQ.subQuestions);
+                    }
+                    return newQ;
+                })
+                .filter((q): q is Question => q !== null);
+        };
+        questionTree = filterActive(questionTree);
+    }
+
+    const treeAsMap: Record<string, Question> = {};
+    questionTree.forEach(q => {
+        treeAsMap[q.id] = q;
     });
 
-    return activeConfig;
+    return treeAsMap;
 }, [companyConfigs, masterQuestions, isLoading]);
 
 
