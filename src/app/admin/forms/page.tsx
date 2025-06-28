@@ -23,6 +23,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function FormEditorSwitchPage() {
@@ -54,62 +55,59 @@ interface HrOrderedSection {
     questions: Question[];
 }
 
-function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, level = 0 }: { question: Question, onToggleActive: () => void, onEdit: () => void, onDelete: () => void, onAddSub: () => void, level?: number }) {
-    const masterQ = !question.isCustom && !question.parentId ? getDefaultQuestions().find(q => q.id === question.id) : null;
-    const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
-      <div>
-        <div className="flex items-center space-x-2 group bg-background rounded-lg pr-2">
-            {level > 0 && <CornerDownRight className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" style={{ marginLeft: `${level * 1}rem`}} />}
-            <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
+        <div className="space-y-2">
+            <div className="flex items-center space-x-2 group bg-muted/50 p-2 rounded-md" style={{ marginLeft: `${level * 1.5}rem`}}>
+                <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id, parentId)} />
+                <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+                {question.triggerValue && <Badge variant="outline" className="text-xs">On: {question.triggerValue}</Badge>}
+                <div className="flex items-center">
+                    {canHaveSubquestions && (
+                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    {question.isCustom && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Custom Sub-Question?</AlertDialogTitle>
+                                    <AlertDialogDescription>This will permanently delete "{question.label}". This cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDelete(question.id)}>Yes, Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                </div>
             </div>
-            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={onToggleActive} />
-            <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-            {question.triggerValue && <Badge variant="outline">Triggers on: {question.triggerValue}</Badge>}
-            <div className="flex items-center">
-                {canHaveSubquestions && (
-                  <Button variant="ghost" size="sm" onClick={onAddSub}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={onEdit}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
-                {question.isCustom && (
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Custom Question?</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete the question "{question.label}" and all its sub-questions. This action cannot be undone.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDelete}>Yes, Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                )}
-            </div>
+             {question.subQuestions && question.subQuestions.length > 0 && (
+                <div className="space-y-2">
+                    {question.subQuestions.map(subQ => (
+                        <HrSubQuestionItem
+                            key={subQ.id}
+                            question={subQ}
+                            level={level + 1}
+                            parentId={question.id}
+                            onToggleActive={onToggleActive}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onAddSub={onAddSub}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
-        <div className="space-y-2 mt-2">
-            {question.subQuestions?.map(subQ => (
-                <HrQuestionItem 
-                    key={subQ.id}
-                    question={subQ}
-                    onToggleActive={() => onToggleActive()} // Placeholder, needs wiring
-                    onEdit={() => onEdit()}
-                    onDelete={() => onDelete()}
-                    onAddSub={() => onAddSub()}
-                    level={level + 1}
-                />
-            ))}
-        </div>
-      </div>
     );
 }
-
 
 function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
@@ -164,32 +162,16 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, on
              {question.subQuestions && question.subQuestions.length > 0 && (
                 <div className="pl-12 pt-2 space-y-2">
                     {question.subQuestions.map(subQ => (
-                         <div key={subQ.id} className="flex items-center space-x-2 group bg-muted/50 p-2 rounded-md">
-                            <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <Checkbox id={subQ.id} checked={subQ.isActive} onCheckedChange={() => onToggleActive(subQ.id, question.id)} />
-                            <Label htmlFor={subQ.id} className="font-normal text-sm flex-1">{subQ.label}</Label>
-                            {subQ.triggerValue && <Badge variant="outline" className="text-xs">On: {subQ.triggerValue}</Badge>}
-                            <div className="flex items-center">
-                                <Button variant="ghost" size="sm" onClick={() => onEdit(subQ)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
-                                {subQ.isCustom && (
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Delete Custom Sub-Question?</AlertDialogTitle>
-                                                <AlertDialogDescription>This will permanently delete "{subQ.label}". This cannot be undone.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => onDelete(subQ.id)}>Yes, Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
-                            </div>
-                        </div>
+                         <HrSubQuestionItem
+                            key={subQ.id}
+                            question={subQ}
+                            level={0}
+                            parentId={question.id}
+                            onToggleActive={onToggleActive}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onAddSub={onAddSub}
+                         />
                     ))}
                 </div>
             )}
@@ -365,11 +347,21 @@ function HrFormEditor() {
 
     const handleToggleQuestion = (questionId: string, parentId?: string) => {
         setOrderedSections(prev => {
-            const newSections = findAndModifyQuestion([...prev], questionId, (q) => {
-                q.isActive = !q.isActive;
-                return q;
-            });
-            return newSections.flatMap(s => s.questions ? s : []); // Bit of a hack to satisfy type
+            const newSections = JSON.parse(JSON.stringify(prev));
+            const findAndToggle = (questions: Question[]) => {
+                for (const q of questions) {
+                    if (q.id === questionId) {
+                        q.isActive = !q.isActive;
+                        return true;
+                    }
+                    if (q.subQuestions && findAndToggle(q.subQuestions)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            newSections.forEach((s: HrOrderedSection) => findAndToggle(s.questions));
+            return newSections;
         });
     };
     
@@ -409,8 +401,21 @@ function HrFormEditor() {
     
     const handleDeleteCustom = (questionId: string) => {
         setOrderedSections(prev => {
-             const newSections = findAndModifyQuestion([...prev], questionId, (q, collection) => 'DELETE');
-             return newSections.flatMap(s => s.questions ? s : []); // Bit of a hack to satisfy type
+            const newSections = JSON.parse(JSON.stringify(prev));
+             const findAndDelete = (questions: Question[]) => {
+                for (let i = 0; i < questions.length; i++) {
+                    if (questions[i].id === questionId) {
+                        questions.splice(i, 1);
+                        return true;
+                    }
+                    if (questions[i].subQuestions && findAndDelete(questions[i].subQuestions!)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            newSections.forEach((s: HrOrderedSection) => findAndDelete(s.questions));
+            return newSections;
         });
         toast({ title: "Custom Question Removed", description: "Remember to save your changes." });
     };
@@ -444,12 +449,20 @@ function HrFormEditor() {
             
             if (newQuestion.parentId) {
                 setOrderedSections(prev => {
-                    const newSections = findAndModifyQuestion([...prev], newQuestion.parentId!, (q) => {
-                       if(!q.subQuestions) q.subQuestions = [];
-                       q.subQuestions.push(newQuestion);
-                       return q;
-                    });
-                     return newSections.flatMap(s => s.questions ? s : []); // Bit of a hack to satisfy type
+                    const newSections = JSON.parse(JSON.stringify(prev));
+                    const findAndAdd = (questions: Question[]) => {
+                        for (const q of questions) {
+                            if (q.id === newQuestion.parentId) {
+                                if (!q.subQuestions) q.subQuestions = [];
+                                q.subQuestions.push(newQuestion);
+                                return true;
+                            }
+                            if (q.subQuestions && findAndAdd(q.subQuestions)) return true;
+                        }
+                        return false;
+                    }
+                    newSections.forEach((s: HrOrderedSection) => findAndAdd(s.questions));
+                    return newSections;
                 });
             } else {
                  setOrderedSections(prev => {
@@ -465,8 +478,24 @@ function HrFormEditor() {
             }
         } else { // It's an update
              setOrderedSections(prev => {
-                const newSections = findAndModifyQuestion([...prev], newQuestion.id, (q) => ({...q, ...newQuestion}));
-                 return newSections.flatMap(s => s.questions ? s : []); // Bit of a hack to satisfy type
+                const newSections = JSON.parse(JSON.stringify(prev));
+                const findAndUpdate = (questions: Question[]) => {
+                    for (let i = 0; i < questions.length; i++) {
+                        if (questions[i].id === newQuestion.id) {
+                            // Preserve subquestions if they exist on the original
+                            const subs = questions[i].subQuestions;
+                            questions[i] = newQuestion;
+                            if (subs) questions[i].subQuestions = subs;
+                            return true;
+                        }
+                        if (questions[i].subQuestions && findAndUpdate(questions[i].subQuestions!)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                newSections.forEach((s: HrOrderedSection) => findAndUpdate(s.questions));
+                return newSections;
             });
         }
         setIsEditing(false);
