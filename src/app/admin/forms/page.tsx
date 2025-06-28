@@ -271,6 +271,39 @@ function SortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: { 
     );
 }
 
+function SortableSection({ section, onToggleQuestionActive, onEditQuestion, onDeleteQuestion }: {
+    section: OrderedSection;
+    onToggleQuestionActive: (questionId: string) => void;
+    onEditQuestion: (question: Question) => void;
+    onDeleteQuestion: (questionId: string) => void;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
+    const style = { transform: CSS.Transform.toString(transform), transition };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <div className="flex items-center space-x-2" >
+                <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical /></div>
+                <h3 className="font-semibold text-lg">{section.id}</h3>
+            </div>
+            <div className="pl-8 space-y-2 py-2">
+                <SortableContext items={section.questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                    {section.questions.map(question => (
+                        <SortableQuestionItem
+                            key={question.id}
+                            question={question}
+                            onToggleActive={() => onToggleQuestionActive(question.id)}
+                            onEdit={() => onEditQuestion(question)}
+                            onDelete={() => onDeleteQuestion(question.id)}
+                        />
+                    ))}
+                </SortableContext>
+            </div>
+            <Separator className="my-6" />
+        </div>
+    );
+}
+
 function AdminFormEditor() {
     const { toast } = useToast();
     const { masterQuestions, saveMasterQuestions } = useUserData();
@@ -489,32 +522,15 @@ function AdminFormEditor() {
                     <CardContent className="space-y-6">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                                {orderedSections.map(section => {
-                                    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
-                                    const style = { transform: CSS.Transform.toString(transform), transition };
-                                    return (
-                                        <div ref={setNodeRef} style={style} key={section.id}>
-                                            <div className="flex items-center space-x-2" >
-                                                <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical /></div>
-                                                <h3 className="font-semibold text-lg">{section.id}</h3>
-                                            </div>
-                                            <div className="pl-8 space-y-2 py-2">
-                                                <SortableContext items={section.questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-                                                    {section.questions.map(question => (
-                                                        <SortableQuestionItem
-                                                            key={question.id}
-                                                            question={question}
-                                                            onToggleActive={() => handleToggleQuestionActive(question.id)}
-                                                            onEdit={() => handleEditClick(question)}
-                                                            onDelete={() => handleDeleteClick(question.id)}
-                                                        />
-                                                    ))}
-                                                </SortableContext>
-                                            </div>
-                                            <Separator className="my-6" />
-                                        </div>
-                                    )
-                                })}
+                                {orderedSections.map(section => (
+                                    <SortableSection
+                                        key={section.id}
+                                        section={section}
+                                        onToggleQuestionActive={handleToggleQuestionActive}
+                                        onEditQuestion={handleEditClick}
+                                        onDeleteQuestion={handleDeleteClick}
+                                    />
+                                ))}
                             </SortableContext>
                         </DndContext>
                     </CardContent>
