@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { ChevronsUpDown, Trash2 } from 'lucide-react';
+import { ChevronsUpDown, Trash2, Eye, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data.tsx';
 import { useRouter } from 'next/navigation';
@@ -34,7 +34,7 @@ const roleNames = {
 };
 
 export default function Header() {
-  const { auth, logout } = useAuth();
+  const { auth, logout, startUserView, stopUserView } = useAuth();
   const { clearData, companyAssignmentForHr } = useUserData();
   const router = useRouter();
 
@@ -46,6 +46,16 @@ export default function Header() {
   const handleStartOver = () => {
     clearData();
     window.location.reload(); // Reload to force state reset and redirect to progress tracker
+  };
+
+  const handleStartUserView = () => {
+    startUserView();
+    router.push('/dashboard');
+  };
+
+  const handleStopUserView = () => {
+    stopUserView();
+    router.push('/admin/forms');
   };
 
   return (
@@ -64,7 +74,7 @@ export default function Header() {
         {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">
-                    {auth.role === 'end-user' ? auth.email : roleNames[auth.role as keyof typeof roleNames]}
+                    {auth.isPreview ? 'User Preview' : (auth.role === 'end-user' ? auth.email : roleNames[auth.role as keyof typeof roleNames])}
                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
@@ -73,8 +83,8 @@ export default function Header() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none truncate">{auth.email}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {roleNames[auth.role as keyof typeof roleNames]}
-                      {auth.role === 'hr' && companyAssignmentForHr && ` (${(companyAssignmentForHr.version || 'basic').charAt(0).toUpperCase() + (companyAssignmentForHr.version || 'basic').slice(1)})`}
+                      { auth.isPreview ? 'Previewing as End User' : roleNames[auth.role as keyof typeof roleNames] }
+                      {auth.role === 'hr' && !auth.isPreview && companyAssignmentForHr && ` (${(companyAssignmentForHr.version || 'basic').charAt(0).toUpperCase() + (companyAssignmentForHr.version || 'basic').slice(1)})`}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -93,7 +103,7 @@ export default function Header() {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete all your saved profile and assessment data. This action cannot be undone.
+                              This will permanently delete all your saved profile and assessment data for this view. This action cannot be undone.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -107,6 +117,21 @@ export default function Header() {
                     <DropdownMenuSeparator />
                     </>
                  )}
+                 
+                 {auth.role === 'hr' && !auth.isPreview && (
+                    <DropdownMenuItem onSelect={handleStartUserView}>
+                        <Eye className="mr-2" />
+                        <span>View as User</span>
+                    </DropdownMenuItem>
+                 )}
+
+                 {auth.isPreview && (
+                    <DropdownMenuItem onSelect={handleStopUserView}>
+                        <ShieldCheck className="mr-2" />
+                        <span>Return to HR View</span>
+                    </DropdownMenuItem>
+                 )}
+
 
                  <DropdownMenuItem onClick={handleLogout}>
                     <span>Log Out</span>

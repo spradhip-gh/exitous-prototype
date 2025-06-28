@@ -16,6 +16,7 @@ const MASTER_QUESTIONS_KEY = 'exitbetter-master-questions';
 const COMPANY_ASSIGNMENTS_KEY = 'exitbetter-company-assignments';
 const ASSESSMENT_COMPLETIONS_KEY = 'exitbetter-assessment-completions';
 const PLATFORM_USERS_KEY = 'exitbetter-platform-users';
+const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface CompanyUser {
   email: string;
@@ -46,6 +47,12 @@ export { Question };
 
 export function useUserData() {
   const { auth } = useAuth();
+  
+  const profileKey = auth?.isPreview ? `${PROFILE_KEY}${PREVIEW_SUFFIX}` : PROFILE_KEY;
+  const assessmentKey = auth?.isPreview ? `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}` : ASSESSMENT_KEY;
+  const completedTasksKey = auth?.isPreview ? `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}` : COMPLETED_TASKS_KEY;
+  const taskDateOverridesKey = auth?.isPreview ? `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}` : TASK_DATE_OVERRIDES_KEY;
+
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
@@ -59,11 +66,13 @@ export function useUserData() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     try {
-      const profileJson = localStorage.getItem(PROFILE_KEY);
-      if (profileJson) setProfileData(JSON.parse(profileJson));
+      // User-specific data (regular or preview)
+      const profileJson = localStorage.getItem(profileKey);
+      setProfileData(profileJson ? JSON.parse(profileJson) : null);
 
-      const assessmentJson = localStorage.getItem(ASSESSMENT_KEY);
+      const assessmentJson = localStorage.getItem(assessmentKey);
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
         const dateKeys: (keyof AssessmentData)[] = ['startDate', 'notificationDate', 'finalDate', 'relocationDate', 'internalMessagingAccessEndDate', 'emailAccessEndDate', 'networkDriveAccessEndDate', 'layoffPortalAccessEndDate', 'hrPayrollSystemAccessEndDate', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
@@ -74,14 +83,17 @@ export function useUserData() {
             }
         }
         setAssessmentData(parsedData);
+      } else {
+        setAssessmentData(null);
       }
 
-      const completedTasksJson = localStorage.getItem(COMPLETED_TASKS_KEY);
-      if (completedTasksJson) setCompletedTasks(new Set(JSON.parse(completedTasksJson)));
+      const completedTasksJson = localStorage.getItem(completedTasksKey);
+      setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
 
-      const dateOverridesJson = localStorage.getItem(TASK_DATE_OVERRIDES_KEY);
-      if (dateOverridesJson) setTaskDateOverrides(JSON.parse(dateOverridesJson));
-
+      const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
+      setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
+      
+      // Admin/HR data (not preview-specific)
       const configsJson = localStorage.getItem(COMPANY_CONFIGS_KEY);
       if (configsJson) setCompanyConfigs(JSON.parse(configsJson));
       
@@ -115,11 +127,14 @@ export function useUserData() {
 
     } catch (error) {
       console.error('Failed to load user data from local storage', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY, PLATFORM_USERS_KEY].forEach(k => localStorage.removeItem(k));
+      // Clear all keys on error to prevent corrupted state
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, COMPANY_CONFIGS_KEY, MASTER_QUESTIONS_KEY, COMPANY_ASSIGNMENTS_KEY, ASSESSMENT_COMPLETIONS_KEY, PLATFORM_USERS_KEY,
+       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`
+      ].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -132,17 +147,17 @@ export function useUserData() {
 
   const saveProfileData = useCallback((data: ProfileData) => {
     try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(data));
+      localStorage.setItem(profileKey, JSON.stringify(data));
       setProfileData(data);
     } catch (error) { console.error('Failed to save profile data', error); }
-  }, []);
+  }, [profileKey]);
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
-      localStorage.setItem(ASSESSMENT_KEY, JSON.stringify(data));
+      localStorage.setItem(assessmentKey, JSON.stringify(data));
       setAssessmentData(data);
 
-      if (auth?.role === 'end-user' && auth.email) {
+      if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         setAssessmentCompletions(prev => {
             const newCompletions = { ...prev, [auth.email!]: true };
             localStorage.setItem(ASSESSMENT_COMPLETIONS_KEY, JSON.stringify(newCompletions));
@@ -151,28 +166,28 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to save assessment data', error); }
-  }, [auth]);
+  }, [auth, assessmentKey]);
 
   const toggleTaskCompletion = useCallback((taskId: string) => {
     setCompletedTasks(prev => {
       const newSet = new Set(prev);
       newSet.has(taskId) ? newSet.delete(taskId) : newSet.add(taskId);
       try {
-        localStorage.setItem(COMPLETED_TASKS_KEY, JSON.stringify(Array.from(newSet)));
+        localStorage.setItem(completedTasksKey, JSON.stringify(Array.from(newSet)));
       } catch (error) { console.error('Failed to save completed tasks', error); }
       return newSet;
     });
-  }, []);
+  }, [completedTasksKey]);
 
   const updateTaskDate = useCallback((taskId: string, newDate: Date) => {
     setTaskDateOverrides(prev => {
       const newOverrides = { ...prev, [taskId]: newDate.toISOString().split('T')[0] };
        try {
-        localStorage.setItem(TASK_DATE_OVERRIDES_KEY, JSON.stringify(newOverrides));
+        localStorage.setItem(taskDateOverridesKey, JSON.stringify(newOverrides));
       } catch (error) { console.error('Failed to save date overrides', error); }
       return newOverrides;
     });
-  }, []);
+  }, [taskDateOverridesKey]);
   
   const saveMasterQuestions = useCallback((questions: Record<string, Question>) => {
     try {
@@ -320,16 +335,16 @@ export function useUserData() {
 
   const clearData = useCallback(() => {
     try {
-      localStorage.removeItem(PROFILE_KEY);
-      localStorage.removeItem(ASSESSMENT_KEY);
-      localStorage.removeItem(COMPLETED_TASKS_KEY);
-      localStorage.removeItem(TASK_DATE_OVERRIDES_KEY);
+      localStorage.removeItem(profileKey);
+      localStorage.removeItem(assessmentKey);
+      localStorage.removeItem(completedTasksKey);
+      localStorage.removeItem(taskDateOverridesKey);
       setProfileData(null);
       setAssessmentData(null);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
       
-      if (auth?.role === 'end-user' && auth.email) {
+      if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         setAssessmentCompletions(prev => {
             const newCompletions = { ...prev };
             delete newCompletions[auth.email!];
@@ -339,7 +354,7 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey]);
 
   return {
     profileData,
