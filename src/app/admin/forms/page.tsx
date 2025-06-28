@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -305,12 +305,12 @@ function HrFormEditor() {
             const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
             if (updatedQuestion.isCustom) {
                  // if section changed, move it
-                const oldSection = allQuestions[updatedQuestion.id!]?.section;
-                if (oldSection !== updatedQuestion.section) {
+                const oldSectionId = allQuestions[updatedQuestion.id!]?.section;
+                if (oldSectionId !== updatedQuestion.section) {
                      setOrderedSections(prev => {
-                        let questionToMove: Question | null = { ...updatedQuestion };
-                        let sectionsWithRemoval = prev.map(section => {
-                            if (section.id === oldSection) {
+                        const questionToMove = { ...updatedQuestion };
+                        const sectionsWithoutQuestion = prev.map(section => {
+                            if (section.id === oldSectionId) {
                                 return {
                                     ...section,
                                     questions: section.questions.filter(q => q.id !== updatedQuestion.id)
@@ -320,22 +320,22 @@ function HrFormEditor() {
                         });
 
                         let sectionExists = false;
-                        let sectionsWithAddition = sectionsWithRemoval.map(section => {
+                        const sectionsWithQuestion = sectionsWithoutQuestion.map(section => {
                             if (section.id === updatedQuestion.section) {
                                 sectionExists = true;
                                 return {
                                     ...section,
-                                    questions: [...section.questions, questionToMove!]
+                                    questions: [...section.questions, questionToMove]
                                 };
                             }
                             return section;
                         });
 
                         if (!sectionExists) {
-                            sectionsWithAddition.push({ id: updatedQuestion.section!, questions: [questionToMove!] });
+                            sectionsWithQuestion.push({ id: updatedQuestion.section!, questions: [questionToMove] });
                         }
 
-                        return sectionsWithAddition.filter(s => s.questions.length > 0);
+                        return sectionsWithQuestion.filter(s => s.questions.length > 0);
                     });
                 } else {
                      setOrderedSections(prev => prev.map(s => ({
@@ -934,3 +934,4 @@ function AdminFormEditor() {
     
 
     
+
