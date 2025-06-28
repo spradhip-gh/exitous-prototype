@@ -311,79 +311,86 @@ export function useUserData() {
   const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
-    if (isLoading) return {};
+    if (isLoading || Object.keys(masterQuestions).length === 0) return {};
 
-    const baseQuestions = { ...masterQuestions };
-
-    // Function to recursively apply overrides and custom questions
-    const applyCompanyConfig = (questions: Record<string, Question>, companyConfig?: CompanyConfig): Record<string, Question> => {
-        if (!companyConfig) return questions;
-        const companyOverrides = companyConfig.questions || {};
-        const customQuestions = companyConfig.customQuestions || {};
-
-        const result: Record<string, Question> = {};
-
-        const processQuestion = (q: Question): Question => {
-            let processedQ = { ...q };
-            if (companyOverrides[q.id]) {
-                processedQ = { ...processedQ, ...companyOverrides[q.id] };
-            }
-             if (customQuestions[q.id]) { // Custom question could be an override itself
-                processedQ = { ...processedQ, ...customQuestions[q.id] };
-            }
-            if (processedQ.subQuestions) {
-                processedQ.subQuestions = processedQ.subQuestions.map(processQuestion);
-            }
-             // Add any custom sub-questions
-            const customSubs = Object.values(customQuestions).filter(cq => cq.parentId === q.id);
-            if(customSubs.length > 0) {
-              processedQ.subQuestions = [...(processedQ.subQuestions || []), ...customSubs];
-            }
-
-            return processedQ;
-        };
-        
-        // Process base questions
-        for (const id in questions) {
-            result[id] = processQuestion(questions[id]);
-        }
-        
-        // Add top-level custom questions
-        for(const id in customQuestions) {
-            if(!customQuestions[id].parentId) {
-                result[id] = customQuestions[id];
-            }
-        }
-
-        return result;
-    };
+    const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
-    const companyData = companyName ? companyConfigs[companyName] : undefined;
-    const configuredQuestions = applyCompanyConfig(baseQuestions, companyData);
-
-    // Filter by active questions
-    const activeConfig: Record<string, Question> = {};
-    const filterActive = (q: Question) => {
-      if (q.isActive) {
-        const newQ = {...q};
-        if(newQ.subQuestions) {
-          newQ.subQuestions = newQ.subQuestions.filter(filterActive);
+    // If no company config, just return active master questions
+    if (!companyConfig) {
+        const activeMasterQuestions: Record<string, Question> = {};
+        const filterActive = (question: Question): Question | null => {
+            if (!question.isActive) return null;
+            const newQuestion = { ...question };
+            if (newQuestion.subQuestions) {
+                newQuestion.subQuestions = newQuestion.subQuestions.map(filterActive).filter(Boolean) as Question[];
+            }
+            return newQuestion;
         }
-        return newQ;
-      }
-      return null;
+        Object.values(masterQuestions).forEach(q => {
+            const activeQ = filterActive(q);
+            if (activeQ) activeMasterQuestions[q.id] = activeQ;
+        });
+        return activeMasterQuestions;
     }
+
+    const companyOverrides = companyConfig.questions || {};
+    const customQuestions = companyConfig.customQuestions || {};
+
+    // Start with a deep copy of master questions to avoid any mutation issues.
+    const configuredQuestions = JSON.parse(JSON.stringify(masterQuestions));
+
+    // Recursively apply overrides and add custom questions.
+    const processQuestionTree = (question: Question) => {
+        // Apply company-specific overrides to the question.
+        if (companyOverrides[question.id]) {
+            Object.assign(question, companyOverrides[question.id]);
+        }
+
+        // Recursively process any existing sub-questions.
+        if (question.subQuestions) {
+            question.subQuestions.forEach(processQuestionTree);
+        }
+
+        // Add any custom sub-questions defined for this parent.
+        const customSubs = Object.values(customQuestions).filter(cq => cq.parentId === question.id);
+        if (customSubs.length > 0) {
+            question.subQuestions = [...(question.subQuestions || []), ...JSON.parse(JSON.stringify(customSubs))];
+        }
+    };
+
+    // Apply the configuration to the entire tree of master questions.
+    Object.values(configuredQuestions).forEach(processQuestionTree);
     
+    // Add any top-level custom questions to the configuration.
+    Object.values(customQuestions).forEach(cq => {
+        if (!cq.parentId) {
+            configuredQuestions[cq.id] = JSON.parse(JSON.stringify(cq));
+        }
+    });
+
+    // Finally, filter the entire configured tree for active questions.
+    const activeConfig: Record<string, Question> = {};
+    const filterActive = (question: Question): Question | null => {
+        if (!question.isActive) {
+            return null;
+        }
+        const activeQuestion = { ...question };
+        if (activeQuestion.subQuestions) {
+            activeQuestion.subQuestions = activeQuestion.subQuestions.map(filterActive).filter(Boolean) as Question[];
+        }
+        return activeQuestion;
+    };
+
     Object.values(configuredQuestions).forEach(q => {
         const activeQ = filterActive(q);
         if (activeQ) {
-            activeConfig[activeQ.id] = activeQ;
+            activeConfig[q.id] = activeQ;
         }
     });
 
     return activeConfig;
+}, [companyConfigs, masterQuestions, isLoading]);
 
-  }, [companyConfigs, masterQuestions, isLoading]);
 
   const getAllCompanyConfigs = useCallback(() => companyConfigs, [companyConfigs]);
 
