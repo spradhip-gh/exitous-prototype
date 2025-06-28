@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -83,14 +83,14 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: 
                         <AlertDialogContent>
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Custom Question?</AlertDialogTitle>
-                                <DialogDescription>
+                                <AlertDialogDescription>
                                     This will permanently delete the question "{question.label}". This action cannot be undone.
-                                </DialogDescription>
+                                </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <DialogFooter>
+                            <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={onDelete}>Yes, Delete</AlertDialogAction>
-                            </DialogFooter>
+                            </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
                 )}
@@ -354,38 +354,35 @@ function HrFormEditor() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
-        if (!over || active.id === over.id) return;
     
-        // Find which section the active and over items belong to from the current state.
-        const activeSection = orderedSections.find(s => s.questions.some(q => q.id === active.id));
-        const overSection = orderedSections.find(s => s.questions.some(q => q.id === over.id));
-    
-        // If it's a cross-section drag, show a toast and abort the state update.
-        if (activeSection && overSection && activeSection.id !== overSection.id) {
-            toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
-            return;
-        }
-    
-        // Otherwise, it's a valid reorder within the same section. Proceed with the state update.
-        setOrderedSections(sections => {
-            const activeSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === active.id));
-            const overSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === over.id));
-    
-            // These checks are for safety within the updater function.
-            if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
-                return sections;
+        if (over && active.id !== over.id) {
+            const activeSection = orderedSections.find(s => s.questions.some(q => q.id === active.id));
+            const overSection = orderedSections.find(s => s.questions.some(q => q.id === over.id));
+        
+            if (activeSection && overSection && activeSection.id !== overSection.id) {
+                toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
+                return;
             }
-            
-            const newSections = [...sections];
-            const activeQuestionIndex = newSections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
-            const overQuestionIndex = newSections[overSectionIndex].questions.findIndex(q => q.id === over.id);
-            
-            newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
-            return newSections;
-        });
-    };
+
+            setOrderedSections((sections) => {
+                const activeSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === active.id));
+                const overSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === over.id));
+        
+                if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
+                    return sections;
+                }
+                
+                const newSections = [...sections];
+                const activeQuestionIndex = newSections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
+                const overQuestionIndex = newSections[overSectionIndex].questions.findIndex(q => q.id === over.id);
+                
+                newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
+                return newSections;
+            });
+        }
+    }
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
@@ -934,5 +931,6 @@ function AdminFormEditor() {
     
 
     
+
 
 
