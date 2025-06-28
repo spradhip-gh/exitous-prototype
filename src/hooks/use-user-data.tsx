@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ProfileData } from '@/lib/schemas';
-import type { AssessmentData } from '@/lib/schemas';
+import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { getDefaultQuestions } from '@/lib/questions';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
@@ -43,9 +43,6 @@ export interface PlatformUser {
     email: string;
     role: 'admin' | 'consultant';
 }
-
-export type { Question };
-
 
 export function useUserData() {
   const { auth } = useAuth();

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data.tsx";
+import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data";
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -481,24 +481,26 @@ function HrFormEditor() {
         const activeId = String(active.id);
         const overId = String(over.id);
 
+        let activeSectionIndex = -1, overSectionIndex = -1;
+        orderedSections.forEach((s, index) => {
+            if (s.questions.some(q => q.id === activeId)) activeSectionIndex = index;
+            if (s.questions.some(q => q.id === overId)) overSectionIndex = index;
+        });
+
+        if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
+            toast({ title: "Move sections via Edit", description: "Questions can only be reordered within the same section." });
+            return;
+        }
+
         setOrderedSections(prevSections => {
             const newSections = JSON.parse(JSON.stringify(prevSections));
-            let activeSectionIndex = -1, overSectionIndex = -1;
-            newSections.forEach((s: HrOrderedSection, index: number) => {
-                if (s.questions.some(q => q.id === activeId)) activeSectionIndex = index;
-                if (s.questions.some(q => q.id === overId)) overSectionIndex = index;
-            });
-
-            if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
-                 toast({ title: "Move sections via Edit", description: "Questions can only be reordered within the same section." });
-                 return prevSections;
-            }
             const currentSection = newSections[activeSectionIndex];
             const oldIndex = currentSection.questions.findIndex((q: Question) => q.id === activeId);
             const newIndex = currentSection.questions.findIndex((q: Question) => q.id === overId);
-            if (oldIndex === -1 || newIndex === -1 || !currentSection.questions[oldIndex]?.isCustom) return prevSections;
             
-            currentSection.questions = arrayMove(currentSection.questions, oldIndex, newIndex);
+            if (oldIndex !== -1 && newIndex !== -1 && currentSection.questions[oldIndex]?.isCustom) {
+                currentSection.questions = arrayMove(currentSection.questions, oldIndex, newIndex);
+            }
             return newSections;
         });
     }

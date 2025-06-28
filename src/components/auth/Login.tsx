@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useUserData } from '@/hooks/use-user-data.tsx';
+import { useUserData } from '@/hooks/use-user-data';
 import { Loader2 } from 'lucide-react';
 
 export default function Login() {

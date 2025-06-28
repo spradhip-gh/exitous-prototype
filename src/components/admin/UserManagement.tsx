@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { useUserData, CompanyUser } from "@/hooks/use-user-data.tsx";
+import { useUserData, CompanyUser } from "@/hooks/use-user-data";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
