@@ -1,9 +1,11 @@
+
 export interface Question {
-    id: keyof AssessmentData;
+    id: string; // Can be keyof AssessmentData or a custom string for new questions
     label: string;
-    section: "Work & Employment Details" | "Work Circumstances" | "Systems & Benefits Access";
+    section: "Work & Employment Details" | "Work Circumstances" | "Systems & Benefits Access" | string; // Allow custom section names in the future
     type: "select" | "radio" | "checkbox" | "date" | "text";
     isActive: boolean;
+    isCustom?: boolean;
     defaultValue?: string | string[];
     options?: string[];
     placeholder?: string;
@@ -12,7 +14,7 @@ export interface Question {
 }
 
 // A helper type from schemas, simplified for this context
-interface AssessmentData {
+export interface AssessmentData {
     workStatus: string;
     startDate: Date;
     notificationDate: Date;
@@ -43,6 +45,8 @@ interface AssessmentData {
     visionCoverageEndDate?: Date;
     hadEAP: string;
     eapCoverageEndDate?: Date;
+    // This allows for custom properties from custom questions
+    [key: string]: any; 
 }
 
 

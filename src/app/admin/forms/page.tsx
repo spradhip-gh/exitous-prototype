@@ -1,5 +1,6 @@
+
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useUserData, CompanyConfig } from "@/hooks/use-user-data.tsx";
-import { getDefaultQuestions, Question } from "@/lib/questions";
+import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data.tsx";
+import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical } from "lucide-react";
@@ -19,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 export default function FormEditorSwitchPage() {
@@ -41,79 +43,276 @@ export default function FormEditorSwitchPage() {
     );
 }
 
+interface HrOrderedSection {
+    id: string;
+    questions: Question[];
+}
+
+function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: { question: Question, onToggleActive: () => void, onEdit: () => void, onDelete: () => void }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
+        id: question.id,
+        disabled: !question.isCustom
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    
+    const masterQ = getDefaultQuestions().find(q => q.id === question.id);
+    const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center space-x-2 group bg-background rounded-lg pr-2">
+            <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground", question.isCustom ? "cursor-grab" : "cursor-not-allowed")}>
+                <GripVertical className="h-5 w-5" />
+            </div>
+             <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                 {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
+             </div>
+            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={onToggleActive} />
+            <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+            <div className="flex items-center">
+                <Button variant="ghost" size="sm" onClick={onEdit}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                {question.isCustom && (
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Custom Question?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the question "{question.label}". This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDelete}>Yes, Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function HrFormEditor() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyQuestions, masterQuestions, isLoading: isUserDataLoading, companyAssignmentForHr } = useUserData();
+    const { 
+        getAllCompanyConfigs, 
+        saveCompanyConfig, 
+        masterQuestions, 
+        isLoading: isUserDataLoading, 
+        companyAssignmentForHr 
+    } = useUserData();
     
     const companyName = auth?.companyName;
-    const [questions, setQuestions] = useState<Record<string, Question>>({});
+    const [allQuestions, setAllQuestions] = useState<Record<string, Question>>({});
+    const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
+    
     const [isEditing, setIsEditing] = useState(false);
-    const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+    const [isNewCustom, setIsNewCustom] = useState(false);
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
     useEffect(() => {
         if (companyName && !isUserDataLoading) {
             const allConfigs = getAllCompanyConfigs();
             const companyData = allConfigs[companyName] as CompanyConfig | undefined;
+            const companyQuestionOverrides = companyData?.questions || {};
+            const companyCustomQuestions = companyData?.customQuestions || {};
+            const companyQuestionOrder = companyData?.questionOrderBySection || {};
+
+            const combinedQuestions = { ...masterQuestions };
+            // Apply overrides
+            Object.keys(companyQuestionOverrides).forEach(id => {
+                if (combinedQuestions[id]) {
+                    combinedQuestions[id] = { ...combinedQuestions[id], ...companyQuestionOverrides[id] };
+                }
+            });
+            // Add custom questions
+            Object.assign(combinedQuestions, companyCustomQuestions);
+            setAllQuestions(combinedQuestions);
+
+            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
             
-            const finalQuestions = { ...masterQuestions };
-            if (companyData?.questions) {
-                Object.keys(companyData.questions).forEach(qId => {
-                    if (finalQuestions[qId]) { 
-                        finalQuestions[qId] = { ...finalQuestions[qId], ...companyData.questions[qId] };
-                    }
-                })
-            }
-            setQuestions(finalQuestions);
+            const sections = masterSections.map(sectionName => {
+                let orderedIds = companyQuestionOrder[sectionName];
+                
+                if (!orderedIds) {
+                    orderedIds = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
+                } else {
+                    const masterIdsInSection = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
+                    masterIdsInSection.forEach(id => {
+                        if (!orderedIds.includes(id)) orderedIds.push(id);
+                    });
+                    orderedIds = orderedIds.filter(id => combinedQuestions[id]);
+                }
+
+                const questionsForSection = orderedIds.map(id => combinedQuestions[id]).filter(Boolean);
+                return { id: sectionName, questions: questionsForSection };
+            });
+
+            setOrderedSections(sections);
         }
     }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions]);
 
     const handleSaveConfig = () => {
-        if (!companyName) {
-            toast({ title: "Company Name Required", variant: "destructive" });
-            return;
-        }
-        const questionsToSave = { ...questions };
-        Object.keys(questionsToSave).forEach(qId => {
-            const masterQ = masterQuestions[qId];
-            if (masterQ) {
-                questionsToSave[qId].lastUpdated = masterQ.lastUpdated;
-            }
-        });
+        if (!companyName) return;
 
-        saveCompanyQuestions(companyName, questionsToSave);
+        const companyOverrides: Record<string, Question> = {};
+        const customQuestions: Record<string, Question> = {};
+        const questionOrderBySection: Record<string, string[]> = {};
+
+        orderedSections.forEach(section => {
+            questionOrderBySection[section.id] = section.questions.map(q => q.id);
+            section.questions.forEach(q => {
+                if (q.isCustom) {
+                    customQuestions[q.id] = q;
+                } else {
+                    // Only save overrides, not the full master question
+                    const masterQ = masterQuestions[q.id];
+                    const override: Partial<Question> = {};
+                    let hasChanged = false;
+                    if (q.isActive !== masterQ.isActive) { override.isActive = q.isActive; hasChanged = true; }
+                    if (q.label !== masterQ.label) { override.label = q.label; hasChanged = true; }
+                    if (q.defaultValue !== masterQ.defaultValue) { override.defaultValue = q.defaultValue; hasChanged = true; }
+                    if (JSON.stringify(q.options) !== JSON.stringify(masterQ.options)) { override.options = q.options; hasChanged = true; }
+                    if (q.lastUpdated) { override.lastUpdated = q.lastUpdated }
+                    
+                    if (hasChanged) {
+                        companyOverrides[q.id] = override as Question;
+                    }
+                }
+            });
+        });
+        
+        const currentConfig = getAllCompanyConfigs()[companyName] || {};
+        const newConfig: CompanyConfig = {
+            ...currentConfig,
+            questions: companyOverrides,
+            customQuestions,
+            questionOrderBySection,
+        };
+
+        saveCompanyConfig(companyName, newConfig);
         toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
     };
 
     const handleToggleQuestion = (questionId: string) => {
-        setQuestions(prev => ({
-            ...prev,
-            [questionId]: { ...prev[questionId], isActive: !prev[questionId].isActive }
-        }));
+        setAllQuestions(prev => ({...prev, [questionId]: {...prev[questionId], isActive: !prev[questionId].isActive }}));
+        setOrderedSections(prev => prev.map(s => ({
+            ...s,
+            questions: s.questions.map(q => q.id === questionId ? {...q, isActive: !q.isActive} : q)
+        })));
     };
-
+    
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question });
+        setIsNewCustom(false);
         setIsEditing(true);
     };
 
+    const handleAddNewCustomClick = () => {
+        setCurrentQuestion({
+            id: '',
+            label: '',
+            section: orderedSections[0]?.id || '',
+            type: 'text',
+            isActive: true,
+            isCustom: true,
+            options: [],
+        });
+        setIsNewCustom(true);
+        setIsEditing(true);
+    };
+    
+    const handleDeleteCustom = (questionId: string) => {
+        setAllQuestions(prev => {
+            const next = {...prev};
+            delete next[questionId];
+            return next;
+        });
+        setOrderedSections(prev => prev.map(s => ({
+            ...s,
+            questions: s.questions.filter(q => q.id !== questionId)
+        })));
+        toast({ title: "Custom Question Removed", description: "Remember to save your changes." });
+    };
+
     const handleSaveEdit = () => {
-        if (currentQuestion) {
-            setQuestions(prev => ({ ...prev, [currentQuestion.id]: currentQuestion }));
+        if (!currentQuestion) return;
+
+        if (isNewCustom) {
+            if (!currentQuestion.id || !currentQuestion.label || !currentQuestion.section) {
+                toast({ title: "Missing Fields", description: "ID, Label, and Section are required.", variant: "destructive" });
+                return;
+            }
+             if (allQuestions[currentQuestion.id]) {
+                toast({ title: "ID already exists", description: "This question ID is already in use.", variant: "destructive" });
+                return;
+            }
+            const newQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+            setAllQuestions(prev => ({...prev, [newQuestion.id]: newQuestion }));
+            setOrderedSections(prev => {
+                const newSections = [...prev];
+                const sectionIndex = newSections.findIndex(s => s.id === newQuestion.section);
+                if (sectionIndex > -1) {
+                    newSections[sectionIndex].questions.push(newQuestion);
+                }
+                return newSections;
+            });
+        } else { // It's an update
+            const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion } as Question;
+            setAllQuestions(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
+            setOrderedSections(prev => prev.map(s => ({
+                ...s,
+                questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
+            })));
         }
+
         setIsEditing(false);
         setCurrentQuestion(null);
     };
-    
-    const groupedQuestions = Object.values(questions).reduce((acc, q) => {
-        if (!acc[q.section]) acc[q.section] = [];
-        acc[q.section].push(q);
-        return acc;
-    }, {} as Record<string, Question[]>);
 
-    const masterQuestionForEdit = currentQuestion ? masterQuestions[currentQuestion.id] : null;
-    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && new Date(masterQuestionForEdit.lastUpdated!) > new Date(currentQuestion.lastUpdated);
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        
+        setOrderedSections(sections => {
+            const activeSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === active.id));
+            const overSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === over.id));
+            if (activeSectionIndex === -1 || overSectionIndex === -1) return sections;
+
+            const activeQuestionIndex = sections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
+            const overQuestionIndex = sections[overSectionIndex].questions.findIndex(q => q.id === over.id);
+
+            if (activeSectionIndex === overSectionIndex) { // Reordering within same section
+                const newSections = [...sections];
+                newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
+                return newSections;
+            } else { // Moving between sections
+                const newSections = [...sections];
+                const [movedQuestion] = newSections[activeSectionIndex].questions.splice(activeQuestionIndex, 1);
+                newSections[overSectionIndex].questions.splice(overQuestionIndex, 0, movedQuestion);
+                // Also update the question's section property
+                movedQuestion.section = newSections[overSectionIndex].id;
+                setAllQuestions(prev => ({...prev, [movedQuestion.id]: movedQuestion}));
+                return newSections;
+            }
+        });
+    };
+    
+    const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom ? masterQuestions[currentQuestion.id!] : null;
+    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
+    const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions).map(q => q.section))], [masterQuestions]);
 
     if (isUserDataLoading || companyAssignmentForHr === undefined) {
         return (
@@ -163,38 +362,46 @@ function HrFormEditor() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Manage Questions</CardTitle>
-                        <CardDescription>Enable, disable, or edit questions for your company.</CardDescription>
+                        <CardDescription>Enable, disable, or edit questions. Drag and drop custom questions to reorder.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
-                            <div key={section}>
-                                <h3 className="font-semibold mb-4 text-lg">{section}</h3>
-                                <div className="space-y-4">
-                                {sectionQuestions.sort((a,b) => getDefaultQuestions().findIndex(q => q.id === a.id) - getDefaultQuestions().findIndex(q => q.id === b.id)).map((question) => {
-                                    const masterQ = masterQuestions[question.id];
-                                    const hasBeenUpdated = masterQ && question.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
-                                    return (
-                                        <div key={question.id} className="flex items-center space-x-3">
-                                            {hasBeenUpdated && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
-                                            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => handleToggleQuestion(question.id)} />
-                                            <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
+                                <div key={section}>
+                                    <h3 className="font-semibold mb-4 text-lg">{section}</h3>
+                                    <SortableContext items={sectionQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                                        <div className="space-y-2">
+                                            {sectionQuestions.map((question) => (
+                                                <HrSortableQuestionItem
+                                                    key={question.id}
+                                                    question={question}
+                                                    onToggleActive={() => handleToggleQuestion(question.id)}
+                                                    onEdit={() => handleEditClick(question)}
+                                                    onDelete={() => handleDeleteCustom(question.id)}
+                                                />
+                                            ))}
                                         </div>
-                                    );
-                                })}
+                                    </SortableContext>
+                                    <Separator className="my-6" />
                                 </div>
-                                <Separator className="my-6" />
-                            </div>
-                        ))}
+                            ))}
+                        </DndContext>
                     </CardContent>
+                    <CardFooter className="border-t pt-6">
+                        <Button variant="outline" onClick={handleAddNewCustomClick}>
+                            <PlusCircle className="mr-2" /> Add Custom Question
+                        </Button>
+                    </CardFooter>
                 </Card>
                  <Button onClick={handleSaveConfig} className="w-full">Save Configuration for {companyName}</Button>
             </div>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Edit Question</DialogTitle>
-                        <DialogDescription>Modify the question text, answer options, and default value.</DialogDescription>
+                        <DialogTitle>{isNewCustom ? 'Add Custom Question' : 'Edit Question'}</DialogTitle>
+                        <DialogDescription>
+                            {isNewCustom ? 'Create a new question for your company.' : 'Modify the question text, answer options, and default value.'}
+                        </DialogDescription>
                     </DialogHeader>
                     {currentQuestion && (
                         <div className="space-y-6 py-4">
@@ -213,20 +420,42 @@ function HrFormEditor() {
                                                 ...currentQuestion,
                                                 label: masterQuestionForEdit.label,
                                                 options: masterQuestionForEdit.options,
+                                                lastUpdated: masterQuestionForEdit.lastUpdated
                                             });
                                             toast({ title: "Updates Applied", description: "Remember to save your configuration." });
                                         }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button>
                                     </AlertDescription>
                                 </Alert>
                             )}
+                             {currentQuestion.isCustom && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="question-id">Question ID</Label>
+                                    <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value }))} disabled={!isNewCustom}/>
+                                    {!isNewCustom && <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>}
+                                </div>
+                             )}
                             <div className="space-y-2">
                                 <Label htmlFor="question-label">Question Text</Label>
                                 <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/>
                             </div>
-                            {currentQuestion.options && currentQuestion.options.length > 0 && (
+                            {currentQuestion.isCustom && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="question-section">Section</Label>
+                                    <Select 
+                                        onValueChange={(v) => setCurrentQuestion(q => ({ ...q, section: v as any}))} 
+                                        value={currentQuestion.section || ''}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {availableSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                                 <div className="space-y-2">
                                     <Label htmlFor="question-options">Answer Options (one per line)</Label>
-                                    <Textarea id="question-options" value={currentQuestion.options.join('\n')} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options.length + 1}/>
+                                    <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options?.length || 3}/>
                                 </div>
                             )}
                              <div className="space-y-2">
@@ -614,3 +843,4 @@ function AdminFormEditor() {
         </div>
     );
 }
+

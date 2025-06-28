@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -22,8 +23,10 @@ export interface CompanyUser {
 }
 
 export interface CompanyConfig {
-  questions: Record<string, Question>;
+  questions: Record<string, Partial<Question>>; // Overrides for master questions
   users: CompanyUser[];
+  customQuestions?: Record<string, Question>;
+  questionOrderBySection?: Record<string, string[]>;
 }
 
 export interface CompanyAssignment {
@@ -37,6 +40,8 @@ export interface PlatformUser {
     email: string;
     role: 'admin' | 'consultant';
 }
+
+export { Question };
 
 
 export function useUserData() {
@@ -181,10 +186,10 @@ export function useUserData() {
         console.error('Failed to save master questions', error);
     }
   }, []);
-
-  const saveCompanyQuestions = useCallback((companyName: string, questions: Record<string, Question>) => {
+  
+  const saveCompanyConfig = useCallback((companyName: string, config: CompanyConfig) => {
     setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: { ...(prev[companyName] || {}), questions: questions, users: prev[companyName]?.users || [] }};
+        const newConfigs = { ...prev, [companyName]: config };
         try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
         } catch (error) { console.error('Failed to save company configs', error); }
@@ -194,7 +199,8 @@ export function useUserData() {
 
   const saveCompanyUsers = useCallback((companyName: string, users: CompanyUser[]) => {
     setCompanyConfigs(prev => {
-        const newConfigs = { ...prev, [companyName]: { ...(prev[companyName] || {}), questions: prev[companyName]?.questions || {}, users: users }};
+        const config = prev[companyName] || { questions: {}, users: [] };
+        const newConfigs = { ...prev, [companyName]: { ...config, users: users }};
         try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
         } catch (error) { console.error('Failed to save company users', error); }
@@ -218,8 +224,10 @@ export function useUserData() {
       const newConfigs = { ...prev };
       if (!newConfigs[assignment.companyName]) {
           newConfigs[assignment.companyName] = {
-              questions: masterQuestions,
-              users: []
+              questions: {},
+              users: [],
+              customQuestions: {},
+              questionOrderBySection: {}
           };
           try {
             localStorage.setItem(COMPANY_CONFIGS_KEY, JSON.stringify(newConfigs));
@@ -227,7 +235,7 @@ export function useUserData() {
       }
       return newConfigs;
     });
-  }, [masterQuestions]);
+  }, []);
 
   const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
     setCompanyAssignments(prev => {
@@ -274,23 +282,39 @@ export function useUserData() {
   const getAllCompanyAssignments = useCallback(() => companyAssignments, [companyAssignments]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined) => {
-    const baseQuestions = masterQuestions;
-    if (!companyName || !companyConfigs[companyName]?.questions) {
-      return Object.fromEntries(Object.entries(baseQuestions).filter(([, q]) => q.isActive));
-    }
-    const companySpecificQuestions = companyConfigs[companyName].questions;
     const finalConfig: Record<string, Question> = {};
-    Object.keys(baseQuestions).forEach(qId => {
-        const companyQ = companySpecificQuestions[qId];
-        const masterQ = baseQuestions[qId];
-        if (companyQ !== undefined) {
-            if (companyQ.isActive) finalConfig[qId] = companyQ;
-        } else if (masterQ.isActive) {
-            finalConfig[qId] = masterQ;
+    if (isLoading) return finalConfig;
+
+    const baseQuestions = masterQuestions;
+    const companyConfig = companyName ? companyConfigs[companyName] : undefined;
+    const companyOverrides = companyConfig?.questions || {};
+    const customQuestions = companyConfig?.customQuestions || {};
+
+    // Combine all questions
+    const allQuestions: Record<string, Question> = {};
+    // Start with master questions
+    Object.keys(baseQuestions).forEach(id => {
+        allQuestions[id] = {...baseQuestions[id]};
+    });
+    // Apply company overrides
+    Object.keys(companyOverrides).forEach(id => {
+        if (allQuestions[id]) {
+            allQuestions[id] = {...allQuestions[id], ...companyOverrides[id]};
         }
     });
+    // Add custom questions
+    Object.assign(allQuestions, customQuestions);
+
+    // Filter by active questions
+    Object.keys(allQuestions).forEach(id => {
+        if (allQuestions[id].isActive) {
+            finalConfig[id] = allQuestions[id];
+        }
+    });
+    
     return finalConfig;
-  }, [companyConfigs, masterQuestions]);
+
+  }, [companyConfigs, masterQuestions, isLoading]);
 
   const getAllCompanyConfigs = useCallback(() => companyConfigs, [companyConfigs]);
 
@@ -339,7 +363,7 @@ export function useUserData() {
     updateTaskDate,
     clearData,
     saveMasterQuestions,
-    saveCompanyQuestions,
+    saveCompanyConfig,
     saveCompanyUsers,
     getCompanyConfig,
     getAllCompanyConfigs,
