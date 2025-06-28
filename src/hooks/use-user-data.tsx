@@ -10,7 +10,7 @@ import {
   getCompanyAssignments, saveCompanyAssignments,
   getCompanyConfigs, saveCompanyConfigs,
   getPlatformUsers, savePlatformUsers,
-  getMasterQuestions, saveMasterQuestions,
+  getMasterQuestions, saveMasterQuestions as saveMasterQuestionsToDb,
   getAssessmentCompletions, saveAssessmentCompletions,
 } from '@/lib/demo-data';
 
@@ -50,27 +50,31 @@ export interface PlatformUser {
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
-    // Use a deep copy to avoid mutation issues.
-    const questionMapWithSubs: Record<string, Question> = JSON.parse(JSON.stringify(flatQuestionMap));
-    
-    // Ensure all questions have a subQuestions array.
-    Object.values(questionMapWithSubs).forEach(q => {
-        if (!q.subQuestions) {
-            q.subQuestions = [];
-        }
-    });
+    // Create a deep copy of the questions to avoid mutating the original source.
+    // This also ensures subQuestions arrays are properly handled if they are missing.
+    const questionMapWithSubs: Record<string, Question> = {};
+    for (const id in flatQuestionMap) {
+        questionMapWithSubs[id] = { ...flatQuestionMap[id], subQuestions: [] };
+    }
 
     const rootQuestions: Question[] = [];
 
-    Object.values(questionMapWithSubs).forEach(q => {
+    // Iterate over the copied map to build the tree.
+    for (const id in questionMapWithSubs) {
+        const q = questionMapWithSubs[id];
         if (q.parentId && questionMapWithSubs[q.parentId]) {
-            // This is a sub-question, add it to its parent.
-            questionMapWithSubs[q.parentId].subQuestions!.push(q);
+            // This is a sub-question. Find its parent and add it.
+            const parent = questionMapWithSubs[q.parentId];
+            if (parent.subQuestions) {
+                parent.subQuestions.push(q);
+            } else {
+                parent.subQuestions = [q];
+            }
         } else {
             // This is a root-level question.
             rootQuestions.push(q);
         }
-    });
+    }
 
     return rootQuestions;
 };
@@ -210,7 +214,7 @@ export function useUserData() {
     Object.values(questionsWithTimestamps).forEach(q => {
         q.lastUpdated = new Date().toISOString();
     });
-    saveMasterQuestions(questionsWithTimestamps);
+    saveMasterQuestionsToDb(questionsWithTimestamps);
     setMasterQuestionsState(questionsWithTimestamps);
   }, []);
   
