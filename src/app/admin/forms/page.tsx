@@ -13,7 +13,7 @@ import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data.tsx"
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 
 export default function FormEditorSwitchPage() {
@@ -64,7 +65,7 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: 
 
     return (
         <div ref={setNodeRef} style={style} className="flex items-center space-x-2 group bg-background rounded-lg pr-2">
-            <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground", question.isCustom ? "cursor-grab" : "cursor-not-allowed")}>
+            <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground", question.isCustom ? "cursor-grab" : "cursor-not-allowed", !question.isCustom && "opacity-50")}>
                 <GripVertical className="h-5 w-5" />
             </div>
              <div className="flex-shrink-0 w-8 flex items-center justify-center">
@@ -140,17 +141,29 @@ function HrFormEditor() {
             
             const sections = masterSections.map(sectionName => {
                 let orderedIds = companyQuestionOrder[sectionName];
-                
+                const masterIdsInSection = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
+                const customIdsInSection = Object.keys(companyCustomQuestions).filter(id => companyCustomQuestions[id].section === sectionName);
+
                 if (!orderedIds) {
-                    orderedIds = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
+                    // Default order: all master questions, then all custom questions
+                    orderedIds = [...masterIdsInSection, ...customIdsInSection];
                 } else {
-                    const masterIdsInSection = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
-                    masterIdsInSection.forEach(id => {
-                        if (!orderedIds.includes(id)) orderedIds.push(id);
+                    // Ensure all master and custom questions are present in the order array
+                    const allKnownIds = new Set(orderedIds);
+                    [...masterIdsInSection, ...customIdsInSection].forEach(id => {
+                        if (!allKnownIds.has(id)) {
+                             // Add new questions to the end of the section
+                            if (masterIdsInSection.includes(id)) {
+                                orderedIds.unshift(id); // New default questions go to the top
+                            } else {
+                                orderedIds.push(id); // New custom questions go to the bottom
+                            }
+                        }
                     });
+                     // Filter out any IDs that no longer exist
                     orderedIds = orderedIds.filter(id => combinedQuestions[id]);
                 }
-
+                
                 const questionsForSection = orderedIds.map(id => combinedQuestions[id]).filter(Boolean);
                 return { id: sectionName, questions: questionsForSection };
             });
@@ -162,7 +175,7 @@ function HrFormEditor() {
     const handleSaveConfig = () => {
         if (!companyName) return;
 
-        const companyOverrides: Record<string, Question> = {};
+        const companyOverrides: Record<string, Partial<Question>> = {};
         const customQuestions: Record<string, Question> = {};
         const questionOrderBySection: Record<string, string[]> = {};
 
@@ -176,14 +189,20 @@ function HrFormEditor() {
                     const masterQ = masterQuestions[q.id];
                     const override: Partial<Question> = {};
                     let hasChanged = false;
-                    if (q.isActive !== masterQ.isActive) { override.isActive = q.isActive; hasChanged = true; }
-                    if (q.label !== masterQ.label) { override.label = q.label; hasChanged = true; }
-                    if (q.defaultValue !== masterQ.defaultValue) { override.defaultValue = q.defaultValue; hasChanged = true; }
-                    if (JSON.stringify(q.options) !== JSON.stringify(masterQ.options)) { override.options = q.options; hasChanged = true; }
+                    
+                    // Fields that can be overridden
+                    const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options'];
+                    fieldsToCompare.forEach(field => {
+                        if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
+                            (override as any)[field] = q[field];
+                            hasChanged = true;
+                        }
+                    });
+
                     if (q.lastUpdated) { override.lastUpdated = q.lastUpdated }
                     
                     if (hasChanged) {
-                        companyOverrides[q.id] = override as Question;
+                        companyOverrides[q.id] = override;
                     }
                 }
             });
@@ -265,12 +284,37 @@ function HrFormEditor() {
                 return newSections;
             });
         } else { // It's an update
-            const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion } as Question;
-            setAllQuestions(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
-            setOrderedSections(prev => prev.map(s => ({
-                ...s,
-                questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
-            })));
+            const updatedQuestion = { ...allQuestions[currentQuestion.id!], ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+            if (updatedQuestion.isCustom) {
+                 // if section changed, move it
+                const oldSection = allQuestions[updatedQuestion.id]?.section;
+                if (oldSection !== updatedQuestion.section) {
+                     setOrderedSections(prev => {
+                        const newSections = [...prev];
+                        const oldSectionIndex = newSections.findIndex(s => s.id === oldSection);
+                        const newSectionIndex = newSections.findIndex(s => s.id === updatedQuestion.section);
+                        if (oldSectionIndex > -1) {
+                            newSections[oldSectionIndex].questions = newSections[oldSectionIndex].questions.filter(q => q.id !== updatedQuestion.id);
+                        }
+                         if (newSectionIndex > -1) {
+                            newSections[newSectionIndex].questions.push(updatedQuestion);
+                        }
+                        return newSections;
+                    });
+                } else {
+                     setOrderedSections(prev => prev.map(s => ({
+                        ...s,
+                        questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
+                    })));
+                }
+            } else {
+                 setOrderedSections(prev => prev.map(s => ({
+                    ...s,
+                    questions: s.questions.map(q => q.id === updatedQuestion.id ? updatedQuestion : q)
+                })));
+            }
+             setAllQuestions(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
+
         }
 
         setIsEditing(false);
@@ -298,14 +342,11 @@ function HrFormEditor() {
                 const newSections = [...sections];
                 newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
                 return newSections;
-            } else { // Moving between sections
-                const newSections = [...sections];
-                const [movedQuestion] = newSections[activeSectionIndex].questions.splice(activeQuestionIndex, 1);
-                newSections[overSectionIndex].questions.splice(overQuestionIndex, 0, movedQuestion);
-                // Also update the question's section property
-                movedQuestion.section = newSections[overSectionIndex].id;
-                setAllQuestions(prev => ({...prev, [movedQuestion.id]: movedQuestion}));
-                return newSections;
+            } else { // Moving between sections - Note: this is complex, for now we restrict to same-section reordering
+                // For simplicity, we can prevent moving custom questions between sections via drag-and-drop
+                // They can change section via the edit dialog.
+                toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog."});
+                return sections;
             }
         });
     };
@@ -430,7 +471,7 @@ function HrFormEditor() {
                              {currentQuestion.isCustom && (
                                 <div className="space-y-2">
                                     <Label htmlFor="question-id">Question ID</Label>
-                                    <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value }))} disabled={!isNewCustom}/>
+                                    <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewCustom}/>
                                     {!isNewCustom && <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>}
                                 </div>
                              )}
@@ -451,6 +492,21 @@ function HrFormEditor() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                            )}
+                             {currentQuestion.isCustom && (
+                                <div className="space-y-2">
+                                <Label htmlFor="question-type">Question Type</Label>
+                                <Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any}))} value={currentQuestion.type}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="text">Text</SelectItem>
+                                        <SelectItem value="select">Select</SelectItem>
+                                        <SelectItem value="radio">Radio</SelectItem>
+                                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                                        <SelectItem value="date">Date</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             )}
                             {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                                 <div className="space-y-2">
@@ -631,7 +687,7 @@ function AdminFormEditor() {
             return;
         }
         
-        const finalQuestion = { ...currentQuestion };
+        const finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() };
 
         if (isCreatingNewSection) {
             if (!newSectionName.trim()) {
@@ -778,7 +834,7 @@ function AdminFormEditor() {
                         <div className="space-y-6 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="question-id">Question ID</Label>
-                                <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value }))} disabled={!isNewQuestion}/>
+                                <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewQuestion}/>
                                 {!isNewQuestion && <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>}
                             </div>
                             <div className="space-y-2">
@@ -843,4 +899,3 @@ function AdminFormEditor() {
         </div>
     );
 }
-

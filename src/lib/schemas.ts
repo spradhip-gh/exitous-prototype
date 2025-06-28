@@ -161,5 +161,6 @@ export function buildAssessmentSchema(activeQuestionIds: (keyof AssessmentData)[
         });
   }
 
-  return schema;
+  // Allow unknown keys to pass through, for custom questions
+  return schema.passthrough();
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,27 +30,55 @@ import { format } from 'date-fns';
 import { CalendarIcon, Info } from 'lucide-react';
 
 export default function AssessmentForm() {
-    const { getCompanyConfig, isLoading: isUserDataLoading } = useUserData();
+    const { getCompanyConfig, getAllCompanyConfigs, masterQuestions, isLoading: isUserDataLoading } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
 
     useEffect(() => {
-        if (!isUserDataLoading) {
-            const config = getCompanyConfig(auth?.companyName);
-            const allQuestions = Object.values(config);
-            const activeQuestions = allQuestions.filter(q => q.isActive);
-            const sortedActiveQuestions = activeQuestions.sort((a, b) => {
-                 const allQuestionDefaults = getDefaultQuestions();
-                 return allQuestionDefaults.findIndex(q => q.id === a.id) - allQuestionDefaults.findIndex(q => q.id === b.id);
-            });
-            setQuestions(sortedActiveQuestions);
+        if (!isUserDataLoading && auth?.companyName) {
+            const allConfigs = getAllCompanyConfigs();
+            const companyData = allConfigs[auth.companyName];
+            const companyQuestionOrder = companyData?.questionOrderBySection || {};
+
+            const questionMap = getCompanyConfig(auth.companyName);
             
-            const activeIds = sortedActiveQuestions.map(q => q.id);
+            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
+            
+            const activeQuestions: Question[] = [];
+            const processedIds = new Set<string>();
+
+            masterSections.forEach(sectionName => {
+                let orderedIds = companyQuestionOrder[sectionName];
+
+                if (!orderedIds) {
+                    orderedIds = getDefaultQuestions().filter(q => q.section === sectionName).map(q => q.id);
+                }
+
+                orderedIds.forEach(id => {
+                    const question = questionMap[id];
+                    if (question && question.isActive) {
+                        activeQuestions.push(question);
+                    }
+                    processedIds.add(id);
+                });
+            });
+
+            // Add any active questions that weren't in the ordered sections (e.g. new questions in a new section)
+            Object.values(questionMap).forEach(q => {
+                if(q.isActive && !processedIds.has(q.id)) {
+                    activeQuestions.push(q);
+                }
+            });
+
+
+            setQuestions(activeQuestions);
+            
+            const activeIds = activeQuestions.map(q => q.id);
             setDynamicSchema(buildAssessmentSchema(activeIds as (keyof AssessmentData)[]));
         }
-    }, [isUserDataLoading, getCompanyConfig, auth?.companyName]);
+    }, [isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, auth?.companyName]);
 
     if (!questions || !dynamicSchema) {
         return (
