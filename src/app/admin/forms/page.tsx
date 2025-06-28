@@ -47,6 +47,44 @@ export default function FormEditorSwitchPage() {
 }
 
 // ##################################
+// #      SHARED UTILITY            #
+// ##################################
+
+/**
+ * Reconstructs a nested question tree from a flat map of questions.
+ * @param flatMap A record of questions, where the key is the question ID.
+ * @returns An array of root-level questions, with sub-questions nested inside.
+ */
+const buildTreeFromFlatMap = (flatMap: Record<string, Question>): Question[] => {
+    if (!flatMap || Object.keys(flatMap).length === 0) return [];
+    
+    // Deep copy to avoid mutating the original data
+    const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(flatMap));
+    const rootQuestions: Question[] = [];
+
+    // First pass: initialize subQuestions array on every question object
+    Object.values(questionMap).forEach(q => {
+        q.subQuestions = [];
+    });
+
+    // Second pass: link children to their parents
+    Object.values(questionMap).forEach(q => {
+        if (q.parentId && questionMap[q.parentId]) {
+            // The check for `subQuestions` array is a bit redundant due to the first pass, but safe.
+            if (!questionMap[q.parentId].subQuestions) {
+                questionMap[q.parentId].subQuestions = [];
+            }
+            questionMap[q.parentId].subQuestions!.push(q);
+        } else {
+            rootQuestions.push(q);
+        }
+    });
+
+    return rootQuestions;
+};
+
+
+// ##################################
 // #         HR FORM EDITOR         #
 // ##################################
 
@@ -237,14 +275,16 @@ function HrFormEditor() {
 
 
     useEffect(() => {
-        if (companyName && !isUserDataLoading) {
-            const combinedQuestions = getFullQuestionTree();
-            setAllQuestions(combinedQuestions);
+        if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
+            const combinedQuestionsMap = getCompanyConfig(companyName, false);
+            const questionTree = buildTreeFromFlatMap(combinedQuestionsMap);
+            
+            setAllQuestions(combinedQuestionsMap);
 
             const companyData = getAllCompanyConfigs()[companyName] as CompanyConfig | undefined;
             const companyQuestionOrder = companyData?.questionOrderBySection || {};
 
-            const topLevelQuestions = Object.values(combinedQuestions).filter(q => !q.parentId);
+            const topLevelQuestions = questionTree;
 
             const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
             const allCurrentSections = [...new Set(topLevelQuestions.map(q => q.section as string))];
@@ -268,13 +308,14 @@ function HrFormEditor() {
                     }
                 });
                 
-                const questionsForSection = orderedIds.map(id => combinedQuestions[id]).filter(Boolean);
-                return { id: sectionName, questions: questionsForSection };
+                const questionsForSection = orderedIds.map(id => topLevelQuestions.find(q => q.id === id)).filter(Boolean);
+
+                return { id: sectionName, questions: questionsForSection as Question[] };
             });
 
             setOrderedSections(sections.filter(s => s.questions.length > 0));
         }
-    }, [companyName, isUserDataLoading, getFullQuestionTree, getAllCompanyConfigs]);
+    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
 
     const handleSaveConfig = () => {
         if (!companyName) return;
@@ -787,24 +828,7 @@ function AdminFormEditor() {
 
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
-            const questionMap: Record<string, Question> = JSON.parse(JSON.stringify(masterQuestions));
-            const rootQuestions: Question[] = [];
-
-            Object.values(questionMap).forEach(q => {
-                q.subQuestions = [];
-            });
-
-            Object.values(questionMap).forEach(q => {
-                if (q.parentId && questionMap[q.parentId]) {
-                    if (!questionMap[q.parentId].subQuestions) {
-                        questionMap[q.parentId].subQuestions = [];
-                    }
-                    questionMap[q.parentId].subQuestions!.push(q);
-                } else {
-                    rootQuestions.push(q);
-                }
-            });
-
+            const rootQuestions = buildTreeFromFlatMap(masterQuestions);
             updateOrderedSections(rootQuestions);
         }
     }, [masterQuestions, updateOrderedSections]);
@@ -866,22 +890,18 @@ function AdminFormEditor() {
             const questionToDelete = newMaster[idToDelete];
             if (!questionToDelete) return;
             
-            if (questionToDelete.subQuestions) {
-                questionToDelete.subQuestions.forEach(subQ => deleteRecursive(subQ.id));
-            }
+            // Recursively delete children first
+            Object.values(newMaster).forEach(q => {
+                if (q.parentId === idToDelete) {
+                    deleteRecursive(q.id);
+                }
+            });
+            
+            // Delete the question itself
             delete newMaster[idToDelete];
         }
 
         deleteRecursive(questionId);
-
-        for (const qId in newMaster) {
-            if (newMaster[qId].subQuestions) {
-                const subIndex = newMaster[qId].subQuestions.findIndex(sq => sq.id === questionId);
-                if (subIndex > -1) {
-                    newMaster[qId].subQuestions.splice(subIndex, 1);
-                }
-            }
-        }
         
         saveMasterQuestions(newMaster);
         toast({ title: "Question Deleted" });
