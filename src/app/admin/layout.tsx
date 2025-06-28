@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -57,6 +57,12 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
             <Button variant={getVariant('/admin/platform-users')} className="w-full justify-start">
               <UserCog className="mr-2" />
               Platform Users
+            </Button>
+          </Link>
+          <Link href="/admin/export">
+            <Button variant={getVariant('/admin/export')} className="w-full justify-start">
+              <Download className="mr-2" />
+              Export User Data
             </Button>
           </Link>
         </>
