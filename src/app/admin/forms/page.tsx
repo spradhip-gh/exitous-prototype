@@ -218,7 +218,8 @@ function HrFormEditor() {
         saveCompanyConfig, 
         masterQuestions, 
         isLoading: isUserDataLoading, 
-        companyAssignmentForHr 
+        companyAssignmentForHr,
+        getCompanyConfig, 
     } = useUserData();
     
     const companyName = auth?.companyName;
@@ -230,65 +231,45 @@ function HrFormEditor() {
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
     const getFullQuestionTree = useCallback(() => {
-        if (!companyName || isUserDataLoading) return {};
-         const allConfigs = getAllCompanyConfigs();
-        const companyData = allConfigs[companyName] as CompanyConfig | undefined;
-        const companyQuestionOverrides = companyData?.questions || {};
-        const companyCustomQuestions = companyData?.customQuestions || {};
-
-        const combinedQuestions = JSON.parse(JSON.stringify(masterQuestions));
-
-        const applyConfig = (q: Question) => {
-            if (companyQuestionOverrides[q.id]) {
-                Object.assign(q, companyQuestionOverrides[q.id]);
-            }
-            if (q.subQuestions) {
-                q.subQuestions.forEach(applyConfig);
-            }
-             // Add custom subquestions
-            const customSubs = Object.values(companyCustomQuestions).filter(cq => cq.parentId === q.id);
-            if (customSubs.length > 0) {
-                q.subQuestions = [...(q.subQuestions || []), ...customSubs];
-            }
-        };
-        Object.values(combinedQuestions).forEach(applyConfig);
-
-        // Add top-level custom questions
-        Object.values(companyCustomQuestions).forEach(cq => {
-            if (!cq.parentId) {
-                combinedQuestions[cq.id] = cq;
-            }
-        });
+        if (!companyName || isUserDataLoading || Object.keys(masterQuestions).length === 0) return {};
         
-        return combinedQuestions;
-    }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions]);
+        // This function from useUserData now correctly merges master, company overrides, and custom questions.
+        // It returns a flat map, but the question objects inside have their subQuestions array intact.
+        return getCompanyConfig(companyName, false); // Get ALL questions, not just active ones for the editor.
+    }, [companyName, isUserDataLoading, masterQuestions, getCompanyConfig]);
+
 
     useEffect(() => {
         if (companyName && !isUserDataLoading) {
             const combinedQuestions = getFullQuestionTree();
             setAllQuestions(combinedQuestions);
 
-            const allConfigs = getAllCompanyConfigs();
-            const companyData = allConfigs[companyName] as CompanyConfig | undefined;
+            const companyData = getAllCompanyConfigs()[companyName] as CompanyConfig | undefined;
             const companyQuestionOrder = companyData?.questionOrderBySection || {};
 
-            const allSectionsFromMaster = [...new Set(Object.values(masterQuestions).map(q => q.section))];
-            const allSectionsFromCustom = [...new Set(Object.values(companyData?.customQuestions || {}).filter(q=>!q.parentId).map(q => q.section))];
-            const allUniqueSections = [...new Set([...allSectionsFromMaster, ...allSectionsFromCustom])] as string[];
+            const topLevelQuestions = Object.values(combinedQuestions).filter(q => !q.parentId);
 
-            const sections = allUniqueSections.map(sectionName => {
-                const masterIdsInSection = Object.values(masterQuestions).filter(q => q.section === sectionName).map(q => q.id);
-                const customIdsInSection = Object.keys(companyData?.customQuestions || {}).filter(id => companyData!.customQuestions![id].section === sectionName && !companyData!.customQuestions![id].parentId);
-                
-                const allCurrentIdsForSection = new Set([...masterIdsInSection, ...customIdsInSection]);
-                const uniqueSavedOrder = [...new Set(companyQuestionOrder[sectionName] || [])];
-                let orderedIds = uniqueSavedOrder.filter(id => allCurrentIdsForSection.has(id));
+            const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
+            const allCurrentSections = [...new Set(topLevelQuestions.map(q => q.section as string))];
+            masterSectionOrder.push(...allCurrentSections.filter(s => !masterSectionOrder.includes(s)));
+
+            const sections = masterSectionOrder.map(sectionName => {
+                const savedOrder = companyQuestionOrder[sectionName] || [];
+                const questionsInSection = topLevelQuestions.filter(q => q.section === sectionName);
+
+                const currentIds = new Set(questionsInSection.map(q => q.id));
+                let orderedIds = savedOrder.filter(id => currentIds.has(id));
                 const orderedIdsSet = new Set(orderedIds);
-
-                const newMasterIds = masterIdsInSection.filter(id => !orderedIdsSet.has(id));
-                orderedIds.unshift(...newMasterIds);
-                const newCustomIds = customIdsInSection.filter(id => !orderedIdsSet.has(id));
-                orderedIds.push(...newCustomIds);
+                
+                questionsInSection.forEach(q => {
+                    if (!orderedIdsSet.has(q.id)) {
+                         if (q.isCustom) {
+                            orderedIds.push(q.id);
+                        } else {
+                            orderedIds.unshift(q.id);
+                        }
+                    }
+                });
                 
                 const questionsForSection = orderedIds.map(id => combinedQuestions[id]).filter(Boolean);
                 return { id: sectionName, questions: questionsForSection };
@@ -296,7 +277,7 @@ function HrFormEditor() {
 
             setOrderedSections(sections.filter(s => s.questions.length > 0));
         }
-    }, [companyName, isUserDataLoading, getAllCompanyConfigs, masterQuestions, getFullQuestionTree]);
+    }, [companyName, isUserDataLoading, getFullQuestionTree, getAllCompanyConfigs]);
 
     const handleSaveConfig = () => {
         if (!companyName) return;
@@ -310,21 +291,26 @@ function HrFormEditor() {
                 customQuestions[q.id] = q;
             } else {
                 const masterQ = masterQuestions[q.id];
-                if (!masterQ) return; 
-                
-                const override: Partial<Question> = {};
-                let hasChanged = false;
-                const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options', 'description'];
-                fieldsToCompare.forEach(field => {
-                    if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
-                        (override as any)[field] = q[field];
-                        hasChanged = true;
+                if (!masterQ) {
+                    if(q.parentId) { // It's a custom sub-question on a master question
+                         customQuestions[q.id] = q;
                     }
-                });
-                if (q.lastUpdated) override.lastUpdated = q.lastUpdated;
-                if (hasChanged) companyOverrides[q.id] = override;
+                    // else it's a sub-question of a master question, handle it
+                } else {
+                    const override: Partial<Question> = {};
+                    let hasChanged = false;
+                    const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options', 'description'];
+                    fieldsToCompare.forEach(field => {
+                        if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
+                            (override as any)[field] = q[field];
+                            hasChanged = true;
+                        }
+                    });
+                    if (q.lastUpdated) override.lastUpdated = q.lastUpdated;
+                    if (hasChanged) companyOverrides[q.id] = override;
+                }
             }
-
+            // Recurse for sub-questions
             q.subQuestions?.forEach(processQuestionForSave);
         };
 
@@ -507,13 +493,16 @@ function HrFormEditor() {
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
+
         const activeId = String(active.id);
         const overId = String(over.id);
 
-        let activeSectionIndex = -1, overSectionIndex = -1;
-        orderedSections.forEach((s, index) => {
-            if (s.questions.some(q => q.id === activeId)) activeSectionIndex = index;
-            if (s.questions.some(q => q.id === overId)) overSectionIndex = index;
+        let activeSectionIndex = -1;
+        let overSectionIndex = -1;
+
+        orderedSections.forEach((section, index) => {
+            if (section.questions.some(q => q.id === activeId)) activeSectionIndex = index;
+            if (section.questions.some(q => q.id === overId)) overSectionIndex = index;
         });
 
         if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
@@ -522,13 +511,16 @@ function HrFormEditor() {
         }
 
         setOrderedSections(prevSections => {
-            const newSections = JSON.parse(JSON.stringify(prevSections));
-            const currentSection = newSections[activeSectionIndex];
-            const oldIndex = currentSection.questions.findIndex((q: Question) => q.id === activeId);
-            const newIndex = currentSection.questions.findIndex((q: Question) => q.id === overId);
-            
-            if (oldIndex !== -1 && newIndex !== -1 && currentSection.questions[oldIndex]?.isCustom) {
-                currentSection.questions = arrayMove(currentSection.questions, oldIndex, newIndex);
+            const newSections = [...prevSections];
+            const section = newSections[activeSectionIndex];
+            const oldIndex = section.questions.findIndex(q => q.id === activeId);
+            const newIndex = section.questions.findIndex(q => q.id === overId);
+            if (oldIndex !== -1 && newIndex !== -1) {
+                if (!section.questions[oldIndex].isCustom) {
+                    toast({title: "Reorder Disabled", description: "Only custom questions can be reordered."});
+                    return prevSections;
+                }
+                section.questions = arrayMove(section.questions, oldIndex, newIndex);
             }
             return newSections;
         });
@@ -628,6 +620,56 @@ interface OrderedSection {
     questions: Question[];
 }
 
+function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuestion }: { question: Question, level: number, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSubQuestion: (parentId: string) => void }) {
+    const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center space-x-2 group bg-muted/50 p-2 rounded-md" style={{ marginLeft: `${level * 1.5}rem`}}>
+                <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+                {question.triggerValue && <Badge variant="outline" className="text-xs">On: {question.triggerValue}</Badge>}
+                <div className="flex items-center">
+                    {canHaveSubquestions && (
+                         <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Sub-Question?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete "{question.label}" and any of its own sub-questions. This cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(question.id)}>Yes, Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </div>
+             {question.subQuestions && question.subQuestions.length > 0 && (
+                <div className="space-y-2">
+                    {question.subQuestions.map(subQ => (
+                        <AdminSubQuestionItem
+                            key={subQ.id}
+                            question={subQ}
+                            level={level + 1}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onAddSubQuestion={onAddSubQuestion}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+
 function AdminSortableQuestionItem({ question, onEdit, onDelete, onAddSubQuestion }: { question: Question, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSubQuestion: (parentId: string) => void }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
@@ -638,24 +680,38 @@ function AdminSortableQuestionItem({ question, onEdit, onDelete, onAddSubQuestio
             <div className="flex items-center space-x-3 group p-2">
                 <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical className="h-5 w-5" /></div>
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                {question.triggerValue && <Badge variant="outline">Triggers on: {question.triggerValue}</Badge>}
-                {canHaveSubquestions && <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="mr-2 h-4 w-4"/>Sub</Button>}
-                <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => onDelete(question.id)}><Trash2 className="h-4 w-4" /></Button>
+                <div className="flex items-center">
+                    {canHaveSubquestions && <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="mr-2 h-4 w-4"/>Sub</Button>}
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Question?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete "{question.label}" and ALL its sub-questions. This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDelete(question.id)}>Yes, Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </div>
              {question.subQuestions && question.subQuestions.length > 0 && (
                 <div className="pl-12 pt-2 space-y-2">
-                    <SortableContext items={question.subQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-                         {question.subQuestions.map(subQ => (
-                            <AdminSortableQuestionItem 
-                                key={subQ.id} 
-                                question={subQ}
-                                onEdit={onEdit}
-                                onDelete={onDelete}
-                                onAddSubQuestion={onAddSubQuestion}
-                             />
-                        ))}
-                    </SortableContext>
+                     {question.subQuestions.map(subQ => (
+                        <AdminSubQuestionItem 
+                            key={subQ.id} 
+                            question={subQ}
+                            level={0}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onAddSubQuestion={onAddSubQuestion}
+                         />
+                    ))}
                 </div>
             )}
         </div>
@@ -706,24 +762,36 @@ function AdminFormEditor() {
     const [newSectionName, setNewSectionName] = useState("");
 
     const updateOrderedSections = useCallback((questions: Record<string, Question>) => {
-        const questionMap = { ...questions };
-        const defaultSectionOrder = [...new Set(getDefaultQuestions().map(q => q.section))];
-        const allKnownSections = [...new Set(Object.values(questionMap).map(q => q.section))];
-        const sectionOrder = [...defaultSectionOrder];
-        allKnownSections.forEach(s => { if (!sectionOrder.includes(s)) sectionOrder.push(s); });
+        const questionMap = JSON.parse(JSON.stringify(questions)); 
+        const topLevelQuestions = Object.values(questionMap).filter((q: any) => !q.parentId);
+
+        const defaultQuestionOrder = getDefaultQuestions().filter(q => !q.parentId);
+        const defaultSectionOrder = [...new Set(defaultQuestionOrder.map(q => q.section))];
         
-        const sections = sectionOrder.map(sectionName => {
-            const questionsInSection = Object.values(questionMap).filter(q => q.section === sectionName);
-            const defaultQuestionOrder = getDefaultQuestions().filter(q => q.section === sectionName).map(q => q.id);
-            questionsInSection.sort((a, b) => {
-                const indexA = defaultQuestionOrder.indexOf(a.id);
-                const indexB = defaultQuestionOrder.indexOf(b.id);
+        const allCurrentSections = [...new Set(topLevelQuestions.map((q: any) => q.section))];
+        allCurrentSections.forEach(s => {
+            if (!defaultSectionOrder.includes(s)) defaultSectionOrder.push(s);
+        });
+
+        const sections = defaultSectionOrder.map(sectionName => {
+            const defaultIdsInSection = defaultQuestionOrder
+                .filter(q => q.section === sectionName)
+                .map(q => q.id);
+
+            const allQuestionsInSection = topLevelQuestions.filter((q: any) => q.section === sectionName);
+
+            allQuestionsInSection.sort((a, b) => {
+                const indexA = defaultIdsInSection.indexOf(a.id);
+                const indexB = defaultIdsInSection.indexOf(b.id);
                 if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-                if (indexA !== -1) return -1; if (indexB !== -1) return 1;
-                return a.label.localeCompare(b.label);
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                return a.id.localeCompare(b.id);
             });
-            return { id: sectionName, questions: questionsInSection };
+
+            return { id: sectionName, questions: allQuestionsInSection };
         }).filter(s => s.questions.length > 0);
+
         setOrderedSections(sections);
     }, []);
 
@@ -735,11 +803,20 @@ function AdminFormEditor() {
 
     const handleSaveConfig = () => {
         const newQuestions: Record<string, Question> = {};
+        
+        const processQuestion = (q: Question) => {
+            newQuestions[q.id] = q;
+            if (q.subQuestions) {
+                q.subQuestions.forEach(processQuestion);
+            }
+        };
+
         orderedSections.forEach(section => {
             section.questions.forEach(question => {
-                newQuestions[question.id] = { ...question, section: section.id };
+                processQuestion({ ...question, section: section.id });
             });
         });
+
         saveMasterQuestions(newQuestions);
         toast({ title: "Master Configuration Saved" });
     };
@@ -747,64 +824,46 @@ function AdminFormEditor() {
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question }); setIsNewQuestion(false); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
     };
+    
     const handleAddNewClick = (parentId?: string) => {
-        setCurrentQuestion({ parentId, id: '', label: '', section: '', type: 'text', isActive: true, options: [] });
+        let section = '';
+        if(parentId) {
+            const parent = findQuestionById(orderedSections, parentId);
+            if(parent) section = parent.section;
+        } else {
+            section = orderedSections[0]?.id || '';
+        }
+        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [] });
         setIsNewQuestion(true); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
     };
-
-    const findAndModifyQuestionState = (modifier: (q: Question, collection?: Question[]) => any) => {
-        setOrderedSections(prevSections => {
-            const newSections = JSON.parse(JSON.stringify(prevSections));
-            let found = false;
-            const traverse = (questions: Question[]) => {
-                for (let i = 0; i < questions.length; i++) {
-                    const question = questions[i];
-                    if (question.id === currentQuestion?.id && !isNewQuestion) {
-                        const result = modifier(question, questions);
-                        if (result === 'DELETE') questions.splice(i, 1);
-                        else questions[i] = result;
-                        found = true; return;
-                    }
-                    if (question.id === currentQuestion?.parentId && isNewQuestion) {
-                        const result = modifier(question, questions);
-                        if(result) questions[i] = result;
-                        found = true; return;
-                    }
-                    if (question.subQuestions) traverse(question.subQuestions);
-                    if (found) return;
-                }
-            };
-            for (const section of newSections) {
-                if (isNewQuestion && !currentQuestion?.parentId && section.id === currentQuestion?.section) {
-                     const result = modifier(section as any, section.questions);
-                     if (result) section.questions.push(result);
-                     found = true; break;
-                }
-                traverse(section.questions);
-                if (found) break;
+    
+    const findQuestionById = (sections: OrderedSection[], id: string): Question | null => {
+        for(const section of sections) {
+            const queue: Question[] = [...section.questions];
+            while(queue.length > 0) {
+                const q = queue.shift()!;
+                if (q.id === id) return q;
+                if(q.subQuestions) queue.push(...q.subQuestions);
             }
-            return newSections;
-        });
-    };
+        }
+        return null;
+    }
+
 
     const handleDeleteClick = (questionId: string) => {
-        const newMaster = { ...masterQuestions };
-        const findAndDelete = (questions: Record<string, Question>, id: string): boolean => {
-            if (questions[id]) { delete questions[id]; return true; }
-            for (const q of Object.values(questions)) {
-                if (q.subQuestions) {
-                    const subQIndex = q.subQuestions.findIndex(sq => sq.id === id);
-                    if (subQIndex > -1) {
-                        q.subQuestions.splice(subQIndex, 1);
-                        return true;
-                    }
-                    // This part is not ideal, but JS objects don't make recursion easy.
-                    // This won't work for > 2 levels of nesting without more complex logic.
+        let newMaster = JSON.parse(JSON.stringify(masterQuestions));
+        delete newMaster[questionId];
+
+        // Also remove from any subQuestion arrays
+        for (const qId in newMaster) {
+            if (newMaster[qId].subQuestions) {
+                const subIndex = newMaster[qId].subQuestions.findIndex(sq => sq.id === questionId);
+                if (subIndex > -1) {
+                    newMaster[qId].subQuestions.splice(subIndex, 1);
                 }
             }
-            return false;
-        };
-        findAndDelete(newMaster, questionId);
+        }
+        
         saveMasterQuestions(newMaster);
         updateOrderedSections(newMaster);
         toast({ title: "Question Deleted", description: "Remember to save your changes." });
@@ -812,46 +871,48 @@ function AdminFormEditor() {
 
     const handleSaveEdit = () => {
         if (!currentQuestion) return;
-        const finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+        let finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
         if (isCreatingNewSection) {
             if (!newSectionName.trim()) { toast({ title: "New Section Required", variant: "destructive" }); return; }
             finalQuestion.section = newSectionName.trim();
         }
-        if (!finalQuestion.id && isNewQuestion) finalQuestion.id = finalQuestion.label.toLowerCase().replace(/\s+/g, '-');
+        if (!finalQuestion.id && isNewQuestion) finalQuestion.id = finalQuestion.label.toLowerCase().replace(/\s+/g, '-').replace(/[?]/g, '');
         if (!finalQuestion.id || (!finalQuestion.section && !finalQuestion.parentId)) { toast({ title: "ID and Section/Parent are required.", variant: "destructive" }); return; }
         
         const newMaster = JSON.parse(JSON.stringify(masterQuestions));
-        let modified = false;
-
-        const traverseAndUpdate = (questions: Question[]) => {
-            for (let i = 0; i < questions.length; i++) {
-                if (questions[i].id === finalQuestion.id) {
-                    questions[i] = finalQuestion; modified = true; return;
-                }
-                if (questions[i].subQuestions) traverseAndUpdate(questions[i].subQuestions!);
-                if (modified) return;
-            }
-        };
-
+        
         if (isNewQuestion) {
             if (finalQuestion.parentId) {
-                const findAndAddSub = (qs: Question[]) => {
-                    for(const q of qs) {
-                        if(q.id === finalQuestion.parentId) {
-                            if(!q.subQuestions) q.subQuestions = [];
-                            q.subQuestions.push(finalQuestion);
-                            modified = true; return;
-                        }
-                        if(q.subQuestions) findAndAddSub(q.subQuestions);
-                        if(modified) return;
+                const parent = findQuestionInMap(newMaster, finalQuestion.parentId);
+                if(parent) {
+                    if(!parent.subQuestions) parent.subQuestions = [];
+                    parent.subQuestions.push(finalQuestion);
+                }
+            }
+            newMaster[finalQuestion.id] = finalQuestion;
+        } else {
+             // Find and update the question, wherever it is.
+            const findAndUpdate = (obj: Record<string, any>, id: string, newQ: Question): boolean => {
+                if (obj[id]) {
+                    const subs = obj[id].subQuestions;
+                    obj[id] = newQ;
+                    if(subs) obj[id].subQuestions = subs;
+                    return true;
+                }
+                for(const key in obj) {
+                    if (obj[key].subQuestions) {
+                         const subIndex = obj[key].subQuestions.findIndex(sq => sq.id === id);
+                         if(subIndex > -1) {
+                             const subs = obj[key].subQuestions[subIndex].subQuestions;
+                             obj[key].subQuestions[subIndex] = newQ;
+                             if (subs) obj[key].subQuestions[subIndex].subQuestions = subs;
+                             return true;
+                         }
                     }
                 }
-                findAndAddSub(Object.values(newMaster));
-            } else {
-                 newMaster[finalQuestion.id] = finalQuestion;
+                return false;
             }
-        } else {
-            traverseAndUpdate(Object.values(newMaster));
+            findAndUpdate(newMaster, finalQuestion.id, finalQuestion);
         }
 
         saveMasterQuestions(newMaster);
@@ -859,9 +920,20 @@ function AdminFormEditor() {
         setIsEditing(false); setCurrentQuestion(null); setIsCreatingNewSection(false); setNewSectionName("");
     };
 
+    const findQuestionInMap = (map: Record<string, Question>, id: string): Question | null => {
+        if (map[id]) return map[id];
+        for (const key in map) {
+            if (map[key].subQuestions) {
+                const found = map[key].subQuestions?.find(q => q.id === id);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
     const handleDragEnd = (event: DragEndEvent) => { /* ... simplified for brevity ... */ };
-    const existingSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
+    const existingSections = [...new Set(Object.values(masterQuestions).filter(q=>!q.parentId).map(q => q.section))];
 
     return (
         <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8">
