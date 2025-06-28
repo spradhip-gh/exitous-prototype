@@ -1,3 +1,4 @@
+
 import type { CompanyAssignment, CompanyConfig, PlatformUser } from '@/hooks/use-user-data';
 import { getDefaultQuestions, type Question } from './questions';
 
@@ -23,10 +24,18 @@ declare global {
 const initializeMasterQuestions = (): Record<string, Question> => {
     const defaultQuestions = getDefaultQuestions();
     const flatMap: Record<string, Question> = {};
-    defaultQuestions.forEach(q => {
-        const { ...rest } = q;
-        flatMap[q.id] = { ...rest, lastUpdated: new Date().toISOString() };
-    });
+
+    const processQuestions = (questions: Question[]) => {
+        questions.forEach(q => {
+            const { subQuestions, ...questionData } = q;
+            flatMap[questionData.id] = { ...questionData, lastUpdated: new Date().toISOString() };
+            if (subQuestions) {
+                processQuestions(subQuestions);
+            }
+        });
+    };
+
+    processQuestions(defaultQuestions);
     return flatMap;
 };
 
