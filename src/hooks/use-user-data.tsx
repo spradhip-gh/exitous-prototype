@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -50,7 +51,7 @@ export interface PlatformUser {
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
     
-    // Create a deep copy of the questions to avoid mutating the original source.
+    // Create a copy of the questions to avoid mutating the original source.
     // This also ensures subQuestions arrays are properly handled if they are missing.
     const questionMapWithSubs: Record<string, Question> = {};
     for (const id in flatQuestionMap) {
@@ -293,10 +294,10 @@ export function useUserData() {
     const companyConfig = companyName ? companyCfgs[companyName] : undefined;
     
     // Create a deep copy to avoid mutating the master questions state
-    const combinedFlatMap = JSON.parse(JSON.stringify({
+    const combinedFlatMap = structuredClone({
         ...masterQs,
         ...(companyConfig?.customQuestions || {})
-    }));
+    });
     
     if (companyConfig?.questions) {
         for (const id in companyConfig.questions) {
