@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -288,7 +288,7 @@ function HrFormEditor() {
             const newQuestion = { ...currentQuestion, id: newId, lastUpdated: new Date().toISOString() } as Question;
             setAllQuestions(prev => ({...prev, [newQuestion.id]: newQuestion }));
             
-            setOrderedSections(prev => {
+             setOrderedSections(prev => {
                 const newSections = JSON.parse(JSON.stringify(prev));
                 let sectionExists = false;
                 newSections.forEach((section: HrOrderedSection) => {
@@ -370,40 +370,34 @@ function HrFormEditor() {
         const activeId = String(active.id);
         const overId = String(over.id);
 
-        // Find the section containing the active item
-        const activeSectionIndex = orderedSections.findIndex(s => s.questions.some(q => q.id === activeId));
-        if (activeSectionIndex === -1) return;
+        let activeSectionIndex = -1;
+        let overSectionIndex = -1;
+        
+        orderedSections.forEach((s, index) => {
+            if (s.questions.some(q => q.id === activeId)) activeSectionIndex = index;
+            if (s.questions.some(q => q.id === overId)) overSectionIndex = index;
+        });
 
-        // Find the section containing the over item
-        const overSectionIndex = orderedSections.findIndex(s => s.questions.some(q => q.id === overId));
-        if (overSectionIndex === -1) return;
+        if (activeSectionIndex === -1 || overSectionIndex === -1) return;
 
-        // Prevent moving between sections via drag-and-drop
         if (activeSectionIndex !== overSectionIndex) {
             toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
             return;
         }
 
         const currentQuestions = orderedSections[activeSectionIndex].questions;
-        
         const oldIndex = currentQuestions.findIndex(q => q.id === activeId);
-        const newIndex = currentQuestions.findIndex(q => q.id === overId);
+        if (!currentQuestions[oldIndex]?.isCustom) return;
 
-        // Check if the dragged item is a custom question (only custom questions should be draggable)
-        if (!currentQuestions[oldIndex]?.isCustom) {
-            return;
-        }
-        
-        // Create the new list of questions
-        const reorderedQuestions = arrayMove(currentQuestions, oldIndex, newIndex);
-
-        // Update the state immutably
         setOrderedSections(prevSections => {
-            const newSections = [...prevSections];
-            newSections[activeSectionIndex] = {
-                ...newSections[activeSectionIndex],
-                questions: reorderedQuestions,
-            };
+            const newSections = JSON.parse(JSON.stringify(prevSections));
+            const currentSection = newSections[activeSectionIndex];
+            const oldIdx = currentSection.questions.findIndex((q: Question) => q.id === activeId);
+            const newIdx = currentSection.questions.findIndex((q: Question) => q.id === overId);
+
+            if (oldIdx !== -1 && newIdx !== -1) {
+                currentSection.questions = arrayMove(currentSection.questions, oldIdx, newIdx);
+            }
             return newSections;
         });
     }
@@ -949,3 +943,5 @@ function AdminFormEditor() {
         </div>
     );
 }
+
+    
