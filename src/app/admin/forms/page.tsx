@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -83,14 +83,14 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: 
                         <AlertDialogContent>
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Custom Question?</AlertDialogTitle>
-                                <AlertDialogDescription>
+                                <DialogDescription>
                                     This will permanently delete the question "{question.label}". This action cannot be undone.
-                                </AlertDialogDescription>
+                                </DialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter>
+                            <DialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={onDelete}>Yes, Delete</AlertDialogAction>
-                            </AlertDialogFooter>
+                            </DialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
                 )}
@@ -288,14 +288,15 @@ function HrFormEditor() {
             setAllQuestions(prev => ({...prev, [newQuestion.id]: newQuestion }));
             
             setOrderedSections(prev => {
-                const newSections = [...prev];
-                const sectionIndex = newSections.findIndex(s => s.id === newQuestion.section);
-                if (sectionIndex > -1) {
-                    newSections[sectionIndex] = {
-                        ...newSections[sectionIndex],
-                        questions: [...newSections[sectionIndex].questions, newQuestion]
-                    };
-                } else {
+                const newSections = JSON.parse(JSON.stringify(prev));
+                let sectionExists = false;
+                newSections.forEach((section: HrOrderedSection) => {
+                    if (section.id === newQuestion.section) {
+                        section.questions.push(newQuestion);
+                        sectionExists = true;
+                    }
+                });
+                if (!sectionExists) {
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
                 return newSections;
@@ -308,34 +309,25 @@ function HrFormEditor() {
                 const oldSectionId = allQuestions[updatedQuestion.id!]?.section;
                 if (oldSectionId !== updatedQuestion.section) {
                      setOrderedSections(prev => {
+                        const newSections = JSON.parse(JSON.stringify(prev));
                         const questionToMove = { ...updatedQuestion };
-                        const sectionsWithoutQuestion = prev.map(section => {
-                            if (section.id === oldSectionId) {
-                                return {
-                                    ...section,
-                                    questions: section.questions.filter(q => q.id !== updatedQuestion.id)
-                                };
-                            }
-                            return section;
-                        });
-
-                        let sectionExists = false;
-                        const sectionsWithQuestion = sectionsWithoutQuestion.map(section => {
-                            if (section.id === updatedQuestion.section) {
-                                sectionExists = true;
-                                return {
-                                    ...section,
-                                    questions: [...section.questions, questionToMove]
-                                };
-                            }
-                            return section;
-                        });
-
-                        if (!sectionExists) {
-                            sectionsWithQuestion.push({ id: updatedQuestion.section!, questions: [questionToMove] });
+                        
+                        // Remove from old section
+                        let oldSection = newSections.find((s: HrOrderedSection) => s.id === oldSectionId);
+                        if (oldSection) {
+                            oldSection.questions = oldSection.questions.filter((q: Question) => q.id !== updatedQuestion.id);
                         }
 
-                        return sectionsWithQuestion.filter(s => s.questions.length > 0);
+                        // Add to new section
+                        let newSection = newSections.find((s: HrOrderedSection) => s.id === updatedQuestion.section);
+                        if (newSection) {
+                            newSection.questions.push(questionToMove);
+                        } else {
+                            // Create new section if it doesn't exist
+                            newSections.push({ id: updatedQuestion.section!, questions: [questionToMove] });
+                        }
+                        
+                        return newSections.filter((s: HrOrderedSection) => s.questions.length > 0);
                     });
                 } else {
                      setOrderedSections(prev => prev.map(s => ({
@@ -365,25 +357,33 @@ function HrFormEditor() {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
-        
+    
+        // Find which section the active and over items belong to from the current state.
+        const activeSection = orderedSections.find(s => s.questions.some(q => q.id === active.id));
+        const overSection = orderedSections.find(s => s.questions.some(q => q.id === over.id));
+    
+        // If it's a cross-section drag, show a toast and abort the state update.
+        if (activeSection && overSection && activeSection.id !== overSection.id) {
+            toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog." });
+            return;
+        }
+    
+        // Otherwise, it's a valid reorder within the same section. Proceed with the state update.
         setOrderedSections(sections => {
             const activeSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === active.id));
             const overSectionIndex = sections.findIndex(s => s.questions.some(q => q.id === over.id));
-            if (activeSectionIndex === -1 || overSectionIndex === -1) return sections;
-
-            const activeQuestionIndex = sections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
-            const overQuestionIndex = sections[overSectionIndex].questions.findIndex(q => q.id === over.id);
-
-            if (activeSectionIndex === overSectionIndex) { // Reordering within same section
-                const newSections = [...sections];
-                newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
-                return newSections;
-            } else { // Moving between sections - Note: this is complex, for now we restrict to same-section reordering
-                // For simplicity, we can prevent moving custom questions between sections via drag-and-drop
-                // They can change section via the edit dialog.
-                toast({ title: "Move sections via Edit", description: "To move a question to another section, please use the Edit dialog."});
+    
+            // These checks are for safety within the updater function.
+            if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
                 return sections;
             }
+            
+            const newSections = [...sections];
+            const activeQuestionIndex = newSections[activeSectionIndex].questions.findIndex(q => q.id === active.id);
+            const overQuestionIndex = newSections[overSectionIndex].questions.findIndex(q => q.id === over.id);
+            
+            newSections[activeSectionIndex].questions = arrayMove(newSections[activeSectionIndex].questions, activeQuestionIndex, overQuestionIndex);
+            return newSections;
         });
     };
     
@@ -739,16 +739,16 @@ function AdminFormEditor() {
         setOrderedSections(prev => {
             const sections = JSON.parse(JSON.stringify(prev));
             // Remove from old position if it exists
-            sections.forEach(s => {
-                s.questions = s.questions.filter(q => q.id !== finalQuestion.id);
+            sections.forEach((s: OrderedSection) => {
+                s.questions = s.questions.filter((q: Question) => q.id !== finalQuestion.id);
             });
-            let targetSection = sections.find(s => s.id === finalQuestion.section);
+            let targetSection = sections.find((s: OrderedSection) => s.id === finalQuestion.section);
             if (targetSection) {
                 targetSection.questions.push(finalQuestion);
             } else {
                 sections.push({ id: finalQuestion.section!, questions: [finalQuestion] });
             }
-            return sections.filter(s => s.questions.length > 0 || s.id === finalQuestion.section);
+            return sections.filter((s: OrderedSection) => s.questions.length > 0 || s.id === finalQuestion.section);
         });
 
         setIsEditing(false);
@@ -784,12 +784,12 @@ function AdminFormEditor() {
             if (overIsSectionHeader) { // Dropping question on a section header
                  setOrderedSections(sections => {
                     const newSections = JSON.parse(JSON.stringify(sections));
-                    const activeSectionIdx = newSections.findIndex(s => s.id === activeSection.id);
-                    const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex(q => q.id === active.id);
+                    const activeSectionIdx = newSections.findIndex((s: OrderedSection) => s.id === activeSection.id);
+                    const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex((q: Question) => q.id === active.id);
                     const [movedQuestion] = newSections[activeSectionIdx].questions.splice(activeQuestionIdx, 1);
-                    const targetSectionIdx = newSections.findIndex(s => s.id === over.id);
+                    const targetSectionIdx = newSections.findIndex((s: OrderedSection) => s.id === over.id);
                     newSections[targetSectionIdx].questions.push(movedQuestion);
-                    return newSections.filter(s => s.questions.length > 0);
+                    return newSections.filter((s: OrderedSection) => s.questions.length > 0);
                 });
             } else if (overSection) { // Dropping question on another question
                 if (activeSection.id === overSection.id) { // Same section
@@ -804,15 +804,15 @@ function AdminFormEditor() {
                 } else { // Different sections
                     setOrderedSections(sections => {
                         const newSections = JSON.parse(JSON.stringify(sections));
-                        const activeSectionIdx = newSections.findIndex(s => s.id === activeSection.id);
-                        const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex(q => q.id === active.id);
+                        const activeSectionIdx = newSections.findIndex((s: OrderedSection) => s.id === activeSection.id);
+                        const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex((q: Question) => q.id === active.id);
                         const [movedQuestion] = newSections[activeSectionIdx].questions.splice(activeQuestionIdx, 1);
                         
-                        const overSectionIdx = newSections.findIndex(s => s.id === overSection.id);
-                        const overQuestionIdx = newSections[overSectionIdx].questions.findIndex(q => q.id === over.id);
+                        const overSectionIdx = newSections.findIndex((s: OrderedSection) => s.id === overSection.id);
+                        const overQuestionIdx = newSections[overSectionIdx].questions.findIndex((q: Question) => q.id === over.id);
                         newSections[overSectionIdx].questions.splice(overQuestionIdx, 0, movedQuestion);
 
-                        return newSections.filter(s => s.questions.length > 0);
+                        return newSections.filter((s: OrderedSection) => s.questions.length > 0);
                     });
                 }
             }
@@ -934,4 +934,5 @@ function AdminFormEditor() {
     
 
     
+
 
