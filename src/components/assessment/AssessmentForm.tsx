@@ -230,8 +230,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
             ];
             coverageToEndOfMonth.forEach(field => {
                 // Only set if the corresponding insurance is 'Yes' and the date isn't already set
-                const insuranceField = field.replace('CoverageEndDate', 'hadInsurance') as keyof AssessmentData;
-                if(field === 'hadEAP') insuranceField = 'hadEAP'; // special case
+                let insuranceField: keyof AssessmentData;
+                if (field === 'eapCoverageEndDate') {
+                    insuranceField = 'hadEAP';
+                } else {
+                    const prefix = field.replace('CoverageEndDate', '');
+                    insuranceField = `had${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Insurance` as keyof AssessmentData;
+                }
                 
                 if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
                     setValue(field as any, lastDayOfMonth);
@@ -254,7 +259,8 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
         if (defaultCoverage) {
              const coverageFields: (keyof AssessmentData)[] = ['medicalCoverage', 'dentalCoverage', 'visionCoverage'];
              coverageFields.forEach(field => {
-                const insuranceField = field.replace('Coverage', 'hadInsurance') as keyof AssessmentData;
+                const prefix = field.replace('Coverage', '');
+                const insuranceField = `had${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Insurance` as keyof AssessmentData;
                  if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
                     setValue(field as any, defaultCoverage);
                 }
