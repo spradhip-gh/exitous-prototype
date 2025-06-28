@@ -12,10 +12,13 @@ import { useUserData, CompanyConfig } from "@/hooks/use-user-data.tsx";
 import { getDefaultQuestions, Question } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy, ShieldAlert } from "lucide-react";
+import { Pencil, Loader2, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 
 export default function FormEditorSwitchPage() {
@@ -243,11 +246,35 @@ function HrFormEditor() {
     );
 }
 
+interface OrderedSection {
+    id: string;
+    questions: Question[];
+}
+
+function SortableQuestionItem({ question, onToggleActive, onEdit, onDelete }: { question: Question, onToggleActive: () => void, onEdit: () => void, onDelete: () => void }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center space-x-3 group bg-background rounded-lg">
+            <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground">
+                <GripVertical className="h-5 w-5" />
+            </div>
+            <Checkbox id={question.id} checked={question.isActive} onCheckedChange={onToggleActive} />
+            <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
+            <Button variant="ghost" size="sm" onClick={onEdit}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+    );
+}
 
 function AdminFormEditor() {
     const { toast } = useToast();
     const { masterQuestions, saveMasterQuestions } = useUserData();
-    const [questions, setQuestions] = useState<Record<string, Question>>(masterQuestions);
+    const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
@@ -255,11 +282,46 @@ function AdminFormEditor() {
     const [newSectionName, setNewSectionName] = useState("");
 
     useEffect(() => {
-        setQuestions(masterQuestions);
+        if (Object.keys(masterQuestions).length > 0) {
+            const questionMap = { ...masterQuestions };
+            const defaultSectionOrder = [...new Set(getDefaultQuestions().map(q => q.section))];
+            const allKnownSections = [...new Set(Object.values(questionMap).map(q => q.section))];
+            
+            const sectionOrder = [...defaultSectionOrder];
+            allKnownSections.forEach(s => {
+                if (!sectionOrder.includes(s)) {
+                    sectionOrder.push(s);
+                }
+            });
+
+            const sections = sectionOrder.map(sectionName => {
+                const questionsInSection = Object.values(questionMap).filter(q => q.section === sectionName);
+                
+                const defaultQuestionOrder = getDefaultQuestions().filter(q => q.section === sectionName).map(q => q.id);
+                questionsInSection.sort((a, b) => {
+                    const indexA = defaultQuestionOrder.indexOf(a.id);
+                    const indexB = defaultQuestionOrder.indexOf(b.id);
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.label.localeCompare(b.label);
+                });
+
+                return { id: sectionName, questions: questionsInSection };
+            }).filter(s => s.questions.length > 0);
+
+            setOrderedSections(sections);
+        }
     }, [masterQuestions]);
 
     const handleSaveConfig = () => {
-        saveMasterQuestions(questions);
+        const newQuestions: Record<string, Question> = {};
+        orderedSections.forEach(section => {
+            section.questions.forEach(question => {
+                newQuestions[question.id] = { ...question, section: section.id };
+            });
+        });
+        saveMasterQuestions(newQuestions);
         toast({ title: "Master Configuration Saved" });
     };
 
@@ -287,12 +349,18 @@ function AdminFormEditor() {
     };
 
     const handleDeleteClick = (questionId: string) => {
-        setQuestions(prev => {
-            const newQ = { ...prev };
-            delete newQ[questionId];
-            return newQ;
-        });
+        setOrderedSections(prev => prev.map(s => ({
+            ...s,
+            questions: s.questions.filter(q => q.id !== questionId)
+        })).filter(s => s.questions.length > 0));
         toast({ title: "Question Deleted", description: "Remember to save your changes." });
+    };
+
+    const handleToggleQuestionActive = (questionId: string) => {
+        setOrderedSections(prev => prev.map(s => ({
+            ...s,
+            questions: s.questions.map(q => q.id === questionId ? { ...q, isActive: !q.isActive } : q)
+        })));
     };
 
     const handleSaveEdit = () => {
@@ -316,30 +384,102 @@ function AdminFormEditor() {
             return;
         }
 
-        if (isNewQuestion && questions[currentQuestion.id]) {
+        if (isNewQuestion && orderedSections.some(s => s.questions.some(q => q.id === currentQuestion.id))) {
             toast({ title: "Duplicate ID", description: "A question with this ID already exists.", variant: "destructive" });
             return;
         }
-        setQuestions(prev => ({ ...prev, [finalQuestion.id!]: finalQuestion as Question }));
+
+        setOrderedSections(prev => {
+            const sections = JSON.parse(JSON.stringify(prev));
+            // Remove from old position if it exists
+            sections.forEach(s => {
+                s.questions = s.questions.filter(q => q.id !== finalQuestion.id);
+            });
+            let targetSection = sections.find(s => s.id === finalQuestion.section);
+            if (targetSection) {
+                targetSection.questions.push(finalQuestion);
+            } else {
+                sections.push({ id: finalQuestion.section!, questions: [finalQuestion] });
+            }
+            return sections.filter(s => s.questions.length > 0 || s.id === finalQuestion.section);
+        });
+
         setIsEditing(false);
         setCurrentQuestion(null);
         setIsCreatingNewSection(false);
         setNewSectionName("");
     };
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const isSectionDrag = orderedSections.some(s => s.id === active.id);
+        
+        if (isSectionDrag) {
+            setOrderedSections(items => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        } else { // It's a question drag
+            const activeSection = orderedSections.find(s => s.questions.some(q => q.id === active.id));
+            const overSection = orderedSections.find(s => s.questions.some(q => q.id === over.id));
+            const overIsSectionHeader = orderedSections.some(s => s.id === over.id);
+
+            if (!activeSection) return;
+
+            if (overIsSectionHeader) { // Dropping question on a section header
+                 setOrderedSections(sections => {
+                    const newSections = JSON.parse(JSON.stringify(sections));
+                    const activeSectionIdx = newSections.findIndex(s => s.id === activeSection.id);
+                    const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex(q => q.id === active.id);
+                    const [movedQuestion] = newSections[activeSectionIdx].questions.splice(activeQuestionIdx, 1);
+                    const targetSectionIdx = newSections.findIndex(s => s.id === over.id);
+                    newSections[targetSectionIdx].questions.push(movedQuestion);
+                    return newSections.filter(s => s.questions.length > 0);
+                });
+            } else if (overSection) { // Dropping question on another question
+                if (activeSection.id === overSection.id) { // Same section
+                    setOrderedSections(sections => sections.map(s => {
+                        if (s.id === activeSection.id) {
+                            const oldIndex = s.questions.findIndex(q => q.id === active.id);
+                            const newIndex = s.questions.findIndex(q => q.id === over.id);
+                            return { ...s, questions: arrayMove(s.questions, oldIndex, newIndex) };
+                        }
+                        return s;
+                    }));
+                } else { // Different sections
+                    setOrderedSections(sections => {
+                        const newSections = JSON.parse(JSON.stringify(sections));
+                        const activeSectionIdx = newSections.findIndex(s => s.id === activeSection.id);
+                        const activeQuestionIdx = newSections[activeSectionIdx].questions.findIndex(q => q.id === active.id);
+                        const [movedQuestion] = newSections[activeSectionIdx].questions.splice(activeQuestionIdx, 1);
+                        
+                        const overSectionIdx = newSections.findIndex(s => s.id === overSection.id);
+                        const overQuestionIdx = newSections[overSectionIdx].questions.findIndex(q => q.id === over.id);
+                        newSections[overSectionIdx].questions.splice(overQuestionIdx, 0, movedQuestion);
+
+                        return newSections.filter(s => s.questions.length > 0);
+                    });
+                }
+            }
+        }
+    };
     
-    const existingSections = [...new Set(Object.values(questions).map(q => q.section))];
-    const groupedQuestions = Object.values(questions).reduce((acc, q) => {
-        if (!acc[q.section]) acc[q.section] = [];
-        acc[q.section].push(q);
-        return acc;
-    }, {} as Record<string, Question[]>);
+    const existingSections = [...new Set(orderedSections.map(q => q.id))];
 
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">Master Question Editor</h1>
-                    <p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies.</p>
+                    <p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies. Drag and drop to reorder.</p>
                 </div>
                 <Card>
                     <CardHeader>
@@ -347,22 +487,36 @@ function AdminFormEditor() {
                         <CardDescription>These changes will become the new defaults for all company configurations.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
-                            <div key={section}>
-                                <h3 className="font-semibold mb-4 text-lg">{section}</h3>
-                                <div className="space-y-4">
-                                {sectionQuestions.map((question) => (
-                                    <div key={question.id} className="flex items-center space-x-3 group">
-                                        <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => setQuestions(q => ({...q, [question.id]: {...question, isActive: !question.isActive}}))} />
-                                        <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
-                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => handleDeleteClick(question.id)}><Trash2 className="h-4 w-4" /></Button>
-                                    </div>
-                                ))}
-                                </div>
-                                <Separator className="my-6" />
-                            </div>
-                        ))}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                                {orderedSections.map(section => {
+                                    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
+                                    const style = { transform: CSS.Transform.toString(transform), transition };
+                                    return (
+                                        <div ref={setNodeRef} style={style} key={section.id}>
+                                            <div className="flex items-center space-x-2" >
+                                                <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical /></div>
+                                                <h3 className="font-semibold text-lg">{section.id}</h3>
+                                            </div>
+                                            <div className="pl-8 space-y-2 py-2">
+                                                <SortableContext items={section.questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                                                    {section.questions.map(question => (
+                                                        <SortableQuestionItem
+                                                            key={question.id}
+                                                            question={question}
+                                                            onToggleActive={() => handleToggleQuestionActive(question.id)}
+                                                            onEdit={() => handleEditClick(question)}
+                                                            onDelete={() => handleDeleteClick(question.id)}
+                                                        />
+                                                    ))}
+                                                </SortableContext>
+                                            </div>
+                                            <Separator className="my-6" />
+                                        </div>
+                                    )
+                                })}
+                            </SortableContext>
+                        </DndContext>
                     </CardContent>
                     <CardFooter className="border-t pt-6">
                         <Button variant="outline" onClick={handleAddNewClick}><PlusCircle className="mr-2" />Add New Question</Button>
