@@ -11,38 +11,39 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const CorrectTextInputSchema = z.string();
-export type CorrectTextInput = z.infer<typeof CorrectTextInputSchema>;
-
-export const CorrectTextOutputSchema = z.string();
-export type CorrectTextOutput = z.infer<typeof CorrectTextOutputSchema>;
+export type CorrectTextInput = string;
+export type CorrectTextOutput = string;
 
 export async function correctText(
   input: CorrectTextInput
 ): Promise<CorrectTextOutput> {
-  return spellCheckFlow(input);
-}
+  // Define schemas inside the function to avoid exporting them from a 'use server' file.
+  const CorrectTextInputSchema = z.string();
+  const CorrectTextOutputSchema = z.string();
 
-const prompt = ai.definePrompt({
-  name: 'spellCheckPrompt',
-  input: {schema: CorrectTextInputSchema},
-  output: {schema: CorrectTextOutputSchema},
-  prompt: `You are a helpful writing assistant. Correct any spelling and grammar mistakes in the following text.
+  const spellCheckFlow = ai.defineFlow(
+    {
+      name: 'spellCheckFlow',
+      inputSchema: CorrectTextInputSchema,
+      outputSchema: CorrectTextOutputSchema,
+    },
+    async (flowInput) => {
+      const prompt = ai.definePrompt({
+          name: 'spellCheckPrompt',
+          input: {schema: CorrectTextInputSchema},
+          output: {schema: CorrectTextOutputSchema},
+          prompt: `You are a helpful writing assistant. Correct any spelling and grammar mistakes in the following text.
 Do not add any preamble or explanation. Only return the corrected text.
 
 Text to correct:
 "{{prompt}}"
 `,
-});
+      });
 
-const spellCheckFlow = ai.defineFlow(
-  {
-    name: 'spellCheckFlow',
-    inputSchema: CorrectTextInputSchema,
-    outputSchema: CorrectTextOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+      const {output} = await prompt(flowInput);
+      return output!;
+    }
+  );
+
+  return spellCheckFlow(input);
+}
