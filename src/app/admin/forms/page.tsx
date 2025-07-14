@@ -12,14 +12,13 @@ import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, Star, ArrowUp, ArrowDown, Sparkles, Loader2, CornerDownRight } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, Star, ArrowUp, ArrowDown, CornerDownRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { correctText } from "@/ai/flows/spell-check-flow";
 
 
 export default function FormEditorSwitchPage() {
@@ -192,7 +191,6 @@ function HrFormEditor() {
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-    const [isCheckingText, setIsCheckingText] = useState(false);
 
     const generateAndSaveConfig = useCallback((sections: HrOrderedSection[]) => {
         if (!companyName) return;
@@ -267,21 +265,36 @@ function HrFormEditor() {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;
 
-                const defaultOrderedIds = getDefaultQuestions()
-                    .filter(q => q.section === sectionName && !q.parentId)
-                    .map(q => q.id);
-
                 let savedOrder = (companyQuestionOrder[sectionName] || []).filter(id => questionsInSection.some(q => q.id === id));
                 
+                // If there's no saved order, create a default one
                 if (savedOrder.length === 0) {
+                    const defaultOrderedIds = getDefaultQuestions()
+                        .filter(q => q.section === sectionName && !q.parentId)
+                        .map(q => q.id);
                     savedOrder = [...defaultOrderedIds, ...questionsInSection.filter(q => q.isCustom).map(q => q.id)];
                 } else {
+                    // Ensure all current questions are in the order array
                     const orderedIdSet = new Set(savedOrder);
                     questionsInSection.forEach(q => {
                         if (!orderedIdSet.has(q.id)) {
-                            savedOrder.push(q.id);
+                             // Find the last default question in this section and insert after it, or at the end
+                            const masterIdsInSection = new Set(getDefaultQuestions().filter(q => q.section === sectionName).map(q => q.id));
+                            let lastMasterIndex = -1;
+                            for (let i = savedOrder.length - 1; i >= 0; i--) {
+                                if (masterIdsInSection.has(savedOrder[i])) {
+                                    lastMasterIndex = i;
+                                    break;
+                                }
+                            }
+                            if (lastMasterIndex !== -1) {
+                                savedOrder.splice(lastMasterIndex + 1, 0, q.id);
+                            } else {
+                                savedOrder.push(q.id);
+                            }
                         }
                     });
+                     // Clean up any IDs that no longer exist
                      savedOrder = savedOrder.filter(id => questionsInSection.some(q => q.id === id));
                 }
                 
@@ -458,20 +471,6 @@ function HrFormEditor() {
             }
         }
     };
-
-     const handleCheckText = async () => {
-        if (!currentQuestion?.label) return;
-        setIsCheckingText(true);
-        try {
-            const corrected = await correctText(currentQuestion.label);
-            setCurrentQuestion(q => ({...q, label: corrected}));
-        } catch (e) {
-            console.error("Spell check failed", e);
-            toast({ title: "Error", description: "Could not check text at this time.", variant: "destructive"});
-        } finally {
-            setIsCheckingText(false);
-        }
-    };
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
@@ -539,13 +538,7 @@ function HrFormEditor() {
                                 <Alert variant="default" className="bg-primary/5 border-primary/50"><BellDot className="h-4 w-4 !text-primary" /><AlertTitle>Update Available</AlertTitle><AlertDescription className="space-y-2">The master version of this question has changed. You can apply updates.<div className="text-xs space-y-1 pt-2"><p><strong className="text-foreground">New Text:</strong> {masterQuestionForEdit.label}</p>{masterQuestionForEdit.options && <p><strong className="text-foreground">New Options:</strong> {masterQuestionForEdit.options.join(', ')}</p>}</div><Button size="sm" variant="outline" className="mt-2" onClick={() => { setCurrentQuestion({ ...currentQuestion, label: masterQuestionForEdit.label, options: masterQuestionForEdit.options, lastUpdated: masterQuestionForEdit.lastUpdated }); toast({ title: "Updates Applied" }); }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button></AlertDescription></Alert>
                             )}
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label htmlFor="question-label">Question Text</Label>
-                                    <Button variant="outline" size="sm" onClick={handleCheckText} disabled={isCheckingText}>
-                                        {isCheckingText ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                        Check Text
-                                    </Button>
-                                </div>
+                                <Label htmlFor="question-label">Question Text</Label>
                                 <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/>
                             </div>
                             {currentQuestion.parentId && (
@@ -697,7 +690,6 @@ function AdminFormEditor() {
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
-    const [isCheckingText, setIsCheckingText] = useState(false);
 
     const updateOrderedSectionsAndSave = useCallback((newMaster: Record<string, Question>, showToast = true) => {
         const rootQuestions = buildQuestionTreeFromMap(newMaster);
@@ -846,20 +838,6 @@ function AdminFormEditor() {
         }
     };
     
-    const handleCheckText = async () => {
-        if (!currentQuestion?.label) return;
-        setIsCheckingText(true);
-        try {
-            const corrected = await correctText(currentQuestion.label);
-            setCurrentQuestion(q => ({...q, label: corrected}));
-        } catch (e) {
-            console.error("Spell check failed", e);
-            toast({ title: "Error", description: "Could not check text at this time.", variant: "destructive"});
-        } finally {
-            setIsCheckingText(false);
-        }
-    };
-
     const existingSections = [...new Set(Object.values(masterQuestions).filter(q=>!q.parentId).map(q => q.section))];
 
     return (
@@ -898,13 +876,7 @@ function AdminFormEditor() {
                         <div className="space-y-6 py-4">
                             <div className="space-y-2"><Label htmlFor="question-id">Question ID</Label><Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewQuestion}/><p className="text-xs text-muted-foreground">{isNewQuestion ? "Use a unique, kebab-case ID." : "ID cannot be changed after creation."}</p></div>
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label htmlFor="question-label">Question Text</Label>
-                                    <Button variant="outline" size="sm" onClick={handleCheckText} disabled={isCheckingText}>
-                                        {isCheckingText ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                        Check Text
-                                    </Button>
-                                </div>
+                                <Label htmlFor="question-label">Question Text</Label>
                                 <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => ({ ...q, label: e.target.value }))}/>
                             </div>
                             {currentQuestion.parentId && (
