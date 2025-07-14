@@ -220,10 +220,26 @@ function HrFormEditor() {
     
     const companyName = auth?.companyName;
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
+    const [isDirty, setIsDirty] = useState(false);
     
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+          if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
+        };
+    
+        window.addEventListener('beforeunload', handleBeforeUnload);
+    
+        return () => {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isDirty]);
 
     useEffect(() => {
         if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
@@ -263,6 +279,7 @@ function HrFormEditor() {
             }).filter((s): s is HrOrderedSection => s !== null);
 
             setOrderedSections(sections);
+            setIsDirty(false);
         }
     }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
 
@@ -314,9 +331,11 @@ function HrFormEditor() {
 
         saveCompanyConfig(companyName, newConfig);
         toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+        setIsDirty(false);
     };
 
     const handleToggleQuestion = (questionId: string, parentId?: string) => {
+        setIsDirty(true);
         setOrderedSections(prev => {
             const newSections = JSON.parse(JSON.stringify(prev));
             const findAndToggle = (questions: Question[]) => {
@@ -371,6 +390,7 @@ function HrFormEditor() {
     }
     
     const handleDeleteCustom = (questionId: string) => {
+        setIsDirty(true);
         setOrderedSections(prev => {
             const newSections = JSON.parse(JSON.stringify(prev));
              const findAndDelete = (questions: Question[]) => {
@@ -393,6 +413,7 @@ function HrFormEditor() {
 
     const handleSaveEdit = () => {
         if (!currentQuestion) return;
+        setIsDirty(true);
 
         let newQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
 
@@ -473,6 +494,7 @@ function HrFormEditor() {
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
+        setIsDirty(true);
         setOrderedSections(prevSections => {
             const newSections = JSON.parse(JSON.stringify(prevSections)) as HrOrderedSection[];
     
@@ -486,7 +508,6 @@ function HrFormEditor() {
                         const [movedQuestion] = section.questions.splice(index, 1);
                         section.questions.splice(newIndex, 0, movedQuestion);
                     }
-                    // Break the loop once the question is found and moved in its section
                     break;
                 }
             }
@@ -550,7 +571,7 @@ function HrFormEditor() {
                         <Button variant="outline" onClick={() => handleAddNewCustomClick()}><PlusCircle className="mr-2" /> Add Custom Question</Button>
                     </CardFooter>
                 </Card>
-                 <Button onClick={handleSaveConfig} className="w-full">Save Configuration for {companyName}</Button>
+                 <Button onClick={handleSaveConfig} className="w-full" disabled={!isDirty}>Save Configuration for {companyName}</Button>
             </div>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -700,6 +721,7 @@ function AdminFormEditor() {
     const { toast } = useToast();
     const { masterQuestions, saveMasterQuestions } = useUserData();
     const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
+    const [isDirty, setIsDirty] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
@@ -728,7 +750,23 @@ function AdminFormEditor() {
         }).filter((s): s is OrderedSection => s !== null);
 
         setOrderedSections(sections);
+        setIsDirty(false);
     }, []);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+          if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
+        };
+    
+        window.addEventListener('beforeunload', handleBeforeUnload);
+    
+        return () => {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+      }, [isDirty]);
 
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
@@ -756,6 +794,7 @@ function AdminFormEditor() {
 
         saveMasterQuestions(newQuestions);
         toast({ title: "Master Configuration Saved" });
+        setIsDirty(false);
     };
 
     const handleEditClick = (question: Question) => {
@@ -788,6 +827,7 @@ function AdminFormEditor() {
 
 
     const handleDeleteClick = (questionId: string) => {
+        setIsDirty(true);
         let newMaster = JSON.parse(JSON.stringify(masterQuestions));
         
         const deleteRecursive = (idToDelete: string) => {
@@ -805,12 +845,16 @@ function AdminFormEditor() {
 
         deleteRecursive(questionId);
         
-        saveMasterQuestions(newMaster);
-        toast({ title: "Question Deleted" });
+        // This will update state and persist
+        const newRootQuestions = buildQuestionTreeFromMap(newMaster);
+        updateOrderedSections(newRootQuestions);
+        toast({ title: "Question Deleted", description: "Remember to save your changes." });
     };
 
     const handleSaveEdit = () => {
         if (!currentQuestion) return;
+        setIsDirty(true);
+
         let finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
         if (isCreatingNewSection) {
             if (!newSectionName.trim()) { toast({ title: "New Section Required", variant: "destructive" }); return; }
@@ -823,11 +867,14 @@ function AdminFormEditor() {
         
         newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
        
-        saveMasterQuestions(newMaster);
+        const newRootQuestions = buildQuestionTreeFromMap(newMaster);
+        updateOrderedSections(newRootQuestions);
+
         setIsEditing(false); setCurrentQuestion(null); setIsCreatingNewSection(false); setNewSectionName("");
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
+        setIsDirty(true);
         setOrderedSections(prevSections => {
             const newSections = JSON.parse(JSON.stringify(prevSections));
             for (const section of newSections) {
@@ -876,7 +923,7 @@ function AdminFormEditor() {
                 </CardContent>
                 <CardFooter className="border-t pt-6"><Button variant="outline" onClick={() => handleAddNewClick()}><PlusCircle className="mr-2" />Add New Question</Button></CardFooter>
             </Card>
-            <Button onClick={handleSaveConfig} className="w-full">Save Master Configuration</Button>
+            <Button onClick={handleSaveConfig} className="w-full" disabled={!isDirty}>Save Master Configuration</Button>
             <Dialog open={isEditing} onOpenChange={setIsEditing}><DialogContent>
                 <DialogHeader><DialogTitle>{isNewQuestion ? 'Add New Question' : 'Edit Question'}</DialogTitle></DialogHeader>
                 {currentQuestion && (
@@ -897,5 +944,7 @@ function AdminFormEditor() {
         </div></div>
     );
 }
+
+    
 
     
