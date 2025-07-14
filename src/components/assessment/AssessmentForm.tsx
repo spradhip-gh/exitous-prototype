@@ -98,7 +98,7 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
                         {question.isCustom && (
                              <Tooltip delayDuration={200}>
                                 <TooltipTrigger asChild><Star className="h-4 w-4 text-amber-500 cursor-help fill-current" /></TooltipTrigger>
-                                <TooltipContent><p>This is a custom question added by your company.</p></TooltipContent>
+                                <TooltipContent><p>This is a custom question added by {companyName}.</p></TooltipContent>
                             </Tooltip>
                         )}
                         {question.description && (
