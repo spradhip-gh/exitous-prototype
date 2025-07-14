@@ -1,5 +1,3 @@
-
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -216,30 +214,26 @@ function HrFormEditor() {
         isLoading: isUserDataLoading, 
         companyAssignmentForHr,
         getCompanyConfig, 
+        isDirty,
+        setIsDirty
     } = useUserData();
     
     const companyName = auth?.companyName;
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
-    const [isDirty, setIsDirty] = useState(false);
     
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-
+    
+    // When the component unmounts, if it's dirty, reset it.
+    // This is to prevent the dirty state from "leaking" if the user confirms navigation away.
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-          if (isDirty) {
-            e.preventDefault();
-            e.returnValue = '';
-          }
-        };
-    
-        window.addEventListener('beforeunload', handleBeforeUnload);
-    
         return () => {
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, [isDirty]);
+            if (isDirty) {
+                setIsDirty(false);
+            }
+        }
+    }, [isDirty, setIsDirty]);
 
     useEffect(() => {
         if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
@@ -281,7 +275,7 @@ function HrFormEditor() {
             setOrderedSections(sections);
             setIsDirty(false);
         }
-    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
+    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, setIsDirty]);
 
     const handleSaveConfig = () => {
         if (!companyName) return;
@@ -719,9 +713,8 @@ function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMov
 
 function AdminFormEditor() {
     const { toast } = useToast();
-    const { masterQuestions, saveMasterQuestions } = useUserData();
+    const { masterQuestions, saveMasterQuestions, isDirty, setIsDirty } = useUserData();
     const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
-    const [isDirty, setIsDirty] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
@@ -751,22 +744,16 @@ function AdminFormEditor() {
 
         setOrderedSections(sections);
         setIsDirty(false);
-    }, []);
-
+    }, [setIsDirty]);
+    
+    // When the component unmounts, if it's dirty, reset it.
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-          if (isDirty) {
-            e.preventDefault();
-            e.returnValue = '';
-          }
-        };
-    
-        window.addEventListener('beforeunload', handleBeforeUnload);
-    
         return () => {
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-      }, [isDirty]);
+            if (isDirty) {
+                setIsDirty(false);
+            }
+        }
+    }, [isDirty, setIsDirty]);
 
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
@@ -944,7 +931,3 @@ function AdminFormEditor() {
         </div></div>
     );
 }
-
-    
-
-    

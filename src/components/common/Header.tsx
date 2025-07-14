@@ -35,10 +35,11 @@ const roleNames = {
 
 export default function Header({ children }: { children?: React.ReactNode }) {
   const { auth, logout, startUserView, stopUserView } = useAuth();
-  const { clearData, companyAssignmentForHr } = useUserData();
+  const { clearData, companyAssignmentForHr, isDirty, setIsDirty } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
+    if (isDirty) setIsDirty(false);
     logout();
     router.push('/');
   }
@@ -49,11 +50,13 @@ export default function Header({ children }: { children?: React.ReactNode }) {
   };
 
   const handleStartUserView = () => {
+    if (isDirty) setIsDirty(false);
     startUserView();
     router.push('/dashboard');
   };
 
   const handleStopUserView = () => {
+    if (isDirty) setIsDirty(false);
     stopUserView();
     router.push('/admin/forms');
   };
