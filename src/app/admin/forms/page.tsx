@@ -12,13 +12,10 @@ import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, CornerDownRight, Star } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, CornerDownRight, Star, ArrowUp, ArrowDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -108,23 +105,19 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
-        id: question.id,
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-    
+function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
-        <div ref={setNodeRef} style={style} className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
+        <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
             <div className="flex items-center space-x-2 group pr-2">
-                <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground cursor-grab")}>
-                    <GripVertical className="h-5 w-5" />
+                 <div className="flex flex-col">
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
+                        <ArrowUp className="h-4 w-4" />
+                    </Button>
+                     <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
+                        <ArrowDown className="h-4 w-4" />
+                    </Button>
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
                     {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
@@ -473,38 +466,23 @@ function HrFormEditor() {
         setCurrentQuestion(null);
     };
 
-    const sensors = useSensors( useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }) );
-
-    function handleDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const activeId = String(active.id);
-        const overId = String(over.id);
-
-        let activeSectionIndex = -1;
-        let overSectionIndex = -1;
-
-        orderedSections.forEach((section, index) => {
-            if (section.questions.some(q => q.id === activeId)) activeSectionIndex = index;
-            if (section.questions.some(q => q.id === overId)) overSectionIndex = index;
-        });
-
-        if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) {
-            return;
-        }
-
+    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
         setOrderedSections(prevSections => {
-            const newSections = [...prevSections];
-            const section = newSections[activeSectionIndex];
-            const oldIndex = section.questions.findIndex(q => q.id === activeId);
-            const newIndex = section.questions.findIndex(q => q.id === overId);
-            if (oldIndex !== -1 && newIndex !== -1) {
-                section.questions = arrayMove(section.questions, oldIndex, newIndex);
+            const newSections = JSON.parse(JSON.stringify(prevSections));
+            for (const section of newSections) {
+                const index = section.questions.findIndex((q: Question) => q.id === questionId);
+                if (index !== -1) {
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+                    if (newIndex >= 0 && newIndex < section.questions.length) {
+                        const [movedQuestion] = section.questions.splice(index, 1);
+                        section.questions.splice(newIndex, 0, movedQuestion);
+                    }
+                    break;
+                }
             }
             return newSections;
         });
-    }
+    };
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
@@ -528,35 +506,34 @@ function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>.</p>
                 </div>
                 <Card>
-                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Drag and drop to reorder. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
                     <CardContent className="space-y-6">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
-                                <div key={section}>
-                                    <h3 className="font-semibold mb-4 text-lg">{section}</h3>
-                                    <SortableContext items={sectionQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-                                        <div className="space-y-2">
-                                            {sectionQuestions.map((question) => {
-                                                const masterQ = masterQuestions[question.id];
-                                                const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
-                                                return (
-                                                    <HrSortableQuestionItem
-                                                        key={question.id}
-                                                        question={question}
-                                                        onToggleActive={handleToggleQuestion}
-                                                        onEdit={handleEditClick}
-                                                        onDelete={handleDeleteCustom}
-                                                        onAddSub={handleAddNewCustomClick}
-                                                        hasBeenUpdated={hasBeenUpdated}
-                                                    />
-                                                )
-                                            })}
-                                        </div>
-                                    </SortableContext>
-                                    <Separator className="my-6" />
+                        {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
+                            <div key={section}>
+                                <h3 className="font-semibold mb-4 text-lg">{section}</h3>
+                                <div className="space-y-2">
+                                    {sectionQuestions.map((question, index) => {
+                                        const masterQ = masterQuestions[question.id];
+                                        const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+                                        return (
+                                            <HrQuestionItem
+                                                key={question.id}
+                                                question={question}
+                                                onToggleActive={handleToggleQuestion}
+                                                onEdit={handleEditClick}
+                                                onDelete={handleDeleteCustom}
+                                                onAddSub={handleAddNewCustomClick}
+                                                hasBeenUpdated={hasBeenUpdated}
+                                                onMove={handleMoveQuestion}
+                                                isFirst={index === 0}
+                                                isLast={index === sectionQuestions.length - 1}
+                                            />
+                                        )
+                                    })}
                                 </div>
-                            ))}
-                        </DndContext>
+                                <Separator className="my-6" />
+                            </div>
+                        ))}
                     </CardContent>
                     <CardFooter className="border-t pt-6">
                         <Button variant="outline" onClick={() => handleAddNewCustomClick()}><PlusCircle className="mr-2" /> Add Custom Question</Button>
@@ -655,15 +632,20 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
 }
 
 
-function AdminSortableQuestionItem({ question, onEdit, onDelete, onAddSubQuestion }: { question: Question, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSubQuestion: (parentId: string) => void }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
-    const style = { transform: CSS.Transform.toString(transform), transition };
+function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMove, isFirst, isLast }: { question: Question, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSubQuestion: (parentId: string) => void, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
-        <div ref={setNodeRef} style={style} className="bg-background rounded-lg my-1">
+        <div className="bg-background rounded-lg my-1">
             <div className="flex items-center space-x-3 group p-2">
-                <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical className="h-5 w-5" /></div>
+                <div className="flex flex-col">
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
+                        <ArrowUp className="h-4 w-4" />
+                    </Button>
+                     <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
+                        <ArrowDown className="h-4 w-4" />
+                    </Button>
+                </div>
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
                 <div className="flex items-center">
                     {canHaveSubquestions && <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="mr-2 h-4 w-4"/>Sub</Button>}
@@ -703,39 +685,6 @@ function AdminSortableQuestionItem({ question, onEdit, onDelete, onAddSubQuestio
     );
 }
 
-function SortableSection({ section, onEditQuestion, onDeleteQuestion, onAddSubQuestion }: {
-    section: OrderedSection;
-    onEditQuestion: (question: Question) => void;
-    onDeleteQuestion: (questionId: string) => void;
-    onAddSubQuestion: (parentId: string) => void;
-}) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
-    const style = { transform: CSS.Transform.toString(transform), transition };
-
-    return (
-        <div ref={setNodeRef} style={style}>
-            <div className="flex items-center space-x-2" >
-                <div {...attributes} {...listeners} className="p-2 cursor-grab text-muted-foreground"><GripVertical /></div>
-                <h3 className="font-semibold text-lg">{section.id}</h3>
-            </div>
-            <div className="pl-8 space-y-2 py-2">
-                <SortableContext items={section.questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-                    {section.questions.map(question => (
-                        <AdminSortableQuestionItem
-                            key={question.id}
-                            question={question}
-                            onEdit={onEditQuestion}
-                            onDelete={onDeleteQuestion}
-                            onAddSubQuestion={onAddSubQuestion}
-                        />
-                    ))}
-                </SortableContext>
-            </div>
-            <Separator className="my-6" />
-        </div>
-    );
-}
-
 function AdminFormEditor() {
     const { toast } = useToast();
     const { masterQuestions, saveMasterQuestions } = useUserData();
@@ -748,18 +697,13 @@ function AdminFormEditor() {
 
     const updateOrderedSections = useCallback((rootQuestions: Question[]) => {
         const sectionsMap: Record<string, Question[]> = {};
-        const questionOrderMap: Record<string, string[]> = {};
     
-        // Group questions by section
         rootQuestions.forEach(q => {
             const sectionName = q.section || 'Uncategorized';
-            if (!sectionsMap[sectionName]) {
-                sectionsMap[sectionName] = [];
-            }
+            if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
             sectionsMap[sectionName].push(q);
         });
 
-        // Use a stable master order, adding any new sections at the end
         const defaultQuestions = getDefaultQuestions().filter(q => !q.parentId);
         const masterSectionOrder = [...new Set(defaultQuestions.map(q => q.section))];
         Object.keys(sectionsMap).forEach(s => {
@@ -872,77 +816,52 @@ function AdminFormEditor() {
         setIsEditing(false); setCurrentQuestion(null); setIsCreatingNewSection(false); setNewSectionName("");
     };
 
-    const findQuestionInMap = (map: Record<string, Question>, id: string): Question | null => {
-        return map[id] || null;
-    }
-
-    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    
-    function handleDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-    
-        const activeId = String(active.id);
-        const overId = String(over.id);
-    
-        setOrderedSections((sections) => {
-            const newSections = JSON.parse(JSON.stringify(sections));
-    
-            const isSectionDrag = newSections.some(s => s.id === activeId);
-    
-            if (isSectionDrag) {
-                const overIsSection = newSections.some(s => s.id === overId);
-                if (overIsSection) {
-                    const activeIndex = newSections.findIndex(s => s.id === activeId);
-                    const overIndex = newSections.findIndex(s => s.id === overId);
-                    return arrayMove(newSections, activeIndex, overIndex);
-                }
-            } else { // It's a question drag
-                let activeSectionIndex = -1;
-                let overSectionIndex = -1;
-                let oldItemIndex = -1;
-                let newItemIndex = -1;
-                
-                newSections.forEach((section, sIndex) => {
-                    const qIndex = section.questions.findIndex(q => q.id === activeId);
-                    if (qIndex !== -1) {
-                        activeSectionIndex = sIndex;
-                        oldItemIndex = qIndex;
+    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
+        setOrderedSections(prevSections => {
+            const newSections = JSON.parse(JSON.stringify(prevSections));
+            for (const section of newSections) {
+                const index = section.questions.findIndex((q: Question) => q.id === questionId);
+                if (index !== -1) {
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+                    if (newIndex >= 0 && newIndex < section.questions.length) {
+                        const [movedQuestion] = section.questions.splice(index, 1);
+                        section.questions.splice(newIndex, 0, movedQuestion);
                     }
-                    const oIndex = section.questions.findIndex(q => q.id === overId);
-                     if (oIndex !== -1) {
-                        overSectionIndex = sIndex;
-                        newItemIndex = oIndex;
-                    }
-                });
-
-                if (activeSectionIndex !== -1 && overSectionIndex !== -1 && activeSectionIndex === overSectionIndex) {
-                    // Dragging within the same section
-                    const section = newSections[activeSectionIndex];
-                    section.questions = arrayMove(section.questions, oldItemIndex, newItemIndex);
-                    return newSections;
+                    break; 
                 }
             }
-            
-            return sections;
+            return newSections;
         });
-    }
+    };
 
     const existingSections = [...new Set(Object.values(masterQuestions).filter(q=>!q.parentId).map(q => q.section))];
 
     return (
         <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8">
-            <div className="space-y-2"><h1 className="font-headline text-3xl font-bold">Master Question Editor</h1><p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies. Drag and drop to reorder.</p></div>
+            <div className="space-y-2"><h1 className="font-headline text-3xl font-bold">Master Question Editor</h1><p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies. Use arrows to reorder.</p></div>
             <Card>
                 <CardHeader><CardTitle>Master Question List</CardTitle><CardDescription>These changes will become the new defaults for all company configurations.</CardDescription></CardHeader>
                 <CardContent className="space-y-6">
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                            {orderedSections.map(section => (
-                                <SortableSection key={section.id} section={section} onEditQuestion={handleEditClick} onDeleteQuestion={handleDeleteClick} onAddSubQuestion={handleAddNewClick} />
-                            ))}
-                        </SortableContext>
-                    </DndContext>
+                    {orderedSections.map(section => (
+                        <div key={section.id}>
+                            <h3 className="font-semibold text-lg">{section.id}</h3>
+                            <div className="pl-2 space-y-2 py-2">
+                                {section.questions.map((question, index) => (
+                                    <AdminQuestionItem
+                                        key={question.id}
+                                        question={question}
+                                        onEdit={handleEditClick}
+                                        onDelete={handleDeleteClick}
+                                        onAddSubQuestion={handleAddNewClick}
+                                        onMove={handleMoveQuestion}
+                                        isFirst={index === 0}
+                                        isLast={index === section.questions.length - 1}
+                                    />
+                                ))}
+                            </div>
+                            <Separator className="my-6" />
+                        </div>
+                    ))}
                 </CardContent>
                 <CardFooter className="border-t pt-6"><Button variant="outline" onClick={() => handleAddNewClick()}><PlusCircle className="mr-2" />Add New Question</Button></CardFooter>
             </Card>
