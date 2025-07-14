@@ -1,6 +1,6 @@
-# Building Layoff Compass: A Step-by-Step Guide
+# Building Exitbetter: A Step-by-Step Guide
 
-This document provides a detailed, step-by-step guide to building the Layoff Compass application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
+This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
 
 ## 1. Initial Project Setup
 
@@ -11,7 +11,7 @@ The foundation of the application is a standard Next.js project.
 Start by creating a new Next.js project with TypeScript and Tailwind CSS.
 
 ```bash
-npx create-next-app@latest layoff-compass --typescript --tailwind --eslint
+npx create-next-app@latest exitbetter --typescript --tailwind --eslint
 ```
 
 ### 1.2. Install Core Dependencies
@@ -19,7 +19,7 @@ npx create-next-app@latest layoff-compass --typescript --tailwind --eslint
 Navigate into your project directory and install the necessary packages for UI components, state management, forms, and drag-and-drop functionality.
 
 ```bash
-cd layoff-compass
+cd exitbetter
 npm install \
   @radix-ui/react-accordion @radix-ui/react-alert-dialog @radix-ui/react-avatar \
   @radix-ui/react-checkbox @radix-ui/react-collapsible @radix-ui/react-dialog \
@@ -139,4 +139,4 @@ In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that gen
     -   Explicitly ask the model to provide a unique `taskId`, `task`, `category`, `timeline`, `details`, and an optional `endDate` for each recommendation, and to sort the list by urgency.
 -   **Flow Function:** Export an async wrapper function (`getPersonalizedRecommendations`) that calls the Genkit flow. This function will be used by the `TimelineDashboard` component to fetch the recommendations.
 
-This guide provides a comprehensive roadmap to recreate the core functionality of the Layoff Compass application. Each step involves creating components, defining logic, and styling according to the project's design guidelines.
+This guide provides a comprehensive roadmap to recreate the core functionality of the Exitbetter application. Each step involves creating components, defining logic, and styling according to the project's design guidelines.
