@@ -36,7 +36,7 @@ export async function correctText(
 Do not add any preamble or explanation. Only return the corrected text.
 
 Text to correct:
-"{{prompt}}"
+"{{this}}"
 `,
       });
 
