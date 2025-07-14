@@ -173,37 +173,6 @@ function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, 
     );
 }
 
-const findAndModifyQuestion = (questions: Question[], id: string, modifyFn: (q: Question, collection?: Question[]) => any): Question[] => {
-    let modified = false;
-    const newQuestions = JSON.parse(JSON.stringify(questions));
-
-    const traverse = (qs: Question[], parentId?: string): Question[] => {
-        for (let i = 0; i < qs.length; i++) {
-            let q = qs[i];
-            if (q.id === id) {
-                const result = modifyFn(q, qs);
-                if (result === 'DELETE') {
-                    qs.splice(i, 1);
-                } else if (result) {
-                    qs[i] = result;
-                }
-                modified = true;
-                return qs;
-            }
-            if (q.subQuestions) {
-                const newSubQuestions = traverse(q.subQuestions, q.id);
-                if (modified) {
-                    q.subQuestions = newSubQuestions;
-                    return qs;
-                }
-            }
-        }
-        return qs;
-    };
-
-    return traverse(newQuestions);
-};
-
 function HrFormEditor() {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -214,8 +183,6 @@ function HrFormEditor() {
         isLoading: isUserDataLoading, 
         companyAssignmentForHr,
         getCompanyConfig, 
-        isDirty,
-        setIsDirty
     } = useUserData();
     
     const companyName = auth?.companyName;
@@ -224,16 +191,57 @@ function HrFormEditor() {
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-    
-    // When the component unmounts, if it's dirty, reset it.
-    // This is to prevent the dirty state from "leaking" if the user confirms navigation away.
-    useEffect(() => {
-        return () => {
-            if (isDirty) {
-                setIsDirty(false);
+
+    const generateAndSaveConfig = useCallback((sections: HrOrderedSection[]) => {
+        if (!companyName) return;
+
+        const companyOverrides: Record<string, Partial<Question>> = {};
+        const customQuestions: Record<string, Question> = {};
+        const questionOrderBySection: Record<string, string[]> = {};
+
+        const processQuestionForSave = (q: Question) => {
+            if (q.isCustom) {
+                customQuestions[q.id] = q;
+            } else {
+                const masterQ = masterQuestions[q.id];
+                if (!masterQ) {
+                    if(q.parentId) { // It's a custom sub-question on a master question
+                         customQuestions[q.id] = q;
+                    }
+                } else {
+                    const override: Partial<Question> = {};
+                    let hasChanged = false;
+                    const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options', 'description'];
+                    fieldsToCompare.forEach(field => {
+                        if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
+                            (override as any)[field] = q[field];
+                            hasChanged = true;
+                        }
+                    });
+                    if (q.lastUpdated) override.lastUpdated = q.lastUpdated;
+                    if (hasChanged) companyOverrides[q.id] = override;
+                }
             }
-        }
-    }, [isDirty, setIsDirty]);
+            q.subQuestions?.forEach(processQuestionForSave);
+        };
+
+        sections.forEach(section => {
+            questionOrderBySection[section.id] = section.questions.map(q => q.id);
+            section.questions.forEach(processQuestionForSave);
+        });
+        
+        const currentConfig = getAllCompanyConfigs()[companyName] || {};
+        const newConfig: CompanyConfig = {
+            ...currentConfig,
+            questions: companyOverrides,
+            customQuestions,
+            questionOrderBySection,
+        };
+
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+    }, [companyName, masterQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
+
 
     useEffect(() => {
         if (companyName && !isUserDataLoading && Object.keys(masterQuestions).length > 0) {
@@ -273,80 +281,26 @@ function HrFormEditor() {
             }).filter((s): s is HrOrderedSection => s !== null);
 
             setOrderedSections(sections);
-            setIsDirty(false);
         }
-    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, setIsDirty]);
+    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
 
-    const handleSaveConfig = () => {
-        if (!companyName) return;
-
-        const companyOverrides: Record<string, Partial<Question>> = {};
-        const customQuestions: Record<string, Question> = {};
-        const questionOrderBySection: Record<string, string[]> = {};
-
-        const processQuestionForSave = (q: Question) => {
-            if (q.isCustom) {
-                customQuestions[q.id] = q;
-            } else {
-                const masterQ = masterQuestions[q.id];
-                if (!masterQ) {
-                    if(q.parentId) { // It's a custom sub-question on a master question
-                         customQuestions[q.id] = q;
-                    }
-                } else {
-                    const override: Partial<Question> = {};
-                    let hasChanged = false;
-                    const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options', 'description'];
-                    fieldsToCompare.forEach(field => {
-                        if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
-                            (override as any)[field] = q[field];
-                            hasChanged = true;
-                        }
-                    });
-                    if (q.lastUpdated) override.lastUpdated = q.lastUpdated;
-                    if (hasChanged) companyOverrides[q.id] = override;
+    const handleToggleQuestion = (questionId: string) => {
+        const newSections = JSON.parse(JSON.stringify(orderedSections));
+        const findAndToggle = (questions: Question[]) => {
+            for (const q of questions) {
+                if (q.id === questionId) {
+                    q.isActive = !q.isActive;
+                    return true;
+                }
+                if (q.subQuestions && findAndToggle(q.subQuestions)) {
+                    return true;
                 }
             }
-            q.subQuestions?.forEach(processQuestionForSave);
-        };
-
-        orderedSections.forEach(section => {
-            questionOrderBySection[section.id] = section.questions.map(q => q.id);
-            section.questions.forEach(processQuestionForSave);
-        });
-        
-        const currentConfig = getAllCompanyConfigs()[companyName] || {};
-        const newConfig: CompanyConfig = {
-            ...currentConfig,
-            questions: companyOverrides,
-            customQuestions,
-            questionOrderBySection,
-        };
-
-        saveCompanyConfig(companyName, newConfig);
-        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
-        setIsDirty(false);
-    };
-
-    const handleToggleQuestion = (questionId: string, parentId?: string) => {
-        setIsDirty(true);
-        setOrderedSections(prev => {
-            const newSections = JSON.parse(JSON.stringify(prev));
-            const findAndToggle = (questions: Question[]) => {
-                for (const q of questions) {
-                    if (q.id === questionId) {
-                        q.isActive = !q.isActive;
-                        return true;
-                    }
-                    if (q.subQuestions && findAndToggle(q.subQuestions)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            newSections.forEach((s: HrOrderedSection) => findAndToggle(s.questions));
-            return newSections;
-        });
+            return false;
+        }
+        newSections.forEach((s: HrOrderedSection) => findAndToggle(s.questions));
+        setOrderedSections(newSections);
+        generateAndSaveConfig(newSections);
     };
     
     const handleEditClick = (question: Question) => {
@@ -384,32 +338,29 @@ function HrFormEditor() {
     }
     
     const handleDeleteCustom = (questionId: string) => {
-        setIsDirty(true);
-        setOrderedSections(prev => {
-            const newSections = JSON.parse(JSON.stringify(prev));
-             const findAndDelete = (questions: Question[]) => {
-                for (let i = 0; i < questions.length; i++) {
-                    if (questions[i].id === questionId) {
-                        questions.splice(i, 1);
-                        return true;
-                    }
-                    if (questions[i].subQuestions && findAndDelete(questions[i].subQuestions!)) {
-                        return true;
-                    }
+        const newSections = JSON.parse(JSON.stringify(orderedSections));
+         const findAndDelete = (questions: Question[]) => {
+            for (let i = 0; i < questions.length; i++) {
+                if (questions[i].id === questionId) {
+                    questions.splice(i, 1);
+                    return true;
                 }
-                return false;
-            };
-            newSections.forEach((s: HrOrderedSection) => findAndDelete(s.questions));
-            return newSections;
-        });
-        toast({ title: "Custom Question Removed", description: "Remember to save your changes." });
+                if (questions[i].subQuestions && findAndDelete(questions[i].subQuestions!)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        newSections.forEach((s: HrOrderedSection) => findAndDelete(s.questions));
+        setOrderedSections(newSections);
+        generateAndSaveConfig(newSections);
     };
 
     const handleSaveEdit = () => {
         if (!currentQuestion) return;
-        setIsDirty(true);
 
         let newQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
+        let newSections = JSON.parse(JSON.stringify(orderedSections));
 
         if (isNewCustom) {
             if (!companyName || !newQuestion.label || (!newQuestion.parentId && !newQuestion.section)) {
@@ -434,79 +385,65 @@ function HrFormEditor() {
             newQuestion.id = `${customQuestionPrefix}${newIdNumber}`;
             
             if (newQuestion.parentId) {
-                setOrderedSections(prev => {
-                    const newSections = JSON.parse(JSON.stringify(prev));
-                    const findAndAdd = (questions: Question[]) => {
-                        for (const q of questions) {
-                            if (q.id === newQuestion.parentId) {
-                                if (!q.subQuestions) q.subQuestions = [];
-                                q.subQuestions.push(newQuestion);
-                                return true;
-                            }
-                            if (q.subQuestions && findAndAdd(q.subQuestions)) return true;
-                        }
-                        return false;
-                    }
-                    newSections.forEach((s: HrOrderedSection) => findAndAdd(s.questions));
-                    return newSections;
-                });
-            } else {
-                 setOrderedSections(prev => {
-                    const newSections = JSON.parse(JSON.stringify(prev));
-                    let section = newSections.find((s: HrOrderedSection) => s.id === newQuestion.section);
-                    if (section) {
-                        section.questions.push(newQuestion);
-                    } else {
-                        newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
-                    }
-                    return newSections;
-                });
-            }
-        } else { 
-             setOrderedSections(prev => {
-                const newSections = JSON.parse(JSON.stringify(prev));
-                const findAndUpdate = (questions: Question[]) => {
-                    for (let i = 0; i < questions.length; i++) {
-                        if (questions[i].id === newQuestion.id) {
-                            const subs = questions[i].subQuestions;
-                            questions[i] = newQuestion;
-                            if (subs) questions[i].subQuestions = subs;
+                const findAndAdd = (questions: Question[]) => {
+                    for (const q of questions) {
+                        if (q.id === newQuestion.parentId) {
+                            if (!q.subQuestions) q.subQuestions = [];
+                            q.subQuestions.push(newQuestion);
                             return true;
                         }
-                        if (questions[i].subQuestions && findAndUpdate(questions[i].subQuestions!)) {
-                            return true;
-                        }
+                        if (q.subQuestions && findAndAdd(q.subQuestions)) return true;
                     }
                     return false;
-                };
-                newSections.forEach((s: HrOrderedSection) => findAndUpdate(s.questions));
-                return newSections;
-            });
+                }
+                newSections.forEach((s: HrOrderedSection) => findAndAdd(s.questions));
+            } else {
+                 let section = newSections.find((s: HrOrderedSection) => s.id === newQuestion.section);
+                if (section) {
+                    section.questions.push(newQuestion);
+                } else {
+                    newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
+                }
+            }
+        } else { 
+            const findAndUpdate = (questions: Question[]) => {
+                for (let i = 0; i < questions.length; i++) {
+                    if (questions[i].id === newQuestion.id) {
+                        const subs = questions[i].subQuestions;
+                        questions[i] = newQuestion;
+                        if (subs) questions[i].subQuestions = subs;
+                        return true;
+                    }
+                    if (questions[i].subQuestions && findAndUpdate(questions[i].subQuestions!)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            newSections.forEach((s: HrOrderedSection) => findAndUpdate(s.questions));
         }
+        
+        setOrderedSections(newSections);
+        generateAndSaveConfig(newSections);
         setIsEditing(false);
         setCurrentQuestion(null);
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
-        setIsDirty(true);
-        setOrderedSections(prevSections => {
-            const newSections = JSON.parse(JSON.stringify(prevSections)) as HrOrderedSection[];
-    
-            for (const section of newSections) {
-                const index = section.questions.findIndex((q: Question) => q.id === questionId);
-    
-                if (index !== -1) {
-                    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
-                    if (newIndex >= 0 && newIndex < section.questions.length) {
-                        const [movedQuestion] = section.questions.splice(index, 1);
-                        section.questions.splice(newIndex, 0, movedQuestion);
-                    }
-                    break;
+        const newSections = JSON.parse(JSON.stringify(orderedSections));
+        for (const section of newSections) {
+            const index = section.questions.findIndex((q: Question) => q.id === questionId);
+            if (index !== -1) {
+                const targetIndex = direction === 'up' ? index - 1 : index + 1;
+                if (targetIndex >= 0 && targetIndex < section.questions.length) {
+                    const [movedQuestion] = section.questions.splice(index, 1);
+                    section.questions.splice(targetIndex, 0, movedQuestion);
+                    setOrderedSections(newSections);
+                    generateAndSaveConfig(newSections);
                 }
+                break;
             }
-            return newSections;
-        });
+        }
     };
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
@@ -528,7 +465,7 @@ function HrFormEditor() {
             <div className="mx-auto max-w-4xl space-y-8">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">Assessment Question Editor</h1>
-                    <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>.</p>
+                    <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
                 <Card>
                     <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
@@ -565,7 +502,6 @@ function HrFormEditor() {
                         <Button variant="outline" onClick={() => handleAddNewCustomClick()}><PlusCircle className="mr-2" /> Add Custom Question</Button>
                     </CardFooter>
                 </Card>
-                 <Button onClick={handleSaveConfig} className="w-full" disabled={!isDirty}>Save Configuration for {companyName}</Button>
             </div>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -713,7 +649,7 @@ function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMov
 
 function AdminFormEditor() {
     const { toast } = useToast();
-    const { masterQuestions, saveMasterQuestions, isDirty, setIsDirty } = useUserData();
+    const { masterQuestions, saveMasterQuestions } = useUserData();
     const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
@@ -721,7 +657,8 @@ function AdminFormEditor() {
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
 
-    const updateOrderedSections = useCallback((rootQuestions: Question[]) => {
+    const updateOrderedSectionsAndSave = useCallback((newMaster: Record<string, Question>, showToast = true) => {
+        const rootQuestions = buildQuestionTreeFromMap(newMaster);
         const sectionsMap: Record<string, Question[]> = {};
     
         rootQuestions.forEach(q => {
@@ -743,46 +680,18 @@ function AdminFormEditor() {
         }).filter((s): s is OrderedSection => s !== null);
 
         setOrderedSections(sections);
-        setIsDirty(false);
-    }, [setIsDirty]);
-    
-    // When the component unmounts, if it's dirty, reset it.
-    useEffect(() => {
-        return () => {
-            if (isDirty) {
-                setIsDirty(false);
-            }
+        saveMasterQuestions(newMaster);
+        if (showToast) {
+            toast({ title: "Master Configuration Saved" });
         }
-    }, [isDirty, setIsDirty]);
-
+    }, [saveMasterQuestions, toast]);
+    
     useEffect(() => {
         if (Object.keys(masterQuestions).length > 0) {
-            const rootQuestions = buildQuestionTreeFromMap(masterQuestions);
-            updateOrderedSections(rootQuestions);
+            updateOrderedSectionsAndSave(masterQuestions, false);
         }
-    }, [masterQuestions, updateOrderedSections]);
-
-    const handleSaveConfig = () => {
-        const newQuestions: Record<string, Question> = {};
-        
-        const processQuestion = (q: Question, sectionId: string) => {
-            const { subQuestions, ...rest } = q;
-            newQuestions[q.id] = { ...rest, section: sectionId };
-            if (q.subQuestions) {
-                q.subQuestions.forEach(sq => processQuestion(sq, sectionId));
-            }
-        };
-
-        orderedSections.forEach(section => {
-            section.questions.forEach(question => {
-                processQuestion(question, section.id);
-            });
-        });
-
-        saveMasterQuestions(newQuestions);
-        toast({ title: "Master Configuration Saved" });
-        setIsDirty(false);
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [masterQuestions]);
 
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question }); setIsNewQuestion(false); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
@@ -814,7 +723,6 @@ function AdminFormEditor() {
 
 
     const handleDeleteClick = (questionId: string) => {
-        setIsDirty(true);
         let newMaster = JSON.parse(JSON.stringify(masterQuestions));
         
         const deleteRecursive = (idToDelete: string) => {
@@ -831,16 +739,11 @@ function AdminFormEditor() {
         }
 
         deleteRecursive(questionId);
-        
-        // This will update state and persist
-        const newRootQuestions = buildQuestionTreeFromMap(newMaster);
-        updateOrderedSections(newRootQuestions);
-        toast({ title: "Question Deleted", description: "Remember to save your changes." });
+        updateOrderedSectionsAndSave(newMaster);
     };
 
     const handleSaveEdit = () => {
         if (!currentQuestion) return;
-        setIsDirty(true);
 
         let finalQuestion = { ...currentQuestion, lastUpdated: new Date().toISOString() } as Question;
         if (isCreatingNewSection) {
@@ -854,36 +757,46 @@ function AdminFormEditor() {
         
         newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
        
-        const newRootQuestions = buildQuestionTreeFromMap(newMaster);
-        updateOrderedSections(newRootQuestions);
+        updateOrderedSectionsAndSave(newMaster);
 
         setIsEditing(false); setCurrentQuestion(null); setIsCreatingNewSection(false); setNewSectionName("");
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
-        setIsDirty(true);
-        setOrderedSections(prevSections => {
-            const newSections = JSON.parse(JSON.stringify(prevSections));
-            for (const section of newSections) {
-                const index = section.questions.findIndex((q: Question) => q.id === questionId);
-                if (index !== -1) {
-                    const newIndex = direction === 'up' ? index - 1 : index + 1;
-                    if (newIndex >= 0 && newIndex < section.questions.length) {
-                        const [movedQuestion] = section.questions.splice(index, 1);
-                        section.questions.splice(newIndex, 0, movedQuestion);
-                    }
-                    break; 
+        const newSections = JSON.parse(JSON.stringify(orderedSections));
+        for (const section of newSections) {
+            const index = section.questions.findIndex((q: Question) => q.id === questionId);
+            if (index !== -1) {
+                const newIndex = direction === 'up' ? index - 1 : index + 1;
+                if (newIndex >= 0 && newIndex < section.questions.length) {
+                    const [movedQuestion] = section.questions.splice(index, 1);
+                    section.questions.splice(newIndex, 0, movedQuestion);
+
+                    const newMaster: Record<string, Question> = {};
+                    const processQuestion = (q: Question, sectionId: string) => {
+                        const { subQuestions, ...rest } = q;
+                        newMaster[q.id] = { ...rest, section: sectionId };
+                        if (q.subQuestions) {
+                            q.subQuestions.forEach(sq => processQuestion(sq, sectionId));
+                        }
+                    };
+
+                    newSections.forEach(sec => {
+                        sec.questions.forEach(q => processQuestion(q, sec.id));
+                    });
+                    
+                    updateOrderedSectionsAndSave(newMaster);
                 }
+                break; 
             }
-            return newSections;
-        });
+        }
     };
 
     const existingSections = [...new Set(Object.values(masterQuestions).filter(q=>!q.parentId).map(q => q.section))];
 
     return (
         <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8">
-            <div className="space-y-2"><h1 className="font-headline text-3xl font-bold">Master Question Editor</h1><p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies. Use arrows to reorder.</p></div>
+            <div className="space-y-2"><h1 className="font-headline text-3xl font-bold">Master Question Editor</h1><p className="text-muted-foreground">Add, edit, or delete the default questions available to all companies. Use arrows to reorder. Changes are saved automatically.</p></div>
             <Card>
                 <CardHeader><CardTitle>Master Question List</CardTitle><CardDescription>These changes will become the new defaults for all company configurations.</CardDescription></CardHeader>
                 <CardContent className="space-y-6">
@@ -910,7 +823,6 @@ function AdminFormEditor() {
                 </CardContent>
                 <CardFooter className="border-t pt-6"><Button variant="outline" onClick={() => handleAddNewClick()}><PlusCircle className="mr-2" />Add New Question</Button></CardFooter>
             </Card>
-            <Button onClick={handleSaveConfig} className="w-full" disabled={!isDirty}>Save Master Configuration</Button>
             <Dialog open={isEditing} onOpenChange={setIsEditing}><DialogContent>
                 <DialogHeader><DialogTitle>{isNewQuestion ? 'Add New Question' : 'Edit Question'}</DialogTitle></DialogHeader>
                 {currentQuestion && (

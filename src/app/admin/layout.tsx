@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import NavigationBlocker from '@/components/common/NavigationBlocker';
 
 function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
   const pathname = usePathname();
@@ -140,7 +139,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <NavigationBlocker />
       <Header>
         <div className="md:hidden">
           <Sheet>

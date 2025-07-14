@@ -103,9 +103,6 @@ export function useUserData() {
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
-  // New state to track unsaved changes
-  const [isDirty, setIsDirty] = useState(false);
-
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -386,8 +383,6 @@ export function useUserData() {
     completedTasks,
     taskDateOverrides,
     isLoading,
-    isDirty,
-    setIsDirty,
     masterQuestions,
     companyAssignments,
     companyAssignmentForHr,
