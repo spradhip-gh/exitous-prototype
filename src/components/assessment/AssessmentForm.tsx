@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
@@ -135,7 +135,7 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
 
 
 export default function AssessmentForm() {
-    const { getCompanyConfig, getAllCompanyConfigs, masterQuestions, isLoading: isUserDataLoading } = useUserData();
+    const { getCompanyConfig, isUserDataLoading } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
@@ -143,49 +143,11 @@ export default function AssessmentForm() {
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
-            const allConfigs = getAllCompanyConfigs();
-            const companyData = allConfigs[auth.companyName];
-            const companyQuestionOrder = companyData?.questionOrderBySection || {};
-
-            const questionMap = getCompanyConfig(auth.companyName);
-            
-            const masterSections = [...new Set(Object.values(masterQuestions).map(q => q.section))];
-            
-            const activeQuestions: Question[] = [];
-            const processedIds = new Set<string>();
-
-            masterSections.forEach(sectionName => {
-                let orderedIds = companyQuestionOrder[sectionName];
-
-                if (!orderedIds) {
-                    // Fallback to default order if no custom order is set
-                    const defaultQuestions = getDefaultQuestions();
-                    orderedIds = defaultQuestions
-                        .filter(q => q.section === sectionName)
-                        .map(q => q.id);
-                }
-
-                orderedIds.forEach(id => {
-                    const question = questionMap[id];
-                    if (question && question.isActive && !processedIds.has(id)) {
-                        activeQuestions.push(question);
-                        processedIds.add(id);
-                    }
-                });
-            });
-
-            // Add any active questions that weren't in the ordered sections
-            Object.values(questionMap).forEach(q => {
-                if(q.isActive && !processedIds.has(q.id)) {
-                    activeQuestions.push(q);
-                }
-            });
-
-
-            setQuestions(activeQuestions);
-            setDynamicSchema(buildAssessmentSchema(activeQuestions));
+            const companyQuestions = getCompanyConfig(auth.companyName, true);
+            setQuestions(companyQuestions);
+            setDynamicSchema(buildAssessmentSchema(companyQuestions));
         }
-    }, [isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions, auth?.companyName]);
+    }, [isUserDataLoading, getCompanyConfig, auth?.companyName]);
 
     if (!questions || !dynamicSchema) {
         return (
@@ -315,15 +277,18 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
     
     const companyName = auth?.companyName || "your previous company";
 
-    const groupedQuestions = questions.reduce((acc, q) => {
-        if (q.section) {
-             if (!acc[q.section]) {
-                acc[q.section] = [];
+    const groupedQuestions = useMemo(() => {
+        const sections: Record<string, Question[]> = {};
+        questions.forEach(q => {
+            if (q.parentId) return; // Only process root questions
+            const sectionName = q.section || "Uncategorized";
+            if (!sections[sectionName]) {
+                sections[sectionName] = [];
             }
-            acc[q.section].push(q);
-        }
-        return acc;
-    }, {} as Record<string, Question[]>);
+            sections[sectionName].push(q);
+        });
+        return sections;
+    }, [questions]);
 
 
     return (

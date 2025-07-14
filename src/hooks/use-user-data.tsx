@@ -309,6 +309,32 @@ export function useUserData() {
     
     let questionTree = buildQuestionTreeFromMap(combinedFlatMap);
 
+    if (companyConfig?.questionOrderBySection) {
+        const orderMap = new Map<string, number>();
+        let orderIndex = 0;
+        
+        // Flatten the order array for quick lookups
+        Object.values(companyConfig.questionOrderBySection).flat().forEach(id => {
+            orderMap.set(id, orderIndex++);
+        });
+        
+        const sortWithOrder = (questions: Question[]): Question[] => {
+            return questions.sort((a, b) => {
+                const aOrder = orderMap.get(a.id) ?? Infinity;
+                const bOrder = orderMap.get(b.id) ?? Infinity;
+                return aOrder - bOrder;
+            });
+        };
+        
+        questionTree = sortWithOrder(questionTree);
+        questionTree.forEach(q => {
+            if (q.subQuestions) {
+                q.subQuestions = sortWithOrder(q.subQuestions);
+            }
+        });
+    }
+
+
     if (activeOnly) {
         const filterActive = (questions: Question[]): Question[] => {
             return questions

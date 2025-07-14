@@ -12,7 +12,7 @@ import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, CornerDownRight } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, CornerDownRight, Star } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,7 +59,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center space-x-2 group bg-muted/50 p-2 rounded-md" style={{ marginLeft: `${level * 1.5}rem`}}>
+            <div className={cn("flex items-center space-x-2 group p-2 rounded-md", question.isCustom ? "bg-primary/5" : "bg-muted/50")} style={{ marginLeft: `${level * 1.5}rem`}}>
                 <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id, parentId)} />
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
@@ -111,7 +111,6 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
 function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ 
         id: question.id,
-        disabled: !question.isCustom
     });
 
     const style = {
@@ -122,13 +121,14 @@ function HrSortableQuestionItem({ question, onToggleActive, onEdit, onDelete, on
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
-        <div ref={setNodeRef} style={style} className="p-2 rounded-lg my-1 bg-background">
+        <div ref={setNodeRef} style={style} className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
             <div className="flex items-center space-x-2 group pr-2">
-                <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground", question.isCustom ? "cursor-grab" : "cursor-not-allowed", !question.isCustom && "opacity-50")}>
+                <div {...attributes} {...listeners} className={cn("p-2 text-muted-foreground cursor-grab")}>
                     <GripVertical className="h-5 w-5" />
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
                     {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
+                    {question.isCustom && <Star className="h-4 w-4 text-amber-500 flex-shrink-0" />}
                 </div>
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} />
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
@@ -255,11 +255,7 @@ function HrFormEditor() {
                 
                 questionsInSection.forEach(q => {
                     if (!orderedIdsSet.has(q.id)) {
-                         if (q.isCustom) {
-                            orderedIds.push(q.id);
-                        } else {
-                            orderedIds.unshift(q.id);
-                        }
+                         orderedIds.push(q.id);
                     }
                 });
                 
@@ -504,10 +500,6 @@ function HrFormEditor() {
             const oldIndex = section.questions.findIndex(q => q.id === activeId);
             const newIndex = section.questions.findIndex(q => q.id === overId);
             if (oldIndex !== -1 && newIndex !== -1) {
-                if (!section.questions[oldIndex].isCustom) {
-                    toast({title: "Reorder Disabled", description: "Only custom questions can be reordered."});
-                    return prevSections;
-                }
                 section.questions = arrayMove(section.questions, oldIndex, newIndex);
             }
             return newSections;
@@ -536,7 +528,7 @@ function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>.</p>
                 </div>
                 <Card>
-                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Drag and drop custom questions to reorder.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Drag and drop to reorder. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
                     <CardContent className="space-y-6">
                         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                             {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
