@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -111,13 +112,17 @@ function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, 
     return (
         <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
             <div className="flex items-center space-x-2 group pr-2">
-                 <div className="flex flex-col">
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
-                        <ArrowUp className="h-4 w-4" />
-                    </Button>
-                     <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
-                        <ArrowDown className="h-4 w-4" />
-                    </Button>
+                 <div className="flex flex-col w-5">
+                    {question.isCustom && (
+                        <>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
+                                <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
+                                <ArrowDown className="h-4 w-4" />
+                            </Button>
+                        </>
+                    )}
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
                     {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
@@ -515,6 +520,9 @@ function HrFormEditor() {
                                     {sectionQuestions.map((question, index) => {
                                         const masterQ = masterQuestions[question.id];
                                         const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
+                                        const customQuestionsInSection = sectionQuestions.filter(q => q.isCustom);
+                                        const customIndex = customQuestionsInSection.findIndex(q => q.id === question.id);
+
                                         return (
                                             <HrQuestionItem
                                                 key={question.id}
@@ -525,8 +533,8 @@ function HrFormEditor() {
                                                 onAddSub={handleAddNewCustomClick}
                                                 hasBeenUpdated={hasBeenUpdated}
                                                 onMove={handleMoveQuestion}
-                                                isFirst={index === 0}
-                                                isLast={index === sectionQuestions.length - 1}
+                                                isFirst={customIndex === 0}
+                                                isLast={customIndex === customQuestionsInSection.length - 1}
                                             />
                                         )
                                     })}
@@ -886,3 +894,5 @@ function AdminFormEditor() {
         </div></div>
     );
 }
+
+    
