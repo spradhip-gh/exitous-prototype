@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -473,15 +474,19 @@ function HrFormEditor() {
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
         setOrderedSections(prevSections => {
-            const newSections = JSON.parse(JSON.stringify(prevSections));
+            const newSections = JSON.parse(JSON.stringify(prevSections)) as HrOrderedSection[];
+    
             for (const section of newSections) {
                 const index = section.questions.findIndex((q: Question) => q.id === questionId);
+    
                 if (index !== -1) {
                     const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
                     if (newIndex >= 0 && newIndex < section.questions.length) {
                         const [movedQuestion] = section.questions.splice(index, 1);
                         section.questions.splice(newIndex, 0, movedQuestion);
                     }
+                    // Break the loop once the question is found and moved in its section
                     break;
                 }
             }
@@ -511,7 +516,7 @@ function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>.</p>
                 </div>
                 <Card>
-                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
                     <CardContent className="space-y-6">
                         {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
                             <div key={section}>
@@ -520,9 +525,7 @@ function HrFormEditor() {
                                     {sectionQuestions.map((question, index) => {
                                         const masterQ = masterQuestions[question.id];
                                         const hasBeenUpdated = masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated);
-                                        const customQuestionsInSection = sectionQuestions.filter(q => q.isCustom);
-                                        const customIndex = customQuestionsInSection.findIndex(q => q.id === question.id);
-
+                                        
                                         return (
                                             <HrQuestionItem
                                                 key={question.id}
@@ -533,8 +536,8 @@ function HrFormEditor() {
                                                 onAddSub={handleAddNewCustomClick}
                                                 hasBeenUpdated={hasBeenUpdated}
                                                 onMove={handleMoveQuestion}
-                                                isFirst={customIndex === 0}
-                                                isLast={customIndex === customQuestionsInSection.length - 1}
+                                                isFirst={index === 0}
+                                                isLast={index === sectionQuestions.length - 1}
                                             />
                                         )
                                     })}
