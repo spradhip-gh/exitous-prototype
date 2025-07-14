@@ -12,7 +12,7 @@ import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, Star, ArrowUp, ArrowDown, Sparkles, Loader2 } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, Star, ArrowUp, ArrowDown, Sparkles, Loader2, CornerDownRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -267,27 +267,22 @@ function HrFormEditor() {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;
 
-                // HR custom questions can be interleaved. Default questions maintain their relative order.
                 const defaultOrderedIds = getDefaultQuestions()
                     .filter(q => q.section === sectionName && !q.parentId)
                     .map(q => q.id);
 
-                const customQuestionsInSection = questionsInSection.filter(q => q.isCustom);
-                
-                // Get the saved order, filtering out any IDs that no longer exist
                 let savedOrder = (companyQuestionOrder[sectionName] || []).filter(id => questionsInSection.some(q => q.id === id));
                 
-                // If no saved order, create one: defaults first, then customs
                 if (savedOrder.length === 0) {
-                    savedOrder = [...defaultOrderedIds, ...customQuestionsInSection.map(q => q.id)];
+                    savedOrder = [...defaultOrderedIds, ...questionsInSection.filter(q => q.isCustom).map(q => q.id)];
                 } else {
-                    // Ensure all current questions are in the order, adding new ones to the end.
                     const orderedIdSet = new Set(savedOrder);
                     questionsInSection.forEach(q => {
                         if (!orderedIdSet.has(q.id)) {
                             savedOrder.push(q.id);
                         }
                     });
+                     savedOrder = savedOrder.filter(id => questionsInSection.some(q => q.id === id));
                 }
                 
                 const questionsForSection = savedOrder
@@ -737,7 +732,7 @@ function AdminFormEditor() {
     }, [saveMasterQuestions, toast]);
     
     useEffect(() => {
-        if (Object.keys(masterQuestions).length > 0) {
+        if (Object.keys(masterQuestions).length > 0 && orderedSections.length === 0) {
             updateOrderedSectionsAndSave(masterQuestions, false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
