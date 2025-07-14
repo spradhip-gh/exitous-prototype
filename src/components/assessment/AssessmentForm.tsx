@@ -203,7 +203,6 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'
             ];
             coverageToEndOfMonth.forEach(field => {
-                // Only set if the corresponding insurance is 'Yes' and the date isn't already set
                 let insuranceField: keyof AssessmentData;
                 if (field === 'eapCoverageEndDate') {
                     insuranceField = 'hadEAP';
@@ -217,9 +216,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 }
             });
         }
-    }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, getValues, setValue]);
-    
-    useEffect(() => {
+        
         // Auto-fill insurance coverage type based on profile data
         if (!profileData) return;
 
@@ -229,6 +226,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
         let defaultCoverage: string | null = null;
         if (hasChildren) defaultCoverage = 'Me and family';
         else if (isMarried) defaultCoverage = 'Me and spouse';
+        else defaultCoverage = 'Only me';
 
         if (defaultCoverage) {
              const coverageFields: (keyof AssessmentData)[] = ['medicalCoverage', 'dentalCoverage', 'visionCoverage'];
@@ -236,13 +234,12 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 const prefix = field.replace('Coverage', '');
                 const insuranceField = `had${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Insurance` as keyof AssessmentData;
                  if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
-                    setValue(field as any, defaultCoverage);
+                    setValue(field as any, defaultCoverage, { shouldValidate: true });
                 }
              });
         }
-    }, [profileData, getValues, setValue, watchedHadMedical, watchedHadDental, watchedHadVision]);
-
-
+    }, [profileData, watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, getValues, setValue]);
+    
     useEffect(() => {
         if (!form.formState.isDirty) {
             const getDefaults = (q: Question) => {
