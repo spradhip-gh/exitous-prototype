@@ -683,7 +683,7 @@ function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMov
 
 function AdminFormEditor() {
     const { toast } = useToast();
-    const { masterQuestions, saveMasterQuestions } = useUserData();
+    const { masterQuestions, saveMasterQuestions, isLoading } = useUserData();
     const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
@@ -724,10 +724,10 @@ function AdminFormEditor() {
     }, [saveMasterQuestions, toast]);
     
     useEffect(() => {
-        if (Object.keys(masterQuestions).length > 0 && orderedSections.length === 0) {
+        if (!isLoading && Object.keys(masterQuestions).length > 0) {
             updateOrderedSectionsAndSave(masterQuestions, false);
         }
-    }, [masterQuestions, orderedSections.length, updateOrderedSectionsAndSave]);
+    }, [isLoading, masterQuestions, updateOrderedSectionsAndSave]);
 
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question }); setIsNewQuestion(false); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
