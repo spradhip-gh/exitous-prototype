@@ -185,7 +185,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
     });
 
     const { watch, setValue, getValues } = form;
+    
     const watchedFinalDate = watch('finalDate');
+    const watchedHadMedical = watch('hadMedicalInsurance');
+    const watchedHadDental = watch('hadDentalInsurance');
+    const watchedHadVision = watch('hadVisionInsurance');
+    const watchedHadEAP = watch('hadEAP');
+
 
     useEffect(() => {
         // Auto-fill coverage end dates based on final employment date
@@ -207,11 +213,11 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 }
                 
                 if (getValues(insuranceField) === 'Yes' && !getValues(field)) {
-                    setValue(field as any, lastDayOfMonth);
+                    setValue(field as any, lastDayOfMonth, { shouldValidate: true });
                 }
             });
         }
-    }, [watchedFinalDate, getValues, setValue]);
+    }, [watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, getValues, setValue]);
     
     useEffect(() => {
         // Auto-fill insurance coverage type based on profile data
@@ -234,7 +240,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 }
              });
         }
-    }, [profileData, getValues, setValue, watch('hadMedicalInsurance'), watch('hadDentalInsurance'), watch('hadVisionInsurance')]);
+    }, [profileData, getValues, setValue, watchedHadMedical, watchedHadDental, watchedHadVision]);
 
 
     useEffect(() => {
