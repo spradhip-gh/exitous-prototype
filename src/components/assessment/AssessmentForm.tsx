@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CalendarIcon, Info } from 'lucide-react';
+import { CalendarIcon, Info, Star } from 'lucide-react';
 import { getDefaultQuestions } from '@/lib/questions';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
@@ -93,8 +93,14 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
                 name={question.id as keyof AssessmentData}
                 render={({ field }) => (
                 <FormItem>
-                    <div className='flex items-center gap-1'>
+                    <div className='flex items-center gap-2'>
                         <FormLabel>{question.label.replace('{companyName}', companyName)}</FormLabel>
+                        {question.isCustom && (
+                             <Tooltip delayDuration={200}>
+                                <TooltipTrigger asChild><Star className="h-4 w-4 text-amber-500 cursor-help fill-current" /></TooltipTrigger>
+                                <TooltipContent><p>This is a custom question added by your company.</p></TooltipContent>
+                            </Tooltip>
+                        )}
                         {question.description && (
                             <Tooltip delayDuration={200}>
                                 <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
