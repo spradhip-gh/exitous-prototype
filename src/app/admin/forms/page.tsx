@@ -16,7 +16,7 @@ import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, C
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -530,7 +530,7 @@ function HrFormEditor() {
                 <Card>
                     <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Drag and drop to reorder. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
                     <CardContent className="space-y-6">
-                        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
                                 <div key={section}>
                                     <h3 className="font-semibold mb-4 text-lg">{section}</h3>
@@ -765,10 +765,6 @@ function AdminFormEditor() {
             const questionsInSection = sectionsMap[sectionName];
             if (!questionsInSection || questionsInSection.length === 0) return null;
 
-            const defaultIdsInSection = defaultQuestionOrder
-                .filter(q => q.section === sectionName)
-                .map(q => q.id);
-
             questionsInSection.sort((a, b) => {
                 const indexA = defaultIdsInSection.indexOf(a.id);
                 const indexB = defaultIdsInSection.indexOf(b.id);
@@ -886,7 +882,44 @@ function AdminFormEditor() {
     }
 
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    const handleDragEnd = (event: DragEndEvent) => { /* ... simplified for brevity ... */ };
+    
+    function handleDragEnd(event: DragEndEvent) {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+    
+        const activeId = String(active.id);
+        const overId = String(over.id);
+    
+        setOrderedSections((sections) => {
+            const newSections = [...sections];
+    
+            const activeSectionIndex = newSections.findIndex(s => s.questions.some(q => q.id === activeId));
+            const overSectionIndex = newSections.findIndex(s => s.questions.some(q => q.id === overId));
+            const isSectionDrag = newSections.some(s => s.id === activeId);
+    
+            if (isSectionDrag) {
+                const overIsSection = newSections.some(s => s.id === overId);
+                if (overIsSection) {
+                    const activeIndex = newSections.findIndex(s => s.id === activeId);
+                    const overIndex = newSections.findIndex(s => s.id === overId);
+                    return arrayMove(newSections, activeIndex, overIndex);
+                }
+                return sections;
+            }
+    
+            if (activeSectionIndex !== -1 && overSectionIndex !== -1 && activeSectionIndex === overSectionIndex) {
+                // Dragging within the same section
+                const section = newSections[activeSectionIndex];
+                const oldIndex = section.questions.findIndex(q => q.id === activeId);
+                const newIndex = section.questions.findIndex(q => q.id === overId);
+                section.questions = arrayMove(section.questions, oldIndex, newIndex);
+            }
+            // Note: Dragging between sections is not implemented here to keep complexity down.
+            
+            return newSections;
+        });
+    }
+
     const existingSections = [...new Set(Object.values(masterQuestions).filter(q=>!q.parentId).map(q => q.section))];
 
     return (
@@ -895,7 +928,7 @@ function AdminFormEditor() {
             <Card>
                 <CardHeader><CardTitle>Master Question List</CardTitle><CardDescription>These changes will become the new defaults for all company configurations.</CardDescription></CardHeader>
                 <CardContent className="space-y-6">
-                    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
                             {orderedSections.map(section => (
                                 <SortableSection key={section.id} section={section} onEditQuestion={handleEditClick} onDeleteQuestion={handleDeleteClick} onAddSubQuestion={handleAddNewClick} />
