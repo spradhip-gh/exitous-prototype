@@ -748,32 +748,27 @@ function AdminFormEditor() {
 
     const updateOrderedSections = useCallback((rootQuestions: Question[]) => {
         const sectionsMap: Record<string, Question[]> = {};
+        const questionOrderMap: Record<string, string[]> = {};
+    
+        // Group questions by section
         rootQuestions.forEach(q => {
-            if (!q.section) return;
-            if (!sectionsMap[q.section]) sectionsMap[q.section] = [];
-            sectionsMap[q.section].push(q);
+            const sectionName = q.section || 'Uncategorized';
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
+            }
+            sectionsMap[sectionName].push(q);
         });
 
-        const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
+        // Use a stable master order, adding any new sections at the end
+        const defaultQuestions = getDefaultQuestions().filter(q => !q.parentId);
+        const masterSectionOrder = [...new Set(defaultQuestions.map(q => q.section))];
         Object.keys(sectionsMap).forEach(s => {
             if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
         });
 
-        const defaultQuestionOrder = getDefaultQuestions().filter(q => !q.parentId);
-
         const sections = masterSectionOrder.map(sectionName => {
             const questionsInSection = sectionsMap[sectionName];
-            if (!questionsInSection || questionsInSection.length === 0) return null;
-
-            questionsInSection.sort((a, b) => {
-                const indexA = defaultIdsInSection.indexOf(a.id);
-                const indexB = defaultIdsInSection.indexOf(b.id);
-                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-                if (indexA !== -1) return -1;
-                if (indexB !== -1) return 1;
-                return a.id.localeCompare(b.id);
-            });
-
+            if (!questionsInSection) return null;
             return { id: sectionName, questions: questionsInSection };
         }).filter((s): s is OrderedSection => s !== null);
 
@@ -891,10 +886,8 @@ function AdminFormEditor() {
         const overId = String(over.id);
     
         setOrderedSections((sections) => {
-            const newSections = [...sections];
+            const newSections = JSON.parse(JSON.stringify(sections));
     
-            const activeSectionIndex = newSections.findIndex(s => s.questions.some(q => q.id === activeId));
-            const overSectionIndex = newSections.findIndex(s => s.questions.some(q => q.id === overId));
             const isSectionDrag = newSections.some(s => s.id === activeId);
     
             if (isSectionDrag) {
@@ -904,19 +897,34 @@ function AdminFormEditor() {
                     const overIndex = newSections.findIndex(s => s.id === overId);
                     return arrayMove(newSections, activeIndex, overIndex);
                 }
-                return sections;
+            } else { // It's a question drag
+                let activeSectionIndex = -1;
+                let overSectionIndex = -1;
+                let oldItemIndex = -1;
+                let newItemIndex = -1;
+                
+                newSections.forEach((section, sIndex) => {
+                    const qIndex = section.questions.findIndex(q => q.id === activeId);
+                    if (qIndex !== -1) {
+                        activeSectionIndex = sIndex;
+                        oldItemIndex = qIndex;
+                    }
+                    const oIndex = section.questions.findIndex(q => q.id === overId);
+                     if (oIndex !== -1) {
+                        overSectionIndex = sIndex;
+                        newItemIndex = oIndex;
+                    }
+                });
+
+                if (activeSectionIndex !== -1 && overSectionIndex !== -1 && activeSectionIndex === overSectionIndex) {
+                    // Dragging within the same section
+                    const section = newSections[activeSectionIndex];
+                    section.questions = arrayMove(section.questions, oldItemIndex, newItemIndex);
+                    return newSections;
+                }
             }
-    
-            if (activeSectionIndex !== -1 && overSectionIndex !== -1 && activeSectionIndex === overSectionIndex) {
-                // Dragging within the same section
-                const section = newSections[activeSectionIndex];
-                const oldIndex = section.questions.findIndex(q => q.id === activeId);
-                const newIndex = section.questions.findIndex(q => q.id === overId);
-                section.questions = arrayMove(section.questions, oldIndex, newIndex);
-            }
-            // Note: Dragging between sections is not implemented here to keep complexity down.
             
-            return newSections;
+            return sections;
         });
     }
 
