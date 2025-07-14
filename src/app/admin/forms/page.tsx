@@ -12,13 +12,14 @@ import { useUserData, CompanyConfig, Question, buildQuestionTreeFromMap } from "
 import { getDefaultQuestions } from "@/lib/questions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, GripVertical, CornerDownRight, Star, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, BellDot, PlusCircle, Trash2, Copy, ShieldAlert, Star, ArrowUp, ArrowDown, Sparkles, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { correctText } from "@/ai/flows/spell-check-flow";
 
 
 export default function FormEditorSwitchPage() {
@@ -191,6 +192,7 @@ function HrFormEditor() {
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [isCheckingText, setIsCheckingText] = useState(false);
 
     const generateAndSaveConfig = useCallback((sections: HrOrderedSection[]) => {
         if (!companyName) return;
@@ -265,18 +267,34 @@ function HrFormEditor() {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;
 
-                const savedOrder = companyQuestionOrder[sectionName] || [];
-                const currentIds = new Set(questionsInSection.map(q => q.id));
-                let orderedIds = savedOrder.filter(id => currentIds.has(id));
-                const orderedIdsSet = new Set(orderedIds);
+                // HR custom questions can be interleaved. Default questions maintain their relative order.
+                const defaultOrderedIds = getDefaultQuestions()
+                    .filter(q => q.section === sectionName && !q.parentId)
+                    .map(q => q.id);
+
+                const customQuestionsInSection = questionsInSection.filter(q => q.isCustom);
                 
-                questionsInSection.forEach(q => {
-                    if (!orderedIdsSet.has(q.id)) {
-                         orderedIds.push(q.id);
-                    }
-                });
+                // Get the saved order, filtering out any IDs that no longer exist
+                let savedOrder = (companyQuestionOrder[sectionName] || []).filter(id => questionsInSection.some(q => q.id === id));
                 
-                const questionsForSection = orderedIds.map(id => questionsInSection.find(q => q.id === id)).filter(Boolean) as Question[];
+                // If no saved order, create one: defaults first, then customs
+                if (savedOrder.length === 0) {
+                    savedOrder = [...defaultOrderedIds, ...customQuestionsInSection.map(q => q.id)];
+                } else {
+                    // Ensure all current questions are in the order, adding new ones to the end.
+                    const orderedIdSet = new Set(savedOrder);
+                    questionsInSection.forEach(q => {
+                        if (!orderedIdSet.has(q.id)) {
+                            savedOrder.push(q.id);
+                        }
+                    });
+                }
+                
+                const questionsForSection = savedOrder
+                    .map(id => questionsInSection.find(q => q.id === id))
+                    .filter((q): q is Question => !!q);
+
+
                 return { id: sectionName, questions: questionsForSection };
             }).filter((s): s is HrOrderedSection => s !== null);
 
@@ -445,6 +463,20 @@ function HrFormEditor() {
             }
         }
     };
+
+     const handleCheckText = async () => {
+        if (!currentQuestion?.label) return;
+        setIsCheckingText(true);
+        try {
+            const corrected = await correctText(currentQuestion.label);
+            setCurrentQuestion(q => ({...q, label: corrected}));
+        } catch (e) {
+            console.error("Spell check failed", e);
+            toast({ title: "Error", description: "Could not check text at this time.", variant: "destructive"});
+        } finally {
+            setIsCheckingText(false);
+        }
+    };
     
     const masterQuestionForEdit = currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
@@ -488,8 +520,8 @@ function HrFormEditor() {
                                                 onAddSub={handleAddNewCustomClick}
                                                 hasBeenUpdated={hasBeenUpdated}
                                                 onMove={handleMoveQuestion}
-                                                isFirst={index === 0}
-                                                isLast={index === sectionQuestions.length - 1}
+                                                isFirst={index === 0 || !question.isCustom}
+                                                isLast={index === sectionQuestions.length - 1 || !question.isCustom}
                                             />
                                         )
                                     })}
@@ -511,7 +543,16 @@ function HrFormEditor() {
                             {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
                                 <Alert variant="default" className="bg-primary/5 border-primary/50"><BellDot className="h-4 w-4 !text-primary" /><AlertTitle>Update Available</AlertTitle><AlertDescription className="space-y-2">The master version of this question has changed. You can apply updates.<div className="text-xs space-y-1 pt-2"><p><strong className="text-foreground">New Text:</strong> {masterQuestionForEdit.label}</p>{masterQuestionForEdit.options && <p><strong className="text-foreground">New Options:</strong> {masterQuestionForEdit.options.join(', ')}</p>}</div><Button size="sm" variant="outline" className="mt-2" onClick={() => { setCurrentQuestion({ ...currentQuestion, label: masterQuestionForEdit.label, options: masterQuestionForEdit.options, lastUpdated: masterQuestionForEdit.lastUpdated }); toast({ title: "Updates Applied" }); }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button></AlertDescription></Alert>
                             )}
-                            <div className="space-y-2"><Label htmlFor="question-label">Question Text</Label><Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/></div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label htmlFor="question-label">Question Text</Label>
+                                    <Button variant="outline" size="sm" onClick={handleCheckText} disabled={isCheckingText}>
+                                        {isCheckingText ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                        Check Text
+                                    </Button>
+                                </div>
+                                <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion({ ...currentQuestion, label: e.target.value })}/>
+                            </div>
                             {currentQuestion.parentId && (
                                 <div className="space-y-2"><Label htmlFor="trigger-value">Trigger Value</Label><Input id="trigger-value" value={currentQuestion.triggerValue || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, triggerValue: e.target.value })} placeholder="e.g., Yes"/><p className="text-xs text-muted-foreground">The answer from the parent question that will show this question.</p></div>
                             )}
@@ -522,7 +563,12 @@ function HrFormEditor() {
                                 <div className="space-y-2"><Label htmlFor="question-type">Question Type</Label><Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any, options: [] }))} value={currentQuestion.type}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="select">Select</SelectItem><SelectItem value="radio">Radio</SelectItem><SelectItem value="checkbox">Checkbox</SelectItem><SelectItem value="date">Date</SelectItem></SelectContent></Select></div>
                             )}
                             {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
-                                <div className="space-y-2"><Label htmlFor="question-options">Answer Options (one per line)</Label><Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options?.length || 3}/></div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <Label htmlFor="question-options">Answer Options (one per line)</Label>
+                                    </div>
+                                    <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, options: e.target.value.split('\n') })} rows={currentQuestion.options?.length || 3}/>
+                                </div>
                             )}
                              <div className="space-y-2"><Label htmlFor="default-value">Default Value</Label><Input id="default-value" value={Array.isArray(currentQuestion.defaultValue) ? currentQuestion.defaultValue.join(',') : currentQuestion.defaultValue || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, defaultValue: e.target.value })}/><p className="text-xs text-muted-foreground">For checkboxes, separate multiple default values with a comma.</p></div>
                         </div>
@@ -656,28 +702,32 @@ function AdminFormEditor() {
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
+    const [isCheckingText, setIsCheckingText] = useState(false);
 
     const updateOrderedSectionsAndSave = useCallback((newMaster: Record<string, Question>, showToast = true) => {
         const rootQuestions = buildQuestionTreeFromMap(newMaster);
         const sectionsMap: Record<string, Question[]> = {};
     
+        const defaultQuestions = getDefaultQuestions().filter(q => !q.parentId);
+        const defaultSectionOrder = [...new Set(defaultQuestions.map(q => q.section))];
+        const masterQuestionOrder = [...new Set(Object.values(newMaster).filter(q=>!q.parentId).map(q => q.section))];
+        const finalSectionOrder = [...defaultSectionOrder];
+        masterQuestionOrder.forEach(s => {
+            if (!finalSectionOrder.includes(s)) finalSectionOrder.push(s);
+        });
+
+        finalSectionOrder.forEach(s => sectionsMap[s] = []);
         rootQuestions.forEach(q => {
             const sectionName = q.section || 'Uncategorized';
             if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
             sectionsMap[sectionName].push(q);
         });
 
-        const defaultQuestions = getDefaultQuestions().filter(q => !q.parentId);
-        const masterSectionOrder = [...new Set(defaultQuestions.map(q => q.section))];
-        Object.keys(sectionsMap).forEach(s => {
-            if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
-        });
-
-        const sections = masterSectionOrder.map(sectionName => {
+        const sections = finalSectionOrder.map(sectionName => {
             const questionsInSection = sectionsMap[sectionName];
-            if (!questionsInSection) return null;
-            return { id: sectionName, questions: questionsInSection };
+            return { id: sectionName, questions: questionsInSection || [] };
         }).filter((s): s is OrderedSection => s !== null);
+
 
         setOrderedSections(sections);
         saveMasterQuestions(newMaster);
@@ -736,6 +786,12 @@ function AdminFormEditor() {
             });
             
             delete newMaster[idToDelete];
+            Object.values(newMaster).forEach((q: any) => {
+                if (q.subQuestions) {
+                    q.subQuestions = q.subQuestions.filter((sub: any) => sub.id !== idToDelete);
+                }
+            });
+
         }
 
         deleteRecursive(questionId);
@@ -773,22 +829,39 @@ function AdminFormEditor() {
                     section.questions.splice(newIndex, 0, movedQuestion);
 
                     const newMaster: Record<string, Question> = {};
-                    const processQuestion = (q: Question, sectionId: string) => {
-                        const { subQuestions, ...rest } = q;
-                        newMaster[q.id] = { ...rest, section: sectionId };
-                        if (q.subQuestions) {
-                            q.subQuestions.forEach(sq => processQuestion(sq, sectionId));
-                        }
-                    };
+                    const processQuestion = (q: Question) => {
+                         const { subQuestions, ...rest } = q;
+                         newMaster[q.id] = { ...rest };
+                         if (subQuestions) {
+                            subQuestions.forEach(sq => processQuestion(sq));
+                         }
+                    }
 
                     newSections.forEach(sec => {
-                        sec.questions.forEach(q => processQuestion(q, sec.id));
+                        sec.questions.forEach(q => {
+                           q.section = sec.id; // ensure section is correct
+                           processQuestion(q);
+                        });
                     });
                     
                     updateOrderedSectionsAndSave(newMaster);
                 }
                 break; 
             }
+        }
+    };
+    
+    const handleCheckText = async () => {
+        if (!currentQuestion?.label) return;
+        setIsCheckingText(true);
+        try {
+            const corrected = await correctText(currentQuestion.label);
+            setCurrentQuestion(q => ({...q, label: corrected}));
+        } catch (e) {
+            console.error("Spell check failed", e);
+            toast({ title: "Error", description: "Could not check text at this time.", variant: "destructive"});
+        } finally {
+            setIsCheckingText(false);
         }
     };
 
@@ -823,23 +896,41 @@ function AdminFormEditor() {
                 </CardContent>
                 <CardFooter className="border-t pt-6"><Button variant="outline" onClick={() => handleAddNewClick()}><PlusCircle className="mr-2" />Add New Question</Button></CardFooter>
             </Card>
-            <Dialog open={isEditing} onOpenChange={setIsEditing}><DialogContent>
-                <DialogHeader><DialogTitle>{isNewQuestion ? 'Add New Question' : 'Edit Question'}</DialogTitle></DialogHeader>
-                {currentQuestion && (
-                    <div className="space-y-6 py-4">
-                        <div className="space-y-2"><Label htmlFor="question-id">Question ID</Label><Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewQuestion}/><p className="text-xs text-muted-foreground">{isNewQuestion ? "Use a unique, kebab-case ID." : "ID cannot be changed after creation."}</p></div>
-                        <div className="space-y-2"><Label htmlFor="question-label">Question Text</Label><Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => ({ ...q, label: e.target.value }))}/></div>
-                        {currentQuestion.parentId && (
-                            <div className="space-y-2"><Label htmlFor="trigger-value">Trigger Value</Label><Input id="trigger-value" value={currentQuestion.triggerValue || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, triggerValue: e.target.value })} placeholder="e.g., Yes"/><p className="text-xs text-muted-foreground">The answer from the parent question that will show this question.</p></div>
-                        )}
-                        {!currentQuestion.parentId && <div className="space-y-2"><Label htmlFor="question-section">Section</Label><Select onValueChange={(v) => { if (v === 'CREATE_NEW') { setIsCreatingNewSection(true); setCurrentQuestion(q => ({ ...q, section: '' })); } else { setIsCreatingNewSection(false); setCurrentQuestion(q => ({ ...q, section: v as any})); } }} value={isCreatingNewSection ? 'CREATE_NEW' : currentQuestion.section || ''}><SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger><SelectContent>{existingSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}<Separator className="my-1" /><SelectItem value="CREATE_NEW">Create new section...</SelectItem></SelectContent></Select></div>}
-                        {isCreatingNewSection && (<div className="space-y-2"><Label htmlFor="new-section-name">New Section Name</Label><Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" /></div>)}
-                        <div className="space-y-2"><Label htmlFor="question-type">Question Type</Label><Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any, options: [] }))} value={currentQuestion.type}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="select">Select</SelectItem><SelectItem value="radio">Radio</SelectItem><SelectItem value="checkbox">Checkbox</SelectItem><SelectItem value="date">Date</SelectItem></SelectContent></Select></div>
-                        {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (<div className="space-y-2"><Label htmlFor="question-options">Answer Options (one per line)</Label><Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => ({...q, options: e.target.value.split('\n')}))} rows={currentQuestion.options?.length || 3}/></div>)}
-                    </div>
-                )}
-                <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
-            </DialogContent></Dialog>
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>{isNewQuestion ? 'Add New Question' : 'Edit Question'}</DialogTitle></DialogHeader>
+                    {currentQuestion && (
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-2"><Label htmlFor="question-id">Question ID</Label><Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => ({ ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} disabled={!isNewQuestion}/><p className="text-xs text-muted-foreground">{isNewQuestion ? "Use a unique, kebab-case ID." : "ID cannot be changed after creation."}</p></div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label htmlFor="question-label">Question Text</Label>
+                                    <Button variant="outline" size="sm" onClick={handleCheckText} disabled={isCheckingText}>
+                                        {isCheckingText ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                        Check Text
+                                    </Button>
+                                </div>
+                                <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => ({ ...q, label: e.target.value }))}/>
+                            </div>
+                            {currentQuestion.parentId && (
+                                <div className="space-y-2"><Label htmlFor="trigger-value">Trigger Value</Label><Input id="trigger-value" value={currentQuestion.triggerValue || ''} onChange={(e) => setCurrentQuestion({ ...currentQuestion, triggerValue: e.target.value })} placeholder="e.g., Yes"/><p className="text-xs text-muted-foreground">The answer from the parent question that will show this question.</p></div>
+                            )}
+                            {!currentQuestion.parentId && <div className="space-y-2"><Label htmlFor="question-section">Section</Label><Select onValueChange={(v) => { if (v === 'CREATE_NEW') { setIsCreatingNewSection(true); setCurrentQuestion(q => ({ ...q, section: '' })); } else { setIsCreatingNewSection(false); setCurrentQuestion(q => ({ ...q, section: v as any})); } }} value={isCreatingNewSection ? 'CREATE_NEW' : currentQuestion.section || ''}><SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger><SelectContent>{existingSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}<Separator className="my-1" /><SelectItem value="CREATE_NEW">Create new section...</SelectItem></SelectContent></Select></div>}
+                            {isCreatingNewSection && (<div className="space-y-2"><Label htmlFor="new-section-name">New Section Name</Label><Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" /></div>)}
+                            <div className="space-y-2"><Label htmlFor="question-type">Question Type</Label><Select onValueChange={(v) => setCurrentQuestion(q => ({ ...q, type: v as any, options: [] }))} value={currentQuestion.type}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="select">Select</SelectItem><SelectItem value="radio">Radio</SelectItem><SelectItem value="checkbox">Checkbox</SelectItem><SelectItem value="date">Date</SelectItem></SelectContent></Select></div>
+                            {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
+                                <div className="space-y-2">
+                                     <div className="flex justify-between items-center">
+                                        <Label htmlFor="question-options">Answer Options (one per line)</Label>
+                                    </div>
+                                    <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => ({...q, options: e.target.value.split('\n')}))} rows={currentQuestion.options?.length || 3}/>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleSaveEdit}>Save Changes</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div></div>
     );
 }
