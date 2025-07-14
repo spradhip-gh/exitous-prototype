@@ -727,8 +727,7 @@ function AdminFormEditor() {
         if (Object.keys(masterQuestions).length > 0 && orderedSections.length === 0) {
             updateOrderedSectionsAndSave(masterQuestions, false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [masterQuestions]);
+    }, [masterQuestions, orderedSections.length, updateOrderedSectionsAndSave]);
 
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question }); setIsNewQuestion(false); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
