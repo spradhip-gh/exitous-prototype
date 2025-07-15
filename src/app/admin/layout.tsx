@@ -8,12 +8,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
   const pathname = usePathname();
@@ -159,6 +160,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navContent}
         </aside>
         <main className="flex-1">
+           <div className="border-b border-orange-200 bg-orange-50 p-4">
+            <Alert variant="default" className="border-orange-300 bg-transparent">
+              <TriangleAlert className="h-4 w-4 !text-orange-600" />
+              <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
+              <AlertDescription className="text-orange-700">
+                Please Note: Data and changes made may refresh to default state at anytime.
+              </AlertDescription>
+            </Alert>
+          </div>
           {children}
         </main>
       </div>
