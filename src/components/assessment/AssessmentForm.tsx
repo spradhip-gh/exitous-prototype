@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -96,16 +94,20 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
                     <div className='flex items-center gap-2'>
                         <FormLabel>{question.label.replace('{companyName}', companyName)}</FormLabel>
                         {question.isCustom && (
-                             <Tooltip delayDuration={200}>
-                                <TooltipTrigger asChild><Star className="h-4 w-4 text-amber-500 cursor-help fill-current" /></TooltipTrigger>
-                                <TooltipContent><p>This is a custom question added by {companyName}.</p></TooltipContent>
-                            </Tooltip>
+                             <TooltipProvider>
+                                <Tooltip delayDuration={200}>
+                                    <TooltipTrigger asChild><Star className="h-4 w-4 text-amber-500 cursor-help fill-current" /></TooltipTrigger>
+                                    <TooltipContent><p>This is a custom question added by {companyName}.</p></TooltipContent>
+                                </Tooltip>
+                             </TooltipProvider>
                         )}
                         {question.description && (
-                            <Tooltip delayDuration={200}>
-                                <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
-                                <TooltipContent><p className="max-w-xs">{question.description}</p></TooltipContent>
-                            </Tooltip>
+                            <TooltipProvider>
+                                <Tooltip delayDuration={200}>
+                                    <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
+                                    <TooltipContent><p className="max-w-xs">{question.description}</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
                     </div>
                     {renderFormControl(question, field, form)}
@@ -141,19 +143,23 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
 
 
 export default function AssessmentForm() {
-    const { getCompanyConfig, isUserDataLoading } = useUserData();
+    const { getCompanyConfig, isUserDataLoading, getCompanyUser } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
+    const [companyUser, setCompanyUser] = useState<ReturnType<typeof getCompanyUser>>(null);
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
             const companyQuestions = getCompanyConfig(auth.companyName, true);
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions));
+            if (auth.email) {
+                setCompanyUser(getCompanyUser(auth.email));
+            }
         }
-    }, [isUserDataLoading, getCompanyConfig, auth?.companyName]);
+    }, [isUserDataLoading, getCompanyConfig, auth?.companyName, auth?.email, getCompanyUser]);
 
     if (!questions || !dynamicSchema) {
         return (
@@ -171,10 +177,10 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} />;
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={companyUser} />;
 }
 
-function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Question[], dynamicSchema: z.ZodObject<any> }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'] }) {
     const router = useRouter();
     const { profileData, assessmentData, saveAssessmentData } = useUserData();
     const { auth } = useAuth();
@@ -242,28 +248,40 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
     
     useEffect(() => {
         if (!form.formState.isDirty) {
-            const getDefaults = (q: Question) => {
-                let defaults: Record<string, any> = {};
-                if (q.defaultValue && q.defaultValue.length > 0) {
-                    defaults[q.id] = q.defaultValue;
-                }
-                if (q.subQuestions) {
-                    q.subQuestions.forEach(subQ => {
-                        Object.assign(defaults, getDefaults(subQ));
-                    });
-                }
-                return defaults;
+            let initialValues: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
+            
+            // Apply HR-set notification date if no saved data and not yet set
+            if (!initialValues.notificationDate && companyUser?.user.notificationDate) {
+                const date = new Date(companyUser.user.notificationDate);
+                // The date from string 'YYYY-MM-DD' is UTC, adjust for local timezone display
+                initialValues.notificationDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
             }
-
-            let initialValues = assessmentData ? assessmentData : {};
-            if (!assessmentData) { // only apply config defaults if no saved data
+            
+            // Only apply defaults from question config if there's no saved assessment data
+            if (!assessmentData) {
+                const getDefaults = (q: Question) => {
+                    let defaults: Record<string, any> = {};
+                    if (q.defaultValue && q.defaultValue.length > 0) {
+                        defaults[q.id] = q.defaultValue;
+                    }
+                    if (q.subQuestions) {
+                        q.subQuestions.forEach(subQ => {
+                            Object.assign(defaults, getDefaults(subQ));
+                        });
+                    }
+                    return defaults;
+                }
+                
+                let defaultValues: Partial<AssessmentData> = {};
                 questions.forEach(q => {
-                   Object.assign(initialValues, getDefaults(q))
+                   Object.assign(defaultValues, getDefaults(q))
                 });
+                initialValues = { ...defaultValues, ...initialValues };
             }
+            
             form.reset(initialValues);
         }
-    }, [questions, assessmentData, form]);
+    }, [questions, assessmentData, form, companyUser]);
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData(data);
@@ -301,7 +319,6 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
 
 
     return (
-        <TooltipProvider>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
@@ -324,6 +341,5 @@ function AssessmentFormRenderer({ questions, dynamicSchema }: { questions: Quest
                 }
             </form>
         </Form>
-        </TooltipProvider>
     );
 }

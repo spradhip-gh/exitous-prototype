@@ -23,6 +23,9 @@ const PREVIEW_SUFFIX = '-hr-preview';
 export interface CompanyUser {
   email: string;
   companyId: string;
+  personalEmail?: string;
+  notificationDate?: string; // Stored as 'YYYY-MM-DD'
+  notified?: boolean;
 }
 
 export interface CompanyConfig {
@@ -102,6 +105,18 @@ export function useUserData() {
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
+      if (!email) return null;
+      const allConfigs = getCompanyConfigs();
+      for (const companyName in allConfigs) {
+          const user = allConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (user) {
+              return { user, companyName };
+          }
+      }
+      return null;
+  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -388,6 +403,7 @@ export function useUserData() {
     companyAssignmentForHr,
     assessmentCompletions,
     platformUsers,
+    getCompanyUser,
     addCompanyAssignment,
     deleteCompanyAssignment,
     updateCompanyAssignment,
