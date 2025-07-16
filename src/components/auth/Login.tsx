@@ -47,16 +47,8 @@ export default function Login() {
 
     setTimeout(() => {
         setIsLoading(false);
-        if (foundUser) {
-            if (foundUser.notified) {
-                login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
-            } else {
-                 toast({
-                    title: "Access Denied",
-                    description: "You have not been invited to access the portal yet. Please contact your HR manager.",
-                    variant: "destructive"
-                });
-            }
+        if (foundUser && foundUser.notified) {
+            login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
         } else {
             toast({
                 title: "Login Failed",
