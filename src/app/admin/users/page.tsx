@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
-import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,6 +18,14 @@ import { cn } from "@/lib/utils";
 import { format, parse, isToday, isPast } from 'date-fns';
 import Papa from 'papaparse';
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 
 // Main switcher component
@@ -230,14 +238,21 @@ function HrUserManagement() {
 
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
+    
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newCompanyId, setNewCompanyId] = useState("");
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
+    
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
     const [isLoading, setIsLoading] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<CompanyUser | null>(null);
+    const [editedPersonalEmail, setEditedPersonalEmail] = useState('');
+    const [editedNotificationDate, setEditedNotificationDate] = useState<Date | undefined>();
 
     useEffect(() => {
         if (companyName) {
@@ -354,7 +369,6 @@ function HrUserManagement() {
         }
     };
 
-
     const handleDeleteUser = (email: string) => {
         if (!companyName) return;
         const newUsers = users.filter(u => u.email !== email);
@@ -409,6 +423,35 @@ function HrUserManagement() {
         return !users.some(u => selectedEmails.includes(u.email) && !isNotifyDisabled(u));
     };
     
+    const handleEditClick = (user: CompanyUser) => {
+        setEditingUser(user);
+        setEditedPersonalEmail(user.personalEmail || '');
+        setEditedNotificationDate(user.notificationDate ? parse(user.notificationDate, 'yyyy-MM-dd', new Date()) : undefined);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleSaveChanges = () => {
+        if (!editingUser || !companyName) return;
+
+        const updatedUsers = users.map(u => {
+            if (u.email === editingUser.email) {
+                return {
+                    ...u,
+                    personalEmail: editedPersonalEmail || undefined,
+                    notificationDate: editedNotificationDate ? format(editedNotificationDate, 'yyyy-MM-dd') : undefined,
+                };
+            }
+            return u;
+        });
+
+        setUsers(updatedUsers);
+        saveCompanyUsers(companyName, updatedUsers);
+        toast({ title: "User Updated", description: "Changes have been saved." });
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+    };
+
+
     if (isLoading) {
         return (
             <div className="p-4 md:p-8 space-y-8">
@@ -549,6 +592,10 @@ function HrUserManagement() {
                                             <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={isNotifyDisabled(user)}>
                                                 <Send className="mr-2" /> Notify
                                             </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                                                <Pencil className="h-4 w-4" />
+                                                <span className="sr-only">Edit</span>
+                                            </Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
                                                 <Trash2 className="h-4 w-4" />
                                                 <span className="sr-only">Delete</span>
@@ -558,13 +605,60 @@ function HrUserManagement() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    <TableCell colSpan={8} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </CardContent>
             </Card>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit User: {editingUser?.email}</DialogTitle>
+                        <DialogDescription>
+                            Update the user's details below. Work email and company ID cannot be changed.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-work-email">Work Email</Label>
+                            <Input id="edit-work-email" value={editingUser?.email || ''} disabled />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-company-id">Company ID</Label>
+                            <Input id="edit-company-id" value={editingUser?.companyId || ''} disabled />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-personal-email">Personal Email</Label>
+                            <Input 
+                                id="edit-personal-email" 
+                                value={editedPersonalEmail} 
+                                onChange={(e) => setEditedPersonalEmail(e.target.value)} 
+                                placeholder="user@personal.com"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-notification-date">Notification Date</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {editedNotificationDate ? format(editedNotificationDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editedNotificationDate} onSelect={setEditedNotificationDate} initialFocus /></PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveChanges}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
