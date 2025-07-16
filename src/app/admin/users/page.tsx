@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -538,21 +538,25 @@ function HrUserManagement() {
     const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
-    const getBulkUpdateCounts = () => {
-        let eligibleCount = 0;
-        let ineligibleCount = 0;
+    const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
+        let eligible = 0;
+        let ineligible = 0;
+        let past = 0;
         selectedUsers.forEach(email => {
             const user = users.find(u => u.email === email);
-            if (user && !user.notified) {
-                eligibleCount++;
-            } else {
-                ineligibleCount++;
+            if (user) {
+                if (!user.notified) {
+                    eligible++;
+                    if (user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())) && !isToday(parse(user.notificationDate, 'yyyy-MM-dd', new Date()))) {
+                        past++;
+                    }
+                } else {
+                    ineligible++;
+                }
             }
         });
-        return { eligibleCount, ineligibleCount };
-    };
-
-    const { eligibleCount, ineligibleCount } = getBulkUpdateCounts();
+        return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
+    }, [selectedUsers, users]);
     
     const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
         isComplete ? (
@@ -684,7 +688,7 @@ function HrUserManagement() {
                             <TableBody>
                                 {users.length > 0 ? users.map(user => {
                                     const notifyDisabled = isNotifyDisabled(user);
-                                    const isSelectionDisabled = !!user.notified;
+                                    const isSelectionDisabled = user.notified && user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date()));
 
                                     return (
                                         <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(isSelectionDisabled && "bg-muted/50 text-muted-foreground")}>
@@ -837,13 +841,19 @@ function HrUserManagement() {
                            {ineligibleCount > 0 && ` ${ineligibleCount} invited users will be skipped.`}
                         </DialogDescription>
                     </DialogHeader>
-                     <div className="py-4">
+                     <div className="py-4 space-y-4">
                         <Calendar
                             mode="single"
                             selected={newBulkNotificationDate}
                             onSelect={setNewBulkNotificationDate}
                             className="rounded-md border"
                         />
+                        {newBulkNotificationDate && isPast(newBulkNotificationDate) && !isToday(newBulkNotificationDate) && pastDateCount > 0 && (
+                             <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+                                <AlertCircle className="h-4 w-4" />
+                                <div>You are setting a past date for {pastDateCount} user(s). Ensure this matches their actual notification date.</div>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsBulkEditDialogOpen(false)}>Cancel</Button>
