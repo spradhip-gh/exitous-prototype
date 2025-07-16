@@ -11,6 +11,7 @@ import {
   getPlatformUsers, savePlatformUsers,
   getMasterQuestions, saveMasterQuestions as saveMasterQuestionsToDb,
   getAssessmentCompletions, saveAssessmentCompletions,
+  getProfileCompletions, saveProfileCompletions,
 } from '@/lib/demo-data';
 
 
@@ -100,6 +101,7 @@ export function useUserData() {
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestionsState] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignmentsState] = useState<CompanyAssignment[]>([]);
+  const [profileCompletions, setProfileCompletionsState] = useState<Record<string, boolean>>({});
   const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
   const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   
@@ -160,6 +162,7 @@ export function useUserData() {
       setCompanyAssignmentsState(getCompanyAssignments());
       setCompanyConfigsState(getCompanyConfigs());
       setPlatformUsersState(getPlatformUsers());
+      setProfileCompletionsState(getProfileCompletions());
       setAssessmentCompletionsState(getAssessmentCompletions());
       setMasterQuestionsState(getMasterQuestions());
       
@@ -186,8 +189,13 @@ export function useUserData() {
     try {
       localStorage.setItem(profileKey, JSON.stringify(data));
       setProfileData(data);
+       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
+        const newCompletions = { ...getProfileCompletions(), [auth.email!]: true };
+        saveProfileCompletions(newCompletions);
+        setProfileCompletionsState(newCompletions);
+      }
     } catch (error) { console.error('Failed to save profile data', error); }
-  }, [profileKey]);
+  }, [profileKey, auth]);
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
@@ -382,11 +390,17 @@ export function useUserData() {
       setTaskDateOverrides({});
       
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        const currentCompletions = getAssessmentCompletions();
-        const newCompletions = { ...currentCompletions };
-        delete newCompletions[auth.email!];
-        saveAssessmentCompletions(newCompletions);
-        setAssessmentCompletionsState(newCompletions);
+        const currentProfileCompletions = getProfileCompletions();
+        const newProfileCompletions = { ...currentProfileCompletions };
+        delete newProfileCompletions[auth.email!];
+        saveProfileCompletions(newProfileCompletions);
+        setProfileCompletionsState(newProfileCompletions);
+
+        const currentAssessmentCompletions = getAssessmentCompletions();
+        const newAssessmentCompletions = { ...currentAssessmentCompletions };
+        delete newAssessmentCompletions[auth.email!];
+        saveAssessmentCompletions(newAssessmentCompletions);
+        setAssessmentCompletionsState(newAssessmentCompletions);
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
@@ -401,6 +415,7 @@ export function useUserData() {
     masterQuestions,
     companyAssignments,
     companyAssignmentForHr,
+    profileCompletions,
     assessmentCompletions,
     platformUsers,
     getCompanyUser,

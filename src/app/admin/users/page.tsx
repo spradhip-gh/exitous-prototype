@@ -234,7 +234,7 @@ function AdminUserManagement() {
 function HrUserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyUsers, assessmentCompletions, companyAssignmentForHr } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, profileCompletions, assessmentCompletions, companyAssignmentForHr } = useUserData();
 
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -476,6 +476,14 @@ function HrUserManagement() {
 
     const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === users.length;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
+    
+    const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
+        isComplete ? (
+            <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
+        ) : (
+            <Badge variant="outline">Pending</Badge>
+        )
+    );
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -559,10 +567,9 @@ function HrUserManagement() {
                                     />
                                 </TableHead>
                                 <TableHead>Work Email</TableHead>
-                                <TableHead>Personal Email</TableHead>
-                                <TableHead>Company ID</TableHead>
-                                <TableHead>Notification Date</TableHead>
-                                <TableHead>Status</TableHead>
+                                <TableHead>Notification</TableHead>
+                                <TableHead>Profile Status</TableHead>
+                                <TableHead>Assessment Status</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -577,15 +584,21 @@ function HrUserManagement() {
                                         />
                                     </TableCell>
                                     <TableCell className="font-medium">{user.email}</TableCell>
-                                    <TableCell>{user.personalEmail || 'N/A'}</TableCell>
-                                    <TableCell>{user.companyId}</TableCell>
-                                    <TableCell>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</TableCell>
                                     <TableCell>
-                                        {user.notified ? (
-                                            <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1" /> Notified</Badge>
-                                        ) : (
-                                            <Badge variant="secondary">Pending</Badge>
-                                        )}
+                                        <div className="flex flex-col">
+                                           <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
+                                            {user.notified ? (
+                                                <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Notified</Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="w-fit">Pending</Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatusBadge isComplete={!!profileCompletions[user.email]} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end items-center gap-1">
@@ -605,7 +618,7 @@ function HrUserManagement() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

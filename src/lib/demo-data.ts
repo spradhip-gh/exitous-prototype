@@ -12,6 +12,7 @@ interface DemoDatabase {
     companyConfigs: Record<string, CompanyConfig>;
     platformUsers: PlatformUser[];
     masterQuestions: Record<string, Question>;
+    profileCompletions: Record<string, boolean>;
     assessmentCompletions: Record<string, boolean>;
 }
 
@@ -82,6 +83,9 @@ const initializeDb = (): DemoDatabase => {
             { email: 'consultant@exitous.co', role: 'consultant' }
         ],
         masterQuestions: initializeMasterQuestions(),
+        profileCompletions: {
+            'employee1@globex.com': true,
+        },
         assessmentCompletions: {
             'employee1@globex.com': true,
         },
@@ -106,6 +110,9 @@ export const savePlatformUsers = (data: PlatformUser[]) => { db.platformUsers = 
 
 export const getMasterQuestions = () => db.masterQuestions;
 export const saveMasterQuestions = (data: Record<string, Question>) => { db.masterQuestions = data; };
+
+export const getProfileCompletions = () => db.profileCompletions;
+export const saveProfileCompletions = (data: Record<string, boolean>) => { db.profileCompletions = data; };
 
 export const getAssessmentCompletions = () => db.assessmentCompletions;
 export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db.assessmentCompletions = data; };
