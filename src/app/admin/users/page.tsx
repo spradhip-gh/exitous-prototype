@@ -434,8 +434,10 @@ function HrUserManagement() {
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
-            const allUserEmails = users.map(u => u.email);
-            setSelectedUsers(new Set(allUserEmails));
+            const allSelectableEmails = users
+                .filter(u => !(u.notified && u.notificationDate && isPast(parse(u.notificationDate, 'yyyy-MM-dd', new Date()))))
+                .map(u => u.email);
+            setSelectedUsers(new Set(allSelectableEmails));
         } else {
             setSelectedUsers(new Set());
         }
@@ -532,9 +534,31 @@ function HrUserManagement() {
             </div>
         )
     }
-
-    const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === users.length;
+    
+    const selectableUserCount = users.filter(u => !(u.notified && u.notificationDate && isPast(parse(u.notificationDate, 'yyyy-MM-dd', new Date())))).length;
+    const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
+
+    const getBulkUpdateCounts = () => {
+        let eligibleCount = 0;
+        let ineligibleCount = 0;
+        selectedUsers.forEach(email => {
+            const user = users.find(u => u.email === email);
+            if (user && user.notificationDate) {
+                const currentDate = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
+                if (isFuture(currentDate) || isToday(currentDate)) {
+                    eligibleCount++;
+                } else {
+                    ineligibleCount++;
+                }
+            } else if (user) { // user exists but has no date, so they are eligible
+                eligibleCount++;
+            }
+        });
+        return { eligibleCount, ineligibleCount };
+    };
+
+    const { eligibleCount, ineligibleCount } = getBulkUpdateCounts();
     
     const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
         isComplete ? (
@@ -666,13 +690,16 @@ function HrUserManagement() {
                             <TableBody>
                                 {users.length > 0 ? users.map(user => {
                                     const notifyDisabled = isNotifyDisabled(user);
+                                    const isSelectionDisabled = !!(user.notified && user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())));
+
                                     return (
-                                        <TableRow key={user.email} data-selected={selectedUsers.has(user.email)}>
+                                        <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(isSelectionDisabled && "bg-muted/50 text-muted-foreground")}>
                                             <TableCell>
                                                 <Checkbox
                                                     checked={selectedUsers.has(user.email)}
                                                     onCheckedChange={() => handleToggleSelection(user.email)}
                                                     aria-label={`Select ${user.email}`}
+                                                    disabled={isSelectionDisabled}
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">{user.email}</TableCell>
@@ -803,7 +830,8 @@ function HrUserManagement() {
                     <DialogHeader>
                         <DialogTitle>Bulk Change Notification Date</DialogTitle>
                         <DialogDescription>
-                           Select a new notification date for the {selectedUsers.size} selected users. This will only affect users whose current notification date has not passed.
+                           Select a new notification date. This will be applied to the <strong className="text-foreground">{eligibleCount} eligible users</strong> out of {selectedUsers.size} selected.
+                           {ineligibleCount > 0 && ` ${ineligibleCount} users whose notification date has passed will be skipped.`}
                         </DialogDescription>
                     </DialogHeader>
                      <div className="py-4">
