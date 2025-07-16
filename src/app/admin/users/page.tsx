@@ -273,7 +273,17 @@ function HrUserManagement() {
 
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
-
+    
+    useEffect(() => {
+        if (companyName) {
+            setIsLoading(true);
+            const configs = getAllCompanyConfigs();
+            const companyUsers = configs[companyName]?.users || [];
+            setUsers(companyUsers);
+            setIsLoading(false);
+        }
+    }, [companyName, getAllCompanyConfigs]);
+    
     const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
         let ineligible = 0;
@@ -294,16 +304,6 @@ function HrUserManagement() {
         return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
     }, [selectedUsers, users]);
 
-    useEffect(() => {
-        if (companyName) {
-            setIsLoading(true);
-            const configs = getAllCompanyConfigs();
-            const companyUsers = configs[companyName]?.users || [];
-            setUsers(companyUsers);
-            setIsLoading(false);
-        }
-    }, [companyName, getAllCompanyConfigs]);
-    
     const addUser = (userToAdd: CompanyUser) => {
         if (!companyName) return false;
 
@@ -514,7 +514,6 @@ function HrUserManagement() {
         let updatedCount = 0;
         const updatedUsers = users.map(user => {
             if (selectedUsers.has(user.email)) {
-                // Only update if user has not been invited yet
                 if (!user.notified) {
                     updatedCount++;
                     return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
@@ -531,6 +530,18 @@ function HrUserManagement() {
         setNewBulkNotificationDate(undefined);
         setSelectedUsers(new Set());
     };
+
+    const selectableUserCount = users.filter(u => !u.notified).length;
+    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
+    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
+    
+    const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
+        isComplete ? (
+            <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
+        ) : (
+            <Badge variant="outline">Pending</Badge>
+        )
+    );
 
     if (isLoading) {
         return (
@@ -554,18 +565,6 @@ function HrUserManagement() {
         )
     }
     
-    const selectableUserCount = users.filter(u => !u.notified).length;
-    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
-    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
-    
-    const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
-        isComplete ? (
-            <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
-        ) : (
-            <Badge variant="outline">Pending</Badge>
-        )
-    );
-
     return (
         <div className="p-4 md:p-8 space-y-8">
              <div className="space-y-2">
@@ -848,10 +847,10 @@ function HrUserManagement() {
                             onSelect={setNewBulkNotificationDate}
                             className="rounded-md border"
                         />
-                        {newBulkNotificationDate && isPast(newBulkNotificationDate) && !isToday(newBulkNotificationDate) && pastDateCount > 0 && (
+                        {newBulkNotificationDate && pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
-                                <div>You are setting a past date for {pastDateCount} user(s). Ensure this matches their actual notification date.</div>
+                                <div>You are changing a past date for {pastDateCount} user(s). Ensure this matches their actual notification date.</div>
                             </div>
                         )}
                     </div>
