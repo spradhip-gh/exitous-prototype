@@ -839,7 +839,7 @@ function HrUserManagement() {
                     <DialogHeader>
                         <DialogTitle>Bulk Change Notification Date</DialogTitle>
                         <DialogDescription>
-                           Select a new notification date. This will be applied to the <strong className="text-foreground">{selectedUsers.size} selected users</strong>.
+                           Select a new notification date. This will be applied to the <strong className="text-foreground">{selectedUsers.size} selected {selectedUsers.size === 1 ? 'user' : 'users'}</strong>.
                         </DialogDescription>
                     </DialogHeader>
                      <div className="py-4 space-y-4">
