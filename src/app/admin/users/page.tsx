@@ -402,7 +402,7 @@ function HrUserManagement() {
         );
         setUsers(newUsers);
         saveCompanyUsers(companyName, newUsers);
-        toast({ title: "Users Notified", description: `Notifications sent to ${emailsToNotify.length} users.` });
+        toast({ title: "Invitations Sent", description: `Invitations sent to ${emailsToNotify.length} users.` });
         setSelectedUsers(new Set()); // Clear selection after notifying
     }
 
@@ -574,7 +574,7 @@ function HrUserManagement() {
                         <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
                     </div>
                     <Button onClick={() => handleNotifyUsers(Array.from(selectedUsers))} disabled={isBulkNotifyDisabled()}>
-                        <Send className="mr-2" /> Notify Selected ({selectedUsers.size})
+                        <Send className="mr-2" /> Send Invites ({selectedUsers.size})
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -591,7 +591,7 @@ function HrUserManagement() {
                                         />
                                     </TableHead>
                                     <TableHead>Work Email</TableHead>
-                                    <TableHead>Notification</TableHead>
+                                    <TableHead>Invitation</TableHead>
                                     <TableHead>Profile Status</TableHead>
                                     <TableHead>Assessment Status</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
@@ -614,7 +614,7 @@ function HrUserManagement() {
                                                 <div className="flex flex-col">
                                                 <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
                                                     {user.notified ? (
-                                                        <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Notified</Badge>
+                                                        <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge>
                                                     ) : (
                                                         <Badge variant="secondary" className="w-fit">Pending</Badge>
                                                     )}
@@ -633,7 +633,7 @@ function HrUserManagement() {
                                                             {/* The Tooltip needs a child to attach to, even if disabled. A span works well here. */}
                                                             <span tabIndex={notifyDisabled ? 0 : -1}>
                                                                 <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={notifyDisabled}>
-                                                                    <Send className="mr-2" /> Notify
+                                                                    <Send className="mr-2" /> Invite
                                                                 </Button>
                                                             </span>
                                                         </TooltipTrigger>
