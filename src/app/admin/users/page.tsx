@@ -274,6 +274,26 @@ function HrUserManagement() {
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
 
+    const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
+        let eligible = 0;
+        let ineligible = 0;
+        let past = 0;
+        selectedUsers.forEach(email => {
+            const user = users.find(u => u.email === email);
+            if (user) {
+                if (!user.notified) {
+                    eligible++;
+                    if (user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())) && !isToday(parse(user.notificationDate, 'yyyy-MM-dd', new Date()))) {
+                        past++;
+                    }
+                } else {
+                    ineligible++;
+                }
+            }
+        });
+        return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
+    }, [selectedUsers, users]);
+
     useEffect(() => {
         if (companyName) {
             setIsLoading(true);
@@ -535,28 +555,8 @@ function HrUserManagement() {
     }
     
     const selectableUserCount = users.filter(u => !u.notified).length;
-    const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === selectableUserCount;
+    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
-
-    const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
-        let eligible = 0;
-        let ineligible = 0;
-        let past = 0;
-        selectedUsers.forEach(email => {
-            const user = users.find(u => u.email === email);
-            if (user) {
-                if (!user.notified) {
-                    eligible++;
-                    if (user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())) && !isToday(parse(user.notificationDate, 'yyyy-MM-dd', new Date()))) {
-                        past++;
-                    }
-                } else {
-                    ineligible++;
-                }
-            }
-        });
-        return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
-    }, [selectedUsers, users]);
     
     const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
         isComplete ? (
@@ -688,7 +688,7 @@ function HrUserManagement() {
                             <TableBody>
                                 {users.length > 0 ? users.map(user => {
                                     const notifyDisabled = isNotifyDisabled(user);
-                                    const isSelectionDisabled = user.notified && user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date()));
+                                    const isSelectionDisabled = user.notified;
 
                                     return (
                                         <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(isSelectionDisabled && "bg-muted/50 text-muted-foreground")}>
