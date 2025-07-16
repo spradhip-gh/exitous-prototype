@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
-import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil, Download, PencilRuler } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil, Download, PencilRuler, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
@@ -435,7 +435,7 @@ function HrUserManagement() {
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             const allSelectableEmails = users
-                .filter(u => !(u.notified && u.notificationDate && isPast(parse(u.notificationDate, 'yyyy-MM-dd', new Date()))))
+                .filter(u => !u.notified)
                 .map(u => u.email);
             setSelectedUsers(new Set(allSelectableEmails));
         } else {
@@ -494,9 +494,8 @@ function HrUserManagement() {
         let updatedCount = 0;
         const updatedUsers = users.map(user => {
             if (selectedUsers.has(user.email)) {
-                const currentDate = user.notificationDate ? parse(user.notificationDate, 'yyyy-MM-dd', new Date()) : null;
-                // Only update if the date is in the future
-                if (!currentDate || isFuture(currentDate) || isToday(currentDate)) {
+                // Only update if user has not been invited yet
+                if (!user.notified) {
                     updatedCount++;
                     return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
                 }
@@ -535,7 +534,7 @@ function HrUserManagement() {
         )
     }
     
-    const selectableUserCount = users.filter(u => !(u.notified && u.notificationDate && isPast(parse(u.notificationDate, 'yyyy-MM-dd', new Date())))).length;
+    const selectableUserCount = users.filter(u => !u.notified).length;
     const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
@@ -544,15 +543,10 @@ function HrUserManagement() {
         let ineligibleCount = 0;
         selectedUsers.forEach(email => {
             const user = users.find(u => u.email === email);
-            if (user && user.notificationDate) {
-                const currentDate = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
-                if (isFuture(currentDate) || isToday(currentDate)) {
-                    eligibleCount++;
-                } else {
-                    ineligibleCount++;
-                }
-            } else if (user) { // user exists but has no date, so they are eligible
+            if (user && !user.notified) {
                 eligibleCount++;
+            } else {
+                ineligibleCount++;
             }
         });
         return { eligibleCount, ineligibleCount };
@@ -690,7 +684,7 @@ function HrUserManagement() {
                             <TableBody>
                                 {users.length > 0 ? users.map(user => {
                                     const notifyDisabled = isNotifyDisabled(user);
-                                    const isSelectionDisabled = !!(user.notified && user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())));
+                                    const isSelectionDisabled = !!user.notified;
 
                                     return (
                                         <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(isSelectionDisabled && "bg-muted/50 text-muted-foreground")}>
@@ -809,13 +803,22 @@ function HrUserManagement() {
                             <Label htmlFor="edit-notification-date">Notification Date</Label>
                              <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")}>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")} disabled={editingUser?.notified}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {editedNotificationDate ? format(editedNotificationDate, "PPP") : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editedNotificationDate} onSelect={setEditedNotificationDate} initialFocus /></PopoverContent>
                             </Popover>
+                             {editingUser?.notified && (
+                                <p className="text-xs text-muted-foreground">Cannot change date for an invited user.</p>
+                            )}
+                            {editedNotificationDate && isPast(editedNotificationDate) && !isToday(editedNotificationDate) && !editingUser?.notified && (
+                                <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <div>This date is in the past. Ensure this matches the user's actual notification date as it impacts their assessment.</div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
@@ -830,8 +833,8 @@ function HrUserManagement() {
                     <DialogHeader>
                         <DialogTitle>Bulk Change Notification Date</DialogTitle>
                         <DialogDescription>
-                           Select a new notification date. This will be applied to the <strong className="text-foreground">{eligibleCount} eligible users</strong> out of {selectedUsers.size} selected.
-                           {ineligibleCount > 0 && ` ${ineligibleCount} users whose notification date has passed will be skipped.`}
+                           Select a new notification date. This will be applied to the <strong className="text-foreground">{eligibleCount} uninvited users</strong> out of {selectedUsers.size} selected.
+                           {ineligibleCount > 0 && ` ${ineligibleCount} invited users will be skipped.`}
                         </DialogDescription>
                     </DialogHeader>
                      <div className="py-4">
