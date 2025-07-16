@@ -273,7 +273,7 @@ function HrUserManagement() {
 
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
-    
+
     useEffect(() => {
         if (companyName) {
             setIsLoading(true);
@@ -283,7 +283,7 @@ function HrUserManagement() {
             setIsLoading(false);
         }
     }, [companyName, getAllCompanyConfigs]);
-    
+
     const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
         let ineligible = 0;
@@ -303,6 +303,32 @@ function HrUserManagement() {
         });
         return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
     }, [selectedUsers, users]);
+    
+    const selectableUserCount = useMemo(() => users.filter(u => !u.notified).length, [users]);
+    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
+    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
+
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        )
+    }
+
+    if (!companyName) {
+        return (
+            <div className="p-4 md:p-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Error</CardTitle>
+                        <CardDescription>No company is assigned to your HR account.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        )
+    }
 
     const addUser = (userToAdd: CompanyUser) => {
         if (!companyName) return false;
@@ -530,10 +556,6 @@ function HrUserManagement() {
         setNewBulkNotificationDate(undefined);
         setSelectedUsers(new Set());
     };
-
-    const selectableUserCount = users.filter(u => !u.notified).length;
-    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
-    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
     
     const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
         isComplete ? (
@@ -542,28 +564,6 @@ function HrUserManagement() {
             <Badge variant="outline">Pending</Badge>
         )
     );
-
-    if (isLoading) {
-        return (
-            <div className="p-4 md:p-8 space-y-8">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        )
-    }
-
-    if (!companyName) {
-        return (
-            <div className="p-4 md:p-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>No company is assigned to your HR account.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-        )
-    }
     
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -850,7 +850,7 @@ function HrUserManagement() {
                         {pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
-                                <div>You are changing a past date for {pastDateCount} user(s). Ensure this matches their actual notification date.</div>
+                                <div>You are changing a past date for {pastDateCount} user(s). Ensure this matches the user's actual notification date as it impacts their assessment.</div>
                             </div>
                         )}
                     </div>
