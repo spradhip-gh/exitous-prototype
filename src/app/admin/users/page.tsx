@@ -274,16 +274,6 @@ function HrUserManagement() {
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
 
-    useEffect(() => {
-        if (companyName) {
-            setIsLoading(true);
-            const configs = getAllCompanyConfigs();
-            const companyUsers = configs[companyName]?.users || [];
-            setUsers(companyUsers);
-            setIsLoading(false);
-        }
-    }, [companyName, getAllCompanyConfigs]);
-
     const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
         let ineligible = 0;
@@ -307,6 +297,17 @@ function HrUserManagement() {
     const selectableUserCount = useMemo(() => users.filter(u => !u.notified).length, [users]);
     const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
+
+    useEffect(() => {
+        if (companyName) {
+            setIsLoading(true);
+            const configs = getAllCompanyConfigs();
+            const companyUsers = configs[companyName]?.users || [];
+            setUsers(companyUsers);
+            setIsLoading(false);
+        }
+    }, [companyName, getAllCompanyConfigs]);
+
 
     if (isLoading) {
         return (
@@ -642,14 +643,14 @@ function HrUserManagement() {
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button disabled={isBulkNotifyDisabled()}>
-                                    <Send className="mr-2" /> Send Invites ({selectedUsers.size})
+                                    <Send className="mr-2" /> Send Invites ({eligibleCount})
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Confirm Invitations</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        You are about to send invitations to {selectedUsers.size} user(s).
+                                        You are about to send invitations to {eligibleCount} user(s).
                                         <br/><br/>
                                         <strong className="text-foreground">Please note:</strong> Emails are not currently sent in prototype mode. This action will mark the users as "Invited".
                                     </AlertDialogDescription>
@@ -819,7 +820,7 @@ function HrUserManagement() {
                             {editedNotificationDate && isPast(editedNotificationDate) && !isToday(editedNotificationDate) && !editingUser?.notified && (
                                 <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                     <AlertCircle className="h-4 w-4" />
-                                    <div>This date is in the past. Ensure this matches the user's actual notification date as it impacts their assessment.</div>
+                                    <div>The Notification Date is in the past. If you are editing the date, Ensure this matches the user's actual notification date as it impacts their assessment.</div>
                                 </div>
                             )}
                         </div>
@@ -850,7 +851,7 @@ function HrUserManagement() {
                         {pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
-                                <div>You are changing a past date for {pastDateCount} user(s). Ensure this matches the user's actual notification date as it impacts their assessment.</div>
+                                <div>You are changing the date for {pastDateCount} user(s) whose original notification date is in the past. The Notification Date is in the past. If you are editing the date, Ensure this matches the user's actual notification date as it impacts their assessment.</div>
                             </div>
                         )}
                     </div>
