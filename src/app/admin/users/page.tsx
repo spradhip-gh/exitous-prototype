@@ -382,6 +382,8 @@ function HrUserManagement() {
                 }
                 
                 let addedCount = 0;
+                let updatedCount = 0;
+                let skippedCount = 0;
                 let newUsersList = [...users];
 
                 const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
@@ -409,24 +411,45 @@ function HrUserManagement() {
                         }
                     });
 
-                    const newUser: CompanyUser = {
+                    const userFromCsv: CompanyUser = {
                         email,
                         companyId,
                         personalEmail: row["personalEmail"]?.trim() || undefined,
                         notificationDate: format(notificationDate, 'yyyy-MM-dd'),
-                        notified: false,
+                        notified: false, // Default for new/updated users via CSV
                         prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
                     };
                     
-                     if (!newUsersList.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
-                        newUsersList.push(newUser);
+                    const existingUserIndex = newUsersList.findIndex(u => u.email.toLowerCase() === userFromCsv.email.toLowerCase());
+
+                    if (existingUserIndex !== -1) {
+                        const existingUser = newUsersList[existingUserIndex];
+                        if (existingUser.notified) {
+                            skippedCount++;
+                            continue; // Skip invited users
+                        }
+                        // Update existing, non-invited user
+                        newUsersList[existingUserIndex] = { ...existingUser, ...userFromCsv };
+                        updatedCount++;
+                    } else {
+                        // Add as a new user
+                        newUsersList.push(userFromCsv);
                         addedCount++;
                     }
                 }
                 
                 saveCompanyUsers(companyName, newUsersList);
                 setUsers(newUsersList);
-                toast({ title: "Upload Complete", description: `${addedCount} new users were added.` });
+                
+                let summary = [];
+                if (addedCount > 0) summary.push(`${addedCount} new users added.`);
+                if (updatedCount > 0) summary.push(`${updatedCount} users updated.`);
+                if (skippedCount > 0) summary.push(`${skippedCount} invited users skipped.`);
+                
+                toast({ 
+                    title: "Upload Complete", 
+                    description: summary.length > 0 ? summary.join(' ') : 'No changes were made.' 
+                });
             },
             error: (error) => {
                 toast({ title: "Upload Error", description: error.message, variant: "destructive" });
@@ -591,7 +614,7 @@ function HrUserManagement() {
 
         setUsers(updatedUsers);
         saveCompanyUsers(companyName, updatedUsers);
-        toast({ title: "Dates Updated", description: `Notification date updated for ${updatedCount} users.` });
+        toast({ title: "Dates Updated", description: `Notification date updated for ${updatedCount} ${updatedCount === 1 ? 'user' : 'users'}.` });
         
         setIsBulkEditDialogOpen(false);
         setNewBulkNotificationDate(undefined);
@@ -656,7 +679,7 @@ function HrUserManagement() {
                 <CardFooter className="border-t pt-6">
                     <div className="space-y-2">
                         <Label>Bulk Upload User Data (Required plus optional assesment fields)</Label>
-                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", "notificationDate", and other optional fields.</p>
+                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", "notificationDate", and other optional fields. This will add new users or update existing, non-invited users.</p>
                          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                          <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
@@ -907,3 +930,5 @@ function HrUserManagement() {
         </div>
     );
 }
+
+    
