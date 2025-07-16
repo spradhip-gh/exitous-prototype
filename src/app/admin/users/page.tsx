@@ -19,6 +19,17 @@ import { format, parse, isToday, isPast, isFuture } from 'date-fns';
 import Papa from 'papaparse';
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -607,9 +618,29 @@ function HrUserManagement() {
                         <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0} variant="outline">
                            <PencilRuler className="mr-2"/> Change Dates ({selectedUsers.size})
                         </Button>
-                        <Button onClick={() => handleNotifyUsers(Array.from(selectedUsers))} disabled={isBulkNotifyDisabled()}>
-                            <Send className="mr-2" /> Send Invites ({selectedUsers.size})
-                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button disabled={isBulkNotifyDisabled()}>
+                                    <Send className="mr-2" /> Send Invites ({selectedUsers.size})
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Invitations</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        You are about to send invitations to {selectedUsers.size} user(s).
+                                        <br/><br/>
+                                        <strong className="text-foreground">Please note:</strong> Emails are not currently sent in prototype mode. This action will mark the users as "Invited".
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleNotifyUsers(Array.from(selectedUsers))}>
+                                        Confirm & Send
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -667,9 +698,29 @@ function HrUserManagement() {
                                                         <TooltipTrigger asChild>
                                                             {/* The Tooltip needs a child to attach to, even if disabled. A span works well here. */}
                                                             <span tabIndex={notifyDisabled ? 0 : -1}>
-                                                                <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={notifyDisabled}>
-                                                                    <Send className="mr-2" /> Invite
-                                                                </Button>
+                                                               <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="outline" size="sm" disabled={notifyDisabled}>
+                                                                            <Send className="mr-2" /> Invite
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>Confirm Invitation</AlertDialogTitle>
+                                                                            <AlertDialogDescription>
+                                                                                This will send an invitation to {user.email}.
+                                                                                <br/><br/>
+                                                                                <strong className="text-foreground">Please note:</strong> Emails are not currently sent in prototype mode. This action will mark the user as "Invited".
+                                                                            </AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleNotifyUsers([user.email])}>
+                                                                                Confirm & Send
+                                                                            </AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
                                                             </span>
                                                         </TooltipTrigger>
                                                         {notifyDisabled && !user.notified && (
