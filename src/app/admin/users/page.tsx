@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
-import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil, Download } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil, Download, PencilRuler } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, parse, isToday, isPast } from 'date-fns';
+import { format, parse, isToday, isPast, isFuture } from 'date-fns';
 import Papa from 'papaparse';
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -260,6 +260,9 @@ function HrUserManagement() {
     const [editedPersonalEmail, setEditedPersonalEmail] = useState('');
     const [editedNotificationDate, setEditedNotificationDate] = useState<Date | undefined>();
 
+    const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
+
     useEffect(() => {
         if (companyName) {
             setIsLoading(true);
@@ -469,6 +472,33 @@ function HrUserManagement() {
         setEditingUser(null);
     };
 
+    const handleBulkDateChange = () => {
+        if (!newBulkNotificationDate || selectedUsers.size === 0 || !companyName) {
+            toast({ title: "Error", description: "No date selected or no users selected.", variant: "destructive" });
+            return;
+        }
+
+        let updatedCount = 0;
+        const updatedUsers = users.map(user => {
+            if (selectedUsers.has(user.email)) {
+                const currentDate = user.notificationDate ? parse(user.notificationDate, 'yyyy-MM-dd', new Date()) : null;
+                // Only update if the date is in the future
+                if (!currentDate || isFuture(currentDate) || isToday(currentDate)) {
+                    updatedCount++;
+                    return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
+                }
+            }
+            return user;
+        });
+
+        setUsers(updatedUsers);
+        saveCompanyUsers(companyName, updatedUsers);
+        toast({ title: "Dates Updated", description: `Notification date updated for ${updatedCount} users.` });
+        
+        setIsBulkEditDialogOpen(false);
+        setNewBulkNotificationDate(undefined);
+        setSelectedUsers(new Set());
+    };
 
     if (isLoading) {
         return (
@@ -568,14 +598,19 @@ function HrUserManagement() {
             </Card>
 
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <CardTitle>Employee List</CardTitle>
                         <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
                     </div>
-                    <Button onClick={() => handleNotifyUsers(Array.from(selectedUsers))} disabled={isBulkNotifyDisabled()}>
-                        <Send className="mr-2" /> Send Invites ({selectedUsers.size})
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0} variant="outline">
+                           <PencilRuler className="mr-2"/> Change Dates ({selectedUsers.size})
+                        </Button>
+                        <Button onClick={() => handleNotifyUsers(Array.from(selectedUsers))} disabled={isBulkNotifyDisabled()}>
+                            <Send className="mr-2" /> Send Invites ({selectedUsers.size})
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <TooltipProvider>
@@ -591,7 +626,7 @@ function HrUserManagement() {
                                         />
                                     </TableHead>
                                     <TableHead>Work Email</TableHead>
-                                    <TableHead>Invitation</TableHead>
+                                    <TableHead>Notification Date</TableHead>
                                     <TableHead>Profile Status</TableHead>
                                     <TableHead>Assessment Status</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
@@ -708,6 +743,29 @@ function HrUserManagement() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSaveChanges}>Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkEditDialogOpen} onOpenChange={setIsBulkEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Bulk Change Notification Date</DialogTitle>
+                        <DialogDescription>
+                           Select a new notification date for the {selectedUsers.size} selected users. This will only affect users whose current notification date has not passed.
+                        </DialogDescription>
+                    </DialogHeader>
+                     <div className="py-4">
+                        <Calendar
+                            mode="single"
+                            selected={newBulkNotificationDate}
+                            onSelect={setNewBulkNotificationDate}
+                            className="rounded-md border"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBulkEditDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleBulkDateChange}>Apply Date</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
