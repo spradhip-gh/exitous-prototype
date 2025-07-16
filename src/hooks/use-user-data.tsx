@@ -27,6 +27,7 @@ export interface CompanyUser {
   personalEmail?: string;
   notificationDate?: string; // Stored as 'YYYY-MM-DD'
   notified?: boolean;
+  prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>>; // HR-uploaded data
 }
 
 export interface CompanyConfig {

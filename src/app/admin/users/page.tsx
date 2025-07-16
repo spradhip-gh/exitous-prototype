@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -255,24 +255,25 @@ function HrUserManagement() {
     
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<CompanyUser | null>(null);
+    const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newCompanyId, setNewCompanyId] = useState("");
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
     
-    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<CompanyUser | null>(null);
     const [editedPersonalEmail, setEditedPersonalEmail] = useState('');
     const [editedNotificationDate, setEditedNotificationDate] = useState<Date | undefined>();
-
-    const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
-    const [isLoading, setIsLoading] = useState(true);
+
+    const selectableUserCount = useMemo(() => users.filter(u => !u.notified).length, [users]);
+    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
+    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
@@ -293,10 +294,6 @@ function HrUserManagement() {
         });
         return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
     }, [selectedUsers, users]);
-    
-    const selectableUserCount = useMemo(() => users.filter(u => !u.notified).length, [users]);
-    const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
-    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     useEffect(() => {
         if (companyName) {
@@ -380,38 +377,48 @@ function HrUserManagement() {
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
-                const requiredHeaders = ["Email Address", "Company ID", "Notification Date"];
-                const headers = results.meta.fields || [];
+                const requiredHeaders = ["email", "companyId", "notificationDate"];
+                const headers = (results.meta.fields || []).map(h => h.toLowerCase());
                 if (!requiredHeaders.every(h => headers.includes(h))) {
-                    toast({ title: "Invalid CSV format", description: `CSV must include columns: ${requiredHeaders.join(', ')}.`, variant: "destructive"});
+                    toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
                     return;
                 }
                 
                 let addedCount = 0;
                 let newUsersList = [...users];
 
+                const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+
                 for (const row of results.data as any[]) {
-                    const email = row["Email Address"]?.trim();
-                    const companyId = row["Company ID"]?.trim();
-                    const notificationDateStr = row["Notification Date"]?.trim();
+                    const email = row["email"]?.trim();
+                    const companyId = row["companyId"]?.trim();
+                    const notificationDateStr = row["notificationDate"]?.trim();
 
                     if (!email || !companyId || !notificationDateStr) {
-                         toast({ title: "Skipping Row", description: `Skipped a row due to missing required fields (Email, Company ID, Notification Date).`, variant: "destructive"});
+                         toast({ title: "Skipping Row", description: `Skipped a row due to missing required fields (email, companyId, notificationDate).`, variant: "destructive"});
                          continue;
                     }
                     
                     const notificationDate = parse(notificationDateStr, 'yyyy-MM-dd', new Date());
                     if (isNaN(notificationDate.getTime())) {
-                        toast({ title: "Skipping Row", description: `Invalid date format for ${email}. Please use YYYY-MM-DD.`, variant: "destructive"});
+                        toast({ title: "Skipping Row", description: `Invalid date format for ${email} in notificationDate. Please use YYYY-MM-DD.`, variant: "destructive"});
                         continue;
                     }
+
+                    const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
+                    optionalFields.forEach(field => {
+                        if (row[field]?.trim()) {
+                            prefilledData[field] = row[field].trim();
+                        }
+                    });
 
                     const newUser: CompanyUser = {
                         email,
                         companyId,
-                        personalEmail: row["Personal Email"]?.trim() || undefined,
+                        personalEmail: row["personalEmail"]?.trim() || undefined,
                         notificationDate: format(notificationDate, 'yyyy-MM-dd'),
-                        notified: false
+                        notified: false,
+                        prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
                     };
                     
                      if (!newUsersList.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
@@ -429,19 +436,54 @@ function HrUserManagement() {
             }
         });
         
-        // Reset file input
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["Email Address", "Company ID", "Notification Date", "Personal Email"];
+        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.setAttribute('download', 'user_upload_template.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportUsers = () => {
+        if (!users || users.length === 0) {
+            toast({ title: "No users to export", variant: "destructive" });
+            return;
+        }
+
+        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        
+        const dataToExport = users.map(user => {
+            return {
+                email: user.email,
+                companyId: user.companyId,
+                notificationDate: user.notificationDate || '',
+                notified: user.notified ? 'Yes' : 'No',
+                personalEmail: user.personalEmail || '',
+                finalDate: user.prefilledAssessmentData?.finalDate || '',
+                medicalCoverageEndDate: user.prefilledAssessmentData?.medicalCoverageEndDate || '',
+                dentalCoverageEndDate: user.prefilledAssessmentData?.dentalCoverageEndDate || '',
+                visionCoverageEndDate: user.prefilledAssessmentData?.visionCoverageEndDate || '',
+                eapCoverageEndDate: user.prefilledAssessmentData?.eapCoverageEndDate || '',
+            };
+        });
+
+        const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${companyName}_user_export.csv`);
+        link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -618,7 +660,7 @@ function HrUserManagement() {
                 <CardFooter className="border-t pt-6">
                     <div className="space-y-2">
                         <Label>Bulk Add Users</Label>
-                        <p className="text-sm text-muted-foreground">Upload a CSV file with headers: "Email Address", "Company ID", "Notification Date", "Personal Email".</p>
+                        <p className="text-sm text-muted-foreground">Upload a CSV file with headers: "email", "companyId", "notificationDate", and optional assessment fields.</p>
                          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                          <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
@@ -639,6 +681,9 @@ function HrUserManagement() {
                         <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
                     </div>
                     <div className="flex gap-2">
+                         <Button onClick={handleExportUsers} disabled={users.length === 0} variant="secondary">
+                           <Download className="mr-2"/> Export List
+                        </Button>
                         <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0} variant="outline">
                            <PencilRuler className="mr-2"/> Change Dates ({selectedUsers.size})
                         </Button>
@@ -839,7 +884,7 @@ function HrUserManagement() {
                     <DialogHeader>
                         <DialogTitle>Bulk Change Notification Date</DialogTitle>
                         <DialogDescription>
-                           Select a new notification date. This will be applied to the <strong className="text-foreground">{selectedUsers.size} selected {selectedUsers.size === 1 ? 'user' : 'users'}</strong>.
+                           Select a new notification date. This will be applied to the {selectedUsers.size} selected {selectedUsers.size === 1 ? 'user' : 'users'}.
                         </DialogDescription>
                     </DialogHeader>
                      <div className="py-4 space-y-4">
@@ -852,7 +897,7 @@ function HrUserManagement() {
                         {pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
-                                <div>You are changing the date for {pastDateCount} user(s) whose original notification date is in the past. Ensure this matches the user's actual notification date as it impacts their assessment.</div>
+                                <div>You are changing the date for {pastDateCount} {pastDateCount === 1 ? 'user' : 'users'} whose original notification date is in the past. Ensure this matches the user's actual notification date as it impacts their assessment.</div>
                             </div>
                         )}
                     </div>

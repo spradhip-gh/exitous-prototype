@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { CalendarIcon, Info, Star } from 'lucide-react';
 import { getDefaultQuestions } from '@/lib/questions';
 
@@ -250,18 +250,35 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         if (!form.formState.isDirty) {
             let initialValues: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
             
-            // Apply HR-set notification date if no saved data and not yet set
-            if (!initialValues.notificationDate && companyUser?.user.notificationDate) {
-                const date = new Date(companyUser.user.notificationDate);
-                // The date from string 'YYYY-MM-DD' is UTC, adjust for local timezone display
-                initialValues.notificationDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
-            }
-            
-            // Only apply defaults from question config if there's no saved assessment data
+            // Only apply defaults if there's no saved assessment data
             if (!assessmentData) {
+                 // 1. HR-provided pre-filled data
+                if (companyUser?.user.prefilledAssessmentData) {
+                    const prefilled = { ...companyUser.user.prefilledAssessmentData };
+                    for (const key in prefilled) {
+                        const value = prefilled[key];
+                        if (typeof value === 'string' && key.toLowerCase().includes('date')) {
+                            const date = parse(value, 'yyyy-MM-dd', new Date());
+                            if (!isNaN(date.getTime())) {
+                                prefilled[key] = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+                            }
+                        }
+                    }
+                     initialValues = { ...initialValues, ...prefilled };
+                }
+
+                // 2. HR-set notification date (overwrites if present)
+                if (companyUser?.user.notificationDate) {
+                    const date = parse(companyUser.user.notificationDate, 'yyyy-MM-dd', new Date());
+                    if(!isNaN(date.getTime())) {
+                       initialValues.notificationDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+                    }
+                }
+                
+                // 3. Question config defaults (lowest priority)
                 const getDefaults = (q: Question) => {
                     let defaults: Record<string, any> = {};
-                    if (q.defaultValue && q.defaultValue.length > 0) {
+                    if (q.defaultValue && q.defaultValue.length > 0 && !initialValues[q.id]) { // Check if not already set
                         defaults[q.id] = q.defaultValue;
                     }
                     if (q.subQuestions) {
@@ -278,8 +295,10 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                 });
                 initialValues = { ...defaultValues, ...initialValues };
             }
-            
-            form.reset(initialValues);
+
+            if (Object.keys(initialValues).length > 0) {
+              form.reset(initialValues);
+            }
         }
     }, [questions, assessmentData, form, companyUser]);
 
