@@ -42,6 +42,7 @@ const baseAssessmentFields = {
   hadEAP: z.string({ required_error: 'This field is required.' }).min(1),
   
   // Conditionally rendered fields are optional at base
+  severanceAgreementDeadline: z.date().optional(),
   relocationDate: z.date().optional(),
   workArrangementOther: z.string().optional(),
   usedLeaveManagement: z.string().optional(),

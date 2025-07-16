@@ -35,6 +35,7 @@ const LayoffDetailsSchema = z.object({
   startDate: z.string().optional().describe("The user's start date (ISO string)."),
   notificationDate: z.string().optional().describe('The date the user was notified of layoff (ISO string).'),
   finalDate: z.string().optional().describe("The user's final date of employment (ISO string)."),
+  severanceAgreementDeadline: z.string().optional().describe('The deadline to sign the severance agreement (ISO string).'),
   workState: z.string().optional().describe('The state where the user\'s work was based.'),
   relocationPaid: z.string().optional().describe('If the company paid for relocation.'),
   relocationDate: z.string().optional().describe('Date of relocation (ISO string).'),
@@ -126,6 +127,7 @@ Here are the user's exit details:
 {{#if layoffDetails.startDate}}- Employment Start Date: {{{layoffDetails.startDate}}}{{/if}}
 {{#if layoffDetails.notificationDate}}- Exit Notification Date: {{{layoffDetails.notificationDate}}}{{/if}}
 {{#if layoffDetails.finalDate}}- Final Day of Employment: {{{layoffDetails.finalDate}}}{{/if}}
+{{#if layoffDetails.severanceAgreementDeadline}}- Deadline to Sign Severance: {{{layoffDetails.severanceAgreementDeadline}}}{{/if}}
 {{#if layoffDetails.workState}}- Work Location State: {{{layoffDetails.workState}}}{{/if}}
 {{#if layoffDetails.relocationPaid}}- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}{{/if}}
 {{#if layoffDetails.relocationDate}}- Relocation Date: {{{layoffDetails.relocationDate}}}{{/if}}

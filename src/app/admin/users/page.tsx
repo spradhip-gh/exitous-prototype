@@ -275,9 +275,8 @@ function HrUserManagement() {
     const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
-    const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
+    const { eligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
-        let ineligible = 0;
         let past = 0;
         selectedUsers.forEach(email => {
             const user = users.find(u => u.email === email);
@@ -287,12 +286,10 @@ function HrUserManagement() {
                     if (user.notificationDate && isPast(parse(user.notificationDate, 'yyyy-MM-dd', new Date())) && !isToday(parse(user.notificationDate, 'yyyy-MM-dd', new Date()))) {
                         past++;
                     }
-                } else {
-                    ineligible++;
                 }
             }
         });
-        return { eligibleCount: eligible, ineligibleCount: ineligible, pastDateCount: past };
+        return { eligibleCount: eligible, pastDateCount: past };
     }, [selectedUsers, users]);
 
     useEffect(() => {
@@ -387,7 +384,7 @@ function HrUserManagement() {
                 let addedCount = 0;
                 let newUsersList = [...users];
 
-                const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+                const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
 
                 for (const row of results.data as any[]) {
                     const email = row["email"]?.trim();
@@ -442,7 +439,7 @@ function HrUserManagement() {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -459,7 +456,7 @@ function HrUserManagement() {
             return;
         }
 
-        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
         
         const dataToExport = users.map(user => {
             return {
@@ -469,6 +466,7 @@ function HrUserManagement() {
                 notified: user.notified ? 'Yes' : 'No',
                 personalEmail: user.personalEmail || '',
                 finalDate: user.prefilledAssessmentData?.finalDate || '',
+                severanceAgreementDeadline: user.prefilledAssessmentData?.severanceAgreementDeadline || '',
                 medicalCoverageEndDate: user.prefilledAssessmentData?.medicalCoverageEndDate || '',
                 dentalCoverageEndDate: user.prefilledAssessmentData?.dentalCoverageEndDate || '',
                 visionCoverageEndDate: user.prefilledAssessmentData?.visionCoverageEndDate || '',

@@ -162,6 +162,15 @@ export const getDefaultQuestions = (): Question[] => [
             },
         ]
     },
+     // Legal & Agreements
+    {
+        id: 'severanceAgreementDeadline',
+        label: 'What is the deadline to sign your severance agreement, if applicable?',
+        section: 'Legal & Agreements',
+        type: 'date',
+        isActive: true,
+        description: 'If you have a severance agreement, enter the final day you have to sign it.'
+    },
     // Systems & Benefits Access
     { 
         id: 'accessSystems', 
