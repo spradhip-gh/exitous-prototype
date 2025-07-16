@@ -263,7 +263,6 @@ function HrUserManagement() {
     
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
-    const [isLoading, setIsLoading] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -273,6 +272,7 @@ function HrUserManagement() {
 
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
+    const [isLoading, setIsLoading] = useState(true);
 
     const { eligibleCount, ineligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
@@ -654,7 +654,7 @@ function HrUserManagement() {
                                     <AlertDialogDescription>
                                         You are about to send invitations to {eligibleCount} user(s).
                                         <br/><br/>
-                                        <strong className="text-foreground">Please note:</strong> Emails are not currently sent in prototype mode. This action will mark the users as "Invited".
+                                        <strong className="text-foreground">Please note:</strong> emails are not currently sent in prototype mode. This action will mark the users as "Invited".
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -737,7 +737,7 @@ function HrUserManagement() {
                                                                             <AlertDialogDescription>
                                                                                 This will send an invitation to {user.email}.
                                                                                 <br/><br/>
-                                                                                <strong className="text-foreground">Please note:</strong> Emails are not currently sent in prototype mode. This action will mark the user as "Invited".
+                                                                                <strong className="text-foreground">Please note:</strong> emails are not currently sent in prototype mode. This action will mark the user as "Invited".
                                                                             </AlertDialogDescription>
                                                                         </AlertDialogHeader>
                                                                         <AlertDialogFooter>
@@ -839,8 +839,7 @@ function HrUserManagement() {
                     <DialogHeader>
                         <DialogTitle>Bulk Change Notification Date</DialogTitle>
                         <DialogDescription>
-                           Select a new notification date. This will be applied to the <strong className="text-foreground">{eligibleCount} uninvited users</strong> out of {selectedUsers.size} selected.
-                           {ineligibleCount > 0 && ` ${ineligibleCount} invited users will be skipped.`}
+                           Select a new notification date. This will be applied to the <strong className="text-foreground">{selectedUsers.size} selected users</strong>.
                         </DialogDescription>
                     </DialogHeader>
                      <div className="py-4 space-y-4">
