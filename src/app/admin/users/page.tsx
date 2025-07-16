@@ -26,6 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 
 // Main switcher component
@@ -555,74 +561,91 @@ function HrUserManagement() {
                     </Button>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[40px]">
-                                    <Checkbox
-                                        checked={isAllSelected}
-                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                        aria-label="Select all"
-                                        data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
-                                    />
-                                </TableHead>
-                                <TableHead>Work Email</TableHead>
-                                <TableHead>Notification</TableHead>
-                                <TableHead>Profile Status</TableHead>
-                                <TableHead>Assessment Status</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {users.length > 0 ? users.map(user => (
-                                <TableRow key={user.email} data-selected={selectedUsers.has(user.email)}>
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={selectedUsers.has(user.email)}
-                                            onCheckedChange={() => handleToggleSelection(user.email)}
-                                            aria-label={`Select ${user.email}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{user.email}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                           <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
-                                            {user.notified ? (
-                                                <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Notified</Badge>
-                                            ) : (
-                                                <Badge variant="secondary" className="w-fit">Pending</Badge>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatusBadge isComplete={!!profileCompletions[user.email]} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end items-center gap-1">
-                                            <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={isNotifyDisabled(user)}>
-                                                <Send className="mr-2" /> Notify
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Edit</span>
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
-                                                <Trash2 className="h-4 w-4" />
-                                                <span className="sr-only">Delete</span>
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
+                    <TooltipProvider>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    <TableHead className="w-[40px]">
+                                        <Checkbox
+                                            checked={isAllSelected}
+                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                            aria-label="Select all"
+                                            data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
+                                        />
+                                    </TableHead>
+                                    <TableHead>Work Email</TableHead>
+                                    <TableHead>Notification</TableHead>
+                                    <TableHead>Profile Status</TableHead>
+                                    <TableHead>Assessment Status</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {users.length > 0 ? users.map(user => {
+                                    const notifyDisabled = isNotifyDisabled(user);
+                                    return (
+                                        <TableRow key={user.email} data-selected={selectedUsers.has(user.email)}>
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={selectedUsers.has(user.email)}
+                                                    onCheckedChange={() => handleToggleSelection(user.email)}
+                                                    aria-label={`Select ${user.email}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">{user.email}</TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col">
+                                                <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
+                                                    {user.notified ? (
+                                                        <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Notified</Badge>
+                                                    ) : (
+                                                        <Badge variant="secondary" className="w-fit">Pending</Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatusBadge isComplete={!!profileCompletions[user.email]} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end items-center gap-1">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            {/* The Tooltip needs a child to attach to, even if disabled. A span works well here. */}
+                                                            <span tabIndex={notifyDisabled ? 0 : -1}>
+                                                                <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={notifyDisabled}>
+                                                                    <Send className="mr-2" /> Notify
+                                                                </Button>
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        {notifyDisabled && !user.notified && (
+                                                            <TooltipContent>
+                                                                <p>Only available on or after the notification date.</p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                                                        <Pencil className="h-4 w-4" />
+                                                        <span className="sr-only">Edit</span>
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TooltipProvider>
                 </CardContent>
             </Card>
 
