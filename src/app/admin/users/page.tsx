@@ -583,10 +583,8 @@ function HrUserManagement() {
         let updatedCount = 0;
         const updatedUsers = users.map(user => {
             if (selectedUsers.has(user.email)) {
-                if (!user.notified) {
-                    updatedCount++;
-                    return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
-                }
+                updatedCount++;
+                return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
             }
             return user;
         });
@@ -657,8 +655,8 @@ function HrUserManagement() {
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <div className="space-y-2">
-                        <Label>Bulk Add Users</Label>
-                        <p className="text-sm text-muted-foreground">Upload a CSV file with headers: "email", "companyId", "notificationDate", and optional assessment fields.</p>
+                        <Label>Bulk Upload User Data (Required plus optional assesment fields)</Label>
+                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", "notificationDate", and other optional fields.</p>
                          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                          <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
