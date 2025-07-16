@@ -847,7 +847,7 @@ function HrUserManagement() {
                             onSelect={setNewBulkNotificationDate}
                             className="rounded-md border"
                         />
-                        {newBulkNotificationDate && pastDateCount > 0 && (
+                        {pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
                                 <div>You are changing a past date for {pastDateCount} user(s). Ensure this matches their actual notification date.</div>
