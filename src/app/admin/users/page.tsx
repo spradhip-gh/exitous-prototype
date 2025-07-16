@@ -15,8 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, parse } from 'date-fns';
+import { format, parse, isToday, isPast } from 'date-fns';
 import Papa from 'papaparse';
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 // Main switcher component
@@ -233,6 +234,7 @@ function HrUserManagement() {
     const [newCompanyId, setNewCompanyId] = useState("");
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
     const [isLoading, setIsLoading] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -361,13 +363,51 @@ function HrUserManagement() {
         toast({ title: "User Removed", description: `${email} has been removed.` });
     };
 
-    const handleNotifyUser = (email: string) => {
+    const handleNotifyUsers = (emailsToNotify: string[]) => {
         if (!companyName) return;
-        const newUsers = users.map(u => u.email === email ? { ...u, notified: true } : u);
+        const newUsers = users.map(u => 
+            emailsToNotify.includes(u.email) ? { ...u, notified: true } : u
+        );
         setUsers(newUsers);
         saveCompanyUsers(companyName, newUsers);
-        toast({ title: "User Notified", description: `An email has been sent to ${email}.` });
+        toast({ title: "Users Notified", description: `Notifications sent to ${emailsToNotify.length} users.` });
+        setSelectedUsers(new Set()); // Clear selection after notifying
     }
+
+    const handleToggleSelection = (email: string) => {
+        setSelectedUsers(prev => {
+            const newSelection = new Set(prev);
+            if (newSelection.has(email)) {
+                newSelection.delete(email);
+            } else {
+                newSelection.add(email);
+            }
+            return newSelection;
+        });
+    }
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            const allUserEmails = users.map(u => u.email);
+            setSelectedUsers(new Set(allUserEmails));
+        } else {
+            setSelectedUsers(new Set());
+        }
+    }
+    
+    const isNotifyDisabled = (user: CompanyUser): boolean => {
+        if (user.notified) return true;
+        if (!user.notificationDate) return true;
+        const notificationDate = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
+        return !(isToday(notificationDate) || isPast(notificationDate));
+    };
+
+    const isBulkNotifyDisabled = () => {
+        if (selectedUsers.size === 0) return true;
+        // Check if there is at least one selected user who is eligible for notification
+        const selectedEmails = Array.from(selectedUsers);
+        return !users.some(u => selectedEmails.includes(u.email) && !isNotifyDisabled(u));
+    };
     
     if (isLoading) {
         return (
@@ -390,6 +430,9 @@ function HrUserManagement() {
             </div>
         )
     }
+
+    const isAllSelected = selectedUsers.size > 0 && selectedUsers.size === users.length;
+    const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -451,14 +494,27 @@ function HrUserManagement() {
             </Card>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Employee List</CardTitle>
-                    <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Employee List</CardTitle>
+                        <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
+                    </div>
+                    <Button onClick={() => handleNotifyUsers(Array.from(selectedUsers))} disabled={isBulkNotifyDisabled()}>
+                        <Send className="mr-2" /> Notify Selected ({selectedUsers.size})
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[40px]">
+                                    <Checkbox
+                                        checked={isAllSelected}
+                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                        aria-label="Select all"
+                                        data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
+                                    />
+                                </TableHead>
                                 <TableHead>Work Email</TableHead>
                                 <TableHead>Personal Email</TableHead>
                                 <TableHead>Company ID</TableHead>
@@ -469,11 +525,18 @@ function HrUserManagement() {
                         </TableHeader>
                         <TableBody>
                             {users.length > 0 ? users.map(user => (
-                                <TableRow key={user.email}>
+                                <TableRow key={user.email} data-selected={selectedUsers.has(user.email)}>
+                                    <TableCell>
+                                        <Checkbox
+                                            checked={selectedUsers.has(user.email)}
+                                            onCheckedChange={() => handleToggleSelection(user.email)}
+                                            aria-label={`Select ${user.email}`}
+                                        />
+                                    </TableCell>
                                     <TableCell className="font-medium">{user.email}</TableCell>
                                     <TableCell>{user.personalEmail || 'N/A'}</TableCell>
                                     <TableCell>{user.companyId}</TableCell>
-                                    <TableCell>{user.notificationDate ? format(new Date(user.notificationDate), 'PPP') : 'N/A'}</TableCell>
+                                    <TableCell>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</TableCell>
                                     <TableCell>
                                         {user.notified ? (
                                             <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1" /> Notified</Badge>
@@ -483,7 +546,7 @@ function HrUserManagement() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end items-center gap-1">
-                                            <Button variant="outline" size="sm" onClick={() => handleNotifyUser(user.email)} disabled={user.notified}>
+                                            <Button variant="outline" size="sm" onClick={() => handleNotifyUsers([user.email])} disabled={isNotifyDisabled(user)}>
                                                 <Send className="mr-2" /> Notify
                                             </Button>
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
@@ -495,7 +558,7 @@ function HrUserManagement() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                    <TableCell colSpan={7} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

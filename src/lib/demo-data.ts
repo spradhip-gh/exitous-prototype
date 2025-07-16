@@ -39,6 +39,19 @@ const initializeMasterQuestions = (): Record<string, Question> => {
     return flatMap;
 };
 
+const getFutureDate = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+const getPastDate = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+
 const initializeDb = (): DemoDatabase => {
     return {
         companyAssignments: [
@@ -49,8 +62,8 @@ const initializeDb = (): DemoDatabase => {
             'Globex Corp': {
                 questions: {},
                 users: [
-                    { email: 'employee1@globex.com', companyId: 'G123' },
-                    { email: 'employee2@globex.com', companyId: 'G456' }
+                    { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
+                    { email: 'employee2@globex.com', companyId: 'G456', notificationDate: getFutureDate(10), notified: false }
                 ],
                 customQuestions: {},
                 questionOrderBySection: {}
@@ -58,7 +71,7 @@ const initializeDb = (): DemoDatabase => {
             'Initech': {
                 questions: {},
                 users: [
-                    { email: 'employee@initech.com', companyId: 'I-99' }
+                    { email: 'employee@initech.com', companyId: 'I-99', notificationDate: new Date().toISOString().split('T')[0], notified: false }
                 ],
                 customQuestions: {},
                 questionOrderBySection: {}
