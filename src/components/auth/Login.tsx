@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, CompanyUser } from '@/hooks/use-user-data';
 import { Loader2 } from 'lucide-react';
 
 export default function Login() {
@@ -27,7 +28,7 @@ export default function Login() {
     setIsLoading(true);
 
     const allConfigs = getAllCompanyConfigs();
-    let foundUser = false;
+    let foundUser: CompanyUser | null = null;
     let companyNameForUser = '';
 
     for (const companyName in allConfigs) {
@@ -37,7 +38,7 @@ export default function Login() {
                 u => u.email.toLowerCase() === endUserEmail.toLowerCase() && u.companyId === companyId
             );
             if (user) {
-                foundUser = true;
+                foundUser = user;
                 companyNameForUser = companyName;
                 break;
             }
@@ -47,7 +48,15 @@ export default function Login() {
     setTimeout(() => {
         setIsLoading(false);
         if (foundUser) {
-            login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
+            if (foundUser.notified) {
+                login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
+            } else {
+                 toast({
+                    title: "Access Denied",
+                    description: "You have not been invited to access the portal yet. Please contact your HR manager.",
+                    variant: "destructive"
+                });
+            }
         } else {
             toast({
                 title: "Login Failed",
