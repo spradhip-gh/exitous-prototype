@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
-import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Upload, Send, Calendar as CalendarIcon, CheckCircle, Pencil, Download } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/use-auth";
@@ -375,6 +375,18 @@ function HrUserManagement() {
         }
     };
 
+    const handleDownloadTemplate = () => {
+        const headers = ["Email Address", "Company ID", "Notification Date", "Personal Email"];
+        const csv = headers.join(',');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', 'user_upload_template.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleDeleteUser = (email: string) => {
         if (!companyName) return;
         const newUsers = users.filter(u => u.email !== email);
@@ -543,9 +555,14 @@ function HrUserManagement() {
                         <Label>Bulk Add Users</Label>
                         <p className="text-sm text-muted-foreground">Upload a CSV file with headers: "Email Address", "Company ID", "Notification Date", "Personal Email".</p>
                          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                           <Upload className="mr-2"/> Upload CSV
-                        </Button>
+                         <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                               <Upload className="mr-2"/> Upload CSV
+                            </Button>
+                             <Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground">
+                                <Download className="mr-2" /> Download Template
+                            </Button>
+                         </div>
                     </div>
                 </CardFooter>
             </Card>
