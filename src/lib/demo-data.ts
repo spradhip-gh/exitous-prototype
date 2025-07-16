@@ -64,7 +64,7 @@ const initializeDb = (): DemoDatabase => {
                 questions: {},
                 users: [
                     { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
-                    { email: 'employee2@globex.com', companyId: 'G456', notificationDate: getFutureDate(10), notified: false },
+                    { email: 'employee2@globex.com', companyId: 'G456', notificationDate: getPastDate(2), notified: false },
                     { email: 's.smith@globex.com', companyId: 'G789', notificationDate: getFutureDate(12), notified: false },
                     { email: 'p.jones@globex.com', companyId: 'G101', notificationDate: getFutureDate(15), notified: false },
                     { email: 'a.williams@globex.com', companyId: 'G112', notificationDate: getFutureDate(20), notified: false },
