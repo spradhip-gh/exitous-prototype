@@ -853,7 +853,7 @@ function HrUserManagement() {
                         {pastDateCount > 0 && (
                              <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
                                 <AlertCircle className="h-4 w-4" />
-                                <div>You are changing the date for {pastDateCount} user(s) whose original notification date is in the past. ensure this matches the user's actual notification date as it impacts their assessment.</div>
+                                <div>You are changing the date for {pastDateCount} user(s) whose original notification date is in the past. Ensure this matches the user's actual notification date as it impacts their assessment.</div>
                             </div>
                         )}
                     </div>
