@@ -38,6 +38,7 @@ export interface Resource {
   description: string;
   fileName: string;
   category: 'Benefits' | 'Policies' | 'Career' | 'Other';
+  content?: string;
 }
 
 export interface CompanyConfig {
