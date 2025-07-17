@@ -18,6 +18,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
 
   useEffect(() => {
     const fetchSummary = async () => {
+      // Robust check to ensure content is a non-empty string.
       if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
         setError("This document does not have content available for summarization.");
         setIsLoading(false);
