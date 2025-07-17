@@ -309,7 +309,8 @@ function HrFormEditor() {
 
             setOrderedSections(sections);
         }
-    }, [companyName, isUserDataLoading, getCompanyConfig, getAllCompanyConfigs, masterQuestions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [companyName, isUserDataLoading, getCompanyConfig, JSON.stringify(getAllCompanyConfigs()), JSON.stringify(masterQuestions)]);
 
     const handleToggleQuestion = (questionId: string) => {
         const newSections = JSON.parse(JSON.stringify(orderedSections));
@@ -728,7 +729,6 @@ function AdminFormEditor() {
         if (!isLoading && Object.keys(masterQuestions).length > 0) {
             updateOrderedSectionsAndSave(masterQuestions, false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoading, JSON.stringify(masterQuestions), updateOrderedSectionsAndSave]);
 
     const handleEditClick = (question: Question) => {
