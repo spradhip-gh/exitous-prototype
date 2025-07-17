@@ -3,13 +3,14 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, User, FileText } from 'lucide-react';
+import { LayoutDashboard, User, FileText, Library } from 'lucide-react';
 
 export default function DashboardNav() {
   const pathname = usePathname();
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard/resources', label: 'Resources', icon: Library },
     { href: '/dashboard/profile', label: 'Edit Profile', icon: User },
     { href: '/dashboard/assessment', label: 'Edit Assessment', icon: FileText },
   ];

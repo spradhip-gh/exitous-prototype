@@ -32,11 +32,20 @@ export interface CompanyUser {
   prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>>; // HR-uploaded data
 }
 
+export interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  fileName: string;
+  category: 'Benefits' | 'Policies' | 'Career' | 'Other';
+}
+
 export interface CompanyConfig {
   questions: Record<string, Partial<Question>>; // Overrides for master questions
   users: CompanyUser[];
   customQuestions?: Record<string, Question>;
   questionOrderBySection?: Record<string, string[]>;
+  resources?: Resource[];
 }
 
 export interface CompanyAssignment {
@@ -254,6 +263,13 @@ export function useUserData() {
     saveCompanyConfigsToDb(newConfigs);
     setCompanyConfigsState(newConfigs);
   }, [companyConfigs]);
+
+  const saveCompanyResources = useCallback((companyName: string, resources: Resource[]) => {
+    const config = companyConfigs[companyName] || { questions: {}, users: [] };
+    const newConfigs = { ...companyConfigs, [companyName]: { ...config, resources }};
+    saveCompanyConfigsToDb(newConfigs);
+    setCompanyConfigsState(newConfigs);
+  }, [companyConfigs]);
   
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
     return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
@@ -276,7 +292,7 @@ export function useUserData() {
     setCompanyAssignmentsState(newAssignments);
 
     if (!companyConfigs[assignment.companyName]) {
-      const newConfigs = { ...companyConfigs, [assignment.companyName]: { questions: {}, users: [], customQuestions: {}, questionOrderBySection: {} } };
+      const newConfigs = { ...companyConfigs, [assignment.companyName]: { questions: {}, users: [], customQuestions: {}, questionOrderBySection: {}, resources: [] } };
       saveCompanyConfigsToDb(newConfigs);
       setCompanyConfigsState(newConfigs);
     }
@@ -415,6 +431,7 @@ export function useUserData() {
     completedTasks,
     taskDateOverrides,
     isLoading,
+    isUserDataLoading: isLoading,
     masterQuestions,
     companyAssignments,
     companyAssignmentForHr,
@@ -425,7 +442,6 @@ export function useUserData() {
     addCompanyAssignment,
     deleteCompanyAssignment,
     updateCompanyAssignment,
-    companyAssignments, // Exposing the state directly
     getCompanyForHr,
     saveProfileData,
     saveAssessmentData,
@@ -435,6 +451,7 @@ export function useUserData() {
     saveMasterQuestions,
     saveCompanyConfig,
     saveCompanyUsers,
+    saveCompanyResources,
     getCompanyConfig,
     getAllCompanyConfigs,
     addPlatformUser,
@@ -442,5 +459,3 @@ export function useUserData() {
     getPlatformUserRole,
   };
 }
-
-    

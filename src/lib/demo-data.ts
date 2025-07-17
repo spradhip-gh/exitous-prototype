@@ -1,5 +1,5 @@
 
-import type { CompanyAssignment, CompanyConfig, PlatformUser } from '@/hooks/use-user-data';
+import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
 import { getDefaultQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
 
@@ -85,7 +85,11 @@ const initializeDb = (): DemoDatabase => {
                         lastUpdated: new Date().toISOString()
                     }
                 },
-                questionOrderBySection: {}
+                questionOrderBySection: {},
+                resources: [
+                    {id: 'globex-resource-1', title: '2024 Benefits Summary', description: 'A complete overview of your employee benefits for 2024.', fileName: 'Globex_Benefits_Summary_2024.pdf', category: 'Benefits'},
+                    {id: 'globex-resource-2', title: 'Work From Home Policy', description: 'Official company policy regarding remote and hybrid work arrangements.', fileName: 'Work_From_Home_Policy.pdf', category: 'Policies'},
+                ],
             },
             'Initech': {
                 questions: {},
@@ -93,7 +97,8 @@ const initializeDb = (): DemoDatabase => {
                     { email: 'employee@initech.com', companyId: 'I-99', notificationDate: new Date().toISOString().split('T')[0], notified: false }
                 ],
                 customQuestions: {},
-                questionOrderBySection: {}
+                questionOrderBySection: {},
+                resources: [],
             }
         },
         platformUsers: [
