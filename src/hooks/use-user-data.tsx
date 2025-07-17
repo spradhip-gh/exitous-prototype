@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +13,7 @@ import {
   getMasterQuestions, saveMasterQuestions as saveMasterQuestionsToDb,
   getAssessmentCompletions, saveAssessmentCompletions,
   getProfileCompletions, saveProfileCompletions,
+  getSeededDataForUser,
 } from '@/lib/demo-data';
 
 
@@ -124,11 +126,22 @@ export function useUserData() {
   useEffect(() => {
     setIsLoading(true);
     try {
-      // Load user-specific data from localStorage
-      const profileJson = localStorage.getItem(profileKey);
+      let profileJson = localStorage.getItem(profileKey);
+      let assessmentJson = localStorage.getItem(assessmentKey);
+
+      // Check for seeded data for this specific user if their localStorage is empty
+      if (auth?.email && !profileJson && !assessmentJson) {
+          const seeded = getSeededDataForUser(auth.email);
+          if (seeded) {
+              profileJson = JSON.stringify(seeded.profile);
+              assessmentJson = JSON.stringify(seeded.assessment);
+              localStorage.setItem(profileKey, profileJson);
+              localStorage.setItem(assessmentKey, assessmentJson);
+          }
+      }
+      
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
 
-      const assessmentJson = localStorage.getItem(assessmentKey);
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
         const convertDates = (obj: any) => {

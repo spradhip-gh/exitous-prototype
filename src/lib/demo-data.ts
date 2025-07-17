@@ -1,6 +1,7 @@
 
 import type { CompanyAssignment, CompanyConfig, PlatformUser } from '@/hooks/use-user-data';
 import { getDefaultQuestions, type Question } from './questions';
+import type { ProfileData, AssessmentData } from './schemas';
 
 // This file acts as a persistent in-memory "database" for the demo.
 // By attaching the data to the global object, it persists across hot-reloads
@@ -14,6 +15,8 @@ interface DemoDatabase {
     masterQuestions: Record<string, Question>;
     profileCompletions: Record<string, boolean>;
     assessmentCompletions: Record<string, boolean>;
+    // --- Seeded localStorage data for specific demo users ---
+    seededData: Record<string, { profile: ProfileData; assessment: AssessmentData }>;
 }
 
 // Augment the global type to include our custom property
@@ -92,6 +95,46 @@ const initializeDb = (): DemoDatabase => {
         assessmentCompletions: {
             'employee1@globex.com': true,
         },
+        seededData: {
+            'employee1@globex.com': {
+                profile: {
+                  birthYear: 1990,
+                  state: 'California',
+                  gender: 'Female',
+                  maritalStatus: 'Single',
+                  hasChildrenUnder13: 'No',
+                  hasExpectedChildren: 'No',
+                  impactedPeopleCount: '1 - 3',
+                  livingStatus: 'Renter',
+                  citizenshipStatus: 'U.S. citizen',
+                  pastLifeEvents: ['None of the above'],
+                  hasChildrenAges18To26: 'No',
+                },
+                assessment: {
+                  workStatus: 'Full-time employee',
+                  startDate: new Date('2020-01-15'),
+                  notificationDate: new Date(getPastDate(5)),
+                  finalDate: new Date(getFutureDate(25)),
+                  severanceAgreementDeadline: new Date(getFutureDate(40)),
+                  workState: 'California',
+                  relocationPaid: 'No',
+                  unionMember: 'No',
+                  workArrangement: 'Hybrid',
+                  workVisa: 'None of the above',
+                  onLeave: ['None of the above'],
+                  accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
+                  emailAccessEndDate: new Date(getFutureDate(32)),
+                  hrPayrollSystemAccessEndDate: new Date(getFutureDate(60)),
+                  hadMedicalInsurance: 'Yes',
+                  medicalCoverage: 'Only me',
+                  medicalCoverageEndDate: new Date(getFutureDate(25)),
+                  hadDentalInsurance: 'No',
+                  hadVisionInsurance: 'No',
+                  hadEAP: 'Yes',
+                  eapCoverageEndDate: new Date(getFutureDate(85)),
+                } as AssessmentData, // Cast to avoid TS date/string conflicts
+            },
+        }
     }
 };
 
@@ -119,3 +162,5 @@ export const saveProfileCompletions = (data: Record<string, boolean>) => { db.pr
 
 export const getAssessmentCompletions = () => db.assessmentCompletions;
 export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db.assessmentCompletions = data; };
+
+export const getSeededDataForUser = (email: string) => db.seededData[email];
