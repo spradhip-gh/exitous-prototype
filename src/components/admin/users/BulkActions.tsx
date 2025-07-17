@@ -40,7 +40,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
                 }
             }
         });
-        return { eligibleCount, pastDateCount };
+        return { eligibleCount: eligible, pastDateCount: past };
     }, [selectedUsers, users]);
 
     const isBulkNotifyDisabled = eligibleCount === 0;
