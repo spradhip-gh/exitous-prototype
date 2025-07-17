@@ -728,7 +728,8 @@ function AdminFormEditor() {
         if (!isLoading && Object.keys(masterQuestions).length > 0) {
             updateOrderedSectionsAndSave(masterQuestions, false);
         }
-    }, [isLoading, masterQuestions, updateOrderedSectionsAndSave]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoading, JSON.stringify(masterQuestions), updateOrderedSectionsAndSave]);
 
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question }); setIsNewQuestion(false); setIsEditing(true); setIsCreatingNewSection(false); setNewSectionName("");
@@ -901,5 +902,3 @@ function AdminFormEditor() {
         </div></div>
     );
 }
-
-    
