@@ -5,17 +5,24 @@ import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Download } from 'lucide-react';
+import { format, parse } from 'date-fns';
+
 
 interface ExportableUser {
   email: string;
   role: string;
   company: string;
   companyId?: string;
+  notificationDate?: string;
+  notified?: string;
+  profileStatus?: string;
+  assessmentStatus?: string;
 }
 
 export default function ExportUsersPage() {
-  const { platformUsers, companyAssignments, getAllCompanyConfigs } = useUserData();
+  const { platformUsers, companyAssignments, getAllCompanyConfigs, profileCompletions, assessmentCompletions } = useUserData();
 
   const allUsers = useMemo(() => {
     const users: ExportableUser[] = [];
@@ -28,6 +35,10 @@ export default function ExportUsersPage() {
         role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
         company: 'Platform',
         companyId: 'N/A',
+        notificationDate: 'N/A',
+        notified: 'N/A',
+        profileStatus: 'N/A',
+        assessmentStatus: 'N/A',
       });
     });
 
@@ -38,6 +49,10 @@ export default function ExportUsersPage() {
         role: 'HR Manager',
         company: assignment.companyName,
         companyId: 'N/A',
+        notificationDate: 'N/A',
+        notified: 'N/A',
+        profileStatus: 'N/A',
+        assessmentStatus: 'N/A',
       });
     });
 
@@ -51,6 +66,10 @@ export default function ExportUsersPage() {
             role: 'End-User',
             company: companyName,
             companyId: user.companyId,
+            notificationDate: user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A',
+            notified: user.notified ? 'Invited' : 'Pending',
+            profileStatus: profileCompletions[user.email] ? 'Completed' : 'Pending',
+            assessmentStatus: assessmentCompletions[user.email] ? 'Completed' : 'Pending',
           });
         }
       });
@@ -65,10 +84,10 @@ export default function ExportUsersPage() {
         return a.email.localeCompare(b.email);
     });
 
-  }, [platformUsers, companyAssignments, getAllCompanyConfigs]);
+  }, [platformUsers, companyAssignments, getAllCompanyConfigs, profileCompletions, assessmentCompletions]);
 
   const handleExportCSV = () => {
-    const headers = ['Email Address', 'Role', 'Company', 'Company ID'];
+    const headers = ['Email Address', 'Role', 'Company', 'Company ID', 'Notification Date', 'Invitation Status', 'Profile Status', 'Assessment Status'];
     const csvRows = [
       headers.join(','),
       ...allUsers.map(user => 
@@ -76,7 +95,11 @@ export default function ExportUsersPage() {
           `"${user.email}"`,
           `"${user.role}"`,
           `"${user.company}"`,
-          `"${user.companyId || 'N/A'}"`
+          `"${user.companyId || 'N/A'}"`,
+          `"${user.notificationDate || 'N/A'}"`,
+          `"${user.notified || 'N/A'}"`,
+          `"${user.profileStatus || 'N/A'}"`,
+          `"${user.assessmentStatus || 'N/A'}"`,
         ].join(',')
       )
     ];
@@ -94,9 +117,22 @@ export default function ExportUsersPage() {
     document.body.removeChild(link);
   };
 
+  const getStatusBadge = (status: string | undefined) => {
+    if (!status || status === 'N/A') return 'N/A';
+    
+    switch (status) {
+        case 'Completed':
+        case 'Invited':
+            return <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">{status}</Badge>;
+        case 'Pending':
+        default:
+            return <Badge variant="outline">{status}</Badge>;
+    }
+  }
+
   return (
     <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="mx-auto max-w-6xl space-y-8">
         <div className="flex justify-between items-start">
             <div className="space-y-2">
                 <h1 className="font-headline text-3xl font-bold">Export User Data</h1>
@@ -122,7 +158,10 @@ export default function ExportUsersPage() {
                             <TableHead>Email Address</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Company</TableHead>
-                            <TableHead>Company ID</TableHead>
+                            <TableHead>Notification Date</TableHead>
+                            <TableHead>Invited</TableHead>
+                            <TableHead>Profile</TableHead>
+                            <TableHead>Assessment</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -131,11 +170,14 @@ export default function ExportUsersPage() {
                                 <TableCell className="font-medium">{user.email}</TableCell>
                                 <TableCell>{user.role}</TableCell>
                                 <TableCell>{user.company}</TableCell>
-                                <TableCell>{user.companyId || 'N/A'}</TableCell>
+                                <TableCell>{user.notificationDate}</TableCell>
+                                <TableCell>{getStatusBadge(user.notified)}</TableCell>
+                                <TableCell>{getStatusBadge(user.profileStatus)}</TableCell>
+                                <TableCell>{getStatusBadge(user.assessmentStatus)}</TableCell>
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center text-muted-foreground">No users found.</TableCell>
+                                <TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -146,5 +188,3 @@ export default function ExportUsersPage() {
     </div>
   );
 }
-
-    
