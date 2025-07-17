@@ -54,7 +54,8 @@ export default function ResourcesPage() {
   }, [resources]);
 
   const handleSummarize = async (resource: Resource) => {
-    if (!resource.content) {
+    // More robust check to ensure content is a non-empty string.
+    if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
       setSummaryTitle(resource.title);
       setSummaryError("This document does not have content available for summarization.");
       setIsSummaryOpen(true);
