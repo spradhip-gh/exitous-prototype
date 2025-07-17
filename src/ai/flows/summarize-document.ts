@@ -39,6 +39,12 @@ const documentSummarizationFlow = ai.defineFlow(
     outputSchema: DocumentSummarizationOutputSchema,
   },
   async (input) => {
+    // Add a guard to prevent calling the prompt with invalid data.
+    if (!input || typeof input !== 'string' || input.trim() === '') {
+        console.warn('Document summarization flow called with empty or invalid input.');
+        return 'The document is empty or could not be read.';
+    }
+
     const { output } = await prompt(input);
     return output!;
   }
