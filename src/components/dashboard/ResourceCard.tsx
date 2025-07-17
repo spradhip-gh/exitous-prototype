@@ -25,6 +25,8 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       }
 
       try {
+        setIsLoading(true);
+        setError('');
         const result = await summarizeDocument(resource.content);
         setSummary(result);
       } catch (err) {
