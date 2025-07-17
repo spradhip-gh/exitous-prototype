@@ -10,9 +10,9 @@ export default function DashboardNav() {
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/dashboard/resources', label: 'Resources', icon: Library },
     { href: '/dashboard/profile', label: 'Edit Profile', icon: User },
     { href: '/dashboard/assessment', label: 'Edit Assessment', icon: FileText },
+    { href: '/dashboard/resources', label: 'Resources', icon: Library },
   ];
 
   return (
