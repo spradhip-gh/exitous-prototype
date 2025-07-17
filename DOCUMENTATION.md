@@ -30,7 +30,7 @@ npm install \
   @radix-ui/react-tabs @radix-ui/react-toast @radix-ui/react-tooltip \
   class-variance-authority clsx tailwind-merge tailwindcss-animate \
   lucide-react react-hook-form @hookform/resolvers zod date-fns react-day-picker \
-  @dnd-kit/core @dnd-kit/sortable
+  @dnd-kit/core @dnd-kit/sortable papaparse
 ```
 
 ### 1.3. Install AI Dependencies
@@ -104,6 +104,7 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Create an `AssessmentForm` component.
     -   Dynamically build the form and its validation schema using the questions provided by `useUserData.getCompanyConfig()`. This ensures company-specific customizations are applied.
     -   Implement conditional logic to show/hide sub-questions based on the parent question's answer (e.g., show "relocation date" only if "relocation paid" is "Yes").
+    -   The form should automatically populate with any data pre-filled by an HR manager (e.g., final employment date).
 -   **Dashboard (`/dashboard`):**
     -   Create a `ProgressTracker` component to show before both the profile and assessment are complete. It should disable the "Exit Details" button until the profile is done.
     -   Create the `TimelineDashboard` component to display the AI-generated recommendations after both forms are complete. This component fetches data from the Genkit flow.
@@ -121,8 +122,10 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Implement a form to add new companies and assign HR Managers.
 -   **User Management (`/admin/users`):**
     -   Build a page for Admins/HR to add or remove end-users for a specific company. Display the user's assessment completion status.
+    -   **HR View:** Provide functionality to add users individually or via a CSV bulk upload. The bulk upload supports pre-filling optional assessment data (like severance deadlines and coverage end dates) and updating existing non-invited users.
 -   **Export (`/admin/export`):**
     -   Implement a page that compiles a list of all users from all sources (`platformUsers`, `companyAssignments`, and end-users from all `companyConfigs`).
+    -   Display key user statuses, such as invitation status, profile completion, and assessment completion. For the Admin view, show a simplified "Past" or "Future" indicator for notification dates.
     -   Provide an "Export to CSV" function that generates and triggers a download of the user list.
 
 ## 5. AI Integration with Genkit
@@ -131,12 +134,13 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
 
 In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that generates a personalized action plan for the user.
 -   **Input/Output Schemas:** Use `zod` to define strongly-typed input and output schemas.
-    -   `PersonalizedRecommendationsInputSchema`: Defines the expected structure of the user's `profileData` and `layoffDetails`.
+    -   `PersonalizedRecommendationsInputSchema`: Defines the expected structure of the user's `profileData` and `layoffDetails`, including fields like `severanceAgreementDeadline`.
     -   `PersonalizedRecommendationsOutputSchema`: Defines the desired output, which is a list of `RecommendationItem` objects. This tells the LLM to structure its response as a JSON array.
 -   **Prompt Engineering:**
     -   Write a detailed system prompt instructing the LLM to act as an expert career counselor.
     -   Use Handlebars templating (`{{{...}}}`) to dynamically insert the user's data into the prompt.
     -   Explicitly ask the model to provide a unique `taskId`, `task`, `category`, `timeline`, `details`, and an optional `endDate` for each recommendation, and to sort the list by urgency.
--   **Flow Function:** Export an async wrapper function (`getPersonalizedRecommendations`) that calls the Genkit flow. This function will be used by the `TimelineDashboard` component to fetch the recommendations.
+-   **Flow Function:** Export an async wrapper function (`getPersonalizedRecommendations`) that calls the Genkit flow.
+    -   **Resiliency:** Implement a retry mechanism within the flow to handle temporary "503 Service Unavailable" errors from the AI model, making the feature more robust. This function will be used by the `TimelineDashboard` component to fetch the recommendations.
 
 This guide provides a comprehensive roadmap to recreate the core functionality of the Exitbetter application. Each step involves creating components, defining logic, and styling according to the project's design guidelines.
