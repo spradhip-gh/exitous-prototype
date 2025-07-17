@@ -72,7 +72,19 @@ const initializeDb = (): DemoDatabase => {
                     { email: 'p.jones@globex.com', companyId: 'G101', notificationDate: getFutureDate(15), notified: false },
                     { email: 'a.williams@globex.com', companyId: 'G112', notificationDate: getFutureDate(20), notified: false },
                 ],
-                customQuestions: {},
+                customQuestions: {
+                    'globex-corp-custom-1': {
+                        id: 'globex-corp-custom-1',
+                        label: 'Have you already booked any future non-refundable business trips?',
+                        section: 'Work Circumstances',
+                        type: 'radio',
+                        isActive: true,
+                        isCustom: true,
+                        options: ['Yes', 'No'],
+                        defaultValue: 'No',
+                        lastUpdated: new Date().toISOString()
+                    }
+                },
                 questionOrderBySection: {}
             },
             'Initech': {
