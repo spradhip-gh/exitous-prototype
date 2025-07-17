@@ -1,24 +1,13 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData, Resource } from '@/hooks/use-user-data';
-import { summarizeDocument } from '@/ai/flows/summarize-document';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Library, Briefcase, FileText, Star, Sparkles, Loader2 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import { Alert, AlertTitle } from '@/components/ui/alert';
-
+import { Library, Briefcase, FileText, Star } from 'lucide-react';
+import ResourceCard from '@/components/dashboard/ResourceCard';
 
 const categoryIcons: { [key in Resource['category']]: React.ElementType } = {
   Benefits: Briefcase,
@@ -30,12 +19,6 @@ const categoryIcons: { [key in Resource['category']]: React.ElementType } = {
 export default function ResourcesPage() {
   const { auth } = useAuth();
   const { getAllCompanyConfigs } = useUserData();
-
-  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const [summaryContent, setSummaryContent] = useState('');
-  const [summaryTitle, setSummaryTitle] = useState('');
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [summaryError, setSummaryError] = useState('');
 
   const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : undefined;
   const resources = companyConfig?.resources || [];
@@ -52,32 +35,6 @@ export default function ResourcesPage() {
     });
     return Object.entries(categories).filter(([, resources]) => resources.length > 0);
   }, [resources]);
-
-  const handleSummarize = async (resource: Resource) => {
-    // More robust check to ensure content is a non-empty string.
-    if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
-      setSummaryTitle(resource.title);
-      setSummaryError("This document does not have content available for summarization.");
-      setIsSummaryOpen(true);
-      return;
-    }
-
-    setIsSummarizing(true);
-    setSummaryTitle(resource.title);
-    setSummaryError('');
-    setSummaryContent('');
-    setIsSummaryOpen(true);
-
-    try {
-      const summary = await summarizeDocument(resource.content);
-      setSummaryContent(summary);
-    } catch (error) {
-      console.error("Summarization failed:", error);
-      setSummaryError("Sorry, we couldn't generate a summary for this document at the moment. Please try again later.");
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
 
 
   if (resources.length === 0) {
@@ -101,84 +58,36 @@ export default function ResourcesPage() {
   }
 
   return (
-    <>
-      <div className="p-4 md:p-8">
-        <div className="mx-auto max-w-4xl space-y-6">
-          <div>
-            <h1 className="font-headline text-3xl font-bold">Company Resources</h1>
-            <p className="text-muted-foreground">
-              Helpful documents and links provided by {auth?.companyName}.
-            </p>
-          </div>
-
-          <Tabs defaultValue={categorizedResources[0]?.[0] || 'All'} className="w-full">
-            <TabsList>
-              {categorizedResources.map(([category]) => (
-                <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-              ))}
-            </TabsList>
-            {categorizedResources.map(([category, resources]) => {
-              const Icon = categoryIcons[category];
-              return (
-                <TabsContent key={category} value={category}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><Icon /> {category}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {resources.map(resource => (
-                        <div key={resource.id} className="flex flex-col sm:flex-row items-start justify-between gap-4 rounded-lg border p-4">
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{resource.title}</h3>
-                            <p className="text-sm text-muted-foreground">{resource.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">File: {resource.fileName}</p>
-                          </div>
-                          <div className="flex gap-2 self-start sm:self-center">
-                            <Button variant="secondary" size="sm" onClick={() => handleSummarize(resource)}>
-                                <Sparkles className="mr-2" /> Summarize
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={`/resources/${resource.fileName}`} download>
-                                <Download className="mr-2" /> Download
-                              </a>
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              );
-            })}
-          </Tabs>
+    <div className="p-4 md:p-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <h1 className="font-headline text-3xl font-bold">Company Resources</h1>
+          <p className="text-muted-foreground">
+            Helpful documents and links provided by {auth?.companyName}.
+          </p>
         </div>
-      </div>
-      <AlertDialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Summary for: {summaryTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              This is an AI-generated summary. For official details, please refer to the original document.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto pr-4">
-              {isSummarizing && (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+
+        <Tabs defaultValue={categorizedResources[0]?.[0] || 'All'} className="w-full">
+          <TabsList>
+            {categorizedResources.map(([category]) => (
+              <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+            ))}
+          </TabsList>
+          {categorizedResources.map(([category, resources]) => {
+            const Icon = categoryIcons[category];
+            return (
+              <TabsContent key={category} value={category}>
+                <div className="space-y-4">
+                  <h2 className="font-headline text-2xl flex items-center gap-2 pt-4"><Icon /> {category}</h2>
+                  {resources.map(resource => (
+                    <ResourceCard key={resource.id} resource={resource} />
+                  ))}
                 </div>
-              )}
-              {summaryError && (
-                 <Alert variant="destructive">
-                    <AlertTitle>{summaryError}</AlertTitle>
-                  </Alert>
-              )}
-              {!isSummarizing && summaryContent && (
-                <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summaryContent.replace(/\n/g, '<br />') }} />
-              )}
-          </div>
-           <AlertDialogCancel>Close</AlertDialogCancel>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      </div>
+    </div>
   );
 }
