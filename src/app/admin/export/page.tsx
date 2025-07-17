@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Download } from 'lucide-react';
-import { format, parse } from 'date-fns';
+import { format, parse, isPast } from 'date-fns';
 
 
 interface ExportableUser {
@@ -61,12 +61,18 @@ export default function ExportUsersPage() {
       config.users?.forEach(user => {
         // Avoid duplicating users who might have multiple roles, though the current data model makes this unlikely.
         if (!users.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
+          let notificationDateDisplay = 'N/A';
+            if (user.notificationDate) {
+                const date = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
+                notificationDateDisplay = isPast(date) ? 'Past' : 'Future';
+            }
+            
           users.push({
             email: user.email,
             role: 'End-User',
             company: companyName,
             companyId: user.companyId,
-            notificationDate: user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A',
+            notificationDate: notificationDateDisplay,
             notified: user.notified ? 'Invited' : 'Pending',
             profileStatus: profileCompletions[user.email] ? 'Completed' : 'Pending',
             assessmentStatus: assessmentCompletions[user.email] ? 'Completed' : 'Pending',
@@ -88,9 +94,33 @@ export default function ExportUsersPage() {
 
   const handleExportCSV = () => {
     const headers = ['Email Address', 'Role', 'Company', 'Company ID', 'Notification Date', 'Invitation Status', 'Profile Status', 'Assessment Status'];
+    
+    // Re-fetch and format data specifically for CSV export
+    const allCompanyConfigs = getAllCompanyConfigs();
+    const endUsersForCsv = Object.entries(allCompanyConfigs).flatMap(([companyName, config]) => 
+        config.users?.map(user => ({
+            email: user.email,
+            role: 'End-User',
+            company: companyName,
+            companyId: user.companyId,
+            notificationDate: user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A',
+            notified: user.notified ? 'Invited' : 'Pending',
+            profileStatus: profileCompletions[user.email] ? 'Completed' : 'Pending',
+            assessmentStatus: assessmentCompletions[user.email] ? 'Completed' : 'Pending',
+        })) || []
+    );
+
+    const dataToExport = allUsers.map(user => {
+        if(user.role === 'End-User') {
+            return endUsersForCsv.find(u => u.email === user.email);
+        }
+        return user;
+    }).filter(Boolean);
+
+
     const csvRows = [
       headers.join(','),
-      ...allUsers.map(user => 
+      ...dataToExport.map(user => 
         [
           `"${user.email}"`,
           `"${user.role}"`,
