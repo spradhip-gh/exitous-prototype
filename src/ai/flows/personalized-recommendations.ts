@@ -164,8 +164,24 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     inputSchema: PersonalizedRecommendationsInputSchema,
     outputSchema: PersonalizedRecommendationsOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input, streamingCallback) => {
+    const maxRetries = 3;
+    let attempt = 0;
+    while (attempt < maxRetries) {
+      try {
+        const {output} = await prompt(input);
+        return output!;
+      } catch (error: any) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          console.error(`Flow failed after ${maxRetries} attempts.`, error);
+          throw error;
+        }
+        console.warn(`Attempt ${attempt} failed. Retrying in 2 seconds...`, error.message);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    // This should not be reached, but is a failsafe.
+    throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
