@@ -28,6 +28,17 @@ This file contains a series of prompts designed to guide an AI coding assistant 
 
 ---
 
+### Prompt 2.5: Define Master Questions
+
+**Your Prompt:**
+"Let's define the master list of default questions for the assessment. Create the file `src/lib/questions.ts`. It should export a function `getDefaultQuestions` that returns an array of `Question` objects.
+
+This function will be the single source of truth for the default assessment structure. Organize the questions into the following sections: 'Work & Employment Details', 'Work Circumstances', 'Legal & Agreements', and 'Systems & Benefits Access'.
+
+Ensure you include all sub-questions and their trigger logic. For example, the 'Relocation Date' question should only appear when the user answers 'Yes' to the relocation question. Similarly, insurance coverage questions should only appear if the user had that type of insurance."
+
+---
+
 ### Prompt 3: Login and Basic Page Routing
 
 **Your Prompt:**
@@ -44,7 +55,7 @@ This file contains a series of prompts designed to guide an AI coding assistant 
 **Your Prompt:**
 "Let's build the core data entry forms for the end-user.
 
-1.  **Schemas**: Create `src/lib/schemas.ts` to define the Zod validation schemas for the Profile and Assessment forms.
+1.  **Schemas**: Create `src/lib/schemas.ts` to define the Zod validation schemas for the Profile and Assessment forms. The assessment schema builder should be dynamic, generating rules based on the active questions from `useUserData`.
 2.  **Profile Form**: Create the `ProfileForm` component at `src/components/profile/ProfileForm.tsx`. Use `react-hook-form` and the Zod schema for validation. Group questions into logical `Card` components and handle conditional fields (like self-describing gender). Create the corresponding page at `src/app/dashboard/profile/page.tsx`.
 3.  **Assessment Form**: Create the `AssessmentForm` component at `src/components/assessment/AssessmentForm.tsx`. This form should be dynamically generated based on the questions provided by the `useUserData` hook, ensuring it reflects company-specific customizations. It should also pre-fill data provided by HR managers. Create the page at `src/app/dashboard/assessment/page.tsx`."
 
