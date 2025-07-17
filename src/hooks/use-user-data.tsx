@@ -7,12 +7,12 @@ import { type AssessmentData } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import {
-  getCompanyAssignments, saveCompanyAssignments,
-  getCompanyConfigs, saveCompanyConfigs,
-  getPlatformUsers, savePlatformUsers,
-  getMasterQuestions, saveMasterQuestions as saveMasterQuestionsToDb,
-  getAssessmentCompletions, saveAssessmentCompletions,
-  getProfileCompletions, saveProfileCompletions,
+  getCompanyAssignments as getCompanyAssignmentsFromDb, saveCompanyAssignments as saveCompanyAssignmentsToDb,
+  getCompanyConfigs as getCompanyConfigsFromDb, saveCompanyConfigs as saveCompanyConfigsToDb,
+  getPlatformUsers as getPlatformUsersFromDb, savePlatformUsers as savePlatformUsersToDb,
+  getMasterQuestions as getMasterQuestionsFromDb, saveMasterQuestions as saveMasterQuestionsToDb,
+  getAssessmentCompletions as getAssessmentCompletionsFromDb, saveAssessmentCompletions as saveAssessmentCompletionsToDb,
+  getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
 } from '@/lib/demo-data';
 
@@ -111,18 +111,6 @@ export function useUserData() {
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
-      if (!email) return null;
-      const allConfigs = getCompanyConfigs();
-      for (const companyName in allConfigs) {
-          const user = allConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
-          if (user) {
-              return { user, companyName };
-          }
-      }
-      return null;
-  }, []);
-
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -173,12 +161,12 @@ export function useUserData() {
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
       
       // Load shared data from our in-memory store into the reactive state
-      setCompanyAssignmentsState(getCompanyAssignments());
-      setCompanyConfigsState(getCompanyConfigs());
-      setPlatformUsersState(getPlatformUsers());
-      setProfileCompletionsState(getProfileCompletions());
-      setAssessmentCompletionsState(getAssessmentCompletions());
-      setMasterQuestionsState(getMasterQuestions());
+      setCompanyAssignmentsState(getCompanyAssignmentsFromDb());
+      setCompanyConfigsState(getCompanyConfigsFromDb());
+      setPlatformUsersState(getPlatformUsersFromDb());
+      setProfileCompletionsState(getProfileCompletionsFromDb());
+      setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
+      setMasterQuestionsState(getMasterQuestionsFromDb());
       
     } catch (error) {
       console.error('Failed to load user data', error);
@@ -192,24 +180,24 @@ export function useUserData() {
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
-        const assignment = getCompanyAssignments().find(a => a.companyName === auth.companyName);
+        const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
         setCompanyAssignmentForHr(assignment || null);
     } else if (!auth || auth.role !== 'hr') {
         setCompanyAssignmentForHr(null);
     }
-  }, [auth, isLoading]);
+  }, [auth, isLoading, companyAssignments]);
 
   const saveProfileData = useCallback((data: ProfileData) => {
     try {
       localStorage.setItem(profileKey, JSON.stringify(data));
       setProfileData(data);
        if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        const newCompletions = { ...getProfileCompletions(), [auth.email!]: true };
-        saveProfileCompletions(newCompletions);
+        const newCompletions = { ...profileCompletions, [auth.email!]: true };
+        saveProfileCompletionsToDb(newCompletions);
         setProfileCompletionsState(newCompletions);
       }
     } catch (error) { console.error('Failed to save profile data', error); }
-  }, [profileKey, auth]);
+  }, [profileKey, auth, profileCompletions]);
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
@@ -217,12 +205,12 @@ export function useUserData() {
       setAssessmentData(data);
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        const newCompletions = { ...getAssessmentCompletions(), [auth.email!]: true };
-        saveAssessmentCompletions(newCompletions);
+        const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
+        saveAssessmentCompletionsToDb(newCompletions);
         setAssessmentCompletionsState(newCompletions);
       }
     } catch (error) { console.error('Failed to save assessment data', error); }
-  }, [auth, assessmentKey]);
+  }, [auth, assessmentKey, assessmentCompletions]);
 
   const toggleTaskCompletion = useCallback((taskId: string) => {
     setCompletedTasks(prev => {
@@ -255,82 +243,85 @@ export function useUserData() {
   }, []);
   
   const saveCompanyConfig = useCallback((companyName: string, config: CompanyConfig) => {
-    const newConfigs = { ...getCompanyConfigs(), [companyName]: config };
-    saveCompanyConfigs(newConfigs);
+    const newConfigs = { ...companyConfigs, [companyName]: config };
+    saveCompanyConfigsToDb(newConfigs);
     setCompanyConfigsState(newConfigs);
-  }, []);
+  }, [companyConfigs]);
 
   const saveCompanyUsers = useCallback((companyName: string, users: CompanyUser[]) => {
-    const currentConfigs = getCompanyConfigs();
-    const config = currentConfigs[companyName] || { questions: {}, users: [] };
-    const newConfigs = { ...currentConfigs, [companyName]: { ...config, users: users }};
-    saveCompanyConfigs(newConfigs);
+    const config = companyConfigs[companyName] || { questions: {}, users: [] };
+    const newConfigs = { ...companyConfigs, [companyName]: { ...config, users: users }};
+    saveCompanyConfigsToDb(newConfigs);
     setCompanyConfigsState(newConfigs);
-  }, []);
+  }, [companyConfigs]);
   
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
-    return getCompanyAssignments().find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
-  }, []);
+    return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
+  }, [companyAssignments]);
+  
+  const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
+      if (!email) return null;
+      for (const companyName in companyConfigs) {
+          const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (user) {
+              return { user, companyName };
+          }
+      }
+      return null;
+  }, [companyConfigs]);
 
   const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
-    const newAssignments = [...getCompanyAssignments(), assignment];
-    saveCompanyAssignments(newAssignments);
+    const newAssignments = [...companyAssignments, assignment];
+    saveCompanyAssignmentsToDb(newAssignments);
     setCompanyAssignmentsState(newAssignments);
 
-    const currentConfigs = getCompanyConfigs();
-    if (!currentConfigs[assignment.companyName]) {
-      const newConfigs = { ...currentConfigs, [assignment.companyName]: { questions: {}, users: [], customQuestions: {}, questionOrderBySection: {} } };
-      saveCompanyConfigs(newConfigs);
+    if (!companyConfigs[assignment.companyName]) {
+      const newConfigs = { ...companyConfigs, [assignment.companyName]: { questions: {}, users: [], customQuestions: {}, questionOrderBySection: {} } };
+      saveCompanyConfigsToDb(newConfigs);
       setCompanyConfigsState(newConfigs);
     }
-  }, []);
+  }, [companyAssignments, companyConfigs]);
 
   const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
-    const newAssignments = getCompanyAssignments().map(a => a.companyName === companyName ? { ...a, ...updates } : a);
-    saveCompanyAssignments(newAssignments);
+    const newAssignments = companyAssignments.map(a => a.companyName === companyName ? { ...a, ...updates } : a);
+    saveCompanyAssignmentsToDb(newAssignments);
     setCompanyAssignmentsState(newAssignments);
-  }, []);
+  }, [companyAssignments]);
 
   const deleteCompanyAssignment = useCallback((companyName: string) => {
-    const newAssignments = getCompanyAssignments().filter(a => a.companyName !== companyName);
-    saveCompanyAssignments(newAssignments);
+    const newAssignments = companyAssignments.filter(a => a.companyName !== companyName);
+    saveCompanyAssignmentsToDb(newAssignments);
     setCompanyAssignmentsState(newAssignments);
-  }, []);
+  }, [companyAssignments]);
 
   const addPlatformUser = useCallback((user: PlatformUser) => {
-    const currentUsers = getPlatformUsers();
-    if (currentUsers.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
+    if (platformUsers.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
       return;
     }
-    const newUsers = [...currentUsers, user];
-    savePlatformUsers(newUsers);
+    const newUsers = [...platformUsers, user];
+    savePlatformUsersToDb(newUsers);
     setPlatformUsersState(newUsers);
-  }, []);
+  }, [platformUsers]);
 
   const deletePlatformUser = useCallback((email: string) => {
-    const newUsers = getPlatformUsers().filter(u => u.email.toLowerCase() !== email.toLowerCase());
-    savePlatformUsers(newUsers);
+    const newUsers = platformUsers.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+    savePlatformUsersToDb(newUsers);
     setPlatformUsersState(newUsers);
-  }, []);
+  }, [platformUsers]);
 
   const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | null => {
-    const user = getPlatformUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = platformUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
     return user ? user.role : null;
-  }, []);
-
-  const getAllCompanyAssignments = useCallback(() => getCompanyAssignments(), []);
+  }, [platformUsers]);
 
   const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true): Question[] => {
-    const masterQs = getMasterQuestions();
-    const companyCfgs = getCompanyConfigs();
+    if (Object.keys(masterQuestions).length === 0) return [];
 
-    if (Object.keys(masterQs).length === 0) return [];
-
-    const companyConfig = companyName ? companyCfgs[companyName] : undefined;
+    const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
     // Create a deep copy to avoid mutating the master questions state
     const combinedFlatMap = structuredClone({
-        ...masterQs,
+        ...masterQuestions,
         ...(companyConfig?.customQuestions || {})
     });
     
@@ -387,10 +378,10 @@ export function useUserData() {
     }
     
     return questionTree;
-}, []);
+  }, [masterQuestions, companyConfigs]);
 
 
-  const getAllCompanyConfigs = useCallback(() => getCompanyConfigs(), []);
+  const getAllCompanyConfigs = useCallback(() => companyConfigs, [companyConfigs]);
 
   const clearData = useCallback(() => {
     try {
@@ -404,21 +395,19 @@ export function useUserData() {
       setTaskDateOverrides({});
       
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
-        const currentProfileCompletions = getProfileCompletions();
-        const newProfileCompletions = { ...currentProfileCompletions };
+        const newProfileCompletions = { ...profileCompletions };
         delete newProfileCompletions[auth.email!];
-        saveProfileCompletions(newProfileCompletions);
+        saveProfileCompletionsToDb(newProfileCompletions);
         setProfileCompletionsState(newProfileCompletions);
 
-        const currentAssessmentCompletions = getAssessmentCompletions();
-        const newAssessmentCompletions = { ...currentAssessmentCompletions };
+        const newAssessmentCompletions = { ...assessmentCompletions };
         delete newAssessmentCompletions[auth.email!];
-        saveAssessmentCompletions(newAssessmentCompletions);
+        saveAssessmentCompletionsToDb(newAssessmentCompletions);
         setAssessmentCompletionsState(newAssessmentCompletions);
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, profileCompletions, assessmentCompletions]);
 
   return {
     profileData,
@@ -436,7 +425,7 @@ export function useUserData() {
     addCompanyAssignment,
     deleteCompanyAssignment,
     updateCompanyAssignment,
-    getAllCompanyAssignments,
+    companyAssignments, // Exposing the state directly
     getCompanyForHr,
     saveProfileData,
     saveAssessmentData,
@@ -453,3 +442,5 @@ export function useUserData() {
     getPlatformUserRole,
   };
 }
+
+    
