@@ -21,9 +21,9 @@ export default function ProgressTracker() {
       <div className="mx-auto max-w-4xl space-y-8">
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Welcome to Your Dashboard</CardTitle>
+            <CardTitle className="font-headline text-2xl">Your Next Steps</CardTitle>
             <CardDescription>
-              Complete your profile and exit details to unlock personalized recommendations and next steps.
+              Complete your profile and exit details to unlock fully personalized recommendations.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -92,7 +92,7 @@ export default function ProgressTracker() {
               <Progress value={assessmentProgress} className="w-full mb-4" />
               <Link href="/dashboard/assessment" passHref>
                 <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
-                  {isAssessment100Complete ? 'Edit Details' : 'Continue Details'}
+                  {isAssessment100Complete ? 'Edit Details' : 'Continue Adding Details'}
                 </Button>
               </Link>
                {!profileData && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}

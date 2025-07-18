@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, parse, differenceInDays, isSameDay } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay, startOfToday } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
@@ -30,7 +30,7 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   "default": Calendar,
 };
 
-export default function TimelineDashboard() {
+export default function TimelineDashboard({ isPreview = false }: { isPreview?: boolean }) {
   const { 
     profileData, 
     assessmentData, 
@@ -59,27 +59,34 @@ export default function TimelineDashboard() {
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (!profileData || !assessmentData) {
+      // For preview mode, we might not have profileData yet, but we have assessmentData
+      if (!assessmentData) {
         setIsLoading(false);
         return;
       }
+      
+      const effectiveProfileData = profileData || {
+          birthYear: 1990, state: 'N/A', gender: 'N/A', maritalStatus: 'N/A',
+          hasChildrenUnder13: false, hasExpectedChildren: false, impactedPeopleCount: '0',
+          livingStatus: 'N/A', citizenshipStatus: 'N/A', pastLifeEvents: [], hasChildrenAges18To26: false,
+      };
 
       try {
         setIsLoading(true);
         setError(null);
         
         const transformedProfileData = {
-          birthYear: profileData.birthYear,
-          state: profileData.state,
-          gender: profileData.gender === 'Prefer to self-describe' ? profileData.genderSelfDescribe! : profileData.gender,
-          maritalStatus: profileData.maritalStatus,
-          hasChildrenUnder13: profileData.hasChildrenUnder13.startsWith('Yes'),
-          hasExpectedChildren: profileData.hasExpectedChildren.startsWith('Yes'),
-          impactedPeopleCount: profileData.impactedPeopleCount,
-          livingStatus: profileData.livingStatus,
-          citizenshipStatus: profileData.citizenshipStatus,
-          pastLifeEvents: profileData.pastLifeEvents,
-          hasChildrenAges18To26: profileData.hasChildrenAges18To26.startsWith('Yes'),
+          birthYear: effectiveProfileData.birthYear,
+          state: effectiveProfileData.state,
+          gender: effectiveProfileData.gender === 'Prefer to self-describe' ? effectiveProfileData.genderSelfDescribe! : effectiveProfileData.gender,
+          maritalStatus: effectiveProfileData.maritalStatus,
+          hasChildrenUnder13: String(effectiveProfileData.hasChildrenUnder13).startsWith('Yes'),
+          hasExpectedChildren: String(effectiveProfileData.hasExpectedChildren).startsWith('Yes'),
+          impactedPeopleCount: effectiveProfileData.impactedPeopleCount,
+          livingStatus: effectiveProfileData.livingStatus,
+          citizenshipStatus: effectiveProfileData.citizenshipStatus,
+          pastLifeEvents: effectiveProfileData.pastLifeEvents,
+          hasChildrenAges18To26: String(effectiveProfileData.hasChildrenAges18To26).startsWith('Yes'),
         };
         
         const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
@@ -178,7 +185,10 @@ export default function TimelineDashboard() {
             <div>
               <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
               <p className="text-muted-foreground">
-                Here’s a timeline of recommended actions based on your details.
+                {isPreview 
+                    ? "Here's a preview of your timeline based on company data."
+                    : "Here’s a timeline of recommended actions based on your details."
+                }
               </p>
             </div>
         </div>
@@ -191,6 +201,12 @@ export default function TimelineDashboard() {
             <Card className="shadow-lg">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
+                     <CardDescription>
+                        {isPreview 
+                            ? "Complete your profile to get a fully personalized list."
+                            : "A tailored list of actions to guide you through your exit."
+                        }
+                    </CardDescription>
                     <div className="flex flex-wrap items-center gap-2 pt-2">
                         <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>
                         {recommendationCategories.map(category => (
@@ -291,16 +307,18 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
     }, [assessmentData, companyDetails, userTimezone]);
 
     const timelineMetrics = useMemo(() => {
-        if (keyDates.length < 2) return null;
+        if (keyDates.length === 0) return null;
 
+        const today = startOfToday();
         const datesOnly = keyDates.map(d => d.date!);
-        const minDate = new Date(Math.min(...datesOnly.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(...datesOnly.map(d => d.getTime())));
+        
+        const minDate = new Date(Math.min(today.getTime(), ...datesOnly.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(today.getTime(), ...datesOnly.map(d => d.getTime())));
         
         const totalDuration = differenceInDays(maxDate, minDate);
         if (totalDuration <= 0) return null;
 
-        return { minDate, maxDate, totalDuration };
+        return { minDate, maxDate, totalDuration, today };
     }, [keyDates]);
 
     if (keyDates.length === 0) return null;
@@ -319,7 +337,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                 {keyDates.map((item, index) => {
                                     const { totalDuration, minDate } = timelineMetrics;
                                     const daysFromStart = differenceInDays(item.date!, minDate);
-                                    const position = (daysFromStart / totalDuration) * 100;
+                                    const position = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
                                     const Icon = item.icon;
 
                                     return (
@@ -327,7 +345,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                             <TooltipTrigger asChild>
                                                 <div 
                                                     className="absolute -top-3.5 flex flex-col items-center group cursor-pointer"
-                                                    style={{ left: `${position}%` }}
+                                                    style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                                                 >
                                                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform group-hover:scale-110">
                                                         <Icon className="h-5 w-5 text-primary-foreground" />
@@ -346,6 +364,18 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                         </Tooltip>
                                     );
                                 })}
+
+                                 {/* Today Marker */}
+                                 <div
+                                    className="absolute -top-2 flex flex-col items-center"
+                                    style={{
+                                        left: `${(differenceInDays(timelineMetrics.today, timelineMetrics.minDate) / timelineMetrics.totalDuration) * 100}%`,
+                                        transform: 'translateX(-50%)'
+                                    }}
+                                >
+                                    <div className="h-4 w-0.5 bg-destructive"></div>
+                                    <div className="text-xs font-bold text-destructive -mt-1">TODAY</div>
+                                </div>
                             </TooltipProvider>
                         </div>
                     </div>

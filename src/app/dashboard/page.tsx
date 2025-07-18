@@ -11,7 +11,7 @@ import WelcomeSummary from '@/components/dashboard/WelcomeSummary';
 
 export default function DashboardPage() {
   const { auth } = useAuth();
-  const { profileData, assessmentData, isLoading, getCompanyUser, isAssessmentComplete } = useUserData();
+  const { profileData, isLoading, getCompanyUser, isAssessmentComplete } = useUserData();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -34,24 +34,28 @@ export default function DashboardPage() {
   const isProfileComplete = !!profileData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
-  // Show the timeline if both forms are done.
+  // Show a version of the timeline immediately if HR has pre-filled data.
+  // The full dashboard will show once the user completes their profile & assessment.
+  if (hasPrefilledData && !isFullyComplete) {
+    return (
+      <main className="flex-1">
+        <TimelineDashboard isPreview />
+        <div className="mt-8">
+          <ProgressTracker />
+        </div>
+      </main>
+    )
+  }
+
+  // Show the final, completed timeline view.
   if (isFullyComplete) {
     return <TimelineDashboard />;
   }
   
-  // If not fully complete, show the onboarding flow.
+  // Default view for new users without pre-filled data.
   return (
     <main className="flex-1">
-      {hasPrefilledData && !isAssessmentComplete ? (
-        <>
-          <WelcomeSummary />
-          <div className="mt-8">
-            <ProgressTracker />
-          </div>
-        </>
-      ) : (
-        <ProgressTracker />
-      )}
+      <ProgressTracker />
     </main>
   );
 }
