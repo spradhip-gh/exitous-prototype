@@ -5,9 +5,12 @@ import ProgressTracker from '@/components/dashboard/ProgressTracker';
 import TimelineDashboard from '@/components/dashboard/TimelineDashboard';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
+import WelcomeSummary from '@/components/dashboard/WelcomeSummary';
 
 export default function DashboardPage() {
-  const { profileData, assessmentData, isLoading } = useUserData();
+  const { auth } = useAuth();
+  const { profileData, assessmentData, isLoading, getCompanyUser } = useUserData();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -25,11 +28,26 @@ export default function DashboardPage() {
     );
   }
 
-  const isComplete = !!profileData && !!assessmentData;
+  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+  const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData;
+  const isProfileComplete = !!profileData;
+  const isAssessmentComplete = !!assessmentData;
+  const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
+  // Show the welcome summary if data is pre-filled but the profile is not yet done.
+  if (hasPrefilledData && !isProfileComplete) {
+    return <WelcomeSummary />;
+  }
+  
+  // Show the timeline if both forms are done.
+  if (isFullyComplete) {
+    return <TimelineDashboard />;
+  }
+
+  // Otherwise, show the standard progress tracker.
   return (
     <main className="flex-1">
-      {isComplete ? <TimelineDashboard /> : <ProgressTracker />}
+       <ProgressTracker />
     </main>
   );
 }
