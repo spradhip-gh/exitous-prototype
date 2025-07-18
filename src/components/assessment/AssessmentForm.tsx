@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -260,6 +261,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                         if (typeof value === 'string' && key.toLowerCase().includes('date')) {
                             const date = parse(value, 'yyyy-MM-dd', new Date());
                             if (!isNaN(date.getTime())) {
+                                // Correct for timezone offset when parsing
                                 prefilled[key] = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
                             }
                         }
@@ -271,6 +273,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                 if (companyUser?.user.notificationDate) {
                     const date = parse(companyUser.user.notificationDate, 'yyyy-MM-dd', new Date());
                     if(!isNaN(date.getTime())) {
+                        // Correct for timezone offset when parsing
                        initialValues.notificationDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
                     }
                 }
