@@ -50,8 +50,8 @@ export default function WelcomeSummary() {
 
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-8">
+    <div className="p-4 md:p-8 md:pb-0">
+      <div className="mx-auto max-w-4xl space-y-4">
         <Alert variant="default" className="border-orange-300 bg-orange-50">
           <Bell className="h-4 w-4 !text-orange-600" />
           <AlertTitle className="text-orange-900">Welcome to ExitBetter</AlertTitle>

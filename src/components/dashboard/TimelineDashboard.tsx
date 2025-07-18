@@ -185,7 +185,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="mx-auto max-w-4xl space-y-4">
         {!isPreview && (
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
               <div>
@@ -267,7 +267,7 @@ const formatDate = (date: Date): string => {
 
 function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
     
-    const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     const keyDates = useMemo(() => {
         const parseAndCorrectDate = (date: any): Date | null => {
@@ -353,7 +353,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
             </CardHeader>
             <CardContent>
                 {timelineMetrics && (
-                    <div className="w-full pt-8 pb-4 px-2">
+                    <div className="w-full pt-10 pb-4 px-2">
                         <div className="relative h-1 bg-border rounded-full">
                              <TooltipProvider>
                                 {groupedDates.map((group, groupIndex) => {
@@ -364,15 +364,14 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                     return (
                                          <div 
                                             key={groupIndex}
-                                            className="absolute -top-3.5 flex flex-col items-center group cursor-pointer"
+                                            className="absolute -top-1/2 flex flex-col items-center gap-1 cursor-pointer"
                                             style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                                         >
                                             {group.map((item, itemIndex) => (
                                                 <Tooltip key={item.label}>
                                                     <TooltipTrigger asChild>
                                                         <div 
-                                                          className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform group-hover:scale-110"
-                                                          style={{ zIndex: group.length - itemIndex, marginBottom: '-1rem' }}
+                                                          className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform hover:scale-110"
                                                         >
                                                             <item.icon className="h-5 w-5 text-primary-foreground" />
                                                         </div>

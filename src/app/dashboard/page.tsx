@@ -41,7 +41,7 @@ export default function DashboardPage() {
       <main className="flex-1">
         <WelcomeSummary />
         <TimelineDashboard isPreview />
-        <div className="-mt-8">
+        <div className="md:-mt-8">
           <ProgressTracker />
         </div>
       </main>
