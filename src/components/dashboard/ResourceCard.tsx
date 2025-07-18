@@ -24,7 +24,8 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
 
   const getMimeType = (dataUri?: string) => {
     if (!dataUri) return '';
-    return dataUri.substring(dataUri.indexOf(':') + 1, dataUri.indexOf(';'));
+    const match = dataUri.match(/data:(.*?);base64,/);
+    return match ? match[1] : '';
   }
 
   const mimeType = getMimeType(resource.content);
@@ -53,7 +54,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
         }
     };
     fetchSummary();
-  }, [isSummaryOpen, canBeSummarized, resource, summary, mimeType]);
+  }, [isSummaryOpen, canBeSummarized, resource.content, resource.title, summary, mimeType]);
 
 
   const getDownloadUrl = () => {
@@ -102,7 +103,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
                     <FileWarning className="h-5 w-5 mr-3 flex-shrink-0" />
                     <div>
                     <p className="font-semibold">Cannot Summarize File</p>
-                    <p>AI summary is only available for text and PDF files.</p>
+                    <p>AI summary is only available for TXT and PDF files.</p>
                     </div>
                 </div>
             )}
@@ -119,5 +120,3 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
     </Card>
   );
 }
-
-    

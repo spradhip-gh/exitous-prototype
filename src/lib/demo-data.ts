@@ -217,5 +217,3 @@ export const getAssessmentCompletions = () => db.assessmentCompletions;
 export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db.assessmentCompletions = data; };
 
 export const getSeededDataForUser = (email: string) => db.seededData[email];
-
-    
