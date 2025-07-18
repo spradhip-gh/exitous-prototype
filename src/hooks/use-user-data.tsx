@@ -421,20 +421,21 @@ export function useUserData() {
     if (!profileSchema?.shape) {
       return { total: 0, completed: 0, remaining: 0, percentage: 0 };
     }
+    const total = Object.keys(profileSchema.shape).length;
     if (!profileData) {
-      return { total: Object.keys(profileSchema.shape).length, completed: 0, remaining: Object.keys(profileSchema.shape).length, percentage: 0 };
+      return { total, completed: 0, remaining: total, percentage: 0 };
     }
     const result = profileSchema.safeParse(profileData);
-    const total = Object.keys(profileSchema.shape).length;
     let completed = total;
     if (!result.success) {
-      // a bit of a hack, but we count the errors to find uncompleted fields.
-      // zod doesn't directly expose which fields are valid.
-      completed = total - result.error.errors.length;
+      const answeredFields = new Set(Object.keys(profileData));
+      const errorFields = new Set(result.error.errors.map(e => e.path[0]));
+      // A field is complete if it's been answered and has no validation errors.
+      completed = [...answeredFields].filter(field => !errorFields.has(field)).length;
     }
     const remaining = total - completed;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
-    return { total, completed, remaining, percentage };
+    return { total, completed, remaining: Math.max(0, remaining), percentage };
   }, [profileData]);
 
   const getAssessmentCompletion = useCallback(() => {

@@ -12,6 +12,8 @@ import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { toZonedTime } from 'date-fns-tz';
+
 
 export default function ProgressTracker() {
   const { 
@@ -20,6 +22,7 @@ export default function ProgressTracker() {
     customDeadlines, 
     addCustomDeadline,
     getProfileCompletion,
+    getTargetTimezone,
   } = useUserData();
   const { toast } = useToast();
 
@@ -35,6 +38,20 @@ export default function ProgressTracker() {
       toast({ title: "Goal Date Set", description: `Your goal for "${label}" has been saved.` });
     }
   };
+  
+  const userTimezone = getTargetTimezone();
+
+  const getDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+        const dateInUTC = new Date(`${dateString}T00:00:00Z`);
+        const zonedDate = toZonedTime(dateInUTC, userTimezone);
+        return format(zonedDate, 'PPP');
+    } catch(e) {
+        console.error("Error formatting date", e);
+        return dateString;
+    }
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -91,7 +108,7 @@ export default function ProgressTracker() {
                   : `Answer ${remainingProfile} more questions to get tailored advice.`}
               </div>
               {customDeadlines['profile-deadline'] && !isProfileComplete && (
-                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['profile-deadline'].date), 'PPP')}</p>
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline'].date)}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
@@ -145,7 +162,7 @@ export default function ProgressTracker() {
                   : `Answer ${remainingAssessment} more questions for a tailored plan.`}
               </div>
               {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
-                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['assessment-deadline'].date), 'PPP')}</p>
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline'].date)}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
