@@ -79,3 +79,83 @@ The platform is designed to serve four distinct user roles:
 - **Forms:** React Hook Form with Zod for robust, schema-based validation.
 - **AI Backend:** Genkit with Google's Gemini models.
 - **Data Persistence (Prototype):** User-specific data is stored in `localStorage` to provide a personalized experience. Shared platform data (companies, master questions) is stored in a simulated in-memory database attached to the global scope to persist across hot reloads in development.
+
+## 5. Data Model / Schema
+
+The following tables represent the conceptual data structure for the platform.
+
+### `companies`
+Stores information about each client company.
+| Column                      | Type          | Description                                           |
+| --------------------------- | ------------- | ----------------------------------------------------- |
+| `id`                        | `UUID`        | Primary Key                                           |
+| `name`                      | `TEXT`        | The unique name of the company (e.g., "Globex Corp"). |
+| `hr_manager_email`          | `TEXT`        | The email of the assigned HR manager.                 |
+| `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
+| `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
+| `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
+| `severance_deadline_timezone`| `TEXT`        | Default timezone for deadlines (e.g., 'America/Chicago'). |
+
+### `platform_users`
+Stores users with platform-wide access roles.
+| Column      | Type      | Description                           |
+| ----------- | --------- | ------------------------------------- |
+| `id`        | `UUID`    | Primary Key                           |
+| `email`     | `TEXT`    | User's unique email address.          |
+| `role`      | `TEXT`    | Role ('admin' or 'consultant').       |
+
+### `company_users`
+Stores end-users associated with a specific company.
+| Column                       | Type      | Description                                                    |
+| ---------------------------- | --------- | -------------------------------------------------------------- |
+| `id`                         | `UUID`    | Primary Key                                                    |
+| `company_id`                 | `UUID`    | Foreign key to `companies.id`.                                 |
+| `email`                      | `TEXT`    | The end-user's primary (work) email.                           |
+| `company_user_id`            | `TEXT`    | The user's ID within their company's system.                   |
+| `personal_email`             | `TEXT`    | Optional personal email for the user.                          |
+| `notification_date`          | `DATE`    | The date the user was notified of their exit.                  |
+| `notified`                   | `BOOLEAN` | `true` if an invitation has been sent.                         |
+| `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.      |
+
+### `user_profiles`
+Stores the profile data for each end-user.
+| Column      | Type      | Description                                  |
+| ----------- | --------- | -------------------------------------------- |
+| `user_id`   | `UUID`    | Foreign key to `company_users.id` (Primary Key). |
+| `data`      | `JSONB`   | The complete JSON object of the user's profile. |
+
+### `user_assessments`
+Stores the assessment (exit details) data for each end-user.
+| Column      | Type      | Description                                      |
+| ----------- | --------- | ------------------------------------------------ |
+| `user_id`   | `UUID`    | Foreign key to `company_users.id` (Primary Key). |
+| `data`      | `JSONB`   | The complete JSON object of the user's assessment. |
+
+### `master_questions`
+Stores the master list of all possible assessment questions.
+| Column          | Type      | Description                                                       |
+| --------------- | --------- | ----------------------------------------------------------------- |
+| `id`            | `TEXT`    | The unique ID of the question (e.g., 'workStatus') (Primary Key). |
+| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, options, etc.). |
+
+### `company_question_configs`
+Stores company-specific customizations for the assessment form.
+| Column                   | Type      | Description                                                |
+| ------------------------ | --------- | ---------------------------------------------------------- |
+| `company_id`             | `UUID`    | Foreign key to `companies.id` (Primary Key).                 |
+| `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified.   |
+| `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
+| `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
+
+### `company_resources`
+Stores documents and links uploaded by an HR Manager.
+| Column        | Type      | Description                               |
+| ------------- | --------- | ----------------------------------------- |
+| `id`          | `UUID`    | Primary Key                               |
+| `company_id`  | `UUID`    | Foreign key to `companies.id`.            |
+| `title`       | `TEXT`    | The title of the resource.                |
+| `description` | `TEXT`    | A brief description.                      |
+| `file_name`   | `TEXT`    | The original name of the uploaded file.   |
+| `category`    | `TEXT`    | Resource category (e.g., 'Benefits').     |
+| `storage_path`| `TEXT`    | Path to the file in a storage service.    |
+| `summary`     | `TEXT`    | AI-generated summary of the document.     |
