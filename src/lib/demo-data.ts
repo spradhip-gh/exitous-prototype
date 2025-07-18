@@ -55,8 +55,7 @@ const getPastDate = (days: number) => {
     return date.toISOString().split('T')[0]; // YYYY-MM-DD
 }
 
-const exitChecklistContent = `
-Employee Exit Checklist
+const exitChecklistContent = `Employee Exit Checklist
 
 This checklist is designed to help you manage key tasks during your employment transition.
 
@@ -88,6 +87,9 @@ This checklist is designed to help you manage key tasks during your employment t
 - [ ] Ask for recommendations from colleagues and managers.
 - [ ] Begin your job search activities, tailoring your resume for each application.
 `;
+const benefitsSummaryContent = 'The Globex Corporation 2024 Benefits Summary provides a comprehensive overview of health, dental, and vision insurance plans. It details coverage tiers, premium costs, and enrollment deadlines. The document also outlines the 401(k) matching program, explaining the vesting schedule and contribution limits. Additional benefits covered include the Employee Assistance Program (EAP), life insurance options, and commuter benefits. Key deadlines for open enrollment are listed, along with contact information for the benefits administration team.';
+const wfhPolicyContent = 'This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.';
+
 
 const initializeDb = (): DemoDatabase => {
     return {
@@ -120,9 +122,9 @@ const initializeDb = (): DemoDatabase => {
                 },
                 questionOrderBySection: {},
                 resources: [
-                    {id: 'globex-resource-3', title: 'Employee Exit Checklist', description: 'A helpful checklist to guide you through the exit process.', fileName: 'Exit_Checklist.txt', category: 'Career', filePath: '/resources/Exit_Checklist.txt', content: exitChecklistContent},
-                    {id: 'globex-resource-1', title: '2024 Benefits Summary', description: 'A complete overview of your employee benefits for 2024.', fileName: 'Globex_Benefits_Summary_2024.txt', category: 'Benefits', filePath: '/resources/Globex_Benefits_Summary_2024.txt', content: 'The Globex Corporation 2024 Benefits Summary provides a comprehensive overview of health, dental, and vision insurance plans. It details coverage tiers, premium costs, and enrollment deadlines. The document also outlines the 401(k) matching program, explaining the vesting schedule and contribution limits. Additional benefits covered include the Employee Assistance Program (EAP), life insurance options, and commuter benefits. Key deadlines for open enrollment are listed, along with contact information for the benefits administration team.'},
-                    {id: 'globex-resource-2', title: 'Work From Home Policy', description: 'Official company policy regarding remote and hybrid work arrangements.', fileName: 'Work_From_Home_Policy.txt', category: 'Policies', filePath: '/resources/Work_From_Home_Policy.txt', content: 'This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.'},
+                    {id: 'globex-resource-3', title: 'Employee Exit Checklist', description: 'A helpful checklist to guide you through the exit process.', fileName: 'Exit_Checklist.txt', category: 'Career', content: 'data:text/plain;base64,' + Buffer.from(exitChecklistContent).toString('base64')},
+                    {id: 'globex-resource-1', title: '2024 Benefits Summary', description: 'A complete overview of your employee benefits for 2024.', fileName: 'Globex_Benefits_Summary_2024.txt', category: 'Benefits', content: 'data:text/plain;base64,' + Buffer.from(benefitsSummaryContent).toString('base64')},
+                    {id: 'globex-resource-2', title: 'Work From Home Policy', description: 'Official company policy regarding remote and hybrid work arrangements.', fileName: 'Work_From_Home_Policy.txt', category: 'Policies', content: 'data:text/plain;base64,' + Buffer.from(wfhPolicyContent).toString('base64')},
                 ],
             },
             'Initech': {

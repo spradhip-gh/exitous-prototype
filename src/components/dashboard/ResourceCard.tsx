@@ -22,22 +22,27 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const getMimeType = (dataUri: string) => {
+  const getMimeType = (dataUri?: string) => {
+    if (!dataUri) return '';
     return dataUri.substring(dataUri.indexOf(':') + 1, dataUri.indexOf(';'));
   }
 
-  const canBeSummarized = resource.content && (getMimeType(resource.content) === 'text/plain' || getMimeType(resource.content) === 'application/pdf');
+  const mimeType = getMimeType(resource.content);
+  const canBeSummarized = resource.content && (mimeType === 'text/plain' || mimeType === 'application/pdf');
 
   useEffect(() => {
     const fetchSummary = async () => {
-        if (!isSummaryOpen || summary || !canBeSummarized || !resource.content) return;
+        // Guard against running if there's no content, it's already loaded, or not summarizable
+        if (!isSummaryOpen || summary || !canBeSummarized || !resource.content) {
+          return;
+        }
         
         setIsLoading(true);
         setError('');
         try {
             const result = await summarizeDocument({
               contentDataUri: resource.content,
-              mimeType: getMimeType(resource.content),
+              mimeType: mimeType,
             });
             setSummary(result);
         } catch (err: any) {
@@ -48,13 +53,11 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
         }
     };
     fetchSummary();
-  }, [isSummaryOpen, canBeSummarized, resource, summary]);
+  }, [isSummaryOpen, canBeSummarized, resource, summary, mimeType]);
 
 
   const getDownloadUrl = () => {
-    if (resource.content?.startsWith('data:')) return resource.content;
-    if (resource.filePath) return resource.filePath;
-    return '#';
+    return resource.content || '#';
   };
 
   return (
