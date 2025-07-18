@@ -20,6 +20,7 @@ const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
 const COMPLETED_TASKS_KEY = 'exitbetter-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitbetter-task-date-overrides';
+const CUSTOM_DEADLINES_KEY = 'exitbetter-custom-deadlines';
 const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface CompanyUser {
@@ -97,11 +98,14 @@ export function useUserData() {
   const assessmentKey = auth?.isPreview ? `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}` : ASSESSMENT_KEY;
   const completedTasksKey = auth?.isPreview ? `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}` : COMPLETED_TASKS_KEY;
   const taskDateOverridesKey = auth?.isPreview ? `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}` : TASK_DATE_OVERRIDES_KEY;
+  const customDeadlinesKey = auth?.isPreview ? `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}` : CUSTOM_DEADLINES_KEY;
+
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
+  const [customDeadlines, setCustomDeadlines] = useState<Record<string, { label: string; date: string }>>({});
   
   // Shared data state now acts as a reactive layer over the in-memory store.
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
@@ -181,16 +185,19 @@ export function useUserData() {
 
       const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
+
+      const customDeadlinesJson = localStorage.getItem(customDeadlinesKey);
+      setCustomDeadlines(customDeadlinesJson ? JSON.parse(customDeadlinesJson) : {});
       
     } catch (error) {
       console.error('Failed to load user data', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY,
-       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, CUSTOM_DEADLINES_KEY,
+       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`, `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}`
       ].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -246,6 +253,16 @@ export function useUserData() {
       return newOverrides;
     });
   }, [taskDateOverridesKey]);
+
+  const addCustomDeadline = useCallback((id: string, data: { label: string; date: string }) => {
+    setCustomDeadlines(prev => {
+      const newDeadlines = { ...prev, [id]: data };
+      try {
+        localStorage.setItem(customDeadlinesKey, JSON.stringify(newDeadlines));
+      } catch (error) { console.error('Failed to save custom deadlines', error); }
+      return newDeadlines;
+    });
+  }, [customDeadlinesKey]);
   
   const saveMasterQuestions = useCallback((questions: Record<string, Question>) => {
     const questionsWithTimestamps = { ...questions };
@@ -494,8 +511,10 @@ export function useUserData() {
       // Clear task-related data
       localStorage.removeItem(completedTasksKey);
       localStorage.removeItem(taskDateOverridesKey);
+      localStorage.removeItem(customDeadlinesKey);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
+      setCustomDeadlines({});
       
       // Reset completion status in the 'database'
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
@@ -511,7 +530,7 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, profileCompletions, assessmentCompletions, getCompanyUser]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, profileCompletions, assessmentCompletions, getCompanyUser]);
 
   return {
     profileData,
@@ -520,6 +539,8 @@ export function useUserData() {
     getAssessmentCompletion,
     completedTasks,
     taskDateOverrides,
+    customDeadlines,
+    addCustomDeadline,
     isLoading,
     isUserDataLoading: isLoading,
     masterQuestions,

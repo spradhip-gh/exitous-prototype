@@ -9,7 +9,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from '@/lib/utils';
 import DailyBanner from './DailyBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
+import { useToast } from '../ui/use-toast';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
@@ -28,6 +32,7 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   "Job Search": ListChecks,
   "Legal": Scale,
   "Well-being": HeartHandshake,
+  "Custom": CalendarPlus,
   "default": Calendar,
 };
 
@@ -40,12 +45,19 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     taskDateOverrides,
     updateTaskDate,
     companyAssignments,
+    customDeadlines,
+    addCustomDeadline
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const [isAddDateOpen, setIsAddDateOpen] = useState(false);
+  const [newDateLabel, setNewDateLabel] = useState('');
+  const [newDate, setNewDate] = useState<Date | undefined>();
+  const { toast } = useToast();
 
   const userTimezone = useMemo(() => {
     if (!assessmentData?.companyName || !companyAssignments) return 'UTC';
@@ -161,6 +173,19 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     return sortedRecommendations.filter(r => r.category === activeCategory);
   }, [sortedRecommendations, activeCategory]);
 
+  const handleAddDate = () => {
+    if (!newDateLabel || !newDate) {
+      toast({ title: "Missing information", description: "Please provide a label and a date.", variant: "destructive" });
+      return;
+    }
+    const id = `custom-${Date.now()}`;
+    addCustomDeadline(id, { label: newDateLabel, date: newDate.toISOString().split('T')[0] });
+    toast({ title: "Date Added", description: `"${newDateLabel}" has been added to your timeline.` });
+    setNewDateLabel('');
+    setNewDate(undefined);
+    setIsAddDateOpen(false);
+  };
+
   if (isLoading && !isPreview) {
     return (
         <div className="p-4 md:p-8">
@@ -199,16 +224,58 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         
         {!isPreview && <DailyBanner />}
 
-        {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} userTimezone={userTimezone} />}
+        <ImportantDates 
+          assessmentData={assessmentData} 
+          companyDetails={companyDetails} 
+          userTimezone={userTimezone}
+          customDeadlines={customDeadlines}
+        />
 
         {!isPreview && sortedRecommendations.length > 0 && (
             <Card className="shadow-lg">
                 <CardHeader>
-                    <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
-                     <CardDescription>
-                        A tailored list of actions to guide you through your exit.
-                    </CardDescription>
-                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
+                      <CardDescription>
+                          A tailored list of actions to guide you through your exit.
+                      </CardDescription>
+                    </div>
+                     <Dialog open={isAddDateOpen} onOpenChange={setIsAddDateOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline"><PlusCircle className="mr-2"/> Add Custom Date</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add a Custom Date</DialogTitle>
+                          <DialogDescription>Add a personal event or deadline to your timeline.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="date-label">Event Label</Label>
+                            <Input id="date-label" value={newDateLabel} onChange={(e) => setNewDateLabel(e.target.value)} placeholder="e.g., Follow up with recruiter" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Date</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={newDate} onSelect={setNewDate} initialFocus /></PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setIsAddDateOpen(false)}>Cancel</Button>
+                          <Button onClick={handleAddDate}>Add to Timeline</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-4">
                         <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>
                         {recommendationCategories.map(category => (
                             <Button key={category} variant={activeCategory === category ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(category)}>{category}</Button>
@@ -270,10 +337,16 @@ type KeyDateItem = {
     date: Date;
     icon: React.ElementType;
     tooltip: string | null;
+    isCustom?: boolean;
 };
 
 
-function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
+function ImportantDates({ assessmentData, companyDetails, userTimezone, customDeadlines }: { 
+  assessmentData: any, 
+  companyDetails: CompanyAssignment | null, 
+  userTimezone: string,
+  customDeadlines: Record<string, { label: string; date: string }>
+}) {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     const keyDates: KeyDateItem[] = useMemo(() => {
@@ -291,20 +364,32 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
             ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
             : 'Deadline time and timezone are set by the company.';
 
-        const allDatesRaw = [
-            { label: 'Exit Notification', date: parseAndCorrectDate(assessmentData.notificationDate), icon: Bell, tooltip: null },
-            { label: 'Final Day of Employment', date: parseAndCorrectDate(assessmentData.finalDate), icon: CalendarX2, tooltip: null },
-            { label: 'Severance Agreement Deadline', date: parseAndCorrectDate(assessmentData.severanceAgreementDeadline), icon: Key, tooltip: severanceDeadlineTooltip },
-            { label: 'Medical Coverage Ends', date: parseAndCorrectDate(assessmentData.medicalCoverageEndDate), icon: Stethoscope, tooltip: null },
-            { label: 'Dental Coverage Ends', date: parseAndCorrectDate(assessmentData.dentalCoverageEndDate), icon: Smile, tooltip: null },
-            { label: 'Vision Coverage Ends', date: parseAndCorrectDate(assessmentData.visionCoverageEndDate), icon: Eye, tooltip: null },
-            { label: 'EAP Coverage Ends', date: parseAndCorrectDate(assessmentData.eapCoverageEndDate), icon: HandCoins, tooltip: null },
-        ].filter((d): d is KeyDateItem => d.date !== null);
+        let allDatesRaw: KeyDateItem[] = [
+            { label: 'Exit Notification', date: parseAndCorrectDate(assessmentData?.notificationDate), icon: Bell, tooltip: null },
+            { label: 'Final Day of Employment', date: parseAndCorrectDate(assessmentData?.finalDate), icon: CalendarX2, tooltip: null },
+            { label: 'Severance Agreement Deadline', date: parseAndCorrectDate(assessmentData?.severanceAgreementDeadline), icon: Key, tooltip: severanceDeadlineTooltip },
+            { label: 'Medical Coverage Ends', date: parseAndCorrectDate(assessmentData?.medicalCoverageEndDate), icon: Stethoscope, tooltip: null },
+            { label: 'Dental Coverage Ends', date: parseAndCorrectDate(assessmentData?.dentalCoverageEndDate), icon: Smile, tooltip: null },
+            { label: 'Vision Coverage Ends', date: parseAndCorrectDate(assessmentData?.visionCoverageEndDate), icon: Eye, tooltip: null },
+            { label: 'EAP Coverage Ends', date: parseAndCorrectDate(assessmentData?.eapCoverageEndDate), icon: HandCoins, tooltip: null },
+        ];
+        
+        Object.entries(customDeadlines).forEach(([id, { label, date }]) => {
+          allDatesRaw.push({
+            label,
+            date: parseAndCorrectDate(date),
+            icon: CalendarPlus,
+            tooltip: 'Your custom deadline',
+            isCustom: true,
+          });
+        });
+
+        const filteredDates = allDatesRaw.filter((d): d is KeyDateItem => d.date !== null);
 
         const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
         const eapLabel = 'EAP Coverage Ends';
 
-        return allDatesRaw.sort((a, b) => {
+        return filteredDates.sort((a, b) => {
             const aIsEAP = a.label === eapLabel;
             const bIsEAP = b.label === eapLabel;
             if (aIsEAP && !bIsEAP) return 1;
@@ -319,7 +404,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
 
             return a.date!.getTime() - b.date!.getTime();
         });
-    }, [assessmentData, companyDetails, userTimezone]);
+    }, [assessmentData, companyDetails, userTimezone, customDeadlines]);
 
     const timelineMetrics = useMemo(() => {
         if (keyDates.length === 0) return null;
@@ -392,7 +477,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
         return positions;
     }, [keyDates, timelineMetrics]);
 
-    if (keyDates.length === 0) return null;
+    if (!assessmentData || keyDates.length === 0) return null;
 
     return (
         <Card>

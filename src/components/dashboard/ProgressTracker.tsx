@@ -6,15 +6,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { CheckCircle, Edit, ListChecks, Briefcase } from 'lucide-react';
+import { CheckCircle, Edit, ListChecks, Briefcase, CalendarPlus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { format } from 'date-fns';
+import { useToast } from '../ui/use-toast';
 
 export default function ProgressTracker() {
-  const { profileData, getAssessmentCompletion } = useUserData();
+  const { profileData, getAssessmentCompletion, customDeadlines, addCustomDeadline } = useUserData();
+  const { toast } = useToast();
 
   const profileProgress = profileData ? 100 : 0;
   const { percentage: assessmentProgress } = getAssessmentCompletion();
   const overallProgress = (profileProgress + assessmentProgress) / 2;
   const isAssessment100Complete = assessmentProgress === 100;
+
+  const handleDateSet = (id: string, label: string, date: Date | undefined) => {
+    if (date) {
+      addCustomDeadline(id, { label, date: date.toISOString().split('T')[0] });
+      toast({ title: "Deadline Set", description: `Goal date for "${label}" has been saved.` });
+    }
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -41,7 +53,21 @@ export default function ProgressTracker() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">Your Profile</CardTitle>
-              <ListChecks className="h-5 w-5 text-muted-foreground" />
+              <div className="flex items-center gap-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7"><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      onSelect={(date) => handleDateSet('profile-deadline', 'Complete Profile', date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <ListChecks className="h-5 w-5 text-muted-foreground" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
@@ -49,6 +75,9 @@ export default function ProgressTracker() {
                   ? 'Your profile is complete. You can edit it if your circumstances change.'
                   : 'Tell us about your situation to get tailored advice.'}
               </div>
+              {customDeadlines['profile-deadline'] && !profileData && (
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['profile-deadline'].date), 'PPP')}</p>
+              )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
                 {profileData ? (
@@ -71,7 +100,21 @@ export default function ProgressTracker() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">Exit Details</CardTitle>
-              <Briefcase className="h-5 w-5 text-muted-foreground" />
+               <div className="flex items-center gap-1">
+                 <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!profileData}><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      onSelect={(date) => handleDateSet('assessment-deadline', 'Complete Assessment', date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Briefcase className="h-5 w-5 text-muted-foreground" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
@@ -79,6 +122,9 @@ export default function ProgressTracker() {
                   ? 'Your exit details are saved. You can edit them if needed.'
                   : 'Provide specifics about your exit for a tailored plan.'}
               </div>
+              {customDeadlines['assessment-deadline'] && !isAssessment100Complete && (
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['assessment-deadline'].date), 'PPP')}</p>
+              )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
                 {isAssessment100Complete ? (
