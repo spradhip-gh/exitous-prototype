@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, formatInTimeZone } from 'date-fns-tz';
+import { format } from 'date-fns';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
@@ -31,10 +31,11 @@ export default function WelcomeSummary() {
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
     try {
-      // Parse the date string assuming it's in the user's target timezone.
-      const date = toZonedTime(dateString, userTimezone);
-      // Format it for display.
-      return format(date, 'PPP', { timeZone: userTimezone });
+      // Correctly parse 'YYYY-MM-DD' by splitting it to avoid timezone issues.
+      // new Date('2025-08-30') can be interpreted as UTC midnight, causing off-by-one errors.
+      const [year, month, day] = dateString.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return format(date, 'PPP');
     } catch {
       return 'N/A';
     }

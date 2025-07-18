@@ -228,7 +228,11 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
     
     const formatDate = (date: Date): string => {
         if (!date || isNaN(date.getTime())) return 'N/A';
-        return format(date, 'PPP');
+        // Correctly parse 'YYYY-MM-DD' by splitting it to avoid timezone issues.
+        const dateString = date.toISOString().split('T')[0];
+        const [year, month, day] = dateString.split('-').map(Number);
+        const correctedDate = new Date(year, month - 1, day);
+        return format(correctedDate, 'PPP');
     };
 
     const severanceDeadlineTooltip = companyDetails
