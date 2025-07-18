@@ -16,18 +16,21 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchSummary = async () => {
-      // Robust check to ensure content is a non-empty string.
-      if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
-        setError("This document does not have content available for summarization.");
-        setIsLoading(false);
-        return;
-      }
+    // This effect now depends on resource.content.
+    // It will only run when resource.content has a valid value.
+    if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
+      // If content is or becomes invalid, set an error and stop.
+      // This handles the initial render case where content might be undefined.
+      setError("This document does not have content available for summarization.");
+      setIsLoading(false);
+      return;
+    }
 
+    const fetchSummary = async () => {
       try {
         setIsLoading(true);
         setError('');
-        const result = await summarizeDocument(resource.content);
+        const result = await summarizeDocument(resource.content as string);
         setSummary(result);
       } catch (err) {
         console.error("Summarization failed for:", resource.title, err);
@@ -38,7 +41,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
     };
 
     fetchSummary();
-  }, [resource]);
+  }, [resource.content, resource.title]); // Dependency array ensures this runs when content is available.
 
   return (
     <Card>
