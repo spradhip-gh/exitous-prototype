@@ -13,13 +13,14 @@ import { Separator } from '@/components/ui/separator';
 
 export default function ResourceCard({ resource }: { resource: Resource }) {
   const [summary, setSummary] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const canBeSummarized = resource.content && typeof resource.content === 'string' && resource.content.trim() !== '';
+
   useEffect(() => {
-    if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
-      setError("This document does not have content available for summarization.");
-      setIsLoading(false);
+    // This guard prevents calling the flow with invalid data.
+    if (!canBeSummarized) {
       return;
     }
 
@@ -29,15 +30,11 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       try {
         let textContent: string | null = null;
         
-        if (resource.content?.startsWith('data:')) {
-            if (resource.content.startsWith('data:text/plain;base64,')) {
-              const base64Content = resource.content.split(',')[1];
-              textContent = atob(base64Content);
-            } else {
-              // Not a plain text file, so we won't summarize.
-              // This is now handled gracefully instead of throwing an error.
-            }
-        } else {
+        // Handle Base64 encoded text files from HR uploads
+        if (resource.content?.startsWith('data:text/plain;base64,')) {
+            const base64Content = resource.content.split(',')[1];
+            textContent = atob(base64Content);
+        } else if (!resource.content?.startsWith('data:')) {
             // Handle raw text content from demo-data
             textContent = resource.content;
         }
@@ -45,6 +42,9 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
         if (textContent) {
           const result = await summarizeDocument(textContent);
           setSummary(result);
+        } else {
+          // This handles cases where content might be a non-text data URI
+          throw new Error("Cannot summarize non-text files.");
         }
 
       } catch (err: any) {
@@ -56,9 +56,16 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
     };
 
     fetchSummary();
-  }, [resource.content, resource.title]);
+  }, [resource.content, resource.title, canBeSummarized]);
 
-  const canBeSummarized = resource.content?.startsWith('data:text/plain;base64,') || !resource.content?.startsWith('data:');
+  const getDownloadUrl = () => {
+    // If filePath exists, it's a file in /public.
+    if (resource.filePath) return resource.filePath;
+    // If content exists and it's a data URI, it's an uploaded file.
+    if (resource.content?.startsWith('data:')) return resource.content;
+    // Fallback if something is wrong.
+    return '#';
+  }
 
   return (
     <Card>
@@ -80,13 +87,13 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
           {!isLoading && !error && canBeSummarized && summary && (
              <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
           )}
-
-          {!isLoading && !canBeSummarized && (
+           
+           {!canBeSummarized && (
             <div className="flex items-center text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
               <FileWarning className="h-5 w-5 mr-3" />
               <div>
                 <p className="font-semibold">Cannot Summarize File</p>
-                <p>AI summary is only available for plain text (.txt) files.</p>
+                <p>AI summary is only available for text files.</p>
               </div>
             </div>
           )}
@@ -95,7 +102,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       </CardContent>
       <CardFooter>
         <Button variant="outline" size="sm" asChild>
-          <a href={resource.content} download={resource.fileName}>
+          <a href={getDownloadUrl()} download={resource.fileName}>
             <Download className="mr-2" /> Download Full Document
           </a>
         </Button>
