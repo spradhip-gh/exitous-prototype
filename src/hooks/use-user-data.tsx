@@ -162,7 +162,7 @@ export function useUserData() {
             if (obj && typeof obj === 'object') {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
-                        if (typeof obj[key] === 'string' && key.toLowerCase().includes('date')) {
+                        if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
                             // Using toZonedTime to handle timezone correctly
                             const date = toZonedTime(obj[key], timezone);
                             if (!isNaN(date.getTime())) {

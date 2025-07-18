@@ -4,11 +4,12 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toZonedTime, format } from 'date-fns-tz';
+import { format, formatInTimeZone } from 'date-fns-tz';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { toZonedTime } from 'date-fns-tz';
 
 export default function WelcomeSummary() {
   const { auth } = useAuth();
@@ -42,12 +43,12 @@ export default function WelcomeSummary() {
   const importantInfo = [
     { label: 'Notification Date', value: companyUser?.user.notificationDate ? formatDate(companyUser.user.notificationDate) : 'N/A', icon: Bell },
     { label: 'Final Day of Employment', value: prefilledData.finalDate ? formatDate(prefilledData.finalDate) : 'N/A', icon: CalendarX2 },
-    { label: 'Severance Agreement Deadline', value: prefilledData.severanceAgreementDeadline ? formatDate(prefilledData.severanceAgreementDeadline) : 'N/A', icon: Key },
+    { label: 'Severance Agreement Deadline', value: prefilledData.severanceAgreementDeadline, icon: Key, isSeverance: true },
     { label: 'Medical Coverage Ends', value: prefilledData.medicalCoverageEndDate ? formatDate(prefilledData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope },
     { label: 'EAP Coverage Ends', value: prefilledData.eapCoverageEndDate ? formatDate(prefilledData.eapCoverageEndDate) : 'N/A', icon: HandCoins },
   ].filter(info => info.value && info.value !== 'N/A');
 
-  const severanceDeadlineTooltip = `Deadline is at ${companyDetails?.severanceDeadlineTime || '23:59'} ${companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles'}`;
+  const severanceDeadlineTooltip = `Deadline is at ${companyDetails?.severanceDeadlineTime || '23:59'} on the specified date in the ${timezone} timezone.`;
 
 
   return (
@@ -70,7 +71,7 @@ export default function WelcomeSummary() {
           </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-2">
             <TooltipProvider>
-              {importantInfo.map(({ label, value, icon: Icon }) => (
+              {importantInfo.map(({ label, value, icon: Icon, isSeverance }) => (
                 <div key={label} className="flex items-start gap-4">
                   <div className="bg-muted text-muted-foreground p-3 rounded-lg mt-1">
                     <Icon className="h-6 w-6" />
@@ -78,8 +79,8 @@ export default function WelcomeSummary() {
                   <div>
                     <p className="font-semibold">{label}</p>
                     <div className="flex items-center gap-2">
-                      <p className="text-lg text-foreground">{value}</p>
-                      {label === 'Severance Agreement Deadline' && (
+                      <p className="text-lg text-foreground">{isSeverance ? formatDate(value) : value}</p>
+                      {isSeverance && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="h-4 w-4 text-muted-foreground cursor-help" />

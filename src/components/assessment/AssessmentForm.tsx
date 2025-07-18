@@ -273,10 +273,10 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
             
             if (!assessmentData) {
                 if (companyUser?.user.prefilledAssessmentData) {
-                    const prefilled = { ...companyUser.user.prefilledAssessmentData };
+                    const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
                     for (const key in prefilled) {
                         const value = prefilled[key as keyof typeof prefilled];
-                        if (typeof value === 'string' && key.toLowerCase().includes('date')) {
+                        if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
                             const dateInTz = toZonedTime(value, timezone);
                             if (!isNaN(dateInTz.getTime())) {
                                 (prefilled as any)[key] = dateInTz;
