@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,7 +19,6 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import DailyBanner from './DailyBanner';
-import { toZonedTime } from 'date-fns-tz';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Briefcase,
@@ -81,6 +80,7 @@ export default function TimelineDashboard() {
           startDate: assessmentData.startDate?.toISOString(),
           notificationDate: assessmentData.notificationDate?.toISOString(),
           finalDate: assessmentData.finalDate?.toISOString(),
+          severanceAgreementDeadline: assessmentData.severanceAgreementDeadline?.toISOString(),
           relocationDate: assessmentData.relocationDate?.toISOString(),
           internalMessagingAccessEndDate: assessmentData.internalMessagingAccessEndDate?.toISOString(),
           emailAccessEndDate: assessmentData.emailAccessEndDate?.toISOString(),
@@ -223,17 +223,20 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
     const severanceDeadline = useMemo(() => {
         if (!assessmentData.severanceAgreementDeadline) return null;
         
-        const datePart = format(assessmentData.severanceAgreementDeadline, 'yyyy-MM-dd');
-        const timePart = companyDetails?.severanceDeadlineTime || '23:59';
-        const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
+        const dateString = format(assessmentData.severanceAgreementDeadline, 'yyyy-MM-dd');
         
-        const fullDateString = `${datePart}T${timePart}:00`;
         try {
-          const zonedDate = toZonedTime(fullDateString, timezone);
-          return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
+            const timePart = companyDetails?.severanceDeadlineTime || '23:59';
+            const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
+            
+            // Correctly parse the date string in the target timezone
+            const zonedDate = toZonedTime(dateString, timezone);
+
+            // Then format it in that same timezone
+            return formatInTimeZone(zonedDate, timezone, `PPP 'at' h:mm a zzz`);
         } catch (e) {
           console.error("Failed to parse timezone", e)
-          return format(new Date(fullDateString), "PPP 'at' h:mm a");
+          return format(new Date(dateString), "PPP 'at' h:mm a");
         }
     }, [assessmentData.severanceAgreementDeadline, companyDetails]);
 

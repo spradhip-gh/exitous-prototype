@@ -4,7 +4,8 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toZonedTime, format, formatInTimeZone } from 'date-fns-tz';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { format } from 'date-fns';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
@@ -25,11 +26,12 @@ export default function WelcomeSummary() {
     return null;
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
     try {
       // Handles 'YYYY-MM-DD' by treating it as a UTC date to avoid timezone shifts
       const dateInUtc = toZonedTime(dateString, 'UTC');
-      return format(dateInUtc, 'PPP', { timeZone: 'UTC' });
+      return format(dateInUtc, 'PPP');
     } catch {
       return 'N/A';
     }
@@ -40,11 +42,11 @@ export default function WelcomeSummary() {
         const timePart = companyDetails?.severanceDeadlineTime || '23:59';
         const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
 
-        // Combine date and time correctly
-        const dateTimeString = `${dateString}T${timePart}:00`;
-        const zonedDate = toZonedTime(dateTimeString, timezone);
+        // Correctly parse the date string in the target timezone
+        const zonedDate = toZonedTime(dateString, timezone);
 
-        return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
+        // Then format it in that same timezone
+        return formatInTimeZone(zonedDate, timezone, `PPP 'at' h:mm a zzz`);
     } catch(e) {
         console.error("Failed to format severance deadline:", e);
         return 'N/A';
