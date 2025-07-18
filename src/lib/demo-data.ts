@@ -77,10 +77,10 @@ const initializeDb = (): DemoDatabase => {
                         prefilledAssessmentData: {
                            finalDate: getFutureDate(28),
                            severanceAgreementDeadline: getFutureDate(43),
-                           medicalCoverageEndDate: getFutureDate(28),
+                           medicalCoverageEndDate: getFutureDate(88), // August 31st
                            dentalCoverageEndDate: getFutureDate(28),
                            visionCoverageEndDate: getFutureDate(28),
-                           eapCoverageEndDate: getFutureDate(88),
+                           eapCoverageEndDate: getFutureDate(88), // August 31st
                         }
                     },
                     { email: 's.smith@globex.com', companyId: 'G789', notificationDate: getFutureDate(12), notified: false },
