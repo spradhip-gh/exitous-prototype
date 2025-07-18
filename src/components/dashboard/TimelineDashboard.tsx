@@ -38,12 +38,15 @@ export default function TimelineDashboard() {
     toggleTaskCompletion,
     taskDateOverrides,
     updateTaskDate,
-    companyAssignments
+    companyAssignments,
+    getTargetTimezone,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const userTimezone = getTargetTimezone();
 
   const companyDetails = useMemo(() => {
     if (!assessmentData?.companyName) return null;
@@ -119,7 +122,7 @@ export default function TimelineDashboard() {
       if (!dateStr) return Infinity;
       // Dates are 'YYYY-MM-DD'. new Date() parses this as UTC.
       // This is fine for sorting as long as it's consistent.
-      return new Date(dateStr).getTime();
+      return toZonedTime(dateStr, userTimezone).getTime();
     };
 
     return [...recommendations.recommendations].sort((a, b) => {
@@ -140,7 +143,7 @@ export default function TimelineDashboard() {
       // The AI is prompted to sort by urgency, so this is a good fallback.
       return 0;
     });
-  }, [recommendations, taskDateOverrides]);
+  }, [recommendations, taskDateOverrides, userTimezone]);
 
   if (isLoading) {
     return (
@@ -178,7 +181,7 @@ export default function TimelineDashboard() {
         
         <DailyBanner />
 
-        {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} />}
+        {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} userTimezone={userTimezone} />}
 
         {hasRecommendations && (
             <Card className="shadow-lg">
@@ -198,6 +201,7 @@ export default function TimelineDashboard() {
                                 toggleTaskCompletion={toggleTaskCompletion}
                                 taskDateOverrides={taskDateOverrides}
                                 updateTaskDate={updateTaskDate}
+                                userTimezone={userTimezone}
                             />
                         </TabsContent>
                         <TabsContent value="table" className="mt-6">
@@ -207,6 +211,7 @@ export default function TimelineDashboard() {
                                 toggleTaskCompletion={toggleTaskCompletion}
                                 taskDateOverrides={taskDateOverrides}
                                 updateTaskDate={updateTaskDate}
+                                userTimezone={userTimezone}
                             />
                         </TabsContent>
                     </Tabs>
@@ -218,10 +223,8 @@ export default function TimelineDashboard() {
   );
 }
 
-function ImportantDates({ assessmentData, companyDetails }: { assessmentData: any, companyDetails: CompanyAssignment | null }) {
+function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
     if (!assessmentData) return null;
-
-    const timezone = companyDetails?.severanceDeadlineTimezone || 'UTC';
     
     const formatDate = (date: Date): string => {
         if (!date || isNaN(date.getTime())) return 'N/A';
@@ -229,7 +232,7 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
     };
 
     const severanceDeadlineTooltip = companyDetails
-      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} on the specified date in the ${timezone} timezone.`
+      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`
       : 'Deadline time and timezone are set by the company.';
 
     const dates = [
@@ -327,17 +330,17 @@ type RecommendationProps = {
     toggleTaskCompletion: (taskId: string) => void;
     taskDateOverrides: Record<string, string>;
     updateTaskDate: (taskId: string, newDate: Date) => void;
+    userTimezone: string;
 }
 
-function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate }: RecommendationProps) {
+function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone }: RecommendationProps) {
   if (!recommendations || recommendations.length === 0) {
     return <p className="text-muted-foreground text-center">No recommendations available.</p>;
   }
 
   const handleDateSelect = (taskId: string, date: Date | undefined) => {
     if (date) {
-        // Adjust for timezone offset
-        const correctedDate = toZonedTime(date, 'UTC');
+        const correctedDate = toZonedTime(date, userTimezone);
         updateTaskDate(taskId, correctedDate);
     }
   };
@@ -350,9 +353,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         const isCompleted = completedTasks.has(item.taskId);
         const overriddenDate = taskDateOverrides[item.taskId];
         const rawDate = overriddenDate || item.endDate;
-        const displayDate = rawDate ? new Date(rawDate) : null;
-        // Correct for timezone issues when creating Date from 'YYYY-MM-DD'
-        const correctedDisplayDate = displayDate ? toZonedTime(displayDate, 'UTC') : null;
+        const displayDate = rawDate ? toZonedTime(rawDate, userTimezone) : null;
 
 
         return (
@@ -375,10 +376,10 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                  <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
               </div>
               <p className="text-sm">{item.details}</p>
-               {correctedDisplayDate && (
+               {displayDate && (
                   <div className="flex items-center gap-1 text-sm mt-2 font-medium text-destructive/80">
                     <Calendar className="h-4 w-4" />
-                    <span>Due: {format(correctedDisplayDate, "PPP")}</span>
+                    <span>Due: {format(displayDate, "PPP")}</span>
                      {!isCompleted && <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -388,7 +389,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                       <PopoverContent className="w-auto p-0">
                         <CalendarPicker
                           mode="single"
-                          selected={correctedDisplayDate}
+                          selected={displayDate}
                           onSelect={(date) => handleDateSelect(item.taskId, date)}
                           initialFocus
                         />
@@ -405,14 +406,14 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 }
 
 
-function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate }: RecommendationProps) {
+function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone }: RecommendationProps) {
     if (!recommendations || recommendations.length === 0) {
       return <p className="text-muted-foreground text-center">No recommendations available.</p>;
     }
 
     const handleDateSelect = (taskId: string, date: Date | undefined) => {
         if (date) {
-            const correctedDate = toZonedTime(date, 'UTC');
+            const correctedDate = toZonedTime(date, userTimezone);
             updateTaskDate(taskId, correctedDate);
         }
     };
@@ -433,8 +434,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                     const isCompleted = completedTasks.has(item.taskId);
                     const overriddenDate = taskDateOverrides[item.taskId];
                     const rawDate = overriddenDate || item.endDate;
-                    const displayDate = rawDate ? new Date(rawDate) : null;
-                    const correctedDisplayDate = displayDate ? toZonedTime(displayDate, 'UTC') : null;
+                    const displayDate = rawDate ? toZonedTime(rawDate, userTimezone) : null;
                     
                     return (
                       <TableRow key={item.taskId || index} data-completed={isCompleted}>
@@ -453,9 +453,9 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                             <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
                           </TableCell>
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
-                            {correctedDisplayDate ? (
+                            {displayDate ? (
                                 <div className="flex items-center gap-1 text-sm font-medium">
-                                    <span>{format(correctedDisplayDate, "PPP")}</span>
+                                    <span>{format(displayDate, "PPP")}</span>
                                      {!isCompleted && <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -465,7 +465,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                                         <PopoverContent className="w-auto p-0">
                                             <CalendarPicker
                                                 mode="single"
-                                                selected={correctedDisplayDate}
+                                                selected={displayDate}
                                                 onSelect={(date) => handleDateSelect(item.taskId, date)}
                                                 initialFocus
                                             />

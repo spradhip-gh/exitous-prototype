@@ -189,7 +189,7 @@ export default function AssessmentForm() {
 
 function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'] }) {
     const router = useRouter();
-    const { profileData, assessmentData, saveAssessmentData, companyAssignments } = useUserData();
+    const { profileData, assessmentData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
@@ -204,13 +204,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         return companyAssignments.find(c => c.companyName === auth.companyName);
     }, [auth?.companyName, companyAssignments]);
     
-    const timezone = useMemo(() => companyDetails?.severanceDeadlineTimezone || 'UTC', [companyDetails]);
+    const userTimezone = getTargetTimezone();
 
     const companyDeadlineTooltip = useMemo(() => {
         if (!companyDetails) return undefined;
         const time = companyDetails.severanceDeadlineTime || "23:59";
-        return `${auth?.companyName}'s deadline is ${time} ${timezone} on the specified date.`;
-    }, [companyDetails, auth?.companyName, timezone]);
+        return `${auth?.companyName}'s deadline is ${time} ${userTimezone} on the specified date.`;
+    }, [companyDetails, auth?.companyName, userTimezone]);
 
 
     const watchedFinalDate = watch('finalDate');
@@ -277,7 +277,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                     for (const key in prefilled) {
                         const value = prefilled[key as keyof typeof prefilled];
                         if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const dateInTz = toZonedTime(value, timezone);
+                            const dateInTz = toZonedTime(value, userTimezone);
                             if (!isNaN(dateInTz.getTime())) {
                                 (prefilled as any)[key] = dateInTz;
                             }
@@ -287,7 +287,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                 }
 
                 if (companyUser?.user.notificationDate) {
-                    const dateInTz = toZonedTime(companyUser.user.notificationDate, timezone);
+                    const dateInTz = toZonedTime(companyUser.user.notificationDate, userTimezone);
                     if(!isNaN(dateInTz.getTime())) {
                        initialValues.notificationDate = dateInTz;
                     }
@@ -317,7 +317,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
               form.reset(initialValues);
             }
         }
-    }, [questions, assessmentData, form, companyUser, timezone]);
+    }, [questions, assessmentData, form, companyUser, userTimezone]);
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData({ ...data, companyName: auth?.companyName });

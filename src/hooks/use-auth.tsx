@@ -23,6 +23,7 @@ interface AuthContextType {
   logout: () => void;
   startUserView: () => void;
   stopUserView: () => void;
+  updateEmail: (newEmail: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to save auth state to local storage', error);
     }
   }, []);
+
+  const updateEmail = useCallback((newEmail: string) => {
+    if (!auth) return;
+    const updatedAuth = { ...auth, email: newEmail };
+    try {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(updatedAuth));
+      setAuthState(updatedAuth);
+    } catch (error) {
+      console.error('Failed to update email in auth state', error);
+    }
+  }, [auth]);
   
   const logout = useCallback(() => {
     try {
@@ -65,11 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('exitbetter-assessment');
       localStorage.removeItem('exitbetter-completed-tasks');
       localStorage.removeItem('exitbetter-task-date-overrides');
+      localStorage.removeItem('exitbetter-user-timezone');
       // and preview data
       localStorage.removeItem('exitbetter-profile-hr-preview');
       localStorage.removeItem('exitbetter-assessment-hr-preview');
       localStorage.removeItem('exitbetter-completed-tasks-hr-preview');
       localStorage.removeItem('exitbetter-task-date-overrides-hr-preview');
+      localStorage.removeItem('exitbetter-user-timezone-hr-preview');
 
       setAuthState(null);
     } catch (error) {
@@ -117,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, updateEmail }}>
       {children}
     </AuthContext.Provider>
   );

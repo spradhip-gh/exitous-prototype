@@ -22,6 +22,7 @@ const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
 const COMPLETED_TASKS_KEY = 'exitbetter-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitbetter-task-date-overrides';
+const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface CompanyUser {
@@ -107,11 +108,13 @@ export function useUserData() {
   const assessmentKey = auth?.isPreview ? `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}` : ASSESSMENT_KEY;
   const completedTasksKey = auth?.isPreview ? `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}` : COMPLETED_TASKS_KEY;
   const taskDateOverridesKey = auth?.isPreview ? `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}` : TASK_DATE_OVERRIDES_KEY;
+  const userTimezoneKey = auth?.isPreview ? `${USER_TIMEZONE_KEY}${PREVIEW_SUFFIX}` : USER_TIMEZONE_KEY;
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [assessmentData, setAssessmentData] = useState<AssessmentData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
+  const [userTimezone, setUserTimezone] = useState<string | null>(null);
   
   // Shared data state now acts as a reactive layer over the in-memory store.
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
@@ -124,6 +127,13 @@ export function useUserData() {
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getTargetTimezone = useCallback(() => {
+    const companyName = auth?.companyName;
+    const assignment = companyAssignments.find(a => a.companyName === companyName);
+    return userTimezone || assignment?.severanceDeadlineTimezone || 'UTC';
+  }, [userTimezone, auth?.companyName, companyAssignments]);
+
+
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -135,6 +145,11 @@ export function useUserData() {
       setProfileCompletionsState(getProfileCompletionsFromDb());
       setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
       setMasterQuestionsState(getMasterQuestionsFromDb());
+
+      const storedTimezone = localStorage.getItem(userTimezoneKey);
+      setUserTimezone(storedTimezone);
+      const targetTimezone = storedTimezone || assignments.find(a => a.companyName === auth?.companyName)?.severanceDeadlineTimezone || 'UTC';
+
 
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
@@ -154,19 +169,13 @@ export function useUserData() {
 
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
-        const companyName = parsedData.companyName || auth?.companyName;
-        const assignment = assignments.find(a => a.companyName === companyName);
-        const timezone = assignment?.severanceDeadlineTimezone || 'UTC'; // Fallback to UTC
-
         const convertDates = (obj: any) => {
             if (obj && typeof obj === 'object') {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
                             const dateStr = obj[key];
-                            // IMPORTANT: Create the Date object by interpreting the string in the company's timezone
-                            // This avoids the UTC conversion issue.
-                            const date = toZonedTime(dateStr, timezone);
+                            const date = toZonedTime(dateStr, targetTimezone);
                             if (!isNaN(date.getTime())) {
                                 obj[key] = date;
                             }
@@ -191,13 +200,13 @@ export function useUserData() {
       
     } catch (error) {
       console.error('Failed to load user data', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY,
-       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, USER_TIMEZONE_KEY,
+       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`, `${USER_TIMEZONE_KEY}${PREVIEW_SUFFIX}`
       ].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, userTimezoneKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -232,6 +241,13 @@ export function useUserData() {
       }
     } catch (error) { console.error('Failed to save assessment data', error); }
   }, [auth, assessmentKey, assessmentCompletions]);
+
+  const saveUserTimezone = useCallback((timezone: string) => {
+    try {
+      localStorage.setItem(userTimezoneKey, timezone);
+      setUserTimezone(timezone);
+    } catch (error) { console.error('Failed to save user timezone', error); }
+  }, [userTimezoneKey]);
 
   const toggleTaskCompletion = useCallback((taskId: string) => {
     setCompletedTasks(prev => {
@@ -417,10 +433,12 @@ export function useUserData() {
       localStorage.removeItem(assessmentKey);
       localStorage.removeItem(completedTasksKey);
       localStorage.removeItem(taskDateOverridesKey);
+      localStorage.removeItem(userTimezoneKey);
       setProfileData(null);
       setAssessmentData(null);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
+      setUserTimezone(null);
       
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newProfileCompletions = { ...profileCompletions };
@@ -435,13 +453,14 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, profileCompletions, assessmentCompletions]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, userTimezoneKey, profileCompletions, assessmentCompletions]);
 
   return {
     profileData,
     assessmentData,
     completedTasks,
     taskDateOverrides,
+    userTimezone,
     isLoading,
     isUserDataLoading: isLoading,
     masterQuestions,
@@ -450,6 +469,7 @@ export function useUserData() {
     profileCompletions,
     assessmentCompletions,
     platformUsers,
+    getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,
     deleteCompanyAssignment,
@@ -469,5 +489,6 @@ export function useUserData() {
     addPlatformUser,
     deletePlatformUser,
     getPlatformUserRole,
+    saveUserTimezone
   };
 }
