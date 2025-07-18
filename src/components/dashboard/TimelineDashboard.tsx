@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -214,7 +215,7 @@ export default function TimelineDashboard() {
   );
 }
 
-function ImportantDates({ assessmentData, companyDetails }) {
+function ImportantDates({ assessmentData, companyDetails }: { assessmentData: any, companyDetails: CompanyAssignment | null }) {
     if (!assessmentData) return null;
 
     const severanceDeadline = useMemo(() => {
@@ -225,9 +226,14 @@ function ImportantDates({ assessmentData, companyDetails }) {
         const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
         
         const fullDateString = `${datePart}T${timePart}:00`;
-        const zonedDate = toZonedTime(fullDateString, timezone);
-
-        return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
+        try {
+          const zonedDate = toZonedTime(fullDateString, timezone);
+          return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
+        } catch (e) {
+          console.error("Failed to parse timezone", e)
+          // Fallback for invalid timezone string
+          return format(new Date(fullDateString), "PPP 'at' h:mm a");
+        }
     }, [assessmentData.severanceAgreementDeadline, companyDetails]);
 
     const dates = [
@@ -238,11 +244,12 @@ function ImportantDates({ assessmentData, companyDetails }) {
         { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
         { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
         { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
-    ].filter(d => d.date && (!d.isString ? !isNaN(d.date.getTime()) : true)).sort((a, b) => {
-        const dateA = a.isString ? new Date(a.date) : a.date;
-        const dateB = b.isString ? new Date(b.date) : b.date;
-        return dateA.getTime() - dateB.getTime()
+    ].filter(d => d.date && (d.isString || !isNaN(new Date(d.date).getTime()))).sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
     });
+
 
     if (dates.length === 0) return null;
 
@@ -260,7 +267,7 @@ function ImportantDates({ assessmentData, companyDetails }) {
                         </div>
                         <div>
                             <p className="font-semibold">{label}</p>
-                            <p className="text-sm text-muted-foreground">{isString ? date : format(date, 'PPP')}</p>
+                            <p className="text-sm text-muted-foreground">{isString ? date : format(new Date(date), 'PPP')}</p>
                         </div>
                     </div>
                 ))}
