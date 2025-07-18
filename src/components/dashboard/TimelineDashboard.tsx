@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format } from 'date-fns';
-import { useUserData } from '@/hooks/use-user-data';
+import { format, formatInTimeZone } from 'date-fns-tz';
+import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import DailyBanner from './DailyBanner';
+import { toZonedTime } from 'date-fns-tz';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Briefcase,
@@ -35,11 +36,14 @@ export default function TimelineDashboard() {
     toggleTaskCompletion,
     taskDateOverrides,
     updateTaskDate,
+    companyAssignments
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [companyDetails, setCompanyDetails] = useState<CompanyAssignment | null>(null);
+
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -47,6 +51,9 @@ export default function TimelineDashboard() {
         setIsLoading(false);
         return;
       }
+      
+      const company = companyAssignments.find(c => c.companyName === assessmentData.companyName);
+      setCompanyDetails(company || null);
 
       try {
         setIsLoading(true);
@@ -97,7 +104,7 @@ export default function TimelineDashboard() {
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData]);
+  }, [profileData, assessmentData, companyAssignments]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
@@ -167,7 +174,7 @@ export default function TimelineDashboard() {
         
         <DailyBanner />
 
-        {assessmentData && <ImportantDates assessmentData={assessmentData} />}
+        {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} />}
 
         {hasRecommendations && (
             <Card className="shadow-lg">
@@ -207,17 +214,35 @@ export default function TimelineDashboard() {
   );
 }
 
-function ImportantDates({ assessmentData }) {
+function ImportantDates({ assessmentData, companyDetails }) {
     if (!assessmentData) return null;
+
+    const severanceDeadline = useMemo(() => {
+        if (!assessmentData.severanceAgreementDeadline) return null;
+        
+        const datePart = format(assessmentData.severanceAgreementDeadline, 'yyyy-MM-dd');
+        const timePart = companyDetails?.severanceDeadlineTime || '23:59';
+        const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
+        
+        const fullDateString = `${datePart}T${timePart}:00`;
+        const zonedDate = toZonedTime(fullDateString, timezone);
+
+        return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
+    }, [assessmentData.severanceAgreementDeadline, companyDetails]);
 
     const dates = [
         { label: 'Exit Notification', date: assessmentData.notificationDate, icon: Bell },
         { label: 'Final Day of Employment', date: assessmentData.finalDate, icon: CalendarX2 },
+        { label: 'Severance Agreement Deadline', date: severanceDeadline, icon: Key, isString: true },
         { label: 'Medical Coverage Ends', date: assessmentData.medicalCoverageEndDate, icon: Stethoscope },
         { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
         { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
         { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
-    ].filter(d => d.date && !isNaN(d.date.getTime())).sort((a, b) => a.date.getTime() - b.date.getTime());
+    ].filter(d => d.date && (!d.isString ? !isNaN(d.date.getTime()) : true)).sort((a, b) => {
+        const dateA = a.isString ? new Date(a.date) : a.date;
+        const dateB = b.isString ? new Date(b.date) : b.date;
+        return dateA.getTime() - dateB.getTime()
+    });
 
     if (dates.length === 0) return null;
 
@@ -228,14 +253,14 @@ function ImportantDates({ assessmentData }) {
                 <CardDescription>Critical deadlines based on your assessment.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                {dates.map(({ label, date, icon: Icon }) => (
+                {dates.map(({ label, date, icon: Icon, isString }) => (
                     <div key={label} className="flex items-start gap-3">
                         <div className="bg-primary/10 text-primary p-2 rounded-lg mt-1">
                             <Icon className="h-5 w-5" />
                         </div>
                         <div>
                             <p className="font-semibold">{label}</p>
-                            <p className="text-sm text-muted-foreground">{format(date, 'PPP')}</p>
+                            <p className="text-sm text-muted-foreground">{isString ? date : format(date, 'PPP')}</p>
                         </div>
                     </div>
                 ))}
@@ -295,7 +320,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
   const handleDateSelect = (taskId: string, date: Date | undefined) => {
     if (date) {
         // Adjust for timezone offset
-        const correctedDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+        const correctedDate = toZonedTime(date, 'UTC');
         updateTaskDate(taskId, correctedDate);
     }
   };
@@ -310,7 +335,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         const rawDate = overriddenDate || item.endDate;
         const displayDate = rawDate ? new Date(rawDate) : null;
         // Correct for timezone issues when creating Date from 'YYYY-MM-DD'
-        const correctedDisplayDate = displayDate ? new Date(displayDate.valueOf() + displayDate.getTimezoneOffset() * 60 * 1000) : null;
+        const correctedDisplayDate = displayDate ? toZonedTime(displayDate, 'UTC') : null;
 
 
         return (
@@ -370,7 +395,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
 
     const handleDateSelect = (taskId: string, date: Date | undefined) => {
         if (date) {
-            const correctedDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+            const correctedDate = toZonedTime(date, 'UTC');
             updateTaskDate(taskId, correctedDate);
         }
     };
@@ -392,7 +417,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                     const overriddenDate = taskDateOverrides[item.taskId];
                     const rawDate = overriddenDate || item.endDate;
                     const displayDate = rawDate ? new Date(rawDate) : null;
-                    const correctedDisplayDate = displayDate ? new Date(displayDate.valueOf() + displayDate.getTimezoneOffset() * 60 * 1000) : null;
+                    const correctedDisplayDate = displayDate ? toZonedTime(displayDate, 'UTC') : null;
                     
                     return (
                       <TableRow key={item.taskId || index} data-completed={isCompleted}>

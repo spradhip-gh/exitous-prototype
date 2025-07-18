@@ -66,8 +66,22 @@ const initializeDb = (): DemoDatabase => {
 
     return {
         companyAssignments: [
-            { companyName: 'Globex Corp', hrManagerEmail: 'hr@globex.com', version: 'pro', maxUsers: 50 },
-            { companyName: 'Initech', hrManagerEmail: 'hr@initech.com', version: 'basic', maxUsers: 10 }
+            { 
+                companyName: 'Globex Corp', 
+                hrManagerEmail: 'hr@globex.com', 
+                version: 'pro', 
+                maxUsers: 50,
+                severanceDeadlineTime: '23:59',
+                severanceDeadlineTimezone: 'America/Los_Angeles'
+            },
+            { 
+                companyName: 'Initech', 
+                hrManagerEmail: 'hr@initech.com', 
+                version: 'basic', 
+                maxUsers: 10,
+                severanceDeadlineTime: '17:00',
+                severanceDeadlineTimezone: 'America/Chicago'
+            }
         ],
         companyConfigs: {
             'Globex Corp': {

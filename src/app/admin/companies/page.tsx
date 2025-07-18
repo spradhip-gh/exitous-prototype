@@ -23,6 +23,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { timezones } from '@/lib/timezones';
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
@@ -39,10 +40,15 @@ export default function CompanyManagementPage() {
   const [newHrEmail, setNewHrEmail] = useState('');
   const [newCompanyVersion, setNewCompanyVersion] = useState<'basic' | 'pro'>('basic');
   const [newMaxUsers, setNewMaxUsers] = useState('');
+  const [newDeadlineTime, setNewDeadlineTime] = useState('23:59');
+  const [newDeadlineTimezone, setNewDeadlineTimezone] = useState('America/Los_Angeles');
+
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
   const [editedMaxUsers, setEditedMaxUsers] = useState('');
+  const [editedDeadlineTime, setEditedDeadlineTime] = useState('');
+  const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
 
   const handleAddCompany = () => {
     if (!newCompanyName || !newHrEmail || !newMaxUsers) {
@@ -67,13 +73,17 @@ export default function CompanyManagementPage() {
         companyName: newCompanyName, 
         hrManagerEmail: newHrEmail,
         version: newCompanyVersion,
-        maxUsers: maxUsersNum
+        maxUsers: maxUsersNum,
+        severanceDeadlineTime: newDeadlineTime,
+        severanceDeadlineTimezone: newDeadlineTimezone,
     });
     toast({ title: "Company Added", description: `${newCompanyName} has been created and assigned.` });
     setNewCompanyName('');
     setNewHrEmail('');
     setNewMaxUsers('');
     setNewCompanyVersion('basic');
+    setNewDeadlineTime('23:59');
+    setNewDeadlineTimezone('America/Los_Angeles');
   };
 
   const handleDeleteCompany = (companyName: string) => {
@@ -84,6 +94,8 @@ export default function CompanyManagementPage() {
   const handleEditClick = (company: CompanyAssignment) => {
     setEditingCompany(company);
     setEditedMaxUsers(company.maxUsers?.toString() ?? '');
+    setEditedDeadlineTime(company.severanceDeadlineTime || '23:59');
+    setEditedDeadlineTimezone(company.severanceDeadlineTimezone || 'America/Los_Angeles');
     setIsEditDialogOpen(true);
   }
 
@@ -96,7 +108,11 @@ export default function CompanyManagementPage() {
       return;
     }
 
-    updateCompanyAssignment(editingCompany.companyName, { maxUsers: maxUsersNum });
+    updateCompanyAssignment(editingCompany.companyName, { 
+        maxUsers: maxUsersNum,
+        severanceDeadlineTime: editedDeadlineTime,
+        severanceDeadlineTimezone: editedDeadlineTimezone,
+    });
     toast({ title: "Company Updated", description: "Changes have been saved." });
     setIsEditDialogOpen(false);
     setEditingCompany(null);
@@ -127,7 +143,7 @@ export default function CompanyManagementPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-6xl space-y-8">
+      <div className="mx-auto max-w-7xl space-y-8">
         <div className="space-y-2">
             <h1 className="font-headline text-3xl font-bold">Company Management</h1>
             <p className="text-muted-foreground">
@@ -141,12 +157,12 @@ export default function CompanyManagementPage() {
                 <CardDescription>Create a new company profile and assign its HR manager.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="space-y-2 sm:col-span-2">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2 lg:col-span-2">
                         <Label htmlFor="newCompanyName">Company Name</Label>
                         <Input id="newCompanyName" placeholder="e.g., Globex Corp" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} />
                     </div>
-                     <div className="space-y-2 sm:col-span-2">
+                     <div className="space-y-2 lg:col-span-2">
                         <Label htmlFor="newHrEmail">HR Manager Email</Label>
                         <Input id="newHrEmail" type="email" placeholder="hr@globex.com" value={newHrEmail} onChange={e => setNewHrEmail(e.target.value)} />
                     </div>
@@ -164,10 +180,25 @@ export default function CompanyManagementPage() {
                         <Label htmlFor="newMaxUsers">Max Users</Label>
                         <Input id="newMaxUsers" type="number" placeholder="e.g., 50" value={newMaxUsers} onChange={e => setNewMaxUsers(e.target.value)} />
                     </div>
-                    <Button onClick={handleAddCompany} className="self-end lg:col-start-5">
+                    <div className="space-y-2">
+                        <Label htmlFor="newDeadlineTime">Deadline Time</Label>
+                        <Input id="newDeadlineTime" type="time" value={newDeadlineTime} onChange={e => setNewDeadlineTime(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="newDeadlineTimezone">Deadline Timezone</Label>
+                        <Select value={newDeadlineTimezone} onValueChange={setNewDeadlineTimezone}>
+                            <SelectTrigger id="newDeadlineTimezone"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 </div>
+                 <div className="flex justify-end pt-4">
+                    <Button onClick={handleAddCompany}>
                         <PlusCircle className="mr-2" /> Add Company
                     </Button>
-                 </div>
+                </div>
             </CardContent>
         </Card>
 
@@ -250,7 +281,7 @@ export default function CompanyManagementPage() {
       </div>
 
        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Edit {editingCompany?.companyName}</DialogTitle>
                     <DialogDescription>
@@ -266,6 +297,24 @@ export default function CompanyManagementPage() {
                             value={editedMaxUsers} 
                             onChange={(e) => setEditedMaxUsers(e.target.value)} 
                         />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="deadline-time">Severance Deadline Time</Label>
+                        <Input 
+                            id="deadline-time" 
+                            type="time" 
+                            value={editedDeadlineTime} 
+                            onChange={(e) => setEditedDeadlineTime(e.target.value)} 
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="deadline-timezone">Severance Deadline Timezone</Label>
+                        <Select value={editedDeadlineTimezone} onValueChange={setEditedDeadlineTimezone}>
+                            <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
                     {(editingCompany?.version || 'basic') === 'basic' && (
                          <Card className="bg-muted/50">
@@ -290,5 +339,3 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
-
-    

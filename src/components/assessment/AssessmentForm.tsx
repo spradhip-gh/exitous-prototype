@@ -305,7 +305,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
     }, [questions, assessmentData, form, companyUser]);
 
     function onSubmit(data: AssessmentData) {
-        saveAssessmentData(data);
+        saveAssessmentData({ ...data, companyName: auth?.companyName });
         router.push('/dashboard');
     }
 

@@ -55,6 +55,8 @@ export interface CompanyAssignment {
     hrManagerEmail: string;
     version: 'basic' | 'pro';
     maxUsers: number;
+    severanceDeadlineTime?: string; // e.g. "23:59"
+    severanceDeadlineTimezone?: string; // e.g. "America/Los_Angeles"
 }
 
 export interface PlatformUser {
@@ -148,7 +150,8 @@ export function useUserData() {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && key.toLowerCase().includes('date')) {
-                            const date = new Date(obj[key]);
+                            // Using toZonedTime to handle timezone correctly
+                            const date = toZonedTime(obj[key], 'UTC');
                             if (!isNaN(date.getTime())) {
                                 obj[key] = date;
                             }

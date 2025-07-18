@@ -25,6 +25,7 @@ export const profileSchema = z.object({
 export type ProfileData = z.infer<typeof profileSchema>;
 
 const baseAssessmentFields = {
+  companyName: z.string().optional(),
   workStatus: z.string({ required_error: 'Work status is required.'}).min(1, 'Work status is required.'),
   startDate: z.date({ required_error: 'Start date is required.' }),
   notificationDate: z.date({ required_error: 'Notification date is required.' }),
