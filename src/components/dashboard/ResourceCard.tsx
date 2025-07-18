@@ -22,11 +22,11 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const canBeSummarized = resource.content && (resource.content.startsWith('data:text/plain') || resource.content.startsWith('data:application/pdf'));
-
   const getMimeType = (dataUri: string) => {
     return dataUri.substring(dataUri.indexOf(':') + 1, dataUri.indexOf(';'));
   }
+
+  const canBeSummarized = resource.content && (getMimeType(resource.content) === 'text/plain' || getMimeType(resource.content) === 'application/pdf');
 
   useEffect(() => {
     const fetchSummary = async () => {
