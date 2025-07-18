@@ -48,7 +48,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
         )}
       </CardContent>
       <CardFooter>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={getDownloadUrl()} download={resource.fileName}>
                 <Download className="mr-2" /> Download
