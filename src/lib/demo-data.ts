@@ -237,7 +237,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   hadDentalInsurance: 'No',
                   hadVisionInsurance: 'No',
                   hadEAP: 'Yes',
-                  eapCoverageEndDate: new Date(getPastDate(10)),
+                  eapCoverageEndDate: new Date('2025-08-31'),
                 } as AssessmentData, // Cast to avoid TS date/string conflicts
             },
             'employee2@globex.com': {
