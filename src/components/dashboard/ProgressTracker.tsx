@@ -17,7 +17,6 @@ import { toZonedTime } from 'date-fns-tz';
 
 export default function ProgressTracker() {
   const { 
-    profileData, 
     getAssessmentCompletion, 
     customDeadlines, 
     addCustomDeadline,
@@ -44,8 +43,9 @@ export default function ProgressTracker() {
   const getDisplayDate = (dateString: string) => {
     if (!dateString) return '';
     try {
-        const dateInUTC = new Date(`${dateString}T00:00:00Z`);
-        const zonedDate = toZonedTime(dateInUTC, userTimezone);
+        // Parse the 'YYYY-MM-DD' string into a Date object within the target timezone.
+        // This prevents the date from shifting due to local timezone differences.
+        const zonedDate = toZonedTime(`${dateString}T00:00:00`, userTimezone);
         return format(zonedDate, 'PPP');
     } catch(e) {
         console.error("Error formatting date", e);
@@ -105,7 +105,7 @@ export default function ProgressTracker() {
               <div className="text-sm text-muted-foreground mb-4">
                 {isProfileComplete
                   ? 'Your profile is complete. You can edit it if your circumstances change.'
-                  : `Answer ${remainingProfile} more questions to get tailored advice.`}
+                  : `Answer ${remainingProfile} more question${remainingProfile === 1 ? '' : 's'} to get tailored advice.`}
               </div>
               {customDeadlines['profile-deadline'] && !isProfileComplete && (
                  <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline'].date)}</p>
@@ -159,7 +159,7 @@ export default function ProgressTracker() {
               <div className="text-sm text-muted-foreground mb-4">
                 {isAssessmentComplete
                   ? 'Your exit details are saved. You can edit them if needed.'
-                  : `Answer ${remainingAssessment} more questions for a tailored plan.`}
+                  : `Answer ${remainingAssessment} more question${remainingAssessment === 1 ? '' : 's'} for a tailored plan.`}
               </div>
               {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
                  <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline'].date)}</p>

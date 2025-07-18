@@ -425,16 +425,24 @@ export function useUserData() {
     if (!profileData) {
       return { total, completed: 0, remaining: total, percentage: 0 };
     }
+    
     const result = profileSchema.safeParse(profileData);
-    let completed = total;
-    if (!result.success) {
-      const answeredFields = new Set(Object.keys(profileData));
-      const errorFields = new Set(result.error.errors.map(e => e.path[0]));
-      // A field is complete if it's been answered and has no validation errors.
-      completed = [...answeredFields].filter(field => !errorFields.has(field)).length;
+    if (result.success) {
+      return { total, completed: total, remaining: 0, percentage: 100 };
     }
+
+    const answeredFields = new Set(Object.keys(profileData).filter(key => {
+        const value = profileData[key as keyof ProfileData];
+        if (Array.isArray(value)) return value.length > 0;
+        return value !== '' && value !== undefined && value !== null;
+    }));
+    
+    // For a field to be considered complete, it must be answered AND valid.
+    const errorFields = new Set(result.error.errors.map(e => e.path[0]));
+    const completed = [...answeredFields].filter(field => !errorFields.has(field as string)).length;
     const remaining = total - completed;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
+    
     return { total, completed, remaining: Math.max(0, remaining), percentage };
   }, [profileData]);
 

@@ -405,6 +405,10 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
             return a.date!.getTime() - b.date!.getTime();
         });
     }, [assessmentData, companyDetails, userTimezone, customDeadlines]);
+    
+    const sortedKeyDatesForTable = useMemo(() => {
+        return [...keyDates].sort((a,b) => a.date.getTime() - b.date.getTime());
+    }, [keyDates]);
 
     const timelineMetrics = useMemo(() => {
         if (keyDates.length === 0) return null;
@@ -575,7 +579,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {keyDates.map((item, index) => {
+                                {sortedKeyDatesForTable.map((item, index) => {
                                     const Icon = item.icon;
                                     return (
                                         <TableRow key={index}>
