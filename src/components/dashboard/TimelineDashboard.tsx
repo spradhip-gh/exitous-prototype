@@ -59,8 +59,12 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      // For preview mode, we might not have profileData yet, but we have assessmentData
-      if (!assessmentData) {
+      if (isPreview) {
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!profileData || !assessmentData) {
         setIsLoading(false);
         return;
       }
@@ -112,7 +116,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData]);
+  }, [profileData, assessmentData, isPreview]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
@@ -156,7 +160,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     return sortedRecommendations.filter(r => r.category === activeCategory);
   }, [sortedRecommendations, activeCategory]);
 
-  if (isLoading) {
+  if (isLoading && !isPreview) {
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -181,31 +185,27 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-            <div>
-              <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
-              <p className="text-muted-foreground">
-                {isPreview 
-                    ? "Here's a preview of your timeline based on company data."
-                    : "Here’s a timeline of recommended actions based on your details."
-                }
-              </p>
-            </div>
-        </div>
+        {!isPreview && (
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+              <div>
+                <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
+                <p className="text-muted-foreground">
+                  Here’s a timeline of recommended actions based on your details.
+                </p>
+              </div>
+          </div>
+        )}
         
-        <DailyBanner />
+        {!isPreview && <DailyBanner />}
 
         {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} userTimezone={userTimezone} />}
 
-        {sortedRecommendations.length > 0 && (
+        {!isPreview && sortedRecommendations.length > 0 && (
             <Card className="shadow-lg">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
                      <CardDescription>
-                        {isPreview 
-                            ? "Complete your profile to get a fully personalized list."
-                            : "A tailored list of actions to guide you through your exit."
-                        }
+                        A tailored list of actions to guide you through your exit.
                     </CardDescription>
                     <div className="flex flex-wrap items-center gap-2 pt-2">
                         <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>

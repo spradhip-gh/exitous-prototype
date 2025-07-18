@@ -39,8 +39,9 @@ export default function DashboardPage() {
   if (hasPrefilledData && !isFullyComplete) {
     return (
       <main className="flex-1">
+        <WelcomeSummary />
         <TimelineDashboard isPreview />
-        <div className="mt-8">
+        <div className="-mt-8">
           <ProgressTracker />
         </div>
       </main>
