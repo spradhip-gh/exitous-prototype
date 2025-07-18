@@ -2,7 +2,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, formatInTimeZone } from 'date-fns-tz';
+import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,7 +44,11 @@ export default function TimelineDashboard() {
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [companyDetails, setCompanyDetails] = useState<CompanyAssignment | null>(null);
+
+  const companyDetails = useMemo(() => {
+    if (!assessmentData?.companyName) return null;
+    return companyAssignments.find(c => c.companyName === assessmentData.companyName) || null;
+  }, [assessmentData, companyAssignments]);
 
 
   useEffect(() => {
@@ -52,9 +57,6 @@ export default function TimelineDashboard() {
         setIsLoading(false);
         return;
       }
-      
-      const company = companyAssignments.find(c => c.companyName === assessmentData.companyName);
-      setCompanyDetails(company || null);
 
       try {
         setIsLoading(true);
@@ -105,7 +107,7 @@ export default function TimelineDashboard() {
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, companyAssignments]);
+  }, [profileData, assessmentData]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
@@ -231,7 +233,6 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
           return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
         } catch (e) {
           console.error("Failed to parse timezone", e)
-          // Fallback for invalid timezone string
           return format(new Date(fullDateString), "PPP 'at' h:mm a");
         }
     }, [assessmentData.severanceAgreementDeadline, companyDetails]);
@@ -245,6 +246,10 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
         { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
         { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
     ].filter(d => d.date && (d.isString || !isNaN(new Date(d.date).getTime()))).sort((a, b) => {
+        if (a.isString || b.isString) {
+          // A simple sort for string-based dates won't be perfect, but it's a fallback.
+          return (a.date ?? '').toString().localeCompare((b.date ?? '').toString());
+        }
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         return dateA.getTime() - dateB.getTime();
