@@ -37,14 +37,12 @@ export default function WelcomeSummary() {
 
   const formatSeveranceDeadline = (dateString: string) => {
     try {
-        const datePart = formatDate(dateString);
-        if (datePart === 'N/A') return 'N/A';
-
         const timePart = companyDetails?.severanceDeadlineTime || '23:59';
         const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
 
-        const fullDateString = `${dateString}T${timePart}:00`;
-        const zonedDate = toZonedTime(fullDateString, timezone);
+        // Combine date and time correctly
+        const dateTimeString = `${dateString}T${timePart}:00`;
+        const zonedDate = toZonedTime(dateTimeString, timezone);
 
         return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
     } catch(e) {
