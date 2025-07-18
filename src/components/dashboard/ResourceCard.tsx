@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Resource } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Sparkles, FileWarning, ChevronDown } from 'lucide-react';
+import { Download, Sparkles, FileWarning, ChevronDown, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import {
   Collapsible,
@@ -13,15 +13,42 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { cn } from '@/lib/utils';
+import { summarizeDocument } from '@/ai/flows/summarize-document';
 
-
-const MOCK_SUMMARY = `This document provides a comprehensive overview of key details and deadlines. It covers topics such as insurance continuation, severance package details, and available outplacement services. Key actions include reviewing your separation agreement, understanding your benefits timeline, and utilizing the career resources provided.`;
 
 export default function ResourceCard({ resource }: { resource: Resource }) {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const summary = MOCK_SUMMARY;
-  const isLoading = false;
-  const canBeSummarized = resource.content && resource.content.startsWith('data:text/plain');
+  const [summary, setSummary] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const canBeSummarized = resource.content && (resource.content.startsWith('data:text/plain') || resource.content.startsWith('data:application/pdf'));
+
+  const getMimeType = (dataUri: string) => {
+    return dataUri.substring(dataUri.indexOf(':') + 1, dataUri.indexOf(';'));
+  }
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+        if (!isSummaryOpen || summary || !canBeSummarized || !resource.content) return;
+        
+        setIsLoading(true);
+        setError('');
+        try {
+            const result = await summarizeDocument({
+              contentDataUri: resource.content,
+              mimeType: getMimeType(resource.content),
+            });
+            setSummary(result);
+        } catch (err: any) {
+            console.error("Summarization failed for:", resource.title, err);
+            setError(err.message || "An error occurred while generating the summary.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchSummary();
+  }, [isSummaryOpen, canBeSummarized, resource, summary]);
 
 
   const getDownloadUrl = () => {
@@ -44,27 +71,37 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
                 <Sparkles className="h-4 w-4" />
                 AI Summary
               </h4>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-9 p-0">
-                  <ChevronDown className={cn("h-4 w-4 transition-transform", isSummaryOpen && "rotate-180")} />
-                  <span className="sr-only">Toggle Summary</span>
-                </Button>
-              </CollapsibleTrigger>
+              {canBeSummarized ? (
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-9 p-0">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", isSummaryOpen && "rotate-180")} />
+                    <span className="sr-only">Toggle Summary</span>
+                  </Button>
+                </CollapsibleTrigger>
+              ) : null}
           </div>
           <Separator className="my-3" />
           <CollapsibleContent className="space-y-4">
-            {isLoading ? (
-              <div className="space-y-2"><div className="h-4 w-full" /><div className="h-4 w-[80%]" /></div>
-            ) : canBeSummarized ? (
-              <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
-            ) : (
-              <div className="flex items-center text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
-                <FileWarning className="h-5 w-5 mr-3" />
-                <div>
-                  <p className="font-semibold">Cannot Summarize File</p>
-                  <p>AI summary is only available for text files.</p>
-                </div>
+             {isLoading && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating summary...
               </div>
+            )}
+            {error && (
+              <div className="text-sm text-destructive">{error}</div>
+            )}
+            {summary && (
+              <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
+            )}
+             {!canBeSummarized && (
+                <div className="flex items-center text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
+                    <FileWarning className="h-5 w-5 mr-3 flex-shrink-0" />
+                    <div>
+                    <p className="font-semibold">Cannot Summarize File</p>
+                    <p>AI summary is only available for text and PDF files.</p>
+                    </div>
+                </div>
             )}
           </CollapsibleContent>
         </Collapsible>
