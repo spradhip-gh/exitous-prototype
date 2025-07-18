@@ -29,11 +29,11 @@ export default function WelcomeSummary() {
   
   const timezone = companyDetails?.severanceDeadlineTimezone || 'UTC';
 
-  const formatDate = (dateString: string | undefined) => {
+  const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
     try {
       const dateInTz = toZonedTime(dateString, timezone);
-      return format(dateInTz, 'PPP');
+      return format(dateInTz, 'PPP', { timeZone: timezone });
     } catch {
       return 'N/A';
     }

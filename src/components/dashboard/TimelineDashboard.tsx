@@ -221,8 +221,15 @@ export default function TimelineDashboard() {
 function ImportantDates({ assessmentData, companyDetails }: { assessmentData: any, companyDetails: CompanyAssignment | null }) {
     if (!assessmentData) return null;
 
+    const timezone = companyDetails?.severanceDeadlineTimezone || 'UTC';
+    
+    const formatDate = (date: Date): string => {
+        if (!date || isNaN(date.getTime())) return 'N/A';
+        return format(date, 'PPP');
+    };
+
     const severanceDeadlineTooltip = companyDetails
-      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} ${companyDetails.severanceDeadlineTimezone || 'America/Los_Angeles'}`
+      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} on the specified date in the ${timezone} timezone.`
       : 'Deadline time and timezone are set by the company.';
 
     const dates = [
@@ -258,7 +265,7 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
                         <div>
                             <p className="font-semibold">{label}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-sm text-muted-foreground">{format(toZonedTime(date, 'UTC'), 'PPP')}</p>
+                              <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
                               {tooltip && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>

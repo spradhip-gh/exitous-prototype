@@ -163,7 +163,10 @@ export function useUserData() {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const date = toZonedTime(obj[key], timezone);
+                            const dateStr = obj[key];
+                            // IMPORTANT: Create the Date object by interpreting the string in the company's timezone
+                            // This avoids the UTC conversion issue.
+                            const date = toZonedTime(dateStr, timezone);
                             if (!isNaN(date.getTime())) {
                                 obj[key] = date;
                             }
