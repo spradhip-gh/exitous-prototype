@@ -169,9 +169,9 @@ export function useUserData() {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
                             const dateStr = obj[key];
-                            const date = toZonedTime(dateStr, targetTimezone);
-                            if (!isNaN(date.getTime())) {
-                                obj[key] = date;
+                            const [year, month, day] = dateStr.split('-').map(Number);
+                            if (year && month && day) {
+                                obj[key] = new Date(year, month - 1, day);
                             }
                         } else if (typeof obj[key] === 'object') {
                             convertDates(obj[key]);
@@ -416,15 +416,51 @@ export function useUserData() {
 
   const clearData = useCallback(() => {
     try {
+      // Clear profile data completely
       localStorage.removeItem(profileKey);
+      setProfileData(null);
+
+      // Reset assessment data, but preserve HR-prefilled info
       localStorage.removeItem(assessmentKey);
+      const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+      if (companyUser?.user.prefilledAssessmentData) {
+        const prefilledData = { ...companyUser.user.prefilledAssessmentData };
+        
+        if(companyUser?.user.notificationDate) {
+            (prefilledData as any).notificationDate = companyUser.user.notificationDate;
+        }
+
+        localStorage.setItem(assessmentKey, JSON.stringify(prefilledData));
+        // Re-parse with dates for the state
+        const parsedData = JSON.parse(JSON.stringify(prefilledData));
+         const convertDates = (obj: any) => {
+            if (obj && typeof obj === 'object') {
+                for (const key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
+                            const dateStr = obj[key];
+                            const [year, month, day] = dateStr.split('-').map(Number);
+                            if (year && month && day) {
+                                obj[key] = new Date(year, month - 1, day);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        convertDates(parsedData);
+        setAssessmentData(parsedData);
+      } else {
+        setAssessmentData(null);
+      }
+
+      // Clear task-related data
       localStorage.removeItem(completedTasksKey);
       localStorage.removeItem(taskDateOverridesKey);
-      setProfileData(null);
-      setAssessmentData(null);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
       
+      // Reset completion status in the 'database'
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newProfileCompletions = { ...profileCompletions };
         delete newProfileCompletions[auth.email!];
@@ -438,7 +474,7 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, profileCompletions, assessmentCompletions]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, profileCompletions, assessmentCompletions, getCompanyUser]);
 
   return {
     profileData,
