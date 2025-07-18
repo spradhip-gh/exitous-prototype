@@ -11,20 +11,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function ProgressTracker() {
-  const { profileData, getAssessmentCompletion, customDeadlines, addCustomDeadline } = useUserData();
+  const { 
+    profileData, 
+    getAssessmentCompletion, 
+    customDeadlines, 
+    addCustomDeadline,
+    getProfileCompletion,
+  } = useUserData();
   const { toast } = useToast();
 
-  const profileProgress = profileData ? 100 : 0;
-  const { percentage: assessmentProgress } = getAssessmentCompletion();
+  const { percentage: profileProgress, remaining: remainingProfile } = getProfileCompletion();
+  const { percentage: assessmentProgress, remaining: remainingAssessment } = getAssessmentCompletion();
   const overallProgress = (profileProgress + assessmentProgress) / 2;
-  const isAssessment100Complete = assessmentProgress === 100;
+  const isProfileComplete = profileProgress === 100;
+  const isAssessmentComplete = assessmentProgress === 100;
 
   const handleDateSet = (id: string, label: string, date: Date | undefined) => {
     if (date) {
       addCustomDeadline(id, { label, date: date.toISOString().split('T')[0] });
-      toast({ title: "Deadline Set", description: `Goal date for "${label}" has been saved.` });
+      toast({ title: "Goal Date Set", description: `Your goal for "${label}" has been saved.` });
     }
   };
 
@@ -54,44 +62,51 @@ export default function ProgressTracker() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">Your Profile</CardTitle>
               <div className="flex items-center gap-1">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      onSelect={(date) => handleDateSet('profile-deadline', 'Complete Profile', date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                       <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              onSelect={(date) => handleDateSet('profile-deadline', 'Complete Profile', date)}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Set a goal date</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <ListChecks className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
-                {profileData
+                {isProfileComplete
                   ? 'Your profile is complete. You can edit it if your circumstances change.'
-                  : 'Tell us about your situation to get tailored advice.'}
+                  : `Answer ${remainingProfile} more questions to get tailored advice.`}
               </div>
-              {customDeadlines['profile-deadline'] && !profileData && (
+              {customDeadlines['profile-deadline'] && !isProfileComplete && (
                  <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['profile-deadline'].date), 'PPP')}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
-                {profileData ? (
+                {isProfileComplete ? (
                   <span className="flex items-center gap-1 text-sm text-green-600">
                     <CheckCircle className="h-4 w-4" /> Complete
                   </span>
                 ) : (
-                  <span className="text-sm text-amber-600">Incomplete</span>
+                  <span className="text-sm text-amber-600">{profileProgress.toFixed(0)}% Complete</span>
                 )}
               </div>
               <Progress value={profileProgress} className="w-full mb-4" />
               <Link href="/dashboard/profile" passHref>
                 <Button className="w-full">
-                  {profileData ? <><Edit className="mr-2 h-4 w-4" /> Edit Profile</> : 'Complete Profile'}
+                  {isProfileComplete ? <><Edit className="mr-2 h-4 w-4" /> Edit Profile</> : 'Complete Profile'}
                 </Button>
               </Link>
             </CardContent>
@@ -101,33 +116,40 @@ export default function ProgressTracker() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">Exit Details</CardTitle>
                <div className="flex items-center gap-1">
-                 <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!profileData}><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      onSelect={(date) => handleDateSet('assessment-deadline', 'Complete Assessment', date)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><CalendarPlus className="h-4 w-4 text-muted-foreground" /></Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  onSelect={(date) => handleDateSet('assessment-deadline', 'Complete Assessment', date)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Set a goal date</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
                 <Briefcase className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
-                {isAssessment100Complete
+                {isAssessmentComplete
                   ? 'Your exit details are saved. You can edit them if needed.'
-                  : 'Provide specifics about your exit for a tailored plan.'}
+                  : `Answer ${remainingAssessment} more questions for a tailored plan.`}
               </div>
-              {customDeadlines['assessment-deadline'] && !isAssessment100Complete && (
+              {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
                  <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {format(new Date(customDeadlines['assessment-deadline'].date), 'PPP')}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
-                {isAssessment100Complete ? (
+                {isAssessmentComplete ? (
                   <span className="flex items-center gap-1 text-sm text-green-600">
                     <CheckCircle className="h-4 w-4" /> Complete
                   </span>
@@ -137,11 +159,11 @@ export default function ProgressTracker() {
               </div>
               <Progress value={assessmentProgress} className="w-full mb-4" />
               <Link href="/dashboard/assessment" passHref>
-                <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
-                  {isAssessment100Complete ? 'Edit Details' : 'Continue Adding Details'}
+                <Button className="w-full" disabled={!isProfileComplete} variant={isProfileComplete ? "default" : "secondary"}>
+                  {isAssessmentComplete ? 'Edit Details' : 'Continue Adding Details'}
                 </Button>
               </Link>
-               {!profileData && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}
+               {!isProfileComplete && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}
             </CardContent>
           </Card>
         </div>

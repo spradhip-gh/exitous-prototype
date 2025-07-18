@@ -2,8 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { ProfileData } from '@/lib/schemas';
-import { type AssessmentData } from '@/lib/schemas';
+import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import {
@@ -418,10 +417,27 @@ export function useUserData() {
     return questionTree;
   }, [masterQuestions, companyConfigs]);
 
+  const getProfileCompletion = useCallback(() => {
+    if (!profileData) {
+      return { total: Object.keys(profileSchema.shape).length, completed: 0, remaining: Object.keys(profileSchema.shape).length, percentage: 0 };
+    }
+    const result = profileSchema.safeParse(profileData);
+    const total = Object.keys(profileSchema.shape).length;
+    let completed = total;
+    if (!result.success) {
+      // a bit of a hack, but we count the errors to find uncompleted fields.
+      // zod doesn't directly expose which fields are valid.
+      completed = total - result.error.errors.length;
+    }
+    const remaining = total - completed;
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+    return { total, completed, remaining, percentage };
+  }, [profileData]);
+
   const getAssessmentCompletion = useCallback(() => {
     const activeQuestions = getCompanyConfig(auth?.companyName, true);
     if (!activeQuestions || activeQuestions.length === 0) {
-      return { total: 0, completed: 0, percentage: 0 };
+      return { total: 0, completed: 0, remaining: 0, percentage: 0 };
     }
 
     let totalRequired = 0;
@@ -461,8 +477,9 @@ export function useUserData() {
 
     countQuestions(activeQuestions);
 
+    const remaining = totalRequired - completedCount;
     const percentage = totalRequired > 0 ? (completedCount / totalRequired) * 100 : 0;
-    return { total: totalRequired, completed: completedCount, percentage: Math.round(percentage) };
+    return { total: totalRequired, completed: completedCount, remaining, percentage: Math.round(percentage) };
   }, [auth?.companyName, assessmentData, getCompanyConfig]);
 
 
@@ -536,6 +553,7 @@ export function useUserData() {
     profileData,
     assessmentData,
     isAssessmentComplete,
+    getProfileCompletion,
     getAssessmentCompletion,
     completedTasks,
     taskDateOverrides,
