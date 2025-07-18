@@ -110,12 +110,12 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
             </Button>
           </Link>
           <Separator className="my-2" />
-           <a href="/HR_MANAGER_GUIDE.md" target="_blank" rel="noopener noreferrer">
+           <Link href="/help/hr-guide" target="_blank" rel="noopener noreferrer">
             <Button variant='ghost' className="w-full justify-start">
                 <HelpCircle className="mr-2" />
                 Help & Guide
             </Button>
-           </a>
+           </Link>
         </>
       )}
       {role === 'consultant' && (
