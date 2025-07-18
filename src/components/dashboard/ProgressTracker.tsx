@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { CheckCircle, Edit, ListChecks, Briefcase, CalendarPlus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { toZonedTime, format as formatInTz } from 'date-fns-tz';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -42,8 +42,8 @@ export default function ProgressTracker() {
   const getDisplayDate = (dateString: string | undefined): string => {
     if (!dateString) return '';
     try {
-        const date = toZonedTime(dateString, userTimezone);
-        return formatInTz(date, 'PPP', { timeZone: userTimezone });
+      const date = parse(dateString, 'yyyy-MM-dd', new Date());
+      return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch(e) {
         console.error("Error formatting date", e);
         return dateString || '';
