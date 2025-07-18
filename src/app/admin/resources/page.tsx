@@ -37,7 +37,7 @@ export default function ResourceManagementPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newCategory, setNewCategory] = useState<Resource['category']>('Other');
   const [newFileName, setNewFileName] = useState('');
-  const [newFileContent, setNewFileContent] = useState(''); // Store as data URI
+  const [newFileContent, setNewFileContent] = useState(''); // Store as raw text
   const [fileInputKey, setFileInputKey] = useState(Date.now()); // to reset file input
 
   const handleAddResource = () => {
@@ -74,6 +74,8 @@ export default function ResourceManagementPage() {
       reader.onload = (loadEvent) => {
         const result = loadEvent.target?.result;
         if (typeof result === 'string') {
+           // For text files, store raw text. For others (like PDF), we'd need a different strategy
+           // but for this app's purpose, we'll assume text for simplicity of summarization.
           setNewFileContent(result);
         } else {
           toast({ title: "File Read Error", description: "Could not read file content.", variant: "destructive" });
@@ -82,7 +84,8 @@ export default function ResourceManagementPage() {
       reader.onerror = () => {
         toast({ title: "File Read Error", description: "An error occurred while reading the file.", variant: "destructive" });
       };
-      reader.readAsDataURL(file);
+       // Reading as text. For binary files like PDF, this would be readAsDataURL and handled differently.
+      reader.readAsText(file);
     }
   };
 

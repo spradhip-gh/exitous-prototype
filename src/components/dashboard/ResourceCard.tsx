@@ -15,47 +15,37 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSummaryVisible, setIsSummaryVisible] = useState(false);
 
-  const getMimeType = (dataUri?: string) => {
-    if (!dataUri) return '';
-    const match = dataUri.match(/data:(.*?);base64,/);
-    return match ? match[1] : '';
+  const getMimeType = (fileName: string): 'text/plain' | 'application/pdf' | 'unsupported' => {
+    if (fileName.toLowerCase().endsWith('.pdf')) return 'application/pdf';
+    if (fileName.toLowerCase().endsWith('.txt')) return 'text/plain';
+    return 'unsupported';
   };
 
-  const mimeType = getMimeType(resource.content);
-  const canBeSummarized = resource.content && (mimeType === 'text/plain' || mimeType === 'application/pdf');
+  const mimeType = getMimeType(resource.fileName);
+  const canBeSummarized = resource.content && mimeType !== 'unsupported';
 
   const handleToggleSummary = async () => {
-    // If we're closing it, just hide it.
     if (isSummaryVisible) {
       setIsSummaryVisible(false);
       return;
     }
     
-    // If we're opening it, show it.
     setIsSummaryVisible(true);
 
-    // If summary is already loaded, do nothing else.
-    if (summary || error) {
-      return;
-    }
-
-    // If it cannot be summarized, show error and stop.
-    if (!canBeSummarized) {
-      setError("AI summary is only available for TXT and PDF files.");
-      return;
-    }
-
-    // If there's no content, stop. This is our definitive guard.
-    if (!resource.content || typeof resource.content !== 'string' || resource.content.length === 0) {
-      setError("Document content is missing or empty.");
+    if (summary || error || !canBeSummarized) {
       return;
     }
 
     setIsLoading(true);
     setError('');
+    
     try {
+      // Encode the content to a data URI right before sending it.
+      // This happens on the client, where btoa() is available.
+      const contentDataUri = `data:${mimeType};base64,${btoa(resource.content!)}`;
+
       const result = await summarizeDocument({
-        contentDataUri: resource.content,
+        contentDataUri: contentDataUri,
         mimeType: mimeType,
       });
       setSummary(result);
@@ -68,7 +58,9 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   };
 
   const getDownloadUrl = () => {
-    return resource.content || '#';
+    if (!resource.content) return '#';
+    const blob = new Blob([resource.content], { type: mimeType });
+    return URL.createObjectURL(blob);
   };
 
   return (
@@ -96,6 +88,12 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
             {summary && (
               <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
             )}
+             {!canBeSummarized && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <FileWarning className="h-5 w-5 mr-3 flex-shrink-0" />
+                AI summary is not available for this file type.
+              </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -105,7 +103,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
             <Download className="mr-2" /> Download
           </a>
         </Button>
-        <Button variant="secondary" size="sm" onClick={handleToggleSummary} disabled={!canBeSummarized}>
+        <Button variant="secondary" size="sm" onClick={handleToggleSummary}>
           <Sparkles className="mr-2" />
           {isSummaryVisible ? "Hide" : "Show"} Summary
         </Button>
