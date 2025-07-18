@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { format, parse } from 'date-fns';
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,7 +22,7 @@ import DailyBanner from './DailyBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
-  "Healthcare": Briefcase,
+  "Healthcare": Stethoscope,
   "Finances": Banknote,
   "Job Search": ListChecks,
   "Legal": Scale,
@@ -39,7 +39,6 @@ export default function TimelineDashboard() {
     taskDateOverrides,
     updateTaskDate,
     companyAssignments,
-    getTargetTimezone,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
@@ -47,7 +46,10 @@ export default function TimelineDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  const userTimezone = getTargetTimezone();
+  const userTimezone = useMemo(() => {
+    if (!assessmentData?.companyName || !companyAssignments) return 'UTC';
+    return companyAssignments.find(c => c.companyName === assessmentData.companyName)?.severanceDeadlineTimezone || 'UTC';
+  }, [assessmentData?.companyName, companyAssignments]);
 
   const companyDetails = useMemo(() => {
     if (!assessmentData?.companyName) return null;
@@ -79,28 +81,19 @@ export default function TimelineDashboard() {
           pastLifeEvents: profileData.pastLifeEvents,
           hasChildrenAges18To26: profileData.hasChildrenAges18To26.startsWith('Yes'),
         };
+        
+        const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
+        Object.keys(assessmentData).forEach(key => {
+            const value = (assessmentData as any)[key];
+            if (value instanceof Date) {
+                stringifiedAssessmentData[key] = value.toISOString();
+            }
+        });
 
-        const transformedAssessmentData = {
-          ...assessmentData,
-          startDate: assessmentData.startDate?.toISOString(),
-          notificationDate: assessmentData.notificationDate?.toISOString(),
-          finalDate: assessmentData.finalDate?.toISOString(),
-          severanceAgreementDeadline: assessmentData.severanceAgreementDeadline?.toISOString(),
-          relocationDate: assessmentData.relocationDate?.toISOString(),
-          internalMessagingAccessEndDate: assessmentData.internalMessagingAccessEndDate?.toISOString(),
-          emailAccessEndDate: assessmentData.emailAccessEndDate?.toISOString(),
-          networkDriveAccessEndDate: assessmentData.networkDriveAccessEndDate?.toISOString(),
-          layoffPortalAccessEndDate: assessmentData.layoffPortalAccessEndDate?.toISOString(),
-          hrPayrollSystemAccessEndDate: assessmentData.hrPayrollSystemAccessEndDate?.toISOString(),
-          medicalCoverageEndDate: assessmentData.medicalCoverageEndDate?.toISOString(),
-          dentalCoverageEndDate: assessmentData.dentalCoverageEndDate?.toISOString(),
-          visionCoverageEndDate: assessmentData.visionCoverageEndDate?.toISOString(),
-          eapCoverageEndDate: assessmentData.eapCoverageEndDate?.toISOString(),
-        };
 
         const result = await getPersonalizedRecommendations({
           profileData: transformedProfileData,
-          layoffDetails: transformedAssessmentData,
+          layoffDetails: stringifiedAssessmentData,
         });
         setRecommendations(result);
       } catch (e) {
@@ -121,9 +114,8 @@ export default function TimelineDashboard() {
 
     const getDateValue = (dateStr: string | undefined) => {
       if (!dateStr) return Infinity;
-      // Dates are 'YYYY-MM-DD'. new Date() parses this as UTC.
-      // This is fine for sorting as long as it's consistent.
-      return toZonedTime(dateStr, userTimezone).getTime();
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day).getTime();
     };
 
     return [...recommendations.recommendations].sort((a, b) => {
@@ -140,11 +132,9 @@ export default function TimelineDashboard() {
       if (aHasDate) return -1;
       if (bHasDate) return 1;
       
-      // If dates are the same or both are undefined, preserve original AI order.
-      // The AI is prompted to sort by urgency, so this is a good fallback.
       return 0;
     });
-  }, [recommendations, taskDateOverrides, userTimezone]);
+  }, [recommendations, taskDateOverrides]);
 
   const recommendationCategories = useMemo(() => {
     if (!sortedRecommendations) return [];
@@ -256,14 +246,13 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
     
     const formatDate = (date: Date): string => {
         if (!date || isNaN(date.getTime())) return 'N/A';
-        const dateString = date.toISOString().split('T')[0];
-        const [year, month, day] = dateString.split('-').map(Number);
+        const [year, month, day] = date.toISOString().split('T')[0].split('-').map(Number);
         const correctedDate = new Date(year, month - 1, day);
         return format(correctedDate, 'PPP');
     };
 
     const severanceDeadlineTooltip = companyDetails
-      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`
+      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
       : 'Deadline time and timezone are set by the company.';
 
     const allDatesRaw = [
@@ -282,8 +271,8 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
     const sortedDates = allDatesRaw.sort((a, b) => {
         const aIsEAP = a.label === eapLabel;
         const bIsEAP = b.label === eapLabel;
-        if (aIsEAP) return 1;
-        if (bIsEAP) return -1;
+        if (aIsEAP && !bIsEAP) return 1;
+        if (!aIsEAP && bIsEAP) return -1;
         
         const aIndex = priorityOrder.indexOf(a.label);
         const bIndex = priorityOrder.indexOf(b.label);
@@ -297,25 +286,25 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
         return dateA.getTime() - dateB.getTime();
     });
 
-    const calendarDates = sortedDates.map(d => d.date);
-
     if (sortedDates.length === 0) return null;
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="font-headline text-xl">Key Dates</CardTitle>
-                <CardDescription>Critical deadlines based on your assessment.</CardDescription>
+                <CardDescription>A timeline of critical deadlines based on your assessment.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-8 lg:grid-cols-2">
-               <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                 <TooltipProvider>
-                    {sortedDates.map(({ label, date, icon: Icon, tooltip }) => (
-                        <div key={label} className="flex items-start gap-3">
-                            <div className="bg-primary/10 text-primary p-2 rounded-lg mt-1">
-                                <Icon className="h-5 w-5" />
+            <CardContent>
+                <div className="relative pl-4">
+                    <div className="absolute left-9 top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
+                    <TooltipProvider>
+                    {sortedDates.map(({ label, date, icon: Icon, tooltip }, index) => (
+                        <div key={label} className="relative mb-6 flex items-start gap-4">
+                             <div className="absolute left-9 top-1/2 h-4 w-4 rounded-full bg-primary ring-4 ring-background -translate-x-1/2 -translate-y-1/2"></div>
+                             <div className="bg-primary/10 text-primary p-2 rounded-lg">
+                                <Icon className="h-6 w-6" />
                             </div>
-                            <div>
+                            <div className="pt-1">
                                 <p className="font-semibold">{label}</p>
                                 <div className="flex items-center gap-2">
                                 <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
@@ -333,19 +322,8 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                             </div>
                         </div>
                     ))}
-                 </TooltipProvider>
-               </div>
-               <div className="flex justify-center items-center">
-                    <CalendarPicker
-                        mode="multiple"
-                        selected={calendarDates}
-                        defaultMonth={calendarDates[0]}
-                        classNames={{
-                            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-                            day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-full",
-                        }}
-                    />
-               </div>
+                    </TooltipProvider>
+                </div>
             </CardContent>
         </Card>
     );
@@ -402,7 +380,8 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 
   const handleDateSelect = (taskId: string, date: Date | undefined) => {
     if (date) {
-        const correctedDate = toZonedTime(date, userTimezone);
+        const [year, month, day] = format(date, 'yyyy-MM-dd').split('-').map(Number);
+        const correctedDate = new Date(year, month-1, day);
         updateTaskDate(taskId, correctedDate);
     }
   };
@@ -413,10 +392,13 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
       {recommendations.map((item, index) => {
         const Icon = categoryIcons[item.category] || categoryIcons.default;
         const isCompleted = completedTasks.has(item.taskId);
-        const overriddenDate = taskDateOverrides[item.taskId];
-        const rawDate = overriddenDate || item.endDate;
-        const displayDate = rawDate ? toZonedTime(rawDate, userTimezone) : null;
-
+        const overriddenDateStr = taskDateOverrides[item.taskId];
+        const rawDateStr = overriddenDateStr || item.endDate;
+        let displayDate: Date | null = null;
+        if(rawDateStr) {
+            const [year, month, day] = rawDateStr.split('-').map(Number);
+            displayDate = new Date(year, month-1, day);
+        }
 
         return (
           <div key={item.taskId || index} className="relative mb-8 flex items-start gap-4">
@@ -475,7 +457,8 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
 
     const handleDateSelect = (taskId: string, date: Date | undefined) => {
         if (date) {
-            const correctedDate = toZonedTime(date, userTimezone);
+            const [year, month, day] = format(date, 'yyyy-MM-dd').split('-').map(Number);
+            const correctedDate = new Date(year, month-1, day);
             updateTaskDate(taskId, correctedDate);
         }
     };
@@ -494,9 +477,13 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
               <TableBody>
                   {recommendations.map((item, index) => {
                     const isCompleted = completedTasks.has(item.taskId);
-                    const overriddenDate = taskDateOverrides[item.taskId];
-                    const rawDate = overriddenDate || item.endDate;
-                    const displayDate = rawDate ? toZonedTime(rawDate, userTimezone) : null;
+                    const overriddenDateStr = taskDateOverrides[item.taskId];
+                    const rawDateStr = overriddenDateStr || item.endDate;
+                    let displayDate: Date | null = null;
+                    if(rawDateStr) {
+                        const [year, month, day] = rawDateStr.split('-').map(Number);
+                        displayDate = new Date(year, month-1, day);
+                    }
                     
                     return (
                       <TableRow key={item.taskId || index} data-completed={isCompleted}>
