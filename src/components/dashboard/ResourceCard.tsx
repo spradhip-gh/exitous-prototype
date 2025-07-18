@@ -47,16 +47,18 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex items-center gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <a href={getDownloadUrl()} download={resource.fileName}>
-            <Download className="mr-2" /> Download
-          </a>
-        </Button>
-        <Button variant="secondary" size="sm" onClick={handleToggleSummary}>
-          <Sparkles className="mr-2" />
-          {isSummaryVisible ? "Hide Summary" : "Show Summary"}
-        </Button>
+      <CardFooter>
+        <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href={getDownloadUrl()} download={resource.fileName}>
+                <Download className="mr-2" /> Download
+              </a>
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleToggleSummary}>
+              <Sparkles className="mr-2" />
+              {isSummaryVisible ? "Hide Summary" : "Show Summary"}
+            </Button>
+        </div>
       </CardFooter>
     </Card>
   );
