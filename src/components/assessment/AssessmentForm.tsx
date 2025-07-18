@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { cn } from '@/lib/utils';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
 
@@ -206,7 +206,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
 
     const companyDeadlineTooltip = useMemo(() => {
         if (!companyDetails) return undefined;
-        const time = companyDetails.severanceDeadlineTime || "11:59 PM";
+        const time = companyDetails.severanceDeadlineTime || "23:59";
         const timezone = companyDetails.severanceDeadlineTimezone || "PST";
         return `${auth?.companyName}'s deadline is ${time} ${timezone} on the specified date.`;
     }, [companyDetails, auth?.companyName]);

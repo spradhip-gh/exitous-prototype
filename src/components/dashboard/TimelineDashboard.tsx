@@ -3,13 +3,13 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import DailyBanner from './DailyBanner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Briefcase,
@@ -220,39 +221,19 @@ export default function TimelineDashboard() {
 function ImportantDates({ assessmentData, companyDetails }: { assessmentData: any, companyDetails: CompanyAssignment | null }) {
     if (!assessmentData) return null;
 
-    const severanceDeadline = useMemo(() => {
-        if (!assessmentData.severanceAgreementDeadline) return null;
-        
-        const dateString = format(assessmentData.severanceAgreementDeadline, 'yyyy-MM-dd');
-        
-        try {
-            const timePart = companyDetails?.severanceDeadlineTime || '23:59';
-            const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
-            
-            // Correctly parse the date string in the target timezone
-            const zonedDate = toZonedTime(dateString, timezone);
-
-            // Then format it in that same timezone
-            return formatInTimeZone(zonedDate, timezone, `PPP 'at' h:mm a zzz`);
-        } catch (e) {
-          console.error("Failed to parse timezone", e)
-          return format(new Date(dateString), "PPP 'at' h:mm a");
-        }
-    }, [assessmentData.severanceAgreementDeadline, companyDetails]);
+    const severanceDeadlineTooltip = companyDetails
+      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} ${companyDetails.severanceDeadlineTimezone || 'America/Los_Angeles'}`
+      : 'Deadline time and timezone are set by the company.';
 
     const dates = [
         { label: 'Exit Notification', date: assessmentData.notificationDate, icon: Bell },
         { label: 'Final Day of Employment', date: assessmentData.finalDate, icon: CalendarX2 },
-        { label: 'Severance Agreement Deadline', date: severanceDeadline, icon: Key, isString: true },
+        { label: 'Severance Agreement Deadline', date: assessmentData.severanceAgreementDeadline, icon: Key, tooltip: severanceDeadlineTooltip },
         { label: 'Medical Coverage Ends', date: assessmentData.medicalCoverageEndDate, icon: Stethoscope },
         { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
         { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
         { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
-    ].filter(d => d.date && (d.isString || !isNaN(new Date(d.date).getTime()))).sort((a, b) => {
-        if (a.isString || b.isString) {
-          // A simple sort for string-based dates won't be perfect, but it's a fallback.
-          return (a.date ?? '').toString().localeCompare((b.date ?? '').toString());
-        }
+    ].filter(d => d.date && !isNaN(new Date(d.date).getTime())).sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         return dateA.getTime() - dateB.getTime();
@@ -268,17 +249,31 @@ function ImportantDates({ assessmentData, companyDetails }: { assessmentData: an
                 <CardDescription>Critical deadlines based on your assessment.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                {dates.map(({ label, date, icon: Icon, isString }) => (
+              <TooltipProvider>
+                {dates.map(({ label, date, icon: Icon, tooltip }) => (
                     <div key={label} className="flex items-start gap-3">
                         <div className="bg-primary/10 text-primary p-2 rounded-lg mt-1">
                             <Icon className="h-5 w-5" />
                         </div>
                         <div>
                             <p className="font-semibold">{label}</p>
-                            <p className="text-sm text-muted-foreground">{isString ? date : format(new Date(date), 'PPP')}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm text-muted-foreground">{format(toZonedTime(date, 'UTC'), 'PPP')}</p>
+                              {tooltip && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{tooltip}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                         </div>
                     </div>
                 ))}
+              </TooltipProvider>
             </CardContent>
         </Card>
     );
