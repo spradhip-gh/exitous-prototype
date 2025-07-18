@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
-import { getDefaultQuestions } from '@/lib/questions';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     switch (question.type) {
@@ -82,9 +81,11 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     }
 }
 
-const QuestionRenderer = ({ question, form, companyName }: { question: Question, form: any, companyName: string }) => {
+const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { question: Question, form: any, companyName: string, companyDeadline?: string }) => {
     const watchedValue = form.watch(question.id);
     
+    const isSeveranceQuestion = question.id === 'severanceAgreementDeadline';
+
     return (
         <div className="space-y-6">
             <FormField
@@ -103,11 +104,15 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
                                 </Tooltip>
                              </TooltipProvider>
                         )}
-                        {question.description && (
+                        {(question.description || (isSeveranceQuestion && companyDeadline)) && (
                             <TooltipProvider>
                                 <Tooltip delayDuration={200}>
                                     <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
-                                    <TooltipContent><p className="max-w-xs">{question.description}</p></TooltipContent>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">
+                                            {isSeveranceQuestion && companyDeadline ? companyDeadline : question.description}
+                                        </p>
+                                    </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         )}
@@ -133,7 +138,7 @@ const QuestionRenderer = ({ question, form, companyName }: { question: Question,
                         }
 
                         if (isTriggered) {
-                           return <QuestionRenderer key={subQuestion.id} question={subQuestion} form={form} companyName={companyName} />
+                           return <QuestionRenderer key={subQuestion.id} question={subQuestion} form={form} companyName={companyName} companyDeadline={companyDeadline} />
                         }
                         return null;
                     })}
@@ -184,7 +189,7 @@ export default function AssessmentForm() {
 
 function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'] }) {
     const router = useRouter();
-    const { profileData, assessmentData, saveAssessmentData } = useUserData();
+    const { profileData, assessmentData, saveAssessmentData, companyAssignments } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
@@ -194,6 +199,19 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
 
     const { watch, setValue, getValues } = form;
     
+    const companyDetails = useMemo(() => {
+        if (!auth?.companyName) return null;
+        return companyAssignments.find(c => c.companyName === auth.companyName);
+    }, [auth?.companyName, companyAssignments]);
+
+    const companyDeadlineTooltip = useMemo(() => {
+        if (!companyDetails) return undefined;
+        const time = companyDetails.severanceDeadlineTime || "11:59 PM";
+        const timezone = companyDetails.severanceDeadlineTimezone || "PST";
+        return `${auth?.companyName}'s deadline is ${time} ${timezone} on the specified date.`;
+    }, [companyDetails, auth?.companyName]);
+
+
     const watchedFinalDate = watch('finalDate');
     const watchedHadMedical = watch('hadMedicalInsurance');
     const watchedHadDental = watch('hadDentalInsurance');
@@ -252,24 +270,21 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         if (!form.formState.isDirty) {
             let initialValues: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
             
-            // Only apply defaults if there's no saved assessment data
             if (!assessmentData) {
-                 // 1. HR-provided pre-filled data
                 if (companyUser?.user.prefilledAssessmentData) {
                     const prefilled = { ...companyUser.user.prefilledAssessmentData };
                     for (const key in prefilled) {
-                        const value = prefilled[key];
+                        const value = prefilled[key as keyof typeof prefilled];
                         if (typeof value === 'string' && key.toLowerCase().includes('date')) {
                             const dateInUtc = toZonedTime(value, 'UTC');
                             if (!isNaN(dateInUtc.getTime())) {
-                                prefilled[key] = dateInUtc;
+                                (prefilled as any)[key] = dateInUtc;
                             }
                         }
                     }
                      initialValues = { ...initialValues, ...prefilled };
                 }
 
-                // 2. HR-set notification date (overwrites if present)
                 if (companyUser?.user.notificationDate) {
                     const dateInUtc = toZonedTime(companyUser.user.notificationDate, 'UTC');
                     if(!isNaN(dateInUtc.getTime())) {
@@ -277,10 +292,9 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                     }
                 }
                 
-                // 3. Question config defaults (lowest priority)
                 const getDefaults = (q: Question) => {
                     let defaults: Record<string, any> = {};
-                    if (q.defaultValue && q.defaultValue.length > 0 && !initialValues[q.id]) { // Check if not already set
+                    if (q.defaultValue && q.defaultValue.length > 0 && !initialValues[q.id as keyof typeof initialValues]) {
                         defaults[q.id] = q.defaultValue;
                     }
                     if (q.subQuestions) {
@@ -328,7 +342,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
     const groupedQuestions = useMemo(() => {
         const sections: Record<string, Question[]> = {};
         questions.forEach(q => {
-            if (q.parentId) return; // Only process root questions
+            if (q.parentId) return;
             const sectionName = q.section || "Uncategorized";
             if (!sections[sectionName]) {
                 sections[sectionName] = [];
@@ -349,7 +363,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                         </CardHeader>
                         <CardContent className="space-y-6">
                            {sectionQuestions.map(q => (
-                             <QuestionRenderer key={q.id} question={q} form={form} companyName={companyName} />
+                             <QuestionRenderer 
+                                key={q.id} 
+                                question={q} 
+                                form={form} 
+                                companyName={companyName}
+                                companyDeadline={companyDeadlineTooltip}
+                             />
                            ))}
                         </CardContent>
                     </Card>
