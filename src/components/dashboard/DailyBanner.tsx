@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -54,26 +53,18 @@ export default function DailyBanner() {
 
   if (dayIndex === null) {
     // Render a skeleton on the server and during initial client render
-    return <Skeleton className="mb-8 h-48 w-full rounded-lg" />;
+    return <Skeleton className="mb-8 h-32 w-full rounded-lg" />;
   }
 
   const { message, color, imageHint } = dailyData[dayIndex];
 
   return (
     <Card 
-        className="mb-8 overflow-hidden shadow-lg relative h-48 w-full"
+        className="mb-8 overflow-hidden shadow-lg relative h-32 w-full flex items-center justify-center p-4"
         style={{ backgroundColor: color }}
     >
-        <Image
-          src="https://placehold.co/1200x300.png"
-          alt="Calming banner image"
-          fill
-          className="object-cover z-0 blur-md"
-          data-ai-hint={imageHint}
-          priority
-        />
-        <div className="absolute inset-0 bg-black/40 z-10" />
-        <div className="absolute inset-0 flex items-center justify-center p-4 z-20">
+        <div className="absolute inset-0 bg-black/30 z-10" />
+        <div className="relative z-20">
           <p className="text-center text-xl font-semibold text-white md:text-2xl drop-shadow-md">
             {message}
           </p>
