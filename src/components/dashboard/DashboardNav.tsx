@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, User, FileText, Library, Settings } from 'lucide-react';
+import { LayoutDashboard, User, FileText, Library } from 'lucide-react';
 
 export default function DashboardNav() {
   const pathname = usePathname();
@@ -13,7 +13,6 @@ export default function DashboardNav() {
     { href: '/dashboard/profile', label: 'Edit Profile', icon: User },
     { href: '/dashboard/assessment', label: 'Edit Assessment', icon: FileText },
     { href: '/dashboard/resources', label: 'Resources', icon: Library },
-    { href: '/dashboard/account', label: 'Account', icon: Settings },
   ];
 
   return (
