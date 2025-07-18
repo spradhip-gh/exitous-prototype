@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
@@ -335,6 +335,29 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
 
         return { minDate, maxDate, totalDuration, today };
     }, [keyDates]);
+    
+    const monthMarkers = useMemo(() => {
+        if (!timelineMetrics) return [];
+        const { minDate, maxDate, totalDuration } = timelineMetrics;
+        const markers = [];
+        let currentDate = startOfMonth(minDate);
+
+        while (currentDate <= maxDate) {
+            if (currentDate >= minDate) { // Only add markers after the timeline starts
+                const daysFromStart = differenceInDays(currentDate, minDate);
+                const position = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
+                markers.push({
+                    label: format(currentDate, 'MMM'),
+                    position: position,
+                    key: currentDate.toISOString(),
+                });
+            }
+            // Move to the first day of the next month
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        return markers;
+    }, [timelineMetrics]);
+
 
     const groupedAndPositionedDates = useMemo(() => {
         if (!timelineMetrics) return [];
@@ -381,6 +404,16 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                 {timelineMetrics && (
                     <div className="w-full pt-10 pb-10 px-2">
                         <div className="relative h-1 bg-border rounded-full">
+                           {monthMarkers.map(marker => (
+                                <div
+                                    key={marker.key}
+                                    className="absolute -top-5 flex flex-col items-center"
+                                    style={{ left: `${marker.position}%`, transform: 'translateX(-50%)' }}
+                                >
+                                    <span className="text-xs text-muted-foreground">{marker.label}</span>
+                                    <div className="h-2 w-0.5 bg-border mt-1"></div>
+                                </div>
+                            ))}
                             <TooltipProvider>
                                 {groupedAndPositionedDates.map(({ items, position, level }) => {
                                     const verticalPositionClass = level === 0 ? "top-4" : "bottom-4";
