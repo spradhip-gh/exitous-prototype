@@ -15,6 +15,7 @@ import {
   getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
 } from '@/lib/demo-data';
+import { toZonedTime } from 'date-fns-tz';
 
 
 const PROFILE_KEY = 'exitbetter-profile';
