@@ -9,7 +9,6 @@ import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-reac
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { toZonedTime } from 'date-fns-tz';
 
 export default function WelcomeSummary() {
   const { auth } = useAuth();
@@ -31,8 +30,6 @@ export default function WelcomeSummary() {
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
     try {
-      // Correctly parse 'YYYY-MM-DD' by splitting it to avoid timezone issues.
-      // new Date('2025-08-30') can be interpreted as UTC midnight, causing off-by-one errors.
       const [year, month, day] = dateString.split('-').map(Number);
       const date = new Date(year, month - 1, day);
       return format(date, 'PPP');

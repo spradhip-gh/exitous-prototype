@@ -110,7 +110,7 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
                                     <TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
                                     <TooltipContent>
                                         <p className="max-w-xs">
-                                            {isSeveranceQuestion && companyDeadline ? companyDeadline : question.description}
+                                            {isSeveranceQuestion ? companyDeadline : question.description}
                                         </p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -328,7 +328,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
               form.reset(initialValues);
             }
         }
-    }, [questions, assessmentData, form, companyUser, userTimezone]);
+    }, [questions, assessmentData, form, companyUser]);
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData({ ...data, companyName: auth?.companyName });

@@ -2,8 +2,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import { format, parse } from 'date-fns';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -45,6 +45,7 @@ export default function TimelineDashboard() {
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const userTimezone = getTargetTimezone();
 
@@ -145,6 +146,19 @@ export default function TimelineDashboard() {
     });
   }, [recommendations, taskDateOverrides, userTimezone]);
 
+  const recommendationCategories = useMemo(() => {
+    if (!sortedRecommendations) return [];
+    const categories = new Set(sortedRecommendations.map(r => r.category));
+    return Array.from(categories);
+  }, [sortedRecommendations]);
+
+  const filteredRecommendations = useMemo(() => {
+    if (!activeCategory) {
+      return sortedRecommendations;
+    }
+    return sortedRecommendations.filter(r => r.category === activeCategory);
+  }, [sortedRecommendations, activeCategory]);
+
   if (isLoading) {
     return (
         <div className="p-4 md:p-8">
@@ -165,7 +179,7 @@ export default function TimelineDashboard() {
     );
   }
   
-  const hasRecommendations = sortedRecommendations.length > 0;
+  const hasRecommendations = filteredRecommendations.length > 0;
 
   return (
     <div className="p-4 md:p-8">
@@ -183,10 +197,16 @@ export default function TimelineDashboard() {
 
         {assessmentData && <ImportantDates assessmentData={assessmentData} companyDetails={companyDetails} userTimezone={userTimezone} />}
 
-        {hasRecommendations && (
+        {sortedRecommendations.length > 0 && (
             <Card className="shadow-lg">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                        <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>
+                        {recommendationCategories.map(category => (
+                            <Button key={category} variant={activeCategory === category ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(category)}>{category}</Button>
+                        ))}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="timeline" className="w-full">
@@ -195,24 +215,32 @@ export default function TimelineDashboard() {
                         <TabsTrigger value="table">Table View</TabsTrigger>
                         </TabsList>
                         <TabsContent value="timeline" className="mt-6">
-                            <Timeline 
-                                recommendations={sortedRecommendations} 
-                                completedTasks={completedTasks}
-                                toggleTaskCompletion={toggleTaskCompletion}
-                                taskDateOverrides={taskDateOverrides}
-                                updateTaskDate={updateTaskDate}
-                                userTimezone={userTimezone}
-                            />
+                            {hasRecommendations ? (
+                                <Timeline 
+                                    recommendations={filteredRecommendations} 
+                                    completedTasks={completedTasks}
+                                    toggleTaskCompletion={toggleTaskCompletion}
+                                    taskDateOverrides={taskDateOverrides}
+                                    updateTaskDate={updateTaskDate}
+                                    userTimezone={userTimezone}
+                                />
+                             ) : (
+                                <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
+                             )}
                         </TabsContent>
                         <TabsContent value="table" className="mt-6">
-                            <RecommendationsTable 
-                                recommendations={sortedRecommendations} 
-                                completedTasks={completedTasks}
-                                toggleTaskCompletion={toggleTaskCompletion}
-                                taskDateOverrides={taskDateOverrides}
-                                updateTaskDate={updateTaskDate}
-                                userTimezone={userTimezone}
-                            />
+                             {hasRecommendations ? (
+                                <RecommendationsTable 
+                                    recommendations={filteredRecommendations} 
+                                    completedTasks={completedTasks}
+                                    toggleTaskCompletion={toggleTaskCompletion}
+                                    taskDateOverrides={taskDateOverrides}
+                                    updateTaskDate={updateTaskDate}
+                                    userTimezone={userTimezone}
+                                />
+                             ) : (
+                                <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
+                             )}
                         </TabsContent>
                     </Tabs>
                 </CardContent>
@@ -228,7 +256,6 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
     
     const formatDate = (date: Date): string => {
         if (!date || isNaN(date.getTime())) return 'N/A';
-        // Correctly parse 'YYYY-MM-DD' by splitting it to avoid timezone issues.
         const dateString = date.toISOString().split('T')[0];
         const [year, month, day] = dateString.split('-').map(Number);
         const correctedDate = new Date(year, month - 1, day);
@@ -239,7 +266,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
       ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`
       : 'Deadline time and timezone are set by the company.';
 
-    const dates = [
+    const allDatesRaw = [
         { label: 'Exit Notification', date: assessmentData.notificationDate, icon: Bell },
         { label: 'Final Day of Employment', date: assessmentData.finalDate, icon: CalendarX2 },
         { label: 'Severance Agreement Deadline', date: assessmentData.severanceAgreementDeadline, icon: Key, tooltip: severanceDeadlineTooltip },
@@ -247,14 +274,32 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
         { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
         { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
         { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
-    ].filter(d => d.date && !isNaN(new Date(d.date).getTime())).sort((a, b) => {
+    ].filter(d => d.date && !isNaN(new Date(d.date).getTime()));
+    
+    const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
+    const eapLabel = 'EAP Coverage Ends';
+
+    const sortedDates = allDatesRaw.sort((a, b) => {
+        const aIsEAP = a.label === eapLabel;
+        const bIsEAP = b.label === eapLabel;
+        if (aIsEAP) return 1;
+        if (bIsEAP) return -1;
+        
+        const aIndex = priorityOrder.indexOf(a.label);
+        const bIndex = priorityOrder.indexOf(b.label);
+        
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         return dateA.getTime() - dateB.getTime();
     });
 
+    const calendarDates = sortedDates.map(d => d.date);
 
-    if (dates.length === 0) return null;
+    if (sortedDates.length === 0) return null;
 
     return (
         <Card>
@@ -262,32 +307,45 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                 <CardTitle className="font-headline text-xl">Key Dates</CardTitle>
                 <CardDescription>Critical deadlines based on your assessment.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-              <TooltipProvider>
-                {dates.map(({ label, date, icon: Icon, tooltip }) => (
-                    <div key={label} className="flex items-start gap-3">
-                        <div className="bg-primary/10 text-primary p-2 rounded-lg mt-1">
-                            <Icon className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="font-semibold">{label}</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
-                              {tooltip && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>{tooltip}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
+            <CardContent className="grid gap-8 lg:grid-cols-2">
+               <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                 <TooltipProvider>
+                    {sortedDates.map(({ label, date, icon: Icon, tooltip }) => (
+                        <div key={label} className="flex items-start gap-3">
+                            <div className="bg-primary/10 text-primary p-2 rounded-lg mt-1">
+                                <Icon className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="font-semibold">{label}</p>
+                                <div className="flex items-center gap-2">
+                                <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
+                                {tooltip && (
+                                    <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{tooltip}</p>
+                                    </TooltipContent>
+                                    </Tooltip>
+                                )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-              </TooltipProvider>
+                    ))}
+                 </TooltipProvider>
+               </div>
+               <div className="flex justify-center items-center">
+                    <CalendarPicker
+                        mode="multiple"
+                        selected={calendarDates}
+                        defaultMonth={calendarDates[0]}
+                        classNames={{
+                            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
+                            day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-full",
+                        }}
+                    />
+               </div>
             </CardContent>
         </Card>
     );
@@ -383,7 +441,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                {displayDate && (
                   <div className="flex items-center gap-1 text-sm mt-2 font-medium text-destructive/80">
                     <Calendar className="h-4 w-4" />
-                    <span>Due: {format(displayDate, "PPP")}</span>
+                    <span>Due: {formatInTimeZone(displayDate, userTimezone, "PPP")}</span>
                      {!isCompleted && <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -459,7 +517,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             {displayDate ? (
                                 <div className="flex items-center gap-1 text-sm font-medium">
-                                    <span>{format(displayDate, "PPP")}</span>
+                                    <span>{formatInTimeZone(displayDate, userTimezone, "PPP")}</span>
                                      {!isCompleted && <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-6 w-6">
