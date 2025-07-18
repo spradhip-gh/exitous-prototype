@@ -401,6 +401,53 @@ export function useUserData() {
     return questionTree;
   }, [masterQuestions, companyConfigs]);
 
+  const getAssessmentCompletion = useCallback(() => {
+    const activeQuestions = getCompanyConfig(auth?.companyName, true);
+    if (!activeQuestions || activeQuestions.length === 0) {
+      return { total: 0, completed: 0, percentage: 0 };
+    }
+
+    let totalRequired = 0;
+    let completedCount = 0;
+    const data = assessmentData || {};
+
+    const countQuestions = (questions: Question[]) => {
+      questions.forEach(q => {
+        totalRequired++;
+        const value = (data as any)[q.id];
+        const isAnswered = value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        
+        if (isAnswered) {
+          completedCount++;
+          
+          if (q.subQuestions) {
+            q.subQuestions.forEach(subQ => {
+                let isTriggered = false;
+                if (q.type === 'checkbox') {
+                    if (subQ.triggerValue === 'NOT_NONE') {
+                        isTriggered = Array.isArray(value) && value.length > 0 && !value.includes('None of the above');
+                    } else {
+                        isTriggered = Array.isArray(value) && value.includes(subQ.triggerValue);
+                    }
+                } else {
+                    isTriggered = value === subQ.triggerValue;
+                }
+
+                if(isTriggered) {
+                    countQuestions([subQ]);
+                }
+            });
+          }
+        }
+      });
+    };
+
+    countQuestions(activeQuestions);
+
+    const percentage = totalRequired > 0 ? (completedCount / totalRequired) * 100 : 0;
+    return { total: totalRequired, completed: completedCount, percentage: Math.round(percentage) };
+  }, [auth?.companyName, assessmentData, getCompanyConfig]);
+
 
   const getAllCompanyConfigs = useCallback(() => companyConfigs, [companyConfigs]);
 
@@ -470,6 +517,7 @@ export function useUserData() {
     profileData,
     assessmentData,
     isAssessmentComplete,
+    getAssessmentCompletion,
     completedTasks,
     taskDateOverrides,
     isLoading,

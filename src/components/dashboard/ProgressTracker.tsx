@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUserData } from '@/hooks/use-user-data';
@@ -8,11 +9,12 @@ import Link from 'next/link';
 import { CheckCircle, Edit, ListChecks, Briefcase } from 'lucide-react';
 
 export default function ProgressTracker() {
-  const { profileData, assessmentData } = useUserData();
+  const { profileData, getAssessmentCompletion } = useUserData();
 
   const profileProgress = profileData ? 100 : 0;
-  const assessmentProgress = assessmentData ? 100 : 0;
+  const { percentage: assessmentProgress } = getAssessmentCompletion();
   const overallProgress = (profileProgress + assessmentProgress) / 2;
+  const isAssessment100Complete = assessmentProgress === 100;
 
   return (
     <div className="p-4 md:p-8">
@@ -73,24 +75,24 @@ export default function ProgressTracker() {
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground mb-4">
-                {assessmentData
+                {isAssessment100Complete
                   ? 'Your exit details are saved. You can edit them if needed.'
                   : 'Provide specifics about your exit for a tailored plan.'}
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
-                {assessmentData ? (
+                {isAssessment100Complete ? (
                   <span className="flex items-center gap-1 text-sm text-green-600">
                     <CheckCircle className="h-4 w-4" /> Complete
                   </span>
                 ) : (
-                  <span className="text-sm text-amber-600">Incomplete</span>
+                  <span className="text-sm text-amber-600">{assessmentProgress.toFixed(0)}% Complete</span>
                 )}
               </div>
               <Progress value={assessmentProgress} className="w-full mb-4" />
               <Link href="/dashboard/assessment" passHref>
                 <Button className="w-full" disabled={!profileData} variant={profileData ? "default" : "secondary"}>
-                  {assessmentData ? 'Edit Details' : 'Add Exit Details'}
+                  {isAssessment100Complete ? 'Edit Details' : 'Continue Details'}
                 </Button>
               </Link>
                {!profileData && <p className="text-xs text-muted-foreground mt-2 text-center">Please complete your profile first.</p>}
