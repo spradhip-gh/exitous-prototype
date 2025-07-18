@@ -156,14 +156,13 @@ export function useUserData() {
         const parsedData = JSON.parse(assessmentJson);
         const companyName = parsedData.companyName || auth?.companyName;
         const assignment = assignments.find(a => a.companyName === companyName);
-        const timezone = assignment?.severanceDeadlineTimezone || 'America/Los_Angeles';
+        const timezone = assignment?.severanceDeadlineTimezone || 'UTC'; // Fallback to UTC
 
         const convertDates = (obj: any) => {
             if (obj && typeof obj === 'object') {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            // Using toZonedTime to handle timezone correctly
                             const date = toZonedTime(obj[key], timezone);
                             if (!isNaN(date.getTime())) {
                                 obj[key] = date;

@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, formatInTimeZone } from 'date-fns-tz';
+import { format } from 'date-fns-tz';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
@@ -27,12 +27,11 @@ export default function WelcomeSummary() {
     return null;
   }
   
-  const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
+  const timezone = companyDetails?.severanceDeadlineTimezone || 'UTC';
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     try {
-      // Handles 'YYYY-MM-DD' by treating it as a date in the company's timezone
       const dateInTz = toZonedTime(dateString, timezone);
       return format(dateInTz, 'PPP');
     } catch {

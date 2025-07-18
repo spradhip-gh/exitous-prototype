@@ -204,7 +204,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         return companyAssignments.find(c => c.companyName === auth.companyName);
     }, [auth?.companyName, companyAssignments]);
     
-    const timezone = useMemo(() => companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles', [companyDetails]);
+    const timezone = useMemo(() => companyDetails?.severanceDeadlineTimezone || 'UTC', [companyDetails]);
 
     const companyDeadlineTooltip = useMemo(() => {
         if (!companyDetails) return undefined;

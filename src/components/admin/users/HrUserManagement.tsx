@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import Papa from 'papaparse';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
@@ -76,8 +78,9 @@ export default function HrUserManagement() {
                 if (bValue === undefined || bValue === null) bValue = '';
                 
                 if (config.key === 'notificationDate') {
-                    const dateA = aValue ? parse(aValue, 'yyyy-MM-dd', new Date()).getTime() : 0;
-                    const dateB = bValue ? parse(bValue, 'yyyy-MM-dd', new Date()).getTime() : 0;
+                    const timezone = companyAssignmentForHr?.severanceDeadlineTimezone || 'UTC';
+                    const dateA = aValue ? toZonedTime(aValue, timezone).getTime() : 0;
+                    const dateB = bValue ? toZonedTime(bValue, timezone).getTime() : 0;
                     if (dateA < dateB) return config.direction === 'asc' ? -1 : 1;
                     if (dateA > dateB) return config.direction === 'asc' ? 1 : -1;
                     return 0;
@@ -93,7 +96,7 @@ export default function HrUserManagement() {
         const sortedInvited = sortArray(invitedUsers, sortConfig);
 
         return [...sortedUninvited, ...sortedInvited];
-    }, [users, sortConfig, profileCompletions, assessmentCompletions]);
+    }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
 
     if (isLoading) {
         return (
@@ -178,10 +181,11 @@ export default function HrUserManagement() {
                 let updatedCount = 0;
                 let skippedCount = 0;
                 let newUsersList = [...users];
+                const companyTimezone = companyAssignmentForHr?.severanceDeadlineTimezone || 'UTC';
 
                 for (const row of results.data as any[]) {
                     // Logic to process each row
-                    const { userFromCsv, error } = processCsvRow(row);
+                    const { userFromCsv, error } = processCsvRow(row, companyTimezone);
                     if (error) {
                         toast({ title: "Skipping Row", description: error, variant: "destructive" });
                         continue;
@@ -231,41 +235,50 @@ export default function HrUserManagement() {
         }
     };
 
-    const processCsvRow = (row: any): { userFromCsv?: CompanyUser, error?: string } => {
+    const processCsvRow = (row: any, defaultTimezone: string): { userFromCsv?: CompanyUser, error?: string } => {
         const email = row["email"]?.trim();
         const companyId = row["companyId"]?.trim();
         const notificationDateStr = row["notificationDate"]?.trim();
+        const userTimezone = row["timezone"]?.trim() || defaultTimezone;
 
         if (!email || !companyId || !notificationDateStr) {
             return { error: `Skipped a row due to missing required fields (email, companyId, notificationDate).` };
         }
         
-        const notificationDate = new Date(notificationDateStr);
-        if (isNaN(notificationDate.getTime())) {
-            return { error: `Invalid date format for ${email} in notificationDate. Please use YYYY-MM-DD.` };
-        }
-
-        const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
-        const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
-        optionalFields.forEach(field => {
-            if (row[field]?.trim()) {
-                prefilledData[field] = row[field].trim();
+        try {
+            const notificationDate = toZonedTime(notificationDateStr, userTimezone);
+            if (isNaN(notificationDate.getTime())) {
+               throw new Error('Invalid date');
             }
-        });
 
-        const userFromCsv: CompanyUser = {
-            email,
-            companyId,
-            personalEmail: row["personalEmail"]?.trim() || undefined,
-            notificationDate: format(notificationDate, 'yyyy-MM-dd'),
-            notified: false,
-            prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
-        };
-        return { userFromCsv };
+            const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+            const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
+            
+            optionalFields.forEach(field => {
+                if (row[field]?.trim()) {
+                    const dateVal = toZonedTime(row[field].trim(), userTimezone);
+                    if (!isNaN(dateVal.getTime())) {
+                       prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
+                    }
+                }
+            });
+
+            const userFromCsv: CompanyUser = {
+                email,
+                companyId,
+                personalEmail: row["personalEmail"]?.trim() || undefined,
+                notificationDate: format(notificationDate, 'yyyy-MM-dd'),
+                notified: false,
+                prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
+            };
+            return { userFromCsv };
+        } catch (e) {
+            return { error: `Invalid date format for ${email}. Please use YYYY-MM-DD.` };
+        }
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        const headers = ["email", "companyId", "notificationDate", "personalEmail", "timezone", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
