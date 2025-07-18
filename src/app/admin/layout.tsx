@@ -8,13 +8,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 
 function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
   const pathname = usePathname();
@@ -108,6 +109,13 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
               Company Settings
             </Button>
           </Link>
+          <Separator className="my-2" />
+           <a href="/HR_MANAGER_GUIDE.md" target="_blank" rel="noopener noreferrer">
+            <Button variant='ghost' className="w-full justify-start">
+                <HelpCircle className="mr-2" />
+                Help & Guide
+            </Button>
+           </a>
         </>
       )}
       {role === 'consultant' && (
