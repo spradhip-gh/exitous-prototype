@@ -122,9 +122,9 @@ const initializeDb = (): DemoDatabase => {
                 },
                 questionOrderBySection: {},
                 resources: [
-                    {id: 'globex-resource-3', title: 'Employee Exit Checklist', description: 'A helpful checklist to guide you through the exit process.', fileName: 'Exit_Checklist.txt', category: 'Career', content: 'data:text/plain;base64,' + Buffer.from(exitChecklistContent).toString('base64')},
-                    {id: 'globex-resource-1', title: '2024 Benefits Summary', description: 'A complete overview of your employee benefits for 2024.', fileName: 'Globex_Benefits_Summary_2024.txt', category: 'Benefits', content: 'data:text/plain;base64,' + Buffer.from(benefitsSummaryContent).toString('base64')},
-                    {id: 'globex-resource-2', title: 'Work From Home Policy', description: 'Official company policy regarding remote and hybrid work arrangements.', fileName: 'Work_From_Home_Policy.txt', category: 'Policies', content: 'data:text/plain;base64,' + Buffer.from(wfhPolicyContent).toString('base64')},
+                    {id: 'globex-resource-3', title: 'Employee Exit Checklist', description: 'A helpful checklist to guide you through the exit process.', fileName: 'Exit_Checklist.txt', category: 'Career', content: `data:text/plain;base64,${btoa(exitChecklistContent)}`},
+                    {id: 'globex-resource-1', title: '2024 Benefits Summary', description: 'A complete overview of your employee benefits for 2024.', fileName: 'Globex_Benefits_Summary_2024.txt', category: 'Benefits', content: `data:text/plain;base64,${btoa(benefitsSummaryContent)}`},
+                    {id: 'globex-resource-2', title: 'Work From Home Policy', description: 'Official company policy regarding remote and hybrid work arrangements.', fileName: 'Work_From_Home_Policy.txt', category: 'Policies', content: `data:text/plain;base64,${btoa(wfhPolicyContent)}`},
                 ],
             },
             'Initech': {
@@ -217,3 +217,5 @@ export const getAssessmentCompletions = () => db.assessmentCompletions;
 export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db.assessmentCompletions = data; };
 
 export const getSeededDataForUser = (email: string) => db.seededData[email];
+
+    

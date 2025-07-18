@@ -32,8 +32,8 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
 
   useEffect(() => {
     const fetchSummary = async () => {
-        // Guard against running if there's no content, it's already loaded, or not summarizable
-        if (!isSummaryOpen || summary || !canBeSummarized || !resource.content) {
+        // Guard against running if there's no content, it's already loaded, not summarizable, or invalid.
+        if (!isSummaryOpen || summary || !canBeSummarized || !resource.content || typeof resource.content !== 'string' || resource.content.length === 0) {
           return;
         }
         
@@ -119,3 +119,5 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
     </Card>
   );
 }
+
+    
