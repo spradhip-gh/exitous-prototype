@@ -418,6 +418,9 @@ export function useUserData() {
   }, [masterQuestions, companyConfigs]);
 
   const getProfileCompletion = useCallback(() => {
+    if (!profileSchema?.shape) {
+      return { total: 0, completed: 0, remaining: 0, percentage: 0 };
+    }
     if (!profileData) {
       return { total: Object.keys(profileSchema.shape).length, completed: 0, remaining: Object.keys(profileSchema.shape).length, percentage: 0 };
     }
