@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
-import { useToast } from '../ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,

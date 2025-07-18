@@ -10,7 +10,7 @@ import { CheckCircle, Edit, ListChecks, Briefcase, CalendarPlus } from 'lucide-r
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
-import { useToast } from '../ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProgressTracker() {
   const { profileData, getAssessmentCompletion, customDeadlines, addCustomDeadline } = useUserData();
