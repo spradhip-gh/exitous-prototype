@@ -2,14 +2,14 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, parse, differenceInDays, isSameDay, startOfToday } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from '@/lib/utils';
 import DailyBanner from './DailyBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -266,10 +267,17 @@ const formatDate = (date: Date): string => {
 
 function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
     
+    const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+
     const keyDates = useMemo(() => {
         const parseAndCorrectDate = (date: any): Date | null => {
-            if (!date || !(date instanceof Date) || isNaN(date.getTime())) return null;
-            return date;
+            if (!date) return null;
+            if (date instanceof Date && !isNaN(date.getTime())) return date;
+            if (typeof date === 'string') {
+              const parsed = parseISO(date);
+              if (!isNaN(parsed.getTime())) return parsed;
+            }
+            return null;
         };
 
         const severanceDeadlineTooltip = companyDetails
@@ -320,6 +328,20 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
 
         return { minDate, maxDate, totalDuration, today };
     }, [keyDates]);
+    
+    const groupedDates = useMemo(() => {
+        if (!timelineMetrics) return [];
+        const groups: { [key: string]: typeof keyDates } = {};
+        
+        keyDates.forEach(item => {
+           const key = item.date!.toISOString().split('T')[0];
+           if (!groups[key]) groups[key] = [];
+           groups[key].push(item);
+        });
+        
+        return Object.values(groups);
+
+    }, [keyDates, timelineMetrics]);
 
     if (keyDates.length === 0) return null;
 
@@ -334,34 +356,39 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                     <div className="w-full pt-8 pb-4 px-2">
                         <div className="relative h-1 bg-border rounded-full">
                              <TooltipProvider>
-                                {keyDates.map((item, index) => {
+                                {groupedDates.map((group, groupIndex) => {
                                     const { totalDuration, minDate } = timelineMetrics;
-                                    const daysFromStart = differenceInDays(item.date!, minDate);
+                                    const daysFromStart = differenceInDays(group[0].date!, minDate);
                                     const position = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
-                                    const Icon = item.icon;
 
                                     return (
-                                         <Tooltip key={index}>
-                                            <TooltipTrigger asChild>
-                                                <div 
-                                                    className="absolute -top-3.5 flex flex-col items-center group cursor-pointer"
-                                                    style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-                                                >
-                                                     <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform group-hover:scale-110">
-                                                        <Icon className="h-5 w-5 text-primary-foreground" />
-                                                    </div>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <div className="flex items-center gap-2">
-                                                    <Icon className="h-4 w-4" />
-                                                    <div>
-                                                        <p className="font-bold">{item.label}</p>
-                                                        <p>{formatDate(item.date!)}</p>
-                                                    </div>
-                                                </div>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                         <div 
+                                            key={groupIndex}
+                                            className="absolute -top-3.5 flex flex-col items-center group cursor-pointer"
+                                            style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                                        >
+                                            {group.map((item, itemIndex) => (
+                                                <Tooltip key={item.label}>
+                                                    <TooltipTrigger asChild>
+                                                        <div 
+                                                          className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform group-hover:scale-110"
+                                                          style={{ zIndex: group.length - itemIndex, marginBottom: '-1rem' }}
+                                                        >
+                                                            <item.icon className="h-5 w-5 text-primary-foreground" />
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <div className="flex items-center gap-2">
+                                                            <item.icon className="h-4 w-4" />
+                                                            <div>
+                                                                <p className="font-bold">{item.label}</p>
+                                                                <p>{formatDate(item.date!)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ))}
+                                        </div>
                                     );
                                 })}
 
@@ -380,40 +407,52 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                         </div>
                     </div>
                 )}
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Event</TableHead>
-                            <TableHead className="text-right">Date</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                         {keyDates.map((item, index) => {
-                             const Icon = item.icon;
-                             return (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Icon className="h-4 w-4 text-muted-foreground" />
-                                            <span>{item.label}</span>
-                                            {item.tooltip && (
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>{item.tooltip}</p></TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">{formatDate(item.date!)}</TableCell>
+                 <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                    <CollapsibleTrigger asChild>
+                        <div className="flex justify-center mt-4">
+                            <Button variant="ghost" className="text-sm">
+                                {isDetailsOpen ? 'Hide Details' : 'Show Details'}
+                                <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform", isDetailsOpen && "rotate-180")} />
+                            </Button>
+                        </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <Table className="mt-2">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Event</TableHead>
+                                    <TableHead className="text-right">Date</TableHead>
                                 </TableRow>
-                             )
-                         })}
-                    </TableBody>
-                </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {keyDates.map((item, index) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <TableRow key={index}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Icon className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{item.label}</span>
+                                                    {item.tooltip && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent><p>{item.tooltip}</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium">{formatDate(item.date!)}</TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CollapsibleContent>
+                 </Collapsible>
             </CardContent>
         </Card>
     );
