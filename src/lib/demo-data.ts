@@ -96,8 +96,8 @@ const initializeDb = (): DemoDatabase => {
                         personalEmail: 'user.personal@email.com',
                         prefilledAssessmentData: {
                            finalDate: getFutureDate(28),
-                           severanceAgreementDeadline: '2024-08-30',
-                           medicalCoverageEndDate: '2024-08-31',
+                           severanceAgreementDeadline: '2025-08-30',
+                           medicalCoverageEndDate: '2025-08-31',
                            dentalCoverageEndDate: getFutureDate(28),
                            visionCoverageEndDate: getFutureDate(28),
                            eapCoverageEndDate: '2024-08-31',
