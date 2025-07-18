@@ -203,13 +203,14 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         if (!auth?.companyName) return null;
         return companyAssignments.find(c => c.companyName === auth.companyName);
     }, [auth?.companyName, companyAssignments]);
+    
+    const timezone = useMemo(() => companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles', [companyDetails]);
 
     const companyDeadlineTooltip = useMemo(() => {
         if (!companyDetails) return undefined;
         const time = companyDetails.severanceDeadlineTime || "23:59";
-        const timezone = companyDetails.severanceDeadlineTimezone || "PST";
         return `${auth?.companyName}'s deadline is ${time} ${timezone} on the specified date.`;
-    }, [companyDetails, auth?.companyName]);
+    }, [companyDetails, auth?.companyName, timezone]);
 
 
     const watchedFinalDate = watch('finalDate');
@@ -276,9 +277,9 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                     for (const key in prefilled) {
                         const value = prefilled[key as keyof typeof prefilled];
                         if (typeof value === 'string' && key.toLowerCase().includes('date')) {
-                            const dateInUtc = toZonedTime(value, 'UTC');
-                            if (!isNaN(dateInUtc.getTime())) {
-                                (prefilled as any)[key] = dateInUtc;
+                            const dateInTz = toZonedTime(value, timezone);
+                            if (!isNaN(dateInTz.getTime())) {
+                                (prefilled as any)[key] = dateInTz;
                             }
                         }
                     }
@@ -286,9 +287,9 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                 }
 
                 if (companyUser?.user.notificationDate) {
-                    const dateInUtc = toZonedTime(companyUser.user.notificationDate, 'UTC');
-                    if(!isNaN(dateInUtc.getTime())) {
-                       initialValues.notificationDate = dateInUtc;
+                    const dateInTz = toZonedTime(companyUser.user.notificationDate, timezone);
+                    if(!isNaN(dateInTz.getTime())) {
+                       initialValues.notificationDate = dateInTz;
                     }
                 }
                 
@@ -316,7 +317,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
               form.reset(initialValues);
             }
         }
-    }, [questions, assessmentData, form, companyUser]);
+    }, [questions, assessmentData, form, companyUser, timezone]);
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData({ ...data, companyName: auth?.companyName });

@@ -4,8 +4,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toZonedTime } from 'date-fns-tz';
-import { format } from 'date-fns';
+import { toZonedTime, format } from 'date-fns-tz';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
@@ -26,13 +25,15 @@ export default function WelcomeSummary() {
   if (!prefilledData) {
     return null;
   }
+  
+  const timezone = companyDetails?.severanceDeadlineTimezone || 'America/Los_Angeles';
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     try {
-      // Handles 'YYYY-MM-DD' by treating it as a UTC date to avoid timezone shifts
-      const dateInUtc = toZonedTime(dateString, 'UTC');
-      return format(dateInUtc, 'PPP');
+      // Handles 'YYYY-MM-DD' by treating it as a date in the company's timezone
+      const dateInTz = toZonedTime(dateString, timezone);
+      return format(dateInTz, 'PPP');
     } catch {
       return 'N/A';
     }

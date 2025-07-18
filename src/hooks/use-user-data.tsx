@@ -117,9 +117,9 @@ export function useUserData() {
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestionsState] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignmentsState] = useState<CompanyAssignment[]>([]);
+  const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   const [profileCompletions, setProfileCompletionsState] = useState<Record<string, boolean>>({});
   const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
-  const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -127,6 +127,15 @@ export function useUserData() {
   useEffect(() => {
     setIsLoading(true);
     try {
+      // Load shared data first to get timezone info
+      const assignments = getCompanyAssignmentsFromDb();
+      setCompanyAssignmentsState(assignments);
+      setCompanyConfigsState(getCompanyConfigsFromDb());
+      setPlatformUsersState(getPlatformUsersFromDb());
+      setProfileCompletionsState(getProfileCompletionsFromDb());
+      setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
+      setMasterQuestionsState(getMasterQuestionsFromDb());
+
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
 
@@ -145,13 +154,17 @@ export function useUserData() {
 
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
+        const companyName = parsedData.companyName || auth?.companyName;
+        const assignment = assignments.find(a => a.companyName === companyName);
+        const timezone = assignment?.severanceDeadlineTimezone || 'America/Los_Angeles';
+
         const convertDates = (obj: any) => {
             if (obj && typeof obj === 'object') {
                 for (const key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (typeof obj[key] === 'string' && key.toLowerCase().includes('date')) {
                             // Using toZonedTime to handle timezone correctly
-                            const date = toZonedTime(obj[key], 'UTC');
+                            const date = toZonedTime(obj[key], timezone);
                             if (!isNaN(date.getTime())) {
                                 obj[key] = date;
                             }
@@ -173,14 +186,6 @@ export function useUserData() {
 
       const dateOverridesJson = localStorage.getItem(taskDateOverridesKey);
       setTaskDateOverrides(dateOverridesJson ? JSON.parse(dateOverridesJson) : {});
-      
-      // Load shared data from our in-memory store into the reactive state
-      setCompanyAssignmentsState(getCompanyAssignmentsFromDb());
-      setCompanyConfigsState(getCompanyConfigsFromDb());
-      setPlatformUsersState(getPlatformUsersFromDb());
-      setProfileCompletionsState(getProfileCompletionsFromDb());
-      setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
-      setMasterQuestionsState(getMasterQuestionsFromDb());
       
     } catch (error) {
       console.error('Failed to load user data', error);
