@@ -76,7 +76,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (isPreview || !isFullyComplete) {
+      if (!isFullyComplete) {
         setIsLoading(false);
         return;
       }
@@ -209,17 +209,12 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         </div>
     );
   }
-
-  // If not fully complete, show the progress tracker.
-  if (!isFullyComplete) {
-    return <ProgressTracker />;
-  }
   
   const hasRecommendations = filteredRecommendations.length > 0;
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-8">
         
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
             <div>
@@ -239,7 +234,9 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           customDeadlines={customDeadlines}
         />
 
-        {sortedRecommendations.length > 0 && (
+        {!isFullyComplete && <ProgressTracker />}
+
+        {isFullyComplete && sortedRecommendations.length > 0 && (
             <Card className="shadow-lg">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -489,7 +486,23 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
         return positions;
     }, [keyDates, timelineMetrics]);
 
-    if (!assessmentData || keyDates.length === 0) return null;
+    if (!assessmentData) return null;
+
+    if (keyDates.length === 0) {
+      return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline text-xl">Key Dates Timeline</CardTitle>
+                <CardDescription>A visual overview of your critical deadlines will appear here once you provide dates in your exit details.</CardDescription>
+            </CardHeader>
+             <CardContent>
+                <div className="text-center text-muted-foreground py-8">
+                  <p>No dates to display yet.</p>
+                </div>
+            </CardContent>
+        </Card>
+      )
+    }
 
     return (
         <Card>
