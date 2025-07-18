@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -69,13 +70,6 @@ export default function WelcomeSummary() {
             ))}
           </CardContent>
         </Card>
-        
-        <div className="text-center">
-            <Button asChild size="lg">
-                <Link href="/dashboard/profile">Start My Profile</Link>
-            </Button>
-        </div>
-
       </div>
     </div>
   );

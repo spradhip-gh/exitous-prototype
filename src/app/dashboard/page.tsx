@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -39,15 +40,19 @@ export default function DashboardPage() {
     return <TimelineDashboard />;
   }
   
-  // Show the welcome summary if data is pre-filled and the assessment is not yet done.
-  if (hasPrefilledData && !isAssessmentComplete) {
-    return <WelcomeSummary />;
-  }
-
-  // Otherwise, show the standard progress tracker.
+  // If not fully complete, show the onboarding flow.
   return (
     <main className="flex-1">
-       <ProgressTracker />
+      {hasPrefilledData && !isAssessmentComplete ? (
+        <>
+          <WelcomeSummary />
+          <div className="mt-8">
+            <ProgressTracker />
+          </div>
+        </>
+      ) : (
+        <ProgressTracker />
+      )}
     </main>
   );
 }
