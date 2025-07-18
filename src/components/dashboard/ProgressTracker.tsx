@@ -42,8 +42,8 @@ export default function ProgressTracker() {
   const getDisplayDate = (dateString: string | undefined): string => {
     if (!dateString) return '';
     try {
-      const date = parse(dateString, 'yyyy-MM-dd', new Date());
-      return formatInTz(date, 'PPP', { timeZone: userTimezone });
+        const date = parse(dateString, 'yyyy-MM-dd', new Date());
+        return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch(e) {
         console.error("Error formatting date", e);
         return dateString || '';
@@ -82,7 +82,7 @@ export default function ProgressTracker() {
           <div className="text-sm text-muted-foreground mb-4">
             {isProfileComplete
               ? 'Your profile is complete. You can edit it if your circumstances change.'
-              : `Answer ${remainingProfile} more question${remainingProfile === 1 ? '' : 's'} to get tailored advice.`}
+              : `Answer ${remainingProfile} more question${remainingProfile === 1 ? '' : 's'}.`}
           </div>
           {customDeadlines['profile-deadline'] && !isProfileComplete && (
               <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline']?.date)}</p>
@@ -136,7 +136,7 @@ export default function ProgressTracker() {
           <div className="text-sm text-muted-foreground mb-4">
             {isAssessmentComplete
               ? 'Your exit details are saved. You can edit them if needed.'
-              : `Answer ${remainingAssessment} more question${remainingAssessment === 1 ? '' : 's'} for a tailored plan.`}
+              : `Answer ${remainingAssessment} more question${remainingAssessment === 1 ? '' : 's'}.`}
           </div>
           {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
               <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline']?.date)}</p>
