@@ -82,7 +82,7 @@ export default function ProgressTracker() {
           <div className="text-sm text-muted-foreground mb-4">
             {isProfileComplete
               ? 'Your profile is complete. You can edit it if your circumstances change.'
-              : `Answer ${remainingProfile} more question${remainingProfile === 1 ? '' : 's'}.`}
+              : 'Please complete your profile to continue.'}
           </div>
           {customDeadlines['profile-deadline'] && !isProfileComplete && (
               <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline']?.date)}</p>
