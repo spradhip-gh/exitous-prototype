@@ -7,8 +7,8 @@ import { Resource } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertTitle } from '@/components/ui/alert';
-import { Download, Sparkles, Terminal } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Download, Sparkles, Terminal, FileWarning } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 export default function ResourceCard({ resource }: { resource: Resource }) {
@@ -17,36 +17,36 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // This effect now depends on resource.content.
-    // It will only run when resource.content has a valid value.
     if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
-      // If content is or becomes invalid, set an error and stop.
-      // This handles the initial render case where content might be undefined.
       setError("This document does not have content available for summarization.");
       setIsLoading(false);
       return;
     }
 
     const fetchSummary = async () => {
+      setIsLoading(true);
+      setError('');
       try {
-        setIsLoading(true);
-        setError('');
-        // For data URIs, we need to extract the text part if it's a plain text file.
-        // A more robust solution would handle different MIME types.
-        let textContent = resource.content;
+        let textContent: string | null = null;
+        
         if (resource.content?.startsWith('data:')) {
-            // Very basic check for plain text data URI
             if (resource.content.startsWith('data:text/plain;base64,')) {
               const base64Content = resource.content.split(',')[1];
               textContent = atob(base64Content);
             } else {
-              // If it's another file type (like PDF, etc.), we can't summarize it with this simple flow.
-              throw new Error("Cannot summarize non-text files.");
+              // Not a plain text file, so we won't summarize.
+              // This is now handled gracefully instead of throwing an error.
             }
+        } else {
+            // Handle raw text content from demo-data
+            textContent = resource.content;
         }
-        
-        const result = await summarizeDocument(textContent);
-        setSummary(result);
+
+        if (textContent) {
+          const result = await summarizeDocument(textContent);
+          setSummary(result);
+        }
+
       } catch (err: any) {
         console.error("Summarization failed for:", resource.title, err);
         setError(err.message || "An error occurred while generating the summary.");
@@ -56,11 +56,9 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
     };
 
     fetchSummary();
-  }, [resource.content, resource.title]); // Dependency array ensures this runs when content is available.
+  }, [resource.content, resource.title]);
 
-  const downloadHref = resource.content?.startsWith('data:') 
-    ? resource.content 
-    : `/resources/${resource.fileName}`;
+  const canBeSummarized = resource.content?.startsWith('data:text/plain;base64,') || !resource.content?.startsWith('data:');
 
   return (
     <Card>
@@ -78,14 +76,26 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
           <Separator className="mb-3" />
           {isLoading && <div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-[80%]" /></div>}
           {error && <Alert variant="destructive" className="text-xs"><Terminal className="h-4 w-4" /><AlertTitle>{error}</AlertTitle></Alert>}
-          {!isLoading && !error && (
+          
+          {!isLoading && !error && canBeSummarized && summary && (
              <div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: summary.replace(/\n/g, '<br />') }} />
           )}
+
+          {!isLoading && !canBeSummarized && (
+            <div className="flex items-center text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
+              <FileWarning className="h-5 w-5 mr-3" />
+              <div>
+                <p className="font-semibold">Cannot Summarize File</p>
+                <p>AI summary is only available for plain text (.txt) files.</p>
+              </div>
+            </div>
+          )}
+
         </div>
       </CardContent>
       <CardFooter>
         <Button variant="outline" size="sm" asChild>
-          <a href={downloadHref} download={resource.fileName}>
+          <a href={resource.content} download={resource.fileName}>
             <Download className="mr-2" /> Download Full Document
           </a>
         </Button>
