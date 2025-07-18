@@ -48,6 +48,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     customDeadlines,
     addCustomDeadline,
     isAssessmentComplete,
+    getTargetTimezone,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
@@ -60,10 +61,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const [newDate, setNewDate] = useState<Date | undefined>();
   const { toast } = useToast();
 
-  const userTimezone = useMemo(() => {
-    if (!assessmentData?.companyName || !companyAssignments) return 'UTC';
-    return companyAssignments.find(c => c.companyName === assessmentData.companyName)?.severanceDeadlineTimezone || 'UTC';
-  }, [assessmentData?.companyName, companyAssignments]);
+  const userTimezone = getTargetTimezone();
 
   const companyDetails = useMemo(() => {
     if (!assessmentData?.companyName) return null;
@@ -732,7 +730,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                {displayDate && (
                   <div className="flex items-center gap-1 text-sm mt-2 font-medium text-destructive/80">
                     <Calendar className="h-4 w-4" />
-                    <span>Due: {formatInTz(displayDate, userTimezone, "PPP")}</span>
+                    <span>Due: {formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
                      {!isCompleted && <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -813,7 +811,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             {displayDate ? (
                                 <div className="flex items-center gap-1 text-sm font-medium">
-                                    <span>{formatInTz(displayDate, userTimezone, "PPP")}</span>
+                                    <span>{formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
                                      {!isCompleted && <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-6 w-6">
