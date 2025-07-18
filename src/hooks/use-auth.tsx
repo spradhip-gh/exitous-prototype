@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -38,6 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to load auth state from local storage', error);
+      // If parsing fails, clear the broken key
+      localStorage.removeItem(AUTH_KEY);
     } finally {
       setLoading(false);
     }
