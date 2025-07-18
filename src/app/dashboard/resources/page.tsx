@@ -1,10 +1,18 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card } from '@/components/ui/card';
-import { Library } from 'lucide-react';
+import { Library, ArrowLeft, ArrowRight } from 'lucide-react';
 import ResourceCard from '@/components/dashboard/ResourceCard';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 
 export default function ResourcesPage() {
   const { auth } = useAuth();
@@ -42,11 +50,24 @@ export default function ResourcesPage() {
             Helpful documents and links provided by {auth?.companyName}.
           </p>
         </div>
-        <div className="grid gap-6">
-          {resources.map((resource) => (
-            <ResourceCard key={resource.id} resource={resource} />
-          ))}
-        </div>
+        <Carousel
+          opts={{
+            align: "start",
+          }}
+          className="w-full"
+        >
+          <CarouselContent>
+            {resources.map((resource, index) => (
+              <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+                <div className="p-1 h-full">
+                  <ResourceCard resource={resource} />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden sm:flex" />
+          <CarouselNext className="hidden sm:flex" />
+        </Carousel>
       </div>
     </div>
   );
