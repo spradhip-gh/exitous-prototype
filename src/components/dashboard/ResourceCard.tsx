@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,11 +31,25 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       try {
         setIsLoading(true);
         setError('');
-        const result = await summarizeDocument(resource.content as string);
+        // For data URIs, we need to extract the text part if it's a plain text file.
+        // A more robust solution would handle different MIME types.
+        let textContent = resource.content;
+        if (resource.content?.startsWith('data:')) {
+            // Very basic check for plain text data URI
+            if (resource.content.startsWith('data:text/plain;base64,')) {
+              const base64Content = resource.content.split(',')[1];
+              textContent = atob(base64Content);
+            } else {
+              // If it's another file type (like PDF, etc.), we can't summarize it with this simple flow.
+              throw new Error("Cannot summarize non-text files.");
+            }
+        }
+        
+        const result = await summarizeDocument(textContent);
         setSummary(result);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Summarization failed for:", resource.title, err);
-        setError("An error occurred while generating the summary.");
+        setError(err.message || "An error occurred while generating the summary.");
       } finally {
         setIsLoading(false);
       }
@@ -42,6 +57,10 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
 
     fetchSummary();
   }, [resource.content, resource.title]); // Dependency array ensures this runs when content is available.
+
+  const downloadHref = resource.content?.startsWith('data:') 
+    ? resource.content 
+    : `/resources/${resource.fileName}`;
 
   return (
     <Card>
@@ -66,7 +85,7 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       </CardContent>
       <CardFooter>
         <Button variant="outline" size="sm" asChild>
-          <a href={`/resources/${resource.fileName}`} download>
+          <a href={downloadHref} download={resource.fileName}>
             <Download className="mr-2" /> Download Full Document
           </a>
         </Button>

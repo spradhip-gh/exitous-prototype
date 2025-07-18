@@ -38,7 +38,7 @@ export interface Resource {
   description: string;
   fileName: string;
   category: 'Benefits' | 'Policies' | 'Career' | 'Other';
-  content?: string;
+  content?: string; // Can be text content or a data URI
 }
 
 export interface CompanyConfig {

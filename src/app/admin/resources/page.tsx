@@ -37,11 +37,12 @@ export default function ResourceManagementPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newCategory, setNewCategory] = useState<Resource['category']>('Other');
   const [newFileName, setNewFileName] = useState('');
+  const [newFileContent, setNewFileContent] = useState(''); // Store as data URI
   const [fileInputKey, setFileInputKey] = useState(Date.now()); // to reset file input
 
   const handleAddResource = () => {
-    if (!newTitle || !newDescription || !newFileName) {
-      toast({ title: "All Fields Required", description: "Please fill out all fields.", variant: "destructive" });
+    if (!newTitle || !newDescription || !newFileName || !newFileContent) {
+      toast({ title: "All Fields Required", description: "Please fill out all fields and select a file.", variant: "destructive" });
       return;
     }
 
@@ -51,6 +52,7 @@ export default function ResourceManagementPage() {
       description: newDescription,
       fileName: newFileName,
       category: newCategory,
+      content: newFileContent,
     };
     
     saveCompanyResources(companyName, [...resources, newResource]);
@@ -60,12 +62,27 @@ export default function ResourceManagementPage() {
     setNewDescription('');
     setNewCategory('Other');
     setNewFileName('');
+    setNewFileContent('');
     setFileInputKey(Date.now()); // Reset file input visually
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewFileName(e.target.files[0].name);
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        const result = loadEvent.target?.result;
+        if (typeof result === 'string') {
+          setNewFileContent(result);
+        } else {
+          toast({ title: "File Read Error", description: "Could not read file content.", variant: "destructive" });
+        }
+      };
+      reader.onerror = () => {
+        toast({ title: "File Read Error", description: "An error occurred while reading the file.", variant: "destructive" });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
