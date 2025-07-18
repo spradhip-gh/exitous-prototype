@@ -422,25 +422,26 @@ export function useUserData() {
       return { total: 0, completed: 0, remaining: 0, percentage: 0 };
     }
     const total = Object.keys(profileSchema.shape).length;
-    if (!profileData) {
-      return { total, completed: 0, remaining: total, percentage: 0 };
-    }
+    let completed = 0;
     
-    const answeredFields = Object.keys(profileData).filter(key => {
-      const value = profileData[key as keyof ProfileData];
-      if (key === 'genderSelfDescribe') return true; // Handled by refine
-      if (Array.isArray(value)) return value.length > 0;
-      return value !== '' && value !== undefined && value !== null;
-    });
+    if (profileData) {
+        completed = Object.keys(profileData).filter(key => {
+            const value = profileData[key as keyof ProfileData];
+            if (Array.isArray(value)) return value.length > 0;
+            return value !== '' && value !== undefined && value !== null;
+        }).length;
 
-    // We use safeParse to check validity, but we determine completion by simple presence first.
-    // This gives a more intuitive "remaining questions" count.
-    const completed = answeredFields.length;
+        // The self-describe field only counts if the trigger is selected.
+        if (profileData.gender !== 'Prefer to self-describe' && profileData.genderSelfDescribe) {
+            completed -= 1;
+        }
+    }
+
     const remaining = total - completed;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
-    
+
     return { total, completed, remaining: Math.max(0, remaining), percentage };
-  }, [profileData]);
+}, [profileData]);
 
   const getAssessmentCompletion = useCallback(() => {
     const activeQuestions = getCompanyConfig(auth?.companyName, true);
