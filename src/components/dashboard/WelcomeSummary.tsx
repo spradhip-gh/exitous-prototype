@@ -27,6 +27,7 @@ export default function WelcomeSummary() {
 
   const formatDate = (dateString: string) => {
     try {
+      // Handles 'YYYY-MM-DD' by treating it as a UTC date to avoid timezone shifts
       const dateInUtc = toZonedTime(dateString, 'UTC');
       return format(dateInUtc, 'PPP', { timeZone: 'UTC' });
     } catch {
@@ -46,7 +47,8 @@ export default function WelcomeSummary() {
         const zonedDate = toZonedTime(fullDateString, timezone);
 
         return formatInTimeZone(zonedDate, timezone, "PPP 'at' h:mm a zzz");
-    } catch {
+    } catch(e) {
+        console.error("Failed to format severance deadline:", e);
         return 'N/A';
     }
   };
