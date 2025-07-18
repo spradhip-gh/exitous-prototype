@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ProgressTracker from '@/components/dashboard/ProgressTracker';
 import TimelineDashboard from '@/components/dashboard/TimelineDashboard';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,29 +33,18 @@ export default function DashboardPage() {
   const isProfileComplete = !!profileData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
-  // Show a version of the timeline immediately if HR has pre-filled data.
-  // The full dashboard will show once the user completes their profile & assessment.
+  // Show a version of the timeline immediately if HR has pre-filled data,
+  // which also includes the progress tracker.
   if (hasPrefilledData && !isFullyComplete) {
     return (
       <main className="flex-1">
         <WelcomeSummary />
         <TimelineDashboard isPreview />
-        <div className="md:-mt-8">
-          <ProgressTracker />
-        </div>
       </main>
     )
   }
-
-  // Show the final, completed timeline view.
-  if (isFullyComplete) {
-    return <TimelineDashboard />;
-  }
   
-  // Default view for new users without pre-filled data.
-  return (
-    <main className="flex-1">
-      <ProgressTracker />
-    </main>
-  );
+  // The TimelineDashboard component now internally decides whether to show
+  // the progress tracker or the full recommendations.
+  return <TimelineDashboard />;
 }

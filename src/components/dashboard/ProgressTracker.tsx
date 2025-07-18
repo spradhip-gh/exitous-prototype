@@ -10,9 +10,9 @@ import { CheckCircle, Edit, ListChecks, Briefcase, CalendarPlus } from 'lucide-r
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { format } from 'date-fns';
+import { toZonedTime, format as formatInTz } from 'date-fns-tz';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { toZonedTime } from 'date-fns-tz';
 
 
 export default function ProgressTracker() {
@@ -33,23 +33,21 @@ export default function ProgressTracker() {
 
   const handleDateSet = (id: string, label: string, date: Date | undefined) => {
     if (date) {
-      addCustomDeadline(id, { label, date: date.toISOString().split('T')[0] });
+      addCustomDeadline(id, { label, date: format(date, 'yyyy-MM-dd') });
       toast({ title: "Goal Date Set", description: `Your goal for "${label}" has been saved.` });
     }
   };
   
   const userTimezone = getTargetTimezone();
 
-  const getDisplayDate = (dateString: string) => {
+  const getDisplayDate = (dateString: string | undefined): string => {
     if (!dateString) return '';
     try {
-        // Parse the 'YYYY-MM-DD' string into a Date object within the target timezone.
-        // This prevents the date from shifting due to local timezone differences.
-        const zonedDate = toZonedTime(`${dateString}T00:00:00`, userTimezone);
-        return format(zonedDate, 'PPP');
+        const date = toZonedTime(dateString, userTimezone);
+        return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch(e) {
         console.error("Error formatting date", e);
-        return dateString;
+        return dateString || '';
     }
   }
 
@@ -108,7 +106,7 @@ export default function ProgressTracker() {
                   : `Answer ${remainingProfile} more question${remainingProfile === 1 ? '' : 's'} to get tailored advice.`}
               </div>
               {customDeadlines['profile-deadline'] && !isProfileComplete && (
-                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline'].date)}</p>
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['profile-deadline']?.date)}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>
@@ -162,7 +160,7 @@ export default function ProgressTracker() {
                   : `Answer ${remainingAssessment} more question${remainingAssessment === 1 ? '' : 's'} for a tailored plan.`}
               </div>
               {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
-                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline'].date)}</p>
+                 <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline']?.date)}</p>
               )}
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Status</span>

@@ -9,6 +9,7 @@ import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-reac
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { toZonedTime, format as formatInTz } from 'date-fns-tz';
 
 export default function WelcomeSummary() {
   const { auth } = useAuth();
@@ -30,9 +31,8 @@ export default function WelcomeSummary() {
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
     try {
-      const [year, month, day] = dateString.split('-').map(Number);
-      const date = new Date(year, month - 1, day);
-      return format(date, 'PPP');
+      const date = toZonedTime(dateString, userTimezone);
+      return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch {
       return 'N/A';
     }
@@ -41,10 +41,10 @@ export default function WelcomeSummary() {
   const severanceDeadlineTooltip = `Deadline is at ${companyDetails?.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`;
   
   const importantInfo = [
-    { label: 'Notification Date', value: companyUser?.user.notificationDate ? formatDate(companyUser.user.notificationDate) : 'N/A', icon: Bell },
-    { label: 'Final Day of Employment', value: prefilledData.finalDate ? formatDate(prefilledData.finalDate) : 'N/A', icon: CalendarX2 },
+    { label: 'Notification Date', value: companyUser?.user.notificationDate ? formatDate(companyUser.user.notificationDate) : 'N/A', icon: Bell, tooltip: null },
+    { label: 'Final Day of Employment', value: prefilledData.finalDate ? formatDate(prefilledData.finalDate) : 'N/A', icon: CalendarX2, tooltip: null },
     { label: 'Severance Agreement Deadline', value: prefilledData.severanceAgreementDeadline ? formatDate(prefilledData.severanceAgreementDeadline) : 'N/A', icon: Key, tooltip: severanceDeadlineTooltip },
-    { label: 'Medical Coverage Ends', value: prefilledData.medicalCoverageEndDate ? formatDate(prefilledData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope },
+    { label: 'Medical Coverage Ends', value: prefilledData.medicalCoverageEndDate ? formatDate(prefilledData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope, tooltip: null },
   ].filter(info => info.value && info.value !== 'N/A');
 
   const additionalDataCount = [
@@ -55,7 +55,7 @@ export default function WelcomeSummary() {
 
 
   return (
-    <div className="p-4 md:p-8 md:pb-0">
+    <div className="p-4 md:p-8 md:pb-4">
       <div className="mx-auto max-w-4xl space-y-4">
         <Alert variant="default" className="border-orange-300 bg-orange-50">
           <Bell className="h-4 w-4 !text-orange-600" />

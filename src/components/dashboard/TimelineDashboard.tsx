@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
+import ProgressTracker from './ProgressTracker';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
@@ -46,7 +47,8 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     updateTaskDate,
     companyAssignments,
     customDeadlines,
-    addCustomDeadline
+    addCustomDeadline,
+    isAssessmentComplete,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
@@ -69,10 +71,12 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     return companyAssignments.find(c => c.companyName === assessmentData.companyName) || null;
   }, [assessmentData, companyAssignments]);
 
+  const isProfileComplete = !!profileData;
+  const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (isPreview) {
+      if (isPreview || !isFullyComplete) {
         setIsLoading(false);
         return;
       }
@@ -129,7 +133,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
@@ -185,8 +189,8 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     setNewDate(undefined);
     setIsAddDateOpen(false);
   };
-
-  if (isLoading && !isPreview) {
+  
+  if (isLoading) {
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -205,24 +209,28 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         </div>
     );
   }
+
+  // If not fully complete, show the progress tracker.
+  if (!isFullyComplete) {
+    return <ProgressTracker />;
+  }
   
   const hasRecommendations = filteredRecommendations.length > 0;
 
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-4">
-        {!isPreview && (
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
-              <div>
-                <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
-                <p className="text-muted-foreground">
-                  Here’s a timeline of recommended actions based on your details.
-                </p>
-              </div>
-          </div>
-        )}
         
-        {!isPreview && <DailyBanner />}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+            <div>
+              <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
+              <p className="text-muted-foreground">
+                Here’s a timeline of recommended actions based on your details.
+              </p>
+            </div>
+        </div>
+        
+        <DailyBanner />
 
         <ImportantDates 
           assessmentData={assessmentData} 
@@ -231,7 +239,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           customDeadlines={customDeadlines}
         />
 
-        {!isPreview && sortedRecommendations.length > 0 && (
+        {sortedRecommendations.length > 0 && (
             <Card className="shadow-lg">
                 <CardHeader>
                   <div className="flex justify-between items-start">

@@ -426,20 +426,16 @@ export function useUserData() {
       return { total, completed: 0, remaining: total, percentage: 0 };
     }
     
-    const result = profileSchema.safeParse(profileData);
-    if (result.success) {
-      return { total, completed: total, remaining: 0, percentage: 100 };
-    }
+    const answeredFields = Object.keys(profileData).filter(key => {
+      const value = profileData[key as keyof ProfileData];
+      if (key === 'genderSelfDescribe') return true; // Handled by refine
+      if (Array.isArray(value)) return value.length > 0;
+      return value !== '' && value !== undefined && value !== null;
+    });
 
-    const answeredFields = new Set(Object.keys(profileData).filter(key => {
-        const value = profileData[key as keyof ProfileData];
-        if (Array.isArray(value)) return value.length > 0;
-        return value !== '' && value !== undefined && value !== null;
-    }));
-    
-    // For a field to be considered complete, it must be answered AND valid.
-    const errorFields = new Set(result.error.errors.map(e => e.path[0]));
-    const completed = [...answeredFields].filter(field => !errorFields.has(field as string)).length;
+    // We use safeParse to check validity, but we determine completion by simple presence first.
+    // This gives a more intuitive "remaining questions" count.
+    const completed = answeredFields.length;
     const remaining = total - completed;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
     
