@@ -418,16 +418,23 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                     );
                                 })}
 
-                                <div
-                                    className="absolute -top-2 flex flex-col items-center"
-                                    style={{
-                                        left: `${(differenceInDays(timelineMetrics.today, timelineMetrics.minDate) / timelineMetrics.totalDuration) * 100}%`,
-                                        transform: 'translateX(-50%)'
-                                    }}
-                                >
-                                    <div className="h-4 w-0.5 bg-destructive"></div>
-                                    <div className="text-xs font-bold text-destructive -mt-1">TODAY</div>
-                                </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div
+                                            className="absolute -top-2 flex flex-col items-center cursor-pointer"
+                                            style={{
+                                                left: `${(differenceInDays(timelineMetrics.today, timelineMetrics.minDate) / timelineMetrics.totalDuration) * 100}%`,
+                                                transform: 'translateX(-50%)'
+                                            }}
+                                        >
+                                            <div className="h-4 w-0.5 bg-destructive"></div>
+                                            <div className="text-xs font-bold text-destructive -mt-1">TODAY</div>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{formatDate(timelineMetrics.today)}</p>
+                                    </TooltipContent>
+                                </Tooltip>
                             </TooltipProvider>
                         </div>
                     </div>
