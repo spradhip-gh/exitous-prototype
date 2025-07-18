@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
+import { format as formatInTz } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,7 +19,6 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from '@/lib/utils';
-import DailyBanner from './DailyBanner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Label } from '../ui/label';
@@ -220,13 +219,13 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
             <div>
               <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
               <p className="text-muted-foreground">
-                Here’s a timeline of recommended actions based on your details.
+                {isFullyComplete
+                    ? "Here’s a timeline of recommended actions based on your details."
+                    : "Here is the start of your timeline, let's complete your assessment and profile to get a plan based on your details."}
               </p>
             </div>
         </div>
         
-        <DailyBanner />
-
         <ImportantDates 
           assessmentData={assessmentData} 
           companyDetails={companyDetails} 
@@ -359,8 +358,13 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
             if (!date) return null;
             if (date instanceof Date && !isNaN(date.getTime())) return date;
             if (typeof date === 'string') {
-                const parsed = parseISO(date);
-                if (!isNaN(parsed.getTime())) return parsed;
+                try {
+                    const [year, month, day] = date.split('-').map(Number);
+                    if (!year || !month || !day) return null;
+                    return new Date(year, month - 1, day);
+                } catch {
+                    return null;
+                }
             }
             return null;
         };
@@ -369,7 +373,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
             ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
             : 'Deadline time and timezone are set by the company.';
 
-        let allDatesRaw: KeyDateItem[] = [
+        let allDatesRaw: (KeyDateItem | null)[] = [
             { label: 'Exit Notification', date: parseAndCorrectDate(assessmentData?.notificationDate), icon: Bell, tooltip: null },
             { label: 'Final Day of Employment', date: parseAndCorrectDate(assessmentData?.finalDate), icon: CalendarX2, tooltip: null },
             { label: 'Severance Agreement Deadline', date: parseAndCorrectDate(assessmentData?.severanceAgreementDeadline), icon: Key, tooltip: severanceDeadlineTooltip },
@@ -389,7 +393,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
           });
         });
 
-        const filteredDates = allDatesRaw.filter((d): d is KeyDateItem => d.date !== null);
+        const filteredDates = allDatesRaw.filter((d): d is KeyDateItem => d !== null && d.date !== null);
 
         const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
         const eapLabel = 'EAP Coverage Ends';
@@ -728,7 +732,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                {displayDate && (
                   <div className="flex items-center gap-1 text-sm mt-2 font-medium text-destructive/80">
                     <Calendar className="h-4 w-4" />
-                    <span>Due: {formatInTimeZone(displayDate, userTimezone, "PPP")}</span>
+                    <span>Due: {formatInTz(displayDate, userTimezone, "PPP")}</span>
                      {!isCompleted && <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -809,7 +813,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             {displayDate ? (
                                 <div className="flex items-center gap-1 text-sm font-medium">
-                                    <span>{formatInTimeZone(displayDate, userTimezone, "PPP")}</span>
+                                    <span>{formatInTz(displayDate, userTimezone, "PPP")}</span>
                                      {!isCompleted && <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-6 w-6">
