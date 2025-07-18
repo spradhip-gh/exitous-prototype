@@ -45,8 +45,13 @@ export default function WelcomeSummary() {
     { label: 'Final Day of Employment', value: prefilledData.finalDate ? formatDate(prefilledData.finalDate) : 'N/A', icon: CalendarX2 },
     { label: 'Severance Agreement Deadline', value: prefilledData.severanceAgreementDeadline ? formatDate(prefilledData.severanceAgreementDeadline) : 'N/A', icon: Key, tooltip: severanceDeadlineTooltip },
     { label: 'Medical Coverage Ends', value: prefilledData.medicalCoverageEndDate ? formatDate(prefilledData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope },
-    { label: 'EAP Coverage Ends', value: prefilledData.eapCoverageEndDate ? formatDate(prefilledData.eapCoverageEndDate) : 'N/A', icon: HandCoins },
   ].filter(info => info.value && info.value !== 'N/A');
+
+  const additionalDataCount = [
+    prefilledData.dentalCoverageEndDate,
+    prefilledData.visionCoverageEndDate,
+    prefilledData.eapCoverageEndDate
+  ].filter(Boolean).length;
 
 
   return (
@@ -64,7 +69,9 @@ export default function WelcomeSummary() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Your Exit Information Summary</CardTitle>
             <CardDescription>
-              Here are the key dates provided by {companyUser?.companyName}. You can review and confirm these details in the full assessment after creating your profile.
+              Here are key dates provided by {companyUser?.companyName}. 
+              {additionalDataCount > 0 && ` ${additionalDataCount} additional data points have also been pre-filled.`}
+              You can review and confirm these details in the full assessment after creating your profile.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-2">

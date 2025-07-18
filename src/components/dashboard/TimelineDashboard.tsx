@@ -329,17 +329,29 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
         return { minDate, maxDate, totalDuration, today };
     }, [keyDates]);
     
-    const groupedDates = useMemo(() => {
+    const positionedDates = useMemo(() => {
         if (!timelineMetrics) return [];
-        const groups: { [key: string]: typeof keyDates } = {};
-        
+        const { totalDuration, minDate } = timelineMetrics;
+        let lastPosition = -100; // Start far to the left
+        let level = 0; // 0 for below, 1 for above
+        const positions: {item: (typeof keyDates)[0], position: number, level: number}[] = [];
+
         keyDates.forEach(item => {
-           const key = item.date!.toISOString().split('T')[0];
-           if (!groups[key]) groups[key] = [];
-           groups[key].push(item);
+            const daysFromStart = differenceInDays(item.date!, minDate);
+            const currentPosition = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
+            
+            // If current point is too close to the last one, alternate its level
+            if (currentPosition < lastPosition + 8) { // 8% threshold for overlap
+                level = 1 - level; // Alternate level
+            } else {
+                level = 0; // Reset to default level
+            }
+            
+            positions.push({item, position: currentPosition, level});
+            lastPosition = currentPosition;
         });
-        
-        return Object.values(groups);
+
+        return positions;
 
     }, [keyDates, timelineMetrics]);
 
@@ -353,40 +365,34 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
             </CardHeader>
             <CardContent>
                 {timelineMetrics && (
-                    <div className="w-full pt-10 pb-4 px-2">
+                    <div className="w-full pt-10 pb-10 px-2">
                         <div className="relative h-1 bg-border rounded-full">
                              <TooltipProvider>
-                                {groupedDates.map((group, groupIndex) => {
-                                    const { totalDuration, minDate } = timelineMetrics;
-                                    const daysFromStart = differenceInDays(group[0].date!, minDate);
-                                    const position = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
-
+                                {positionedDates.map(({item, position, level}) => {
+                                    const verticalPositionClass = level === 0 ? "top-4" : "bottom-4";
+                                    const Icon = item.icon;
                                     return (
                                          <div 
-                                            key={groupIndex}
-                                            className="absolute -top-1/2 flex flex-col items-center gap-1 cursor-pointer"
+                                            key={item.label}
+                                            className={cn("absolute flex flex-col items-center gap-1 cursor-pointer", verticalPositionClass)}
                                             style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                                         >
-                                            {group.map((item, itemIndex) => (
-                                                <Tooltip key={item.label}>
-                                                    <TooltipTrigger asChild>
-                                                        <div 
-                                                          className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform hover:scale-110"
-                                                        >
-                                                            <item.icon className="h-5 w-5 text-primary-foreground" />
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform hover:scale-110">
+                                                        <Icon className="h-5 w-5 text-primary-foreground" />
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="flex items-center gap-2">
+                                                        <Icon className="h-4 w-4" />
+                                                        <div>
+                                                            <p className="font-bold">{item.label}</p>
+                                                            <p>{formatDate(item.date!)}</p>
                                                         </div>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <div className="flex items-center gap-2">
-                                                            <item.icon className="h-4 w-4" />
-                                                            <div>
-                                                                <p className="font-bold">{item.label}</p>
-                                                                <p>{formatDate(item.date!)}</p>
-                                                            </div>
-                                                        </div>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ))}
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     );
                                 })}
