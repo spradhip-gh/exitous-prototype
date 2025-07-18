@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, parse } from 'date-fns';
+import { utcToZonedTime, format } from 'date-fns-tz';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
@@ -29,12 +29,10 @@ export default function WelcomeSummary() {
 
   const formatDate = (dateString: string) => {
     try {
-        // Correct for timezone offset when parsing
-        const date = parse(dateString, 'yyyy-MM-dd', new Date());
-        const correctedDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
-        return format(correctedDate, 'PPP');
+      const dateInUtc = utcToZonedTime(dateString, 'UTC');
+      return format(dateInUtc, 'PPP', { timeZone: 'UTC' });
     } catch {
-        return 'N/A';
+      return 'N/A';
     }
   };
 

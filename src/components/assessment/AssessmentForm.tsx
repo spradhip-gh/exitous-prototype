@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 import { cn } from '@/lib/utils';
 import { format, parse } from 'date-fns';
+import { utcToZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
 import { getDefaultQuestions } from '@/lib/questions';
 
@@ -259,10 +260,9 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                     for (const key in prefilled) {
                         const value = prefilled[key];
                         if (typeof value === 'string' && key.toLowerCase().includes('date')) {
-                            const date = parse(value, 'yyyy-MM-dd', new Date());
-                            if (!isNaN(date.getTime())) {
-                                // Correct for timezone offset when parsing
-                                prefilled[key] = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+                            const dateInUtc = utcToZonedTime(value, 'UTC');
+                            if (!isNaN(dateInUtc.getTime())) {
+                                prefilled[key] = dateInUtc;
                             }
                         }
                     }
@@ -271,10 +271,9 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
 
                 // 2. HR-set notification date (overwrites if present)
                 if (companyUser?.user.notificationDate) {
-                    const date = parse(companyUser.user.notificationDate, 'yyyy-MM-dd', new Date());
-                    if(!isNaN(date.getTime())) {
-                        // Correct for timezone offset when parsing
-                       initialValues.notificationDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000);
+                    const dateInUtc = utcToZonedTime(companyUser.user.notificationDate, 'UTC');
+                    if(!isNaN(dateInUtc.getTime())) {
+                       initialValues.notificationDate = dateInUtc;
                     }
                 }
                 
