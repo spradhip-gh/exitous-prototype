@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, parse } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
@@ -241,89 +241,149 @@ export default function TimelineDashboard() {
   );
 }
 
+const formatDate = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return 'N/A';
+    const [year, month, day] = date.toISOString().split('T')[0].split('-').map(Number);
+    const correctedDate = new Date(year, month - 1, day);
+    return format(correctedDate, 'PPP');
+};
+
 function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
-    if (!assessmentData) return null;
     
-    const formatDate = (date: Date): string => {
-        if (!date || isNaN(date.getTime())) return 'N/A';
-        const [year, month, day] = date.toISOString().split('T')[0].split('-').map(Number);
-        const correctedDate = new Date(year, month - 1, day);
-        return format(correctedDate, 'PPP');
-    };
+    const keyDates = useMemo(() => {
+        const parseAndCorrectDate = (date: any): Date | null => {
+            if (!date || !(date instanceof Date) || isNaN(date.getTime())) return null;
+            return date;
+        };
 
-    const severanceDeadlineTooltip = companyDetails
-      ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
-      : 'Deadline time and timezone are set by the company.';
+        const severanceDeadlineTooltip = companyDetails
+          ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
+          : 'Deadline time and timezone are set by the company.';
 
-    const allDatesRaw = [
-        { label: 'Exit Notification', date: assessmentData.notificationDate, icon: Bell },
-        { label: 'Final Day of Employment', date: assessmentData.finalDate, icon: CalendarX2 },
-        { label: 'Severance Agreement Deadline', date: assessmentData.severanceAgreementDeadline, icon: Key, tooltip: severanceDeadlineTooltip },
-        { label: 'Medical Coverage Ends', date: assessmentData.medicalCoverageEndDate, icon: Stethoscope },
-        { label: 'Dental Coverage Ends', date: assessmentData.dentalCoverageEndDate, icon: Smile },
-        { label: 'Vision Coverage Ends', date: assessmentData.visionCoverageEndDate, icon: Eye },
-        { label: 'EAP Coverage Ends', date: assessmentData.eapCoverageEndDate, icon: HandCoins },
-    ].filter(d => d.date && !isNaN(new Date(d.date).getTime()));
-    
-    const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
-    const eapLabel = 'EAP Coverage Ends';
+        const allDatesRaw = [
+            { label: 'Exit Notification', date: parseAndCorrectDate(assessmentData.notificationDate), icon: Bell, tooltip: null },
+            { label: 'Final Day of Employment', date: parseAndCorrectDate(assessmentData.finalDate), icon: CalendarX2, tooltip: null },
+            { label: 'Severance Agreement Deadline', date: parseAndCorrectDate(assessmentData.severanceAgreementDeadline), icon: Key, tooltip: severanceDeadlineTooltip },
+            { label: 'Medical Coverage Ends', date: parseAndCorrectDate(assessmentData.medicalCoverageEndDate), icon: Stethoscope, tooltip: null },
+            { label: 'Dental Coverage Ends', date: parseAndCorrectDate(assessmentData.dentalCoverageEndDate), icon: Smile, tooltip: null },
+            { label: 'Vision Coverage Ends', date: parseAndCorrectDate(assessmentData.visionCoverageEndDate), icon: Eye, tooltip: null },
+            { label: 'EAP Coverage Ends', date: parseAndCorrectDate(assessmentData.eapCoverageEndDate), icon: HandCoins, tooltip: null },
+        ].filter(d => d.date !== null);
 
-    const sortedDates = allDatesRaw.sort((a, b) => {
-        const aIsEAP = a.label === eapLabel;
-        const bIsEAP = b.label === eapLabel;
-        if (aIsEAP && !bIsEAP) return 1;
-        if (!aIsEAP && bIsEAP) return -1;
+        const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
+        const eapLabel = 'EAP Coverage Ends';
+
+        return allDatesRaw.sort((a, b) => {
+            const aIsEAP = a.label === eapLabel;
+            const bIsEAP = b.label === eapLabel;
+            if (aIsEAP && !bIsEAP) return 1;
+            if (!aIsEAP && bIsEAP) return -1;
+            
+            const aIndex = priorityOrder.indexOf(a.label);
+            const bIndex = priorityOrder.indexOf(b.label);
+            
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+
+            return a.date!.getTime() - b.date!.getTime();
+        });
+    }, [assessmentData, companyDetails, userTimezone]);
+
+    const timelineMetrics = useMemo(() => {
+        if (keyDates.length < 2) return null;
+
+        const datesOnly = keyDates.map(d => d.date!);
+        const minDate = new Date(Math.min(...datesOnly.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...datesOnly.map(d => d.getTime())));
         
-        const aIndex = priorityOrder.indexOf(a.label);
-        const bIndex = priorityOrder.indexOf(b.label);
-        
-        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
+        const totalDuration = differenceInDays(maxDate, minDate);
+        if (totalDuration <= 0) return null;
 
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return dateA.getTime() - dateB.getTime();
-    });
+        return { minDate, maxDate, totalDuration };
+    }, [keyDates]);
 
-    if (sortedDates.length === 0) return null;
+    if (keyDates.length === 0) return null;
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="font-headline text-xl">Key Dates</CardTitle>
-                <CardDescription>A timeline of critical deadlines based on your assessment.</CardDescription>
+                <CardTitle className="font-headline text-xl">Key Dates Timeline</CardTitle>
+                <CardDescription>A visual overview of your critical deadlines.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="relative pl-4">
-                    <div className="absolute left-9 top-0 bottom-0 w-0.5 bg-border -translate-x-1/2"></div>
-                    <TooltipProvider>
-                    {sortedDates.map(({ label, date, icon: Icon, tooltip }, index) => (
-                        <div key={label} className="relative mb-6 flex items-start gap-4">
-                             <div className="absolute left-9 top-1/2 h-4 w-4 rounded-full bg-primary ring-4 ring-background -translate-x-1/2 -translate-y-1/2"></div>
-                             <div className="bg-primary/10 text-primary p-2 rounded-lg">
-                                <Icon className="h-6 w-6" />
-                            </div>
-                            <div className="pt-1">
-                                <p className="font-semibold">{label}</p>
-                                <div className="flex items-center gap-2">
-                                <p className="text-sm text-muted-foreground">{formatDate(date)}</p>
-                                {tooltip && (
-                                    <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{tooltip}</p>
-                                    </TooltipContent>
-                                    </Tooltip>
-                                )}
-                                </div>
-                            </div>
+                {timelineMetrics && (
+                    <div className="w-full pt-8 pb-4 px-2">
+                        <div className="relative h-1 bg-border rounded-full">
+                             <TooltipProvider>
+                                {keyDates.map((item, index) => {
+                                    const { totalDuration, minDate } = timelineMetrics;
+                                    const daysFromStart = differenceInDays(item.date!, minDate);
+                                    const position = (daysFromStart / totalDuration) * 100;
+                                    const Icon = item.icon;
+
+                                    return (
+                                         <Tooltip key={index}>
+                                            <TooltipTrigger asChild>
+                                                <div 
+                                                    className="absolute -top-3.5 flex flex-col items-center group cursor-pointer"
+                                                    style={{ left: `${position}%` }}
+                                                >
+                                                     <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform group-hover:scale-110">
+                                                        <Icon className="h-5 w-5 text-primary-foreground" />
+                                                    </div>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="flex items-center gap-2">
+                                                    <Icon className="h-4 w-4" />
+                                                    <div>
+                                                        <p className="font-bold">{item.label}</p>
+                                                        <p>{formatDate(item.date!)}</p>
+                                                    </div>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    );
+                                })}
+                            </TooltipProvider>
                         </div>
-                    ))}
-                    </TooltipProvider>
-                </div>
+                    </div>
+                )}
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead className="text-right">Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                         {keyDates.map((item, index) => {
+                             const Icon = item.icon;
+                             return (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Icon className="h-4 w-4 text-muted-foreground" />
+                                            <span>{item.label}</span>
+                                            {item.tooltip && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>{item.tooltip}</p></TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">{formatDate(item.date!)}</TableCell>
+                                </TableRow>
+                             )
+                         })}
+                    </TableBody>
+                </Table>
             </CardContent>
         </Card>
     );
