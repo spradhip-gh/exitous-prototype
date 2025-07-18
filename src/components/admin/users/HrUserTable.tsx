@@ -12,11 +12,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parse, isToday, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Send, CheckCircle, Pencil, Trash2, CalendarIcon, AlertCircle } from 'lucide-react';
+import { Send, CheckCircle, Pencil, Trash2, CalendarIcon, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import type { SortConfig } from './HrUserManagement';
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     isComplete ? (
@@ -26,11 +27,38 @@ const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     )
 );
 
-export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers }: {
+const SortableHeader = ({
+  children,
+  sortKey,
+  sortConfig,
+  requestSort,
+}: {
+  children: React.ReactNode;
+  sortKey: SortConfig['key'];
+  sortConfig: SortConfig;
+  requestSort: (key: SortConfig['key']) => void;
+}) => {
+  const isSorted = sortConfig.key === sortKey;
+  const direction = isSorted ? sortConfig.direction : undefined;
+
+  return (
+    <TableHead>
+      <Button variant="ghost" onClick={() => requestSort(sortKey)} className="px-2 py-1 h-auto">
+        {children}
+        <ArrowUpDown className={cn("ml-2 h-4 w-4", !isSorted && "text-muted-foreground/50")} />
+      </Button>
+    </TableHead>
+  );
+};
+
+
+export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers, sortConfig, requestSort }: {
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
     selectedUsers: Set<string>;
     setSelectedUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
+    sortConfig: SortConfig;
+    requestSort: (key: SortConfig['key']) => void;
 }) {
     const { auth } = useAuth();
     const { toast } = useToast();
@@ -135,11 +163,11 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                 data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
                             />
                         </TableHead>
-                        <TableHead>Work Email</TableHead>
-                        <TableHead>Company ID</TableHead>
-                        <TableHead>Notification Date</TableHead>
-                        <TableHead>Profile Status</TableHead>
-                        <TableHead>Assessment Status</TableHead>
+                        <SortableHeader sortKey="email" sortConfig={sortConfig} requestSort={requestSort}>Work Email</SortableHeader>
+                        <SortableHeader sortKey="companyId" sortConfig={sortConfig} requestSort={requestSort}>Company ID</SortableHeader>
+                        <SortableHeader sortKey="notificationDate" sortConfig={sortConfig} requestSort={requestSort}>Notification Date</SortableHeader>
+                        <SortableHeader sortKey="profileStatus" sortConfig={sortConfig} requestSort={requestSort}>Profile</SortableHeader>
+                        <SortableHeader sortKey="assessmentStatus" sortConfig={sortConfig} requestSort={requestSort}>Assessment</SortableHeader>
                         <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                 </TableHeader>

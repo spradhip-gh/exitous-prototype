@@ -12,16 +12,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import Papa from 'papaparse';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
 import BulkActions from "./BulkActions";
 
+export type SortConfig = {
+    key: keyof CompanyUser | 'profileStatus' | 'assessmentStatus';
+    direction: 'asc' | 'desc';
+};
+
+
 export default function HrUserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignmentForHr } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignmentForHr, profileCompletions, assessmentCompletions } = useUserData();
     
     const companyName = auth?.companyName;
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -34,6 +40,8 @@ export default function HrUserManagement() {
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
 
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notificationDate', direction: 'asc' });
+
     useEffect(() => {
         if (companyName) {
             setIsLoading(true);
@@ -43,6 +51,49 @@ export default function HrUserManagement() {
             setIsLoading(false);
         }
     }, [companyName, getAllCompanyConfigs]);
+
+    const sortedUsers = useMemo(() => {
+        const invitedUsers = users.filter(u => u.notified);
+        const uninvitedUsers = users.filter(u => !u.notified);
+
+        const sortArray = (array: CompanyUser[], config: SortConfig) => {
+            return [...array].sort((a, b) => {
+                let aValue: any;
+                let bValue: any;
+
+                if (config.key === 'profileStatus') {
+                    aValue = profileCompletions[a.email] ? 1 : 0;
+                    bValue = profileCompletions[b.email] ? 1 : 0;
+                } else if (config.key === 'assessmentStatus') {
+                    aValue = assessmentCompletions[a.email] ? 1 : 0;
+                    bValue = assessmentCompletions[b.email] ? 1 : 0;
+                } else {
+                    aValue = a[config.key as keyof CompanyUser];
+                    bValue = b[config.key as keyof CompanyUser];
+                }
+
+                if (aValue === undefined || aValue === null) aValue = '';
+                if (bValue === undefined || bValue === null) bValue = '';
+                
+                if (config.key === 'notificationDate') {
+                    const dateA = aValue ? parse(aValue, 'yyyy-MM-dd', new Date()).getTime() : 0;
+                    const dateB = bValue ? parse(bValue, 'yyyy-MM-dd', new Date()).getTime() : 0;
+                    if (dateA < dateB) return config.direction === 'asc' ? -1 : 1;
+                    if (dateA > dateB) return config.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
+
+                if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        };
+
+        const sortedUninvited = sortArray(uninvitedUsers, sortConfig);
+        const sortedInvited = sortArray(invitedUsers, sortConfig);
+
+        return [...sortedUninvited, ...sortedInvited];
+    }, [users, sortConfig, profileCompletions, assessmentCompletions]);
 
     if (isLoading) {
         return (
@@ -147,10 +198,12 @@ export default function HrUserManagement() {
                             newUsersList[existingUserIndex] = { ...existingUser, ...userFromCsv };
                             updatedCount++;
                         } else {
-                            if (addUser({ ...userFromCsv })) {
-                                addedCount++;
-                                newUsersList.push(userFromCsv);
+                             if (companyAssignmentForHr && newUsersList.length >= companyAssignmentForHr.maxUsers) {
+                                toast({ title: "User Limit Reached", description: `Skipping ${userFromCsv.email} as the user limit has been reached.`, variant: "destructive" });
+                                continue;
                             }
+                            addedCount++;
+                            newUsersList.push(userFromCsv);
                         }
                     }
                 }
@@ -251,6 +304,14 @@ export default function HrUserManagement() {
         link.click();
         document.body.removeChild(link);
     };
+    
+    const requestSort = (key: SortConfig['key']) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -332,10 +393,12 @@ export default function HrUserManagement() {
                 </CardHeader>
                 <CardContent>
                    <HrUserTable 
-                     users={users}
+                     users={sortedUsers}
                      setUsers={setUsers}
                      selectedUsers={selectedUsers}
                      setSelectedUsers={setSelectedUsers}
+                     sortConfig={sortConfig}
+                     requestSort={requestSort}
                    />
                 </CardContent>
             </Card>
