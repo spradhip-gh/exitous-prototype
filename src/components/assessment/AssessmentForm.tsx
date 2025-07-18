@@ -271,15 +271,26 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
         if (!form.formState.isDirty) {
             let initialValues: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
             
+            const parseDateString = (dateString: string | undefined): Date | undefined => {
+                if (!dateString) return undefined;
+                try {
+                    const [year, month, day] = dateString.split('-').map(Number);
+                    if (!year || !month || !day) return undefined;
+                    return new Date(year, month - 1, day);
+                } catch {
+                    return undefined;
+                }
+            };
+
             if (!assessmentData) {
                 if (companyUser?.user.prefilledAssessmentData) {
                     const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
                     for (const key in prefilled) {
                         const value = prefilled[key as keyof typeof prefilled];
                         if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const dateInTz = toZonedTime(value, userTimezone);
-                            if (!isNaN(dateInTz.getTime())) {
-                                (prefilled as any)[key] = dateInTz;
+                            const date = parseDateString(value);
+                            if (date) {
+                                (prefilled as any)[key] = date;
                             }
                         }
                     }
@@ -287,10 +298,10 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
                 }
 
                 if (companyUser?.user.notificationDate) {
-                    const dateInTz = toZonedTime(companyUser.user.notificationDate, userTimezone);
-                    if(!isNaN(dateInTz.getTime())) {
-                       initialValues.notificationDate = dateInTz;
-                    }
+                   const date = parseDateString(companyUser.user.notificationDate);
+                   if (date) {
+                      initialValues.notificationDate = date;
+                   }
                 }
                 
                 const getDefaults = (q: Question) => {
