@@ -55,6 +55,12 @@ const getPastDate = (days: number) => {
     return date.toISOString().split('T')[0]; // YYYY-MM-DD
 }
 
+const getSpecificDate = (month: number, day: number) => {
+    const date = new Date();
+    date.setMonth(month - 1, day); // month is 0-indexed
+    return date.toISOString().split('T')[0];
+}
+
 
 const initializeDb = (): DemoDatabase => {
 
@@ -77,10 +83,10 @@ const initializeDb = (): DemoDatabase => {
                         prefilledAssessmentData: {
                            finalDate: getFutureDate(28),
                            severanceAgreementDeadline: getFutureDate(43),
-                           medicalCoverageEndDate: getFutureDate(88), // August 31st
+                           medicalCoverageEndDate: getSpecificDate(8, 31), // August 31st
                            dentalCoverageEndDate: getFutureDate(28),
                            visionCoverageEndDate: getFutureDate(28),
-                           eapCoverageEndDate: getFutureDate(88), // August 31st
+                           eapCoverageEndDate: getSpecificDate(8, 31), // August 31st
                         }
                     },
                     { email: 's.smith@globex.com', companyId: 'G789', notificationDate: getFutureDate(12), notified: false },

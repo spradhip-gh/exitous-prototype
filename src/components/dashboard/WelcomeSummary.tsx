@@ -40,10 +40,10 @@ export default function WelcomeSummary() {
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
-        <Alert className="border-primary/50 bg-primary/5">
-          <Bell className="h-4 w-4 !text-primary" />
-          <AlertTitle className="text-primary/90">Welcome to ExitBetter</AlertTitle>
-          <AlertDescription className="text-primary/80">
+        <Alert variant="default" className="border-orange-300 bg-orange-50">
+          <Bell className="h-4 w-4 !text-orange-600" />
+          <AlertTitle className="text-orange-900">Welcome to ExitBetter</AlertTitle>
+          <AlertDescription className="text-orange-800">
             We know this is a difficult time. The information below has been pre-filled by your company to help you get started. Let&apos;s begin by creating your profile to unlock personalized guidance.
           </AlertDescription>
         </Alert>
