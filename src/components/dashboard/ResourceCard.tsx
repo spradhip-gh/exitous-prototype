@@ -6,7 +6,6 @@ import { Resource } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Sparkles, FileWarning, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { summarizeDocument } from '@/ai/flows/summarize-document';
 
 export default function ResourceCard({ resource }: { resource: Resource }) {
@@ -36,13 +35,18 @@ export default function ResourceCard({ resource }: { resource: Resource }) {
       return;
     }
 
+    // Definitive guard to prevent calling AI with invalid data.
+    if (!resource.content || typeof resource.content !== 'string' || resource.content.trim() === '') {
+        setError("Document content is empty or unavailable.");
+        return;
+    }
+
     setIsLoading(true);
     setError('');
     
     try {
-      // Encode the content to a data URI right before sending it.
-      // This happens on the client, where btoa() is available.
-      const contentDataUri = `data:${mimeType};base64,${btoa(resource.content!)}`;
+      // Encode the content to a data URI on the client, right before sending.
+      const contentDataUri = `data:${mimeType};base64,${btoa(resource.content)}`;
 
       const result = await summarizeDocument({
         contentDataUri: contentDataUri,
