@@ -15,8 +15,6 @@ import {
   getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
 } from '@/lib/demo-data';
-import { toZonedTime } from 'date-fns-tz';
-
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -40,14 +38,6 @@ export interface Resource {
   fileName: string;
   category: 'Benefits' | 'Policies' | 'Career' | 'Other';
   content?: string; // Can be text content or a data URI
-}
-
-export interface CompanyConfig {
-  questions: Record<string, Partial<Question>>; // Overrides for master questions
-  users: CompanyUser[];
-  customQuestions?: Record<string, Question>;
-  questionOrderBySection?: Record<string, string[]>;
-  resources?: Resource[];
 }
 
 export interface CompanyAssignment {
@@ -124,6 +114,9 @@ export function useUserData() {
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
+  // A more reliable way to check if the assessment is truly "complete" by the user
+  const isAssessmentComplete = !!assessmentData?.workStatus;
+
   const getTargetTimezone = useCallback(() => {
     const companyName = auth?.companyName;
     const assignment = companyAssignments.find(a => a.companyName === companyName);
@@ -134,16 +127,13 @@ export function useUserData() {
   useEffect(() => {
     setIsLoading(true);
     try {
-      // Load shared data first to get timezone info
-      const assignments = getCompanyAssignmentsFromDb();
-      setCompanyAssignmentsState(assignments);
+      // Load shared data first
+      setCompanyAssignmentsState(getCompanyAssignmentsFromDb());
       setCompanyConfigsState(getCompanyConfigsFromDb());
       setPlatformUsersState(getPlatformUsersFromDb());
       setProfileCompletionsState(getProfileCompletionsFromDb());
       setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
       setMasterQuestionsState(getMasterQuestionsFromDb());
-
-      const targetTimezone = assignments.find(a => a.companyName === auth?.companyName)?.severanceDeadlineTimezone || 'UTC';
 
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
@@ -479,6 +469,7 @@ export function useUserData() {
   return {
     profileData,
     assessmentData,
+    isAssessmentComplete,
     completedTasks,
     taskDateOverrides,
     isLoading,

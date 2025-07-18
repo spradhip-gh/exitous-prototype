@@ -11,7 +11,7 @@ import WelcomeSummary from '@/components/dashboard/WelcomeSummary';
 
 export default function DashboardPage() {
   const { auth } = useAuth();
-  const { profileData, assessmentData, isLoading, getCompanyUser } = useUserData();
+  const { profileData, assessmentData, isLoading, getCompanyUser, isAssessmentComplete } = useUserData();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,6 @@ export default function DashboardPage() {
   const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
   const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData;
   const isProfileComplete = !!profileData;
-  const isAssessmentComplete = !!assessmentData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
   // Show the timeline if both forms are done.
