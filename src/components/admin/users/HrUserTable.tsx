@@ -136,6 +136,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                             />
                         </TableHead>
                         <TableHead>Work Email</TableHead>
+                        <TableHead>Company ID</TableHead>
                         <TableHead>Notification Date</TableHead>
                         <TableHead>Profile Status</TableHead>
                         <TableHead>Assessment Status</TableHead>
@@ -157,6 +158,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                     />
                                 </TableCell>
                                 <TableCell className="font-medium">{user.email}</TableCell>
+                                <TableCell>{user.companyId}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
                                         <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
@@ -223,7 +225,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                         );
                     }) : (
                         <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>

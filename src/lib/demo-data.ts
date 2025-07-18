@@ -57,9 +57,59 @@ const getPastDate = (days: number) => {
 
 
 const initializeDb = (): DemoDatabase => {
-    const benefitsGuideContent = `The Globex Corporation 2024 Benefits Summary provides a comprehensive overview of health, dental, and vision insurance plans. It details coverage tiers, premium costs, and enrollment deadlines. The document also outlines the 401(k) matching program, explaining the vesting schedule and contribution limits. Additional benefits covered include the Employee Assistance Program (EAP), life insurance options, and commuter benefits. Key deadlines for open enrollment are listed, along with contact information for the benefits administration team.`;
-    const wfhPolicyContent = `This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.`;
-    const exitChecklistContent = `Employee Exit Checklist
+
+    return {
+        companyAssignments: [
+            { companyName: 'Globex Corp', hrManagerEmail: 'hr@globex.com', version: 'pro', maxUsers: 50 },
+            { companyName: 'Initech', hrManagerEmail: 'hr@initech.com', version: 'basic', maxUsers: 10 }
+        ],
+        companyConfigs: {
+            'Globex Corp': {
+                questions: {},
+                users: [
+                    { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
+                    { 
+                        email: 'employee2@globex.com', 
+                        companyId: 'G456', 
+                        notificationDate: getPastDate(2), 
+                        notified: true,
+                        personalEmail: 'user.personal@email.com',
+                        prefilledAssessmentData: {
+                           finalDate: getFutureDate(28),
+                           severanceAgreementDeadline: getFutureDate(43),
+                           medicalCoverageEndDate: getFutureDate(28),
+                           dentalCoverageEndDate: getFutureDate(28),
+                           visionCoverageEndDate: getFutureDate(28),
+                           eapCoverageEndDate: getFutureDate(88),
+                        }
+                    },
+                    { email: 's.smith@globex.com', companyId: 'G789', notificationDate: getFutureDate(12), notified: false },
+                    { email: 'p.jones@globex.com', companyId: 'G101', notificationDate: getFutureDate(15), notified: false },
+                    { email: 'a.williams@globex.com', companyId: 'G112', notificationDate: getFutureDate(20), notified: false },
+                    { email: 'b.davis@globex.com', companyId: 'G213', notificationDate: getPastDate(10), notified: false },
+                ],
+                customQuestions: {
+                    'globex-corp-custom-1': {
+                        id: 'globex-corp-custom-1',
+                        label: 'Have you already booked any future non-refundable business trips?',
+                        section: 'Work Circumstances',
+                        type: 'radio',
+                        isActive: true,
+                        isCustom: true,
+                        options: ['Yes', 'No'],
+                        defaultValue: 'No',
+                        lastUpdated: new Date().toISOString()
+                    }
+                },
+                questionOrderBySection: {},
+                resources: [
+                    {
+                        id: 'globex-resource-3',
+                        title: 'Employee Exit Checklist',
+                        description: 'A helpful checklist to guide you through the exit process.',
+                        fileName: 'Exit_Checklist.txt',
+                        category: 'Career',
+                        content: `Employee Exit Checklist
 
 This checklist is designed to help you manage key tasks during your employment transition.
 
@@ -90,59 +140,7 @@ This checklist is designed to help you manage key tasks during your employment t
 - [ ] Notify your professional network about your transition.
 - [ ] Ask for recommendations from colleagues and managers.
 - [ ] Begin your job search activities, tailoring your resume for each application.
-`;
-
-    return {
-        companyAssignments: [
-            { companyName: 'Globex Corp', hrManagerEmail: 'hr@globex.com', version: 'pro', maxUsers: 50 },
-            { companyName: 'Initech', hrManagerEmail: 'hr@initech.com', version: 'basic', maxUsers: 10 }
-        ],
-        companyConfigs: {
-            'Globex Corp': {
-                questions: {},
-                users: [
-                    { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
-                    { 
-                        email: 'employee2@globex.com', 
-                        companyId: 'G456', 
-                        notificationDate: getPastDate(2), 
-                        notified: true,
-                        personalEmail: 'user.personal@email.com',
-                        prefilledAssessmentData: {
-                           finalDate: getFutureDate(28),
-                           severanceAgreementDeadline: getFutureDate(43),
-                           medicalCoverageEndDate: getFutureDate(28),
-                           dentalCoverageEndDate: getFutureDate(28),
-                           visionCoverageEndDate: getFutureDate(28),
-                           eapCoverageEndDate: getFutureDate(88),
-                        }
-                    },
-                    { email: 's.smith@globex.com', companyId: 'G789', notificationDate: getFutureDate(12), notified: false },
-                    { email: 'p.jones@globex.com', companyId: 'G101', notificationDate: getFutureDate(15), notified: false },
-                    { email: 'a.williams@globex.com', companyId: 'G112', notificationDate: getFutureDate(20), notified: false },
-                ],
-                customQuestions: {
-                    'globex-corp-custom-1': {
-                        id: 'globex-corp-custom-1',
-                        label: 'Have you already booked any future non-refundable business trips?',
-                        section: 'Work Circumstances',
-                        type: 'radio',
-                        isActive: true,
-                        isCustom: true,
-                        options: ['Yes', 'No'],
-                        defaultValue: 'No',
-                        lastUpdated: new Date().toISOString()
-                    }
-                },
-                questionOrderBySection: {},
-                resources: [
-                    {
-                        id: 'globex-resource-3',
-                        title: 'Employee Exit Checklist',
-                        description: 'A helpful checklist to guide you through the exit process.',
-                        fileName: 'Exit_Checklist.txt',
-                        category: 'Career',
-                        content: exitChecklistContent
+`
                     },
                     {
                         id: 'globex-resource-1',
@@ -150,7 +148,7 @@ This checklist is designed to help you manage key tasks during your employment t
                         description: 'A complete overview of your employee benefits for 2024.',
                         fileName: 'Globex_Benefits_Summary_2024.txt',
                         category: 'Benefits',
-                        content: benefitsGuideContent
+                        content: `The Globex Corporation 2024 Benefits Summary provides a comprehensive overview of health, dental, and vision insurance plans. It details coverage tiers, premium costs, and enrollment deadlines. The document also outlines the 401(k) matching program, explaining the vesting schedule and contribution limits. Additional benefits covered include the Employee Assistance Program (EAP), life insurance options, and commuter benefits. Key deadlines for open enrollment are listed, along with contact information for the benefits administration team.`
                     },
                     {
                         id: 'globex-resource-2',
@@ -158,7 +156,7 @@ This checklist is designed to help you manage key tasks during your employment t
                         description: 'Official company policy regarding remote and hybrid work arrangements.',
                         fileName: 'Work_From_Home_Policy.txt',
                         category: 'Policies',
-                        content: wfhPolicyContent
+                        content: `This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.`
                     },
                 ],
             },
