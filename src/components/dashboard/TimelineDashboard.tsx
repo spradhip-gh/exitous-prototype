@@ -9,7 +9,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -265,24 +265,31 @@ const formatDate = (date: Date): string => {
     return format(correctedDate, 'PPP');
 };
 
+type KeyDateItem = {
+    label: string;
+    date: Date;
+    icon: React.ElementType;
+    tooltip: string | null;
+};
+
+
 function ImportantDates({ assessmentData, companyDetails, userTimezone }: { assessmentData: any, companyDetails: CompanyAssignment | null, userTimezone: string }) {
-    
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-    const keyDates = useMemo(() => {
+    const keyDates: KeyDateItem[] = useMemo(() => {
         const parseAndCorrectDate = (date: any): Date | null => {
             if (!date) return null;
             if (date instanceof Date && !isNaN(date.getTime())) return date;
             if (typeof date === 'string') {
-              const parsed = parseISO(date);
-              if (!isNaN(parsed.getTime())) return parsed;
+                const parsed = parseISO(date);
+                if (!isNaN(parsed.getTime())) return parsed;
             }
             return null;
         };
 
         const severanceDeadlineTooltip = companyDetails
-          ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
-          : 'Deadline time and timezone are set by the company.';
+            ? `Deadline is at ${companyDetails.severanceDeadlineTime || '23:59'} in the ${userTimezone} timezone.`
+            : 'Deadline time and timezone are set by the company.';
 
         const allDatesRaw = [
             { label: 'Exit Notification', date: parseAndCorrectDate(assessmentData.notificationDate), icon: Bell, tooltip: null },
@@ -292,7 +299,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
             { label: 'Dental Coverage Ends', date: parseAndCorrectDate(assessmentData.dentalCoverageEndDate), icon: Smile, tooltip: null },
             { label: 'Vision Coverage Ends', date: parseAndCorrectDate(assessmentData.visionCoverageEndDate), icon: Eye, tooltip: null },
             { label: 'EAP Coverage Ends', date: parseAndCorrectDate(assessmentData.eapCoverageEndDate), icon: HandCoins, tooltip: null },
-        ].filter(d => d.date !== null);
+        ].filter((d): d is KeyDateItem => d.date !== null);
 
         const priorityOrder = ['Exit Notification', 'Final Day of Employment', 'Severance Agreement Deadline'];
         const eapLabel = 'EAP Coverage Ends';
@@ -302,10 +309,10 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
             const bIsEAP = b.label === eapLabel;
             if (aIsEAP && !bIsEAP) return 1;
             if (!aIsEAP && bIsEAP) return -1;
-            
+
             const aIndex = priorityOrder.indexOf(a.label);
             const bIndex = priorityOrder.indexOf(b.label);
-            
+
             if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
             if (aIndex !== -1) return -1;
             if (bIndex !== -1) return 1;
@@ -319,40 +326,47 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
 
         const today = startOfToday();
         const datesOnly = keyDates.map(d => d.date!);
-        
+
         const minDate = new Date(Math.min(today.getTime(), ...datesOnly.map(d => d.getTime())));
         const maxDate = new Date(Math.max(today.getTime(), ...datesOnly.map(d => d.getTime())));
-        
+
         const totalDuration = differenceInDays(maxDate, minDate);
         if (totalDuration <= 0) return null;
 
         return { minDate, maxDate, totalDuration, today };
     }, [keyDates]);
-    
-    const positionedDates = useMemo(() => {
+
+    const groupedAndPositionedDates = useMemo(() => {
         if (!timelineMetrics) return [];
         const { totalDuration, minDate } = timelineMetrics;
-        let lastPosition = -100; // Start far to the left
-        let level = 0; // 0 for below, 1 for above
-        const positions: {item: (typeof keyDates)[0], position: number, level: number}[] = [];
+        const groups: { [key: string]: KeyDateItem[] } = {};
 
         keyDates.forEach(item => {
-            const daysFromStart = differenceInDays(item.date!, minDate);
-            const currentPosition = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
-            
-            // If current point is too close to the last one, alternate its level
-            if (currentPosition < lastPosition + 8) { // 8% threshold for overlap
-                level = 1 - level; // Alternate level
-            } else {
-                level = 0; // Reset to default level
+            const dateKey = item.date.toISOString().split('T')[0];
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
             }
-            
-            positions.push({item, position: currentPosition, level});
+            groups[dateKey].push(item);
+        });
+
+        let lastPosition = -100;
+        let level = 0;
+        const positions: { items: KeyDateItem[], position: number, level: number }[] = [];
+
+        Object.values(groups).sort((a,b) => a[0].date.getTime() - b[0].date.getTime()).forEach(items => {
+            const daysFromStart = differenceInDays(items[0].date, minDate);
+            const currentPosition = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
+
+            if (currentPosition < lastPosition + 12) {
+                level = 1 - level;
+            } else {
+                level = 0;
+            }
+            positions.push({ items, position: currentPosition, level });
             lastPosition = currentPosition;
         });
 
         return positions;
-
     }, [keyDates, timelineMetrics]);
 
     if (keyDates.length === 0) return null;
@@ -367,29 +381,36 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                 {timelineMetrics && (
                     <div className="w-full pt-10 pb-10 px-2">
                         <div className="relative h-1 bg-border rounded-full">
-                             <TooltipProvider>
-                                {positionedDates.map(({item, position, level}) => {
+                            <TooltipProvider>
+                                {groupedAndPositionedDates.map(({ items, position, level }) => {
                                     const verticalPositionClass = level === 0 ? "top-4" : "bottom-4";
-                                    const Icon = item.icon;
+                                    const isCluster = items.length > 1;
+                                    const Icon = isCluster ? Layers : items[0].icon;
+
                                     return (
-                                         <div 
-                                            key={item.label}
+                                        <div
+                                            key={items[0].date.toISOString()}
                                             className={cn("absolute flex flex-col items-center gap-1 cursor-pointer", verticalPositionClass)}
                                             style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                                         >
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform hover:scale-110">
+                                                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center ring-4 ring-background transition-transform hover:scale-110 relative">
                                                         <Icon className="h-5 w-5 text-primary-foreground" />
+                                                        {isCluster && <Badge variant="destructive" className="absolute -top-1 -right-2 scale-75">{items.length}</Badge>}
                                                     </div>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <div className="flex items-center gap-2">
-                                                        <Icon className="h-4 w-4" />
-                                                        <div>
-                                                            <p className="font-bold">{item.label}</p>
-                                                            <p>{formatDate(item.date!)}</p>
-                                                        </div>
+                                                    <div className="space-y-2">
+                                                        <p className="font-bold text-center">{formatDate(items[0].date)}</p>
+                                                        {items.map(item => {
+                                                            const ItemIcon = item.icon;
+                                                            return(
+                                                            <div key={item.label} className="flex items-center gap-2">
+                                                                <ItemIcon className="h-4 w-4" />
+                                                                <span>{item.label}</span>
+                                                            </div>
+                                                        )})}
                                                     </div>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -397,8 +418,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                                     );
                                 })}
 
-                                 {/* Today Marker */}
-                                 <div
+                                <div
                                     className="absolute -top-2 flex flex-col items-center"
                                     style={{
                                         left: `${(differenceInDays(timelineMetrics.today, timelineMetrics.minDate) / timelineMetrics.totalDuration) * 100}%`,
@@ -412,7 +432,7 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                         </div>
                     </div>
                 )}
-                 <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                     <CollapsibleTrigger asChild>
                         <div className="flex justify-center mt-4">
                             <Button variant="ghost" className="text-sm">
@@ -457,11 +477,12 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone }: { asse
                             </TableBody>
                         </Table>
                     </CollapsibleContent>
-                 </Collapsible>
+                </Collapsible>
             </CardContent>
         </Card>
     );
 }
+
 
 function LoadingSkeleton() {
   return (
