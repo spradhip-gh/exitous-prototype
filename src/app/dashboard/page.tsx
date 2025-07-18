@@ -34,14 +34,14 @@ export default function DashboardPage() {
   const isAssessmentComplete = !!assessmentData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
-  // Show the welcome summary if data is pre-filled but the profile is not yet done.
-  if (hasPrefilledData && !isProfileComplete) {
-    return <WelcomeSummary />;
-  }
-  
   // Show the timeline if both forms are done.
   if (isFullyComplete) {
     return <TimelineDashboard />;
+  }
+  
+  // Show the welcome summary if data is pre-filled and the assessment is not yet done.
+  if (hasPrefilledData && !isAssessmentComplete) {
+    return <WelcomeSummary />;
   }
 
   // Otherwise, show the standard progress tracker.
