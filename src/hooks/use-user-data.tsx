@@ -93,6 +93,58 @@ export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Questio
     return rootQuestions;
 };
 
+// This regex helps identify YYYY-MM-DD format
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+const convertStringsToDates = (obj: any): any => {
+    if (!obj) return obj;
+    if (typeof obj === 'string') {
+        if (isoDateRegex.test(obj) || isoDateTimeRegex.test(obj.split('T')[0])) {
+             const [year, month, day] = obj.split('T')[0].split('-').map(Number);
+             if (year && month && day) {
+                return new Date(year, month - 1, day);
+             }
+        }
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(item => convertStringsToDates(item));
+    }
+    if (typeof obj === 'object') {
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                newObj[key] = convertStringsToDates(obj[key]);
+            }
+        }
+        return newObj;
+    }
+    return obj;
+};
+
+const convertDatesToStrings = (obj: any): any => {
+    if (!obj) return obj;
+    if (obj instanceof Date) {
+        const year = obj.getFullYear();
+        const month = (obj.getMonth() + 1).toString().padStart(2, '0');
+        const day = obj.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(item => convertDatesToStrings(item));
+    }
+    if (typeof obj === 'object') {
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                newObj[key] = convertDatesToStrings(obj[key]);
+            }
+        }
+        return newObj;
+    }
+    return obj;
+};
+
 
 export function useUserData() {
   const { auth } = useAuth();
@@ -150,8 +202,10 @@ export function useUserData() {
       if (auth?.email && !profileJson && !assessmentJson) {
           const seeded = getSeededDataForUser(auth.email);
           if (seeded) {
-              profileJson = JSON.stringify(seeded.profile);
-              assessmentJson = JSON.stringify(seeded.assessment);
+              const profileWithStrings = convertDatesToStrings(seeded.profile);
+              const assessmentWithStrings = convertDatesToStrings(seeded.assessment);
+              profileJson = JSON.stringify(profileWithStrings);
+              assessmentJson = JSON.stringify(assessmentWithStrings);
               localStorage.setItem(profileKey, profileJson);
               localStorage.setItem(assessmentKey, assessmentJson);
           }
@@ -161,25 +215,7 @@ export function useUserData() {
 
       if (assessmentJson) {
         const parsedData = JSON.parse(assessmentJson);
-        const convertDates = (obj: any) => {
-            if (obj && typeof obj === 'object') {
-                for (const key in obj) {
-                    if (obj.hasOwnProperty(key)) {
-                        if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const dateStr = obj[key];
-                            const [year, month, day] = dateStr.split('-').map(Number);
-                            if (year && month && day) {
-                                obj[key] = new Date(year, month - 1, day);
-                            }
-                        } else if (typeof obj[key] === 'object') {
-                            convertDates(obj[key]);
-                        }
-                    }
-                }
-            }
-        };
-        convertDates(parsedData);
-        setAssessmentData(parsedData);
+        setAssessmentData(convertStringsToDates(parsedData));
       } else {
         setAssessmentData(null);
       }
@@ -226,8 +262,9 @@ export function useUserData() {
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
-      localStorage.setItem(assessmentKey, JSON.stringify(data));
-      setAssessmentData(data);
+      const dataWithStrings = convertDatesToStrings(data);
+      localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
+      setAssessmentData(data); // Keep Date objects in local state for components
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
@@ -250,7 +287,7 @@ export function useUserData() {
 
   const updateTaskDate = useCallback((taskId: string, newDate: Date) => {
     setTaskDateOverrides(prev => {
-      const newOverrides = { ...prev, [taskId]: newDate.toISOString().split('T')[0] };
+      const newOverrides = { ...prev, [taskId]: convertDatesToStrings(newDate) };
        try {
         localStorage.setItem(taskDateOverridesKey, JSON.stringify(newOverrides));
       } catch (error) { console.error('Failed to save date overrides', error); }
@@ -509,32 +546,16 @@ export function useUserData() {
       localStorage.removeItem(assessmentKey);
       const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
       if (companyUser?.user.prefilledAssessmentData) {
-        const prefilledData = { ...companyUser.user.prefilledAssessmentData };
+        let prefilledData: any = { ...companyUser.user.prefilledAssessmentData };
         
         if(companyUser?.user.notificationDate) {
-            (prefilledData as any).notificationDate = companyUser.user.notificationDate;
+            prefilledData.notificationDate = companyUser.user.notificationDate;
         }
 
-        localStorage.setItem(assessmentKey, JSON.stringify(prefilledData));
-        // Re-parse with dates for the state
-        const parsedData = JSON.parse(JSON.stringify(prefilledData));
-         const convertDates = (obj: any) => {
-            if (obj && typeof obj === 'object') {
-                for (const key in obj) {
-                    if (obj.hasOwnProperty(key)) {
-                        if (typeof obj[key] === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const dateStr = obj[key];
-                            const [year, month, day] = dateStr.split('-').map(Number);
-                            if (year && month && day) {
-                                obj[key] = new Date(year, month - 1, day);
-                            }
-                        }
-                    }
-                }
-            }
-        };
-        convertDates(parsedData);
-        setAssessmentData(parsedData);
+        const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
+        localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
+        setAssessmentData(convertStringsToDates(prefilledData));
+
       } else {
         setAssessmentData(null);
       }
