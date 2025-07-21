@@ -34,86 +34,87 @@ export default function HrManagerGuidePage() {
                                 <li>You can optionally pre-fill other assessment data like <code>finalDate</code> or <code>severanceAgreementDeadline</code> to streamline the process for your employees.</li>
                                 <li>To provide user-specific contacts, use the <code>preEndDateContactAlias</code> and <code>postEndDateContactAlias</code> columns. These will override the company-wide defaults set in your Company Settings.</li>
                                 <li>If you upload a CSV with an email that already exists for a non-invited user, the system will update that user's record with the new data from the CSV.</li>
+                                <li>
+                                    <h4 className="!mt-6 !mb-2">CSV Column Reference</h4>
+                                    <p className="!m-0">The following table details the available columns in the user upload template. Remember, all dates must be in <strong>YYYY-MM-DD</strong> format.</p>
+                                    <div className="overflow-x-auto">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Column Header</th>
+                                                    <th>Required?</th>
+                                                    <th>Description</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><code>email</code></td>
+                                                    <td><strong>Yes</strong></td>
+                                                    <td>The employee's primary work email address. This is used for login identification.</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>companyId</code></td>
+                                                    <td><strong>Yes</strong></td>
+                                                    <td>The employee's unique ID within your company's system.</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>notificationDate</code></td>
+                                                    <td><strong>Yes</strong></td>
+                                                    <td>The date the employee was officially notified of their exit. e.g., <code>2025-08-15</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>personalEmail</code></td>
+                                                    <td>No</td>
+                                                    <td>The employee's personal email address (optional but recommended).</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>finalDate</code></td>
+                                                    <td>No</td>
+                                                    <td>The employee's final day of employment. e.g., <code>2025-08-31</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>severanceAgreementDeadline</code></td>
+                                                    <td>No</td>
+                                                    <td>The deadline for the employee to sign their severance agreement. e.g., <code>2025-09-14</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>medicalCoverageEndDate</code></td>
+                                                    <td>No</td>
+                                                    <td>The last day of the employee's medical insurance coverage. e.g., <code>2025-08-31</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>dentalCoverageEndDate</code></td>
+                                                    <td>No</td>
+                                                    <td>The last day of the employee's dental insurance coverage. e.g., <code>2025-08-31</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>visionCoverageEndDate</code></td>
+                                                    <td>No</td>
+                                                    <td>The last day of the employee's vision insurance coverage. e.g., <code>2025-08-31</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>eapCoverageEndDate</code></td>
+                                                    <td>No</td>
+                                                    <td>The last day of the employee's EAP coverage. e.g., <code>2025-11-30</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>preEndDateContactAlias</code></td>
+                                                    <td>No</td>
+                                                    <td>Overrides the default company contact alias for this user *before* their end date.</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>postEndDateContactAlias</code></td>
+                                                    <td>No</td>
+                                                    <td>Overrides the default company contact alias for this user *after* their end date.</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </li>
                             </ul>
                         </li>
-                    </ul>
-                    <h3>CSV Column Reference</h3>
-                    <p>The following table details the available columns in the user upload template. Remember, all dates must be in <strong>YYYY-MM-DD</strong> format.</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Column Header</th>
-                                <th>Required?</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>email</code></td>
-                                <td><strong>Yes</strong></td>
-                                <td>The employee's primary work email address. This is used for login identification.</td>
-                            </tr>
-                            <tr>
-                                <td><code>companyId</code></td>
-                                <td><strong>Yes</strong></td>
-                                <td>The employee's unique ID within your company's system.</td>
-                            </tr>
-                            <tr>
-                                <td><code>notificationDate</code></td>
-                                <td><strong>Yes</strong></td>
-                                <td>The date the employee was officially notified of their exit. Invitations cannot be sent before this date.</td>
-                            </tr>
-                             <tr>
-                                <td><code>personalEmail</code></td>
-                                <td>No</td>
-                                <td>The employee's personal email address (optional but recommended).</td>
-                            </tr>
-                            <tr>
-                                <td><code>finalDate</code></td>
-                                <td>No</td>
-                                <td>The employee's final day of employment.</td>
-                            </tr>
-                            <tr>
-                                <td><code>severanceAgreementDeadline</code></td>
-                                <td>No</td>
-                                <td>The deadline for the employee to sign their severance agreement.</td>
-                            </tr>
-                            <tr>
-                                <td><code>medicalCoverageEndDate</code></td>
-                                <td>No</td>
-                                <td>The last day of the employee's medical insurance coverage.</td>
-                            </tr>
-                            <tr>
-                                <td><code>dentalCoverageEndDate</code></td>
-                                <td>No</td>
-                                <td>The last day of the employee's dental insurance coverage.</td>
-                            </tr>
-                            <tr>
-                                <td><code>visionCoverageEndDate</code></td>
-                                <td>No</td>
-                                <td>The last day of the employee's vision insurance coverage.</td>
-                            </tr>
-                            <tr>
-                                <td><code>eapCoverageEndDate</code></td>
-                                <td>No</td>
-                                <td>The last day of the employee's EAP coverage.</td>
-                            </tr>
-                            <tr>
-                                <td><code>preEndDateContactAlias</code></td>
-                                <td>No</td>
-                                <td>Overrides the default company contact alias for this user *before* their end date.</td>
-                            </tr>
-                            <tr>
-                                <td><code>postEndDateContactAlias</code></td>
-                                <td>No</td>
-                                <td>Overrides the default company contact alias for this user *after* their end date.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                     <ul>
                         <li><strong>Sending Invitations:</strong> Users can only log in after their "Notification Date" has passed and an invitation has been sent. You can send invitations individually or select multiple users and use the "Send Invites" bulk action. In this prototype, no actual email is sent; this action simply marks the user as "Invited" and allows them to log in.</li>
                     </ul>
-
 
                     <h2>2. Form Editor (Pro Feature)</h2>
                     <p>
