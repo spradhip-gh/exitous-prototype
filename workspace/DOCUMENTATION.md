@@ -2,12 +2,13 @@
 
 This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
 
-## Recent Updates (Since July 15, 2025)
+## Recent Updates (Since July 14, 2025)
 
 We've been hard at work adding new features to make the ExitBetter platform more powerful for HR Managers and more supportive for end-users. Here’s a look at what's new:
 
 ### For HR Managers: New Tools for Tailored Support
 
+*   **Bulk User Upload:** You can now add multiple employees at once using the powerful new **CSV Upload** feature on the User Management page. The template allows you to pre-fill key dates and user-specific contact information, dramatically streamlining the onboarding process.
 *   **Resource Center Management:** You can now upload and manage company-specific documents directly through the new **Resources** page in your admin dashboard. Share important files like benefits guides, company policies, and contact lists to provide tailored support for your exiting employees.
 *   **Company Settings Hub:** A dedicated **Company Settings** page has been added. Here, you can view your company's subscription plan, track user license usage, and set default contact aliases and deadline timezones for your employees.
 *   **New HR Manager Guide:** To help you get the most out of these new features, a comprehensive **Help & Guide** page is now available directly from your admin sidebar.
