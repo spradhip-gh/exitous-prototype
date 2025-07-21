@@ -20,8 +20,12 @@ function ContactAliasCard() {
     const { auth } = useAuth();
     const { companyAssignments, getCompanyUser, assessmentData } = useUserData();
 
-    const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth?.email, getCompanyUser]);
-    const companyAssignment = useMemo(() => companyUser?.companyName ? companyAssignments.find(c => c.companyName === companyUser.companyName) : null, [companyUser, companyAssignments]);
+    const companyUser = useMemo(() => auth?.email && !auth.isPreview ? getCompanyUser(auth.email) : null, [auth?.email, auth?.isPreview, getCompanyUser]);
+    const companyAssignment = useMemo(() => {
+        const companyName = auth?.companyName;
+        if (!companyName) return null;
+        return companyAssignments.find(c => c.companyName === companyName) || null;
+    }, [auth?.companyName, companyAssignments]);
 
     const finalDayString = assessmentData?.finalDate;
     
@@ -36,6 +40,7 @@ function ContactAliasCard() {
     }
     
     const userOverrides = companyUser?.user.prefilledAssessmentData;
+
     const contactAlias = isPostLayoff
       ? userOverrides?.postLayoffContactAlias || companyAssignment?.postLayoffContactAlias
       : userOverrides?.preLayoffContactAlias || companyAssignment?.preLayoffContactAlias;
