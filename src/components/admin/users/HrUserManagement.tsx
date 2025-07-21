@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -25,17 +25,10 @@ export type SortConfig = {
     direction: 'asc' | 'desc';
 };
 
-/**
- * A robust function to parse a date string from a CSV.
- * Ensures the format is strictly YYYY-MM-DD.
- * @param dateStr The date string from the CSV.
- * @returns A valid Date object or null if parsing fails.
- */
 const parseDateFromCsv = (dateStr: any): Date | null => {
     if (typeof dateStr !== 'string') return null;
 
     const trimmedDateStr = dateStr.trim();
-    // Regex to strictly match YYYY-MM-DD format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDateStr)) {
         return null;
     }
@@ -122,29 +115,7 @@ export default function HrUserManagement() {
         return [...sortedUninvited, ...sortedInvited];
     }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
 
-    if (isLoading) {
-        return (
-            <div className="p-4 md:p-8 space-y-8">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        )
-    }
-
-    if (!companyName) {
-        return (
-            <div className="p-4 md:p-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>No company is assigned to your HR account.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-        )
-    }
-
-    const addUser = (userToAdd: CompanyUser): boolean => {
+    const addUser = useCallback((userToAdd: CompanyUser): boolean => {
         if (!companyName) return false;
 
         if (companyAssignmentForHr && users.length >= companyAssignmentForHr.maxUsers) {
@@ -161,9 +132,9 @@ export default function HrUserManagement() {
         saveCompanyUsers(companyName, newUsers);
         setUsers(newUsers);
         return true;
-    }
+    }, [companyAssignmentForHr, companyName, saveCompanyUsers, toast, users]);
 
-    const handleAddUser = () => {
+    const handleAddUser = useCallback(() => {
         if (!newUserEmail || !newCompanyId || !newNotificationDate) {
             toast({ title: "Required Fields Missing", description: "Please enter Email, Company ID, and a Notification Date.", variant: "destructive" });
             return;
@@ -184,41 +155,82 @@ export default function HrUserManagement() {
             setNewNotificationDate(undefined);
             toast({ title: "User Added", description: `${newUser.email} has been added.` });
         }
-    };
+    }, [newUserEmail, newCompanyId, newPersonalEmail, newNotificationDate, addUser, toast]);
 
-    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const processCsvRow = useCallback((row: any): { userFromCsv?: CompanyUser, error?: string } => {
+        const email = String(row["email"] || '').trim();
+        const companyId = String(row["companyId"] || '').trim();
+        const notificationDateStr = String(row["notificationDate"] || '').trim();
+
+        if (!email) {
+            return { error: "A row was skipped because the 'email' field was missing." };
+        }
+        if (!companyId) {
+            return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
+        }
+        if (!notificationDateStr) {
+            return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
+        }
+        
+        const notificationDate = parseDateFromCsv(notificationDateStr);
+        if (!notificationDate) {
+            return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
+        }
+
+        const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+        const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
+        
+        optionalFields.forEach(field => {
+            const dateStr = String(row[field] || '').trim();
+            if (dateStr) {
+                const dateVal = parseDateFromCsv(dateStr);
+                if (dateVal) {
+                   prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
+                } else {
+                    console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
+                }
+            }
+        });
+        
+        if (String(row['preEndDateContactAlias'] || '').trim()) {
+            prefilledData.preEndDateContactAlias = String(row['preEndDateContactAlias']).trim();
+        }
+        if (String(row['postEndDateContactAlias'] || '').trim()) {
+            prefilledData.postEndDateContactAlias = String(row['postEndDateContactAlias']).trim();
+        }
+
+        const userFromCsv: CompanyUser = {
+            email,
+            companyId,
+            personalEmail: String(row["personalEmail"] || '').trim() || undefined,
+            notificationDate: format(notificationDate, 'yyyy-MM-dd'),
+            notified: false,
+            prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
+        };
+        return { userFromCsv };
+    }, []);
+
+    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !companyName) {
-            console.log("No file selected or no company name.");
             return;
         }
 
-        console.log("File selected:", file.name, "Type:", file.type);
         const reader = new FileReader();
 
         reader.onload = (e) => {
-            console.log("FileReader onload event fired.");
             const text = e.target?.result;
             if (typeof text !== 'string') {
-                console.error("Could not read file content as text.");
                 toast({ title: "File Read Error", description: "Could not read file content as text.", variant: "destructive" });
                 return;
             }
-            console.log("File content read successfully. Length:", text.length);
-
+            
             Papa.parse(text, {
                 header: true,
                 skipEmptyLines: true,
-                delimiter: "",
+                delimiter: "", // Auto-detect delimiter
                 complete: (results: Papa.ParseResult<Record<string, any>>) => {
-                    alert("Parsing complete! Check the developer console for the parsed data.");
-                    console.log("--- CSV PARSER DEBUG ---");
-                    console.log("Parsed Data:", results.data);
-                    console.log("Errors:", results.errors);
-                    console.log("Meta:", results.meta);
-                    console.log("------------------------");
-                    
-                    const requiredHeaders = ["email", "companyId", "notificationDate"];
+                    const requiredHeaders = ["email", "companyid", "notificationdate"];
                     const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
                     if (!requiredHeaders.every(h => headers.includes(h))) {
                         toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
@@ -275,14 +287,12 @@ export default function HrUserManagement() {
                     });
                 },
                 error: (error: Papa.ParseError) => {
-                    console.error("PapaParse Error:", error);
                     toast({ title: "Upload Parse Error", description: error.message, variant: "destructive" });
                 }
             });
         };
 
         reader.onerror = (e) => {
-            console.error("FileReader Error:", e);
             toast({ title: "File Read Error", description: "An error occurred while reading the file.", variant: "destructive" });
         };
         
@@ -291,62 +301,10 @@ export default function HrUserManagement() {
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
-    };
+    }, [companyName, companyAssignmentForHr, saveCompanyUsers, toast, users, processCsvRow]);
 
-    const processCsvRow = (row: any): { userFromCsv?: CompanyUser, error?: string } => {
-        const email = row["email"]?.toString().trim();
-        const companyId = row["companyId"]?.toString().trim();
-        const notificationDateStr = row["notificationDate"];
 
-        if (!email) {
-            return { error: "A row was skipped because the 'email' field was missing." };
-        }
-        if (!companyId) {
-            return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
-        }
-        if (!notificationDateStr) {
-            return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
-        }
-        
-        const notificationDate = parseDateFromCsv(notificationDateStr);
-        if (!notificationDate) {
-            return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
-        }
-
-        const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
-        const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
-        
-        optionalFields.forEach(field => {
-            const dateStr = row[field];
-            if (dateStr) {
-                const dateVal = parseDateFromCsv(dateStr);
-                if (dateVal) {
-                   prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
-                } else {
-                    console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
-                }
-            }
-        });
-        
-        if (row['preEndDateContactAlias']?.toString().trim()) {
-            prefilledData.preEndDateContactAlias = row['preEndDateContactAlias'].toString().trim();
-        }
-        if (row['postEndDateContactAlias']?.toString().trim()) {
-            prefilledData.postEndDateContactAlias = row['postEndDateContactAlias'].toString().trim();
-        }
-
-        const userFromCsv: CompanyUser = {
-            email,
-            companyId,
-            personalEmail: row["personalEmail"]?.toString().trim() || undefined,
-            notificationDate: format(notificationDate, 'yyyy-MM-dd'),
-            notified: false,
-            prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
-        };
-        return { userFromCsv };
-    };
-
-    const handleDownloadTemplate = () => {
+    const handleDownloadTemplate = useCallback(() => {
         const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -356,9 +314,9 @@ export default function HrUserManagement() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
+    }, []);
 
-    const handleExportUsers = () => {
+    const handleExportUsers = useCallback(() => {
         if (!users || users.length === 0) {
             toast({ title: "No users to export", variant: "destructive" });
             return;
@@ -387,15 +345,37 @@ export default function HrUserManagement() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
+    }, [users, toast, companyName]);
     
-    const requestSort = (key: SortConfig['key']) => {
+    const requestSort = useCallback((key: SortConfig['key']) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
             direction = 'desc';
         }
         setSortConfig({ key, direction });
-    };
+    }, [sortConfig]);
+
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        )
+    }
+
+    if (!companyName) {
+        return (
+            <div className="p-4 md:p-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Error</CardTitle>
+                        <CardDescription>No company is assigned to your HR account.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        )
+    }
 
     return (
         <div className="p-4 md:p-8 space-y-8">
