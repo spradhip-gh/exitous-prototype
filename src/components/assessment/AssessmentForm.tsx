@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
-import { convertStringsToDates } from '@/hooks/use-user-data';
+import { convertStringsToDates, convertDatesToStrings } from '@/hooks/use-user-data';
 
 
 const renderFormControl = (question: Question, field: any, form: any) => {
@@ -172,18 +172,12 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
     const { auth } = useAuth();
     const { toast } = useToast();
     
+    // The key fix: initialize `useForm` with the `values` property, which correctly handles async default values.
+    // The data passed to `values` has already been processed to convert date strings to Date objects.
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
+        values: initialData,
     });
-
-    useEffect(() => {
-        if (initialData) {
-            // This is the crucial fix: ensure all string dates are converted
-            // to Date objects BEFORE resetting the form.
-            const dataWithDateObjects = convertStringsToDates(initialData);
-            form.reset(dataWithDateObjects);
-        }
-    }, [initialData, form.reset]);
 
     const { watch, setValue, getValues } = form;
     
@@ -362,8 +356,12 @@ export default function AssessmentForm() {
 
             let defaultValues: Partial<AssessmentData> = {};
             companyQuestions.forEach(q => Object.assign(defaultValues, getDefaults(q)));
+            
+            // The key fix: convert date strings to Date objects *before* setting the initial data.
+            const rawData = { ...defaultValues, ...loadedData };
+            const dataWithDateObjects = convertStringsToDates(rawData);
 
-            setInitialData({ ...defaultValues, ...loadedData } as AssessmentData);
+            setInitialData(dataWithDateObjects as AssessmentData);
             setIsLoading(false);
         }
     }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, getCompanyUser]);
