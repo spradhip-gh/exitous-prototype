@@ -11,12 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { format, parseISO, differenceInDays, isSameDay, startOfToday, startOfMonth } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameDay, startOfToday, startOfMonth, addMonths, differenceInMonths } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Bell, CalendarX2, Stethoscope, Eye, HandCoins, Key, Info, ChevronDown, Layers, CalendarPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ProgressTracker from '@/components/dashboard/ProgressTracker';
 
 
 const formatDate = (date: Date): string => {
@@ -49,9 +50,11 @@ function ImportantDates() {
             if (date instanceof Date && !isNaN(date.getTime())) return date;
             if (typeof date === 'string') {
                 try {
-                    const parsedDate = parseISO(date);
+                    // Try parsing ISO string first (from Genkit)
+                    let parsedDate = parseISO(date);
                     if (!isNaN(parsedDate.getTime())) return parsedDate;
                     
+                    // Fallback to YYYY-MM-DD format (from forms)
                     const [year, month, day] = date.split('-').map(Number);
                     if (!year || !month || !day) return null;
                     return new Date(year, month - 1, day);
@@ -117,7 +120,12 @@ function ImportantDates() {
         const datesOnly = keyDates.map(d => d.date!);
 
         const minDate = new Date(Math.min(today.getTime(), ...datesOnly.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(today.getTime(), ...datesOnly.map(d => d.getTime())));
+        let maxDate = new Date(Math.max(today.getTime(), ...datesOnly.map(d => d.getTime())));
+        
+        // Ensure the timeline spans at least 3 months for visual context
+        if (differenceInMonths(maxDate, minDate) < 2) {
+            maxDate = addMonths(minDate, 3);
+        }
 
         const totalDuration = differenceInDays(maxDate, minDate);
         if (totalDuration <= 0) return null;
@@ -135,14 +143,16 @@ function ImportantDates() {
             if (currentDate >= minDate) { // Only add markers after the timeline starts
                 const daysFromStart = differenceInDays(currentDate, minDate);
                 const position = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
-                markers.push({
-                    label: format(currentDate, 'MMM'),
-                    position: position,
-                    key: currentDate.toISOString(),
-                });
+                if (position >= 0 && position <= 100) {
+                    markers.push({
+                        label: format(currentDate, 'MMM'),
+                        position: position,
+                        key: currentDate.toISOString(),
+                    });
+                }
             }
             // Move to the first day of the next month
-            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate = addMonths(currentDate, 1);
         }
         return markers;
     }, [timelineMetrics]);
@@ -168,6 +178,8 @@ function ImportantDates() {
         Object.values(groups).sort((a,b) => a[0].date.getTime() - b[0].date.getTime()).forEach(items => {
             const daysFromStart = differenceInDays(items[0].date, minDate);
             const currentPosition = totalDuration > 0 ? (daysFromStart / totalDuration) * 100 : 0;
+            
+            if (currentPosition < 0 || currentPosition > 100) return; // Don't render items outside the timeline bounds
 
             if (currentPosition < lastPosition + 12) {
                 level = 1 - level;
@@ -350,6 +362,7 @@ export default function DashboardPage() {
 
   const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
   const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData;
+  const isProfileComplete = !!profileData;
   
   return (
     <main className="p-4 md:p-8">
@@ -363,9 +376,9 @@ export default function DashboardPage() {
             </p>
           </div>
 
-        {hasPrefilledData && !profileData && <WelcomeSummary />}
+        {hasPrefilledData && !isProfileComplete && <WelcomeSummary />}
         <ImportantDates />
-        <TimelineDashboard />
+        {isAssessmentComplete ? <TimelineDashboard /> : <ProgressTracker />}
       </div>
     </main>
   )
