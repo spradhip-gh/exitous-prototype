@@ -1,4 +1,3 @@
-
 import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
 import { getDefaultQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
@@ -73,8 +72,8 @@ const initializeDb = (): DemoDatabase => {
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
                 severanceDeadlineTimezone: 'America/Los_Angeles',
-                preLayoffContactAlias: 'hr@globex.com',
-                postLayoffContactAlias: 'alumni-support@globex.com',
+                preEndDateContactAlias: 'hr@globex.com',
+                postEndDateContactAlias: 'alumni-support@globex.com',
             },
             { 
                 companyName: 'Initech', 
@@ -83,8 +82,8 @@ const initializeDb = (): DemoDatabase => {
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
                 severanceDeadlineTimezone: 'America/Chicago',
-                preLayoffContactAlias: 'hr@initech.com',
-                postLayoffContactAlias: 'alumni-support@initech.com',
+                preEndDateContactAlias: 'hr@initech.com',
+                postEndDateContactAlias: 'alumni-support@initech.com',
             }
         ],
         companyConfigs: {

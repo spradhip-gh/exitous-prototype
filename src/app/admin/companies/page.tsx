@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -43,8 +42,8 @@ export default function CompanyManagementPage() {
   const [newMaxUsers, setNewMaxUsers] = useState('');
   const [newDeadlineTime, setNewDeadlineTime] = useState('17:00');
   const [newDeadlineTimezone, setNewDeadlineTimezone] = useState('America/Los_Angeles');
-  const [newPreLayoffContact, setNewPreLayoffContact] = useState('');
-  const [newPostLayoffContact, setNewPostLayoffContact] = useState('');
+  const [newPreEndDateContact, setNewPreEndDateContact] = useState('');
+  const [newPostEndDateContact, setNewPostEndDateContact] = useState('');
 
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -54,7 +53,7 @@ export default function CompanyManagementPage() {
   const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
 
   const handleAddCompany = () => {
-    if (!newCompanyName || !newHrEmail || !newMaxUsers || !newPreLayoffContact || !newPostLayoffContact) {
+    if (!newCompanyName || !newHrEmail || !newMaxUsers || !newPreEndDateContact || !newPostEndDateContact) {
       toast({ title: "All Fields Required", description: "Please fill out all fields.", variant: "destructive" });
       return;
     }
@@ -79,8 +78,8 @@ export default function CompanyManagementPage() {
         maxUsers: maxUsersNum,
         severanceDeadlineTime: newDeadlineTime,
         severanceDeadlineTimezone: newDeadlineTimezone,
-        preLayoffContactAlias: newPreLayoffContact,
-        postLayoffContactAlias: newPostLayoffContact,
+        preEndDateContactAlias: newPreEndDateContact,
+        postEndDateContactAlias: newPostEndDateContact,
     });
     toast({ title: "Company Added", description: `${newCompanyName} has been created and assigned.` });
     setNewCompanyName('');
@@ -89,8 +88,8 @@ export default function CompanyManagementPage() {
     setNewCompanyVersion('basic');
     setNewDeadlineTime('17:00');
     setNewDeadlineTimezone('America/Los_Angeles');
-    setNewPreLayoffContact('');
-    setNewPostLayoffContact('');
+    setNewPreEndDateContact('');
+    setNewPostEndDateContact('');
   };
 
   const handleDeleteCompany = (companyName: string) => {
@@ -188,12 +187,12 @@ export default function CompanyManagementPage() {
                         <Input id="newMaxUsers" type="number" placeholder="e.g., 50" value={newMaxUsers} onChange={e => setNewMaxUsers(e.target.value)} />
                     </div>
                     <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor="newPreLayoffContact">Pre-Layoff Contact Alias</Label>
-                        <Input id="newPreLayoffContact" placeholder="e.g., Your HR Business Partner" value={newPreLayoffContact} onChange={e => setNewPreLayoffContact(e.target.value)} />
+                        <Label htmlFor="newPreEndDateContact">Pre-End Date Contact Alias</Label>
+                        <Input id="newPreEndDateContact" placeholder="e.g., Your HR Business Partner" value={newPreEndDateContact} onChange={e => setNewPreEndDateContact(e.target.value)} />
                     </div>
                     <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor="newPostLayoffContact">Post-Layoff Contact Alias</Label>
-                        <Input id="newPostLayoffContact" placeholder="e.g., alumni-support@company.com" value={newPostLayoffContact} onChange={e => setNewPostLayoffContact(e.target.value)} />
+                        <Label htmlFor="newPostEndDateContact">Post-End Date Contact Alias</Label>
+                        <Input id="newPostEndDateContact" placeholder="e.g., alumni-support@company.com" value={newPostEndDateContact} onChange={e => setNewPostEndDateContact(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="newDeadlineTime">Deadline Time</Label>
@@ -353,4 +352,3 @@ export default function CompanyManagementPage() {
         </Dialog>
     </div>
   );
-}

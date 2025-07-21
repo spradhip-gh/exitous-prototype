@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -159,7 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
   
   const companyAssignment = auth.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
-  const companySettingsComplete = !!(companyAssignment?.preLayoffContactAlias && companyAssignment?.postLayoffContactAlias);
+  const companySettingsComplete = !!(companyAssignment?.preEndDateContactAlias && companyAssignment?.postEndDateContactAlias);
   
   const navContent = <AdminNav role={auth.role} version={companyAssignment?.version} companySettingsComplete={companySettingsComplete} />;
 

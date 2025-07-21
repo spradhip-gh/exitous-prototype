@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -29,8 +28,8 @@ export interface CompanyUser {
   notificationDate?: string; // Stored as 'YYYY-MM-DD'
   notified?: boolean;
   prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>> & {
-    preLayoffContactAlias?: string;
-    postLayoffContactAlias?: string;
+    preEndDateContactAlias?: string;
+    postEndDateContactAlias?: string;
   };
 }
 
@@ -50,8 +49,8 @@ export interface CompanyAssignment {
     maxUsers: number;
     severanceDeadlineTime?: string; // e.g. "23:59"
     severanceDeadlineTimezone?: string; // e.g. "America/Los_Angeles"
-    preLayoffContactAlias?: string;
-    postLayoffContactAlias?: string;
+    preEndDateContactAlias?: string;
+    postEndDateContactAlias?: string;
 }
 
 export interface PlatformUser {
@@ -216,8 +215,10 @@ export function useUserData() {
       }
       
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
-      // For assessment data, we keep it as strings here. The form component will handle conversion.
-      setAssessmentData(assessmentJson ? JSON.parse(assessmentJson) : null);
+      
+      // Assessment data is loaded and immediately converted to have Date objects
+      const rawAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
+      setAssessmentData(rawAssessmentData ? convertStringsToDates(rawAssessmentData) : null);
 
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
@@ -264,8 +265,8 @@ export function useUserData() {
       // Ensure all Date objects are converted to 'YYYY-MM-DD' strings before saving
       const dataWithStrings = convertDatesToStrings(data);
       localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-      // Update state with the stringified data to keep it consistent with localStorage
-      setAssessmentData(dataWithStrings); 
+      // Update state with the Date objects to keep it consistent for the app
+      setAssessmentData(data); 
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
@@ -553,9 +554,10 @@ export function useUserData() {
             prefilledData.notificationDate = companyUser.user.notificationDate;
         }
 
+        const prefilledDataWithDates = convertStringsToDates(prefilledData);
         const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
         localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
-        setAssessmentData(convertStringsToDates(prefilledDataWithStrings));
+        setAssessmentData(prefilledDataWithDates);
 
       } else {
         setAssessmentData(null);

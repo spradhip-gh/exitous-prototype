@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,22 +28,22 @@ export default function CompanySettingsPage() {
 
   const [deadlineTime, setDeadlineTime] = useState('');
   const [deadlineTimezone, setDeadlineTimezone] = useState('');
-  const [preLayoffContact, setPreLayoffContact] = useState('');
-  const [postLayoffContact, setPostLayoffContact] = useState('');
+  const [preEndDateContact, setPreEndDateContact] = useState('');
+  const [postEndDateContact, setPostEndDateContact] = useState('');
 
   const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null;
   const userCount = companyConfig?.users?.length ?? 0;
   const maxUsers = companyAssignmentForHr?.maxUsers ?? 0;
   const userProgress = maxUsers > 0 ? (userCount / maxUsers) * 100 : 0;
   
-  const companySettingsComplete = !!(companyAssignmentForHr?.preLayoffContactAlias && companyAssignmentForHr?.postLayoffContactAlias);
+  const companySettingsComplete = !!(companyAssignmentForHr?.preEndDateContactAlias && companyAssignmentForHr?.postEndDateContactAlias);
 
   useEffect(() => {
     if (companyAssignmentForHr) {
       setDeadlineTime(companyAssignmentForHr.severanceDeadlineTime || '23:59');
       setDeadlineTimezone(companyAssignmentForHr.severanceDeadlineTimezone || 'America/Los_Angeles');
-      setPreLayoffContact(companyAssignmentForHr.preLayoffContactAlias || '');
-      setPostLayoffContact(companyAssignmentForHr.postLayoffContactAlias || '');
+      setPreEndDateContact(companyAssignmentForHr.preEndDateContactAlias || '');
+      setPostEndDateContact(companyAssignmentForHr.postEndDateContactAlias || '');
     }
   }, [companyAssignmentForHr]);
 
@@ -54,8 +53,8 @@ export default function CompanySettingsPage() {
     updateCompanyAssignment(auth.companyName, { 
       severanceDeadlineTime: deadlineTime,
       severanceDeadlineTimezone: deadlineTimezone,
-      preLayoffContactAlias: preLayoffContact,
-      postLayoffContactAlias: postLayoffContact,
+      preEndDateContactAlias: preEndDateContact,
+      postEndDateContactAlias: postEndDateContact,
     });
     toast({ title: "Settings Updated", description: "Default settings have been saved." });
   };
@@ -110,7 +109,7 @@ export default function CompanySettingsPage() {
                 <Info className="h-4 w-4"/>
                 <AlertTitle>Complete Your Setup</AlertTitle>
                 <AlertDescription>
-                   Please set the default pre- and post-layoff contact aliases before inviting users. This ensures your employees know who to contact for help.
+                   Please set the default pre- and post-end date contact aliases before inviting users. This ensures your employees know who to contact for help.
                 </AlertDescription>
             </Alert>
         )}
@@ -155,21 +154,21 @@ export default function CompanySettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="pre-layoff-contact">Pre-Layoff Contact Alias</Label>
+                  <Label htmlFor="pre-end-date-contact">Pre-End Date Contact Alias</Label>
                   <Input 
-                    id="pre-layoff-contact" 
+                    id="pre-end-date-contact" 
                     placeholder="e.g., Your HR Business Partner" 
-                    value={preLayoffContact} 
-                    onChange={(e) => setPreLayoffContact(e.target.value)} 
+                    value={preEndDateContact} 
+                    onChange={(e) => setPreEndDateContact(e.target.value)} 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="post-layoff-contact">Post-Layoff Contact Alias</Label>
+                  <Label htmlFor="post-end-date-contact">Post-End Date Contact Alias</Label>
                   <Input 
-                    id="post-layoff-contact" 
+                    id="post-end-date-contact" 
                     placeholder="e.g., alumni-support@email.com" 
-                    value={postLayoffContact} 
-                    onChange={(e) => setPostLayoffContact(e.target.value)} 
+                    value={postEndDateContact} 
+                    onChange={(e) => setPostEndDateContact(e.target.value)} 
                   />
                 </div>
               <div className="space-y-2">

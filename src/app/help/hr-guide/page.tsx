@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
@@ -32,7 +31,7 @@ export default function HrManagerGuidePage() {
                                 <li>Download the template to see all available columns.</li>
                                 <li>The required columns are <code>email</code>, <code>companyId</code>, and <code>notificationDate</code>.</li>
                                 <li>You can optionally pre-fill other assessment data like <code>finalDate</code> or <code>severanceAgreementDeadline</code> to streamline the process for your employees.</li>
-                                <li>To provide user-specific contacts, use the <code>preLayoffContactAlias</code> and <code>postLayoffContactAlias</code> columns. These will override the company-wide defaults set in your Company Settings.</li>
+                                <li>To provide user-specific contacts, use the <code>preEndDateContactAlias</code> and <code>postEndDateContactAlias</code> columns. These will override the company-wide defaults set in your Company Settings.</li>
                                 <li>If you upload a CSV with an email that already exists for a non-invited user, the system will update that user's record with the new data from the CSV.</li>
                             </ul>
                         </li>

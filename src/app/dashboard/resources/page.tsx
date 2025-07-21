@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -29,11 +28,11 @@ function ContactAliasCard() {
 
     const finalDayString = assessmentData?.finalDate;
     
-    let isPostLayoff = false;
+    let isPostEndDate = false;
     if (finalDayString) {
       try {
         const finalDate = (finalDayString instanceof Date) ? finalDayString : parse(finalDayString, 'yyyy-MM-dd', new Date());
-        isPostLayoff = isPast(finalDate);
+        isPostEndDate = isPast(finalDate);
       } catch (e) {
         console.error("Could not parse final day for alias logic", e);
       }
@@ -41,11 +40,11 @@ function ContactAliasCard() {
     
     const userOverrides = companyUser?.user.prefilledAssessmentData;
 
-    const contactAlias = isPostLayoff
-      ? userOverrides?.postLayoffContactAlias || companyAssignment?.postLayoffContactAlias
-      : userOverrides?.preLayoffContactAlias || companyAssignment?.preLayoffContactAlias;
+    const contactAlias = isPostEndDate
+      ? userOverrides?.postEndDateContactAlias || companyAssignment?.postEndDateContactAlias
+      : userOverrides?.preEndDateContactAlias || companyAssignment?.preEndDateContactAlias;
     
-    const contactTitle = isPostLayoff ? "Post-Layoff Support" : "Pre-Layoff Support";
+    const contactTitle = isPostEndDate ? "Post-End Date Support" : "Pre-End Date Support";
       
     if (!contactAlias) {
       return null;
