@@ -1,3 +1,4 @@
+
 import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
 import { getDefaultQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';

@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -239,13 +240,24 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                                 </TooltipContent>
                                             )}
                                         </Tooltip>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This will permanently delete the user "{user.email}". This action cannot be undone.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteUser(user.email)}>Yes, Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
                                             <Pencil className="h-4 w-4" />
                                             <span className="sr-only">Edit</span>
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">Delete</span>
                                         </Button>
                                     </div>
                                 </TableCell>

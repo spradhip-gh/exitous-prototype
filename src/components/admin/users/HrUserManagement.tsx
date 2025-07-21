@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -179,14 +180,15 @@ export default function HrUserManagement() {
                 let addedCount = 0;
                 let updatedCount = 0;
                 let skippedCount = 0;
+                let errorCount = 0;
                 let newUsersList = [...users];
-                const companyTimezone = companyAssignmentForHr?.severanceDeadlineTimezone || 'UTC';
 
                 for (const row of results.data as any[]) {
                     // Logic to process each row
-                    const { userFromCsv, error } = processCsvRow(row, companyTimezone);
+                    const { userFromCsv, error } = processCsvRow(row);
                     if (error) {
                         toast({ title: "Skipping Row", description: error, variant: "destructive" });
+                        errorCount++;
                         continue;
                     }
 
@@ -218,6 +220,7 @@ export default function HrUserManagement() {
                 if (addedCount > 0) summary.push(`${addedCount} new users added.`);
                 if (updatedCount > 0) summary.push(`${updatedCount} users updated.`);
                 if (skippedCount > 0) summary.push(`${skippedCount} invited users skipped.`);
+                if (errorCount > 0) summary.push(`${errorCount} rows had errors.`);
                 
                 toast({ 
                     title: "Upload Complete", 
@@ -234,18 +237,17 @@ export default function HrUserManagement() {
         }
     };
 
-    const processCsvRow = (row: any, defaultTimezone: string): { userFromCsv?: CompanyUser, error?: string } => {
+    const processCsvRow = (row: any): { userFromCsv?: CompanyUser, error?: string } => {
         const email = row["email"]?.trim();
         const companyId = row["companyId"]?.trim();
         const notificationDateStr = row["notificationDate"]?.trim();
-        const userTimezone = row["timezone"]?.trim() || defaultTimezone;
 
         if (!email || !companyId || !notificationDateStr) {
             return { error: `Skipped a row due to missing required fields (email, companyId, notificationDate).` };
         }
         
         try {
-            const notificationDate = toZonedTime(notificationDateStr, userTimezone);
+            const notificationDate = parse(notificationDateStr, 'yyyy-MM-dd', new Date());
             if (isNaN(notificationDate.getTime())) {
                throw new Error('Invalid date');
             }
@@ -254,10 +256,14 @@ export default function HrUserManagement() {
             const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
             
             optionalFields.forEach(field => {
-                if (row[field]?.trim()) {
-                    const dateVal = toZonedTime(row[field].trim(), userTimezone);
+                const dateStr = row[field]?.trim();
+                if (dateStr) {
+                    const dateVal = parse(dateStr, 'yyyy-MM-dd', new Date());
                     if (!isNaN(dateVal.getTime())) {
                        prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
+                    } else {
+                        // Optionally warn about bad optional dates
+                        console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
                     }
                 }
             });
@@ -284,7 +290,7 @@ export default function HrUserManagement() {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "timezone", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
+        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -383,8 +389,8 @@ export default function HrUserManagement() {
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <div className="space-y-2">
-                        <Label>Bulk Upload User Data (Required plus optional assesment fields)</Label>
-                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", "notificationDate", and other optional fields. This will add new users or update existing, non-invited users.</p>
+                        <Label>Bulk Upload User Data</Label>
+                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
                          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                          <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
