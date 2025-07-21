@@ -34,7 +34,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     switch (question.type) {
         case 'select':
             return (
-                <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                <Select onValueChange={field.onChange} defaultValue={field.value ?? ''}>
                     <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                     <SelectContent>{question.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                 </Select>

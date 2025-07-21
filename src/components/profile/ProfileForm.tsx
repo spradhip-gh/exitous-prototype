@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -102,7 +103,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="state" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What state do you live in?</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value ?? ''}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
