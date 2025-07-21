@@ -31,7 +31,8 @@ export default function HrManagerGuidePage() {
                             <ul>
                                 <li>Download the template to see all available columns.</li>
                                 <li>The required columns are <code>email</code>, <code>companyId</code>, and <code>notificationDate</code>.</li>
-                                <li>You can optionally pre-fill other assessment data like <code>finalDate</code>, <code>severanceAgreementDeadline</code>, or contact aliases (<code>preLayoffContactAlias</code>, <code>postLayoffContactAlias</code>) to streamline the process for your employees. These user-specific aliases will override the company defaults you set in settings.</li>
+                                <li>You can optionally pre-fill other assessment data like <code>finalDate</code> or <code>severanceAgreementDeadline</code> to streamline the process for your employees.</li>
+                                <li>To provide user-specific contacts, use the <code>preLayoffContactAlias</code> and <code>postLayoffContactAlias</code> columns. These will override the company-wide defaults set in your Company Settings.</li>
                                 <li>If you upload a CSV with an email that already exists for a non-invited user, the system will update that user's record with the new data from the CSV.</li>
                             </ul>
                         </li>
@@ -65,11 +66,11 @@ export default function HrManagerGuidePage() {
 
                     <h2>4. Company Settings</h2>
                     <p>
-                        Manage your company's subscription plan and default settings.
+                        Manage your company's subscription plan and default settings. Your platform administrator sets the initial values for contacts and deadlines when creating the company.
                     </p>
                     <ul>
                         <li><strong>Plan & Usage:</strong> View your current plan (Basic or Pro) and see how many user licenses you have used.</li>
-                        <li><strong>Contact & Deadline Defaults:</strong> Set the default contact aliases and severance agreement deadline time/timezone. This ensures consistency and accuracy for all users. The aliases you set here will be shown to users unless you provide a user-specific override in a CSV upload.</li>
+                        <li><strong>Contact & Deadline Defaults:</strong> Set the default contact aliases and severance agreement deadline time/timezone for all users in your company. The aliases you set here will be shown to users unless you provide a user-specific override in a CSV upload.</li>
                     </ul>
 
                     <h2>5. User Preview Mode</h2>
