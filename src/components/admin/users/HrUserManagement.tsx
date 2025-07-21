@@ -188,28 +188,36 @@ export default function HrUserManagement() {
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file || !companyName) return;
+        if (!file || !companyName) {
+            console.log("No file selected or no company name.");
+            return;
+        }
 
+        console.log("File selected:", file.name, "Type:", file.type);
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
+            console.log("FileReader onload event fired.");
             const text = e.target?.result;
             if (typeof text !== 'string') {
+                console.error("Could not read file content as text.");
                 toast({ title: "File Read Error", description: "Could not read file content as text.", variant: "destructive" });
                 return;
             }
+            console.log("File content read successfully. Length:", text.length);
 
             Papa.parse(text, {
                 header: true,
                 skipEmptyLines: true,
-                dynamicTyping: false,
                 delimiter: "",
-                complete: (results) => {
-                    alert("Debugging information has been logged to the developer console. Please copy the output and provide it for analysis.");
+                complete: (results: Papa.ParseResult<Record<string, any>>) => {
+                    alert("Parsing complete! Check the developer console for the parsed data.");
                     console.log("--- CSV PARSER DEBUG ---");
-                    console.log(results);
+                    console.log("Parsed Data:", results.data);
+                    console.log("Errors:", results.errors);
+                    console.log("Meta:", results.meta);
                     console.log("------------------------");
-
+                    
                     const requiredHeaders = ["email", "companyId", "notificationDate"];
                     const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
                     if (!requiredHeaders.every(h => headers.includes(h))) {
@@ -223,7 +231,7 @@ export default function HrUserManagement() {
                     let errorCount = 0;
                     let newUsersList = [...users];
 
-                    for (const row of results.data as any[]) {
+                    for (const row of results.data) {
                         const { userFromCsv, error } = processCsvRow(row);
                         if (error) {
                             toast({ title: "Skipping Row", description: error, variant: "destructive" });
@@ -266,7 +274,7 @@ export default function HrUserManagement() {
                         description: summary.length > 0 ? summary.join(' ') : 'No changes were made.' 
                     });
                 },
-                error: (error) => {
+                error: (error: Papa.ParseError) => {
                     console.error("PapaParse Error:", error);
                     toast({ title: "Upload Parse Error", description: error.message, variant: "destructive" });
                 }
