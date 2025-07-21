@@ -100,11 +100,12 @@ const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 export const convertStringsToDates = (obj: any): any => {
     if (!obj) return obj;
     if (typeof obj === 'string') {
-        if (isoDateRegex.test(obj) || isoDateTimeRegex.test(obj.split('T')[0])) {
+        if (isoDateRegex.test(obj) || (obj.includes('T') && isoDateTimeRegex.test(obj))) {
              const [year, month, day] = obj.split('T')[0].split('-').map(Number);
              if (year && month && day) {
-                // Return a Date object in UTC to avoid timezone shifts.
-                return new Date(Date.UTC(year, month - 1, day));
+                // Return a Date object. Client-side JS will interpret this in the local timezone,
+                // which is what react-day-picker expects.
+                return new Date(year, month - 1, day);
              }
         }
     }
@@ -127,7 +128,10 @@ export const convertDatesToStrings = (obj: any): any => {
     if (!obj) return obj;
     if (obj instanceof Date) {
         // Format to YYYY-MM-DD string
-        return obj.toISOString().split('T')[0];
+        const year = obj.getFullYear();
+        const month = (obj.getMonth() + 1).toString().padStart(2, '0');
+        const day = obj.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
     if (Array.isArray(obj)) {
         return obj.map(item => convertDatesToStrings(item));
@@ -201,6 +205,7 @@ export function useUserData() {
       if (auth?.email && !profileJson && !assessmentJson) {
           const seeded = getSeededDataForUser(auth.email);
           if (seeded) {
+              // The seeded data already has Date objects, so convert them to strings for storage
               const profileWithStrings = convertDatesToStrings(seeded.profile);
               const assessmentWithStrings = convertDatesToStrings(seeded.assessment);
               profileJson = JSON.stringify(profileWithStrings);
@@ -211,16 +216,8 @@ export function useUserData() {
       }
       
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
-      
-      const rawAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
-      if (rawAssessmentData) {
-        // Convert date strings to Date objects before setting state
-        const assessmentWithDates = convertStringsToDates(rawAssessmentData);
-        setAssessmentData(assessmentWithDates);
-      } else {
-        setAssessmentData(null);
-      }
-
+      // For assessment data, we keep it as strings here. The form component will handle conversion.
+      setAssessmentData(assessmentJson ? JSON.parse(assessmentJson) : null);
 
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
@@ -264,10 +261,11 @@ export function useUserData() {
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
+      // Ensure all Date objects are converted to 'YYYY-MM-DD' strings before saving
       const dataWithStrings = convertDatesToStrings(data);
       localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-      // The component expects Date objects, so we keep the passed `data` in state
-      setAssessmentData(data); 
+      // Update state with the stringified data to keep it consistent with localStorage
+      setAssessmentData(dataWithStrings); 
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };

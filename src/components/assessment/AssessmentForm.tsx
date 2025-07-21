@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
-import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
@@ -172,14 +172,20 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
     const { auth } = useAuth();
     const { toast } = useToast();
     
-    // The key fix: initialize `useForm` with the `values` property, which correctly handles async default values.
-    // The data passed to `values` has already been processed to convert date strings to Date objects.
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        values: initialData,
+        defaultValues: {},
     });
 
-    const { watch, setValue, getValues } = form;
+    const { watch, setValue, getValues, reset } = form;
+
+    useEffect(() => {
+        if(initialData) {
+            const dataWithDates = convertStringsToDates(initialData);
+            reset(dataWithDates);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialData, reset]);
     
     const companyDetails = useMemo(() => {
         if (!auth?.companyName) return null;
@@ -254,7 +260,8 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
         router.push('/dashboard');
     }
 
-    const onInvalid = () => {
+    const onInvalid = (errors: any) => {
+        console.log("Form errors:", errors);
         toast({
             title: "Incomplete Assessment",
             description: "Please review the form and fill out all required fields.",
