@@ -262,6 +262,13 @@ export default function HrUserManagement() {
                     }
                 }
             });
+            
+            if (row['preLayoffContactAlias']?.trim()) {
+                prefilledData.preLayoffContactAlias = row['preLayoffContactAlias'].trim();
+            }
+            if (row['postLayoffContactAlias']?.trim()) {
+                prefilledData.postLayoffContactAlias = row['postLayoffContactAlias'].trim();
+            }
 
             const userFromCsv: CompanyUser = {
                 email,
@@ -278,7 +285,7 @@ export default function HrUserManagement() {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "timezone", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        const headers = ["email", "companyId", "notificationDate", "personalEmail", "timezone", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preLayoffContactAlias", "postLayoffContactAlias"];
         const csv = headers.join(',');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -294,7 +301,7 @@ export default function HrUserManagement() {
             toast({ title: "No users to export", variant: "destructive" });
             return;
         }
-        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate"];
+        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preLayoffContactAlias", "postLayoffContactAlias"];
         const dataToExport = users.map(user => ({
             email: user.email,
             companyId: user.companyId,
@@ -307,6 +314,8 @@ export default function HrUserManagement() {
             dentalCoverageEndDate: user.prefilledAssessmentData?.dentalCoverageEndDate || '',
             visionCoverageEndDate: user.prefilledAssessmentData?.visionCoverageEndDate || '',
             eapCoverageEndDate: user.prefilledAssessmentData?.eapCoverageEndDate || '',
+            preLayoffContactAlias: user.prefilledAssessmentData?.preLayoffContactAlias || '',
+            postLayoffContactAlias: user.prefilledAssessmentData?.postLayoffContactAlias || '',
         }));
         const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

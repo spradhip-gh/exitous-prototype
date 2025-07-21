@@ -28,7 +28,10 @@ export interface CompanyUser {
   personalEmail?: string;
   notificationDate?: string; // Stored as 'YYYY-MM-DD'
   notified?: boolean;
-  prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>>; // HR-uploaded data
+  prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>> & {
+    preLayoffContactAlias?: string;
+    postLayoffContactAlias?: string;
+  };
 }
 
 export interface Resource {
@@ -47,6 +50,8 @@ export interface CompanyAssignment {
     maxUsers: number;
     severanceDeadlineTime?: string; // e.g. "23:59"
     severanceDeadlineTimezone?: string; // e.g. "America/Los_Angeles"
+    preLayoffContactAlias?: string;
+    postLayoffContactAlias?: string;
 }
 
 export interface PlatformUser {

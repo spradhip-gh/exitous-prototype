@@ -28,6 +28,8 @@ export default function CompanySettingsPage() {
 
   const [deadlineTime, setDeadlineTime] = useState('');
   const [deadlineTimezone, setDeadlineTimezone] = useState('');
+  const [preLayoffContact, setPreLayoffContact] = useState('');
+  const [postLayoffContact, setPostLayoffContact] = useState('');
 
   const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null;
   const userCount = companyConfig?.users?.length ?? 0;
@@ -38,6 +40,8 @@ export default function CompanySettingsPage() {
     if (companyAssignmentForHr) {
       setDeadlineTime(companyAssignmentForHr.severanceDeadlineTime || '23:59');
       setDeadlineTimezone(companyAssignmentForHr.severanceDeadlineTimezone || 'America/Los_Angeles');
+      setPreLayoffContact(companyAssignmentForHr.preLayoffContactAlias || '');
+      setPostLayoffContact(companyAssignmentForHr.postLayoffContactAlias || '');
     }
   }, [companyAssignmentForHr]);
 
@@ -47,8 +51,10 @@ export default function CompanySettingsPage() {
     updateCompanyAssignment(auth.companyName, { 
       severanceDeadlineTime: deadlineTime,
       severanceDeadlineTimezone: deadlineTimezone,
+      preLayoffContactAlias: preLayoffContact,
+      postLayoffContactAlias: postLayoffContact,
     });
-    toast({ title: "Settings Updated", description: "Default deadline settings have been saved." });
+    toast({ title: "Settings Updated", description: "Default settings have been saved." });
   };
   
   const handleUpgrade = () => {
@@ -128,13 +134,31 @@ export default function CompanySettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Deadline Defaults</CardTitle>
+            <CardTitle>Contact & Deadline Defaults</CardTitle>
             <CardDescription>
-              Set the default time and timezone for severance agreement deadlines. This will be used for all users in your company unless specified otherwise.
+              Set default contact aliases and severance deadline times for all users in your company. These can be overridden for individual users via CSV upload.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pre-layoff-contact">Pre-Layoff Contact Alias</Label>
+                  <Input 
+                    id="pre-layoff-contact" 
+                    placeholder="e.g., Your HR Business Partner" 
+                    value={preLayoffContact} 
+                    onChange={(e) => setPreLayoffContact(e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="post-layoff-contact">Post-Layoff Contact Alias</Label>
+                  <Input 
+                    id="post-layoff-contact" 
+                    placeholder="e.g., alumni-support@email.com" 
+                    value={postLayoffContact} 
+                    onChange={(e) => setPostLayoffContact(e.target.value)} 
+                  />
+                </div>
               <div className="space-y-2">
                 <Label htmlFor="deadline-time">Default Deadline Time</Label>
                 <Input 
