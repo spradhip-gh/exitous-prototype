@@ -40,7 +40,7 @@ export default function ProfileForm() {
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
-        values: profileData || { // Use `values` for dynamic defaults
+        defaultValues: {
             birthYear: undefined,
             state: '',
             gender: '',
@@ -55,6 +55,12 @@ export default function ProfileForm() {
             hasChildrenAges18To26: '',
         },
     });
+
+    useEffect(() => {
+        if (profileData) {
+            form.reset(profileData);
+        }
+    }, [profileData, form]);
 
     const watchedGender = form.watch('gender');
 
@@ -77,7 +83,7 @@ export default function ProfileForm() {
     };
 
     return (
-        <Form {...form} key={profileData ? 'loaded' : 'loading'}>
+        <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 <Card>
                     <CardHeader>
