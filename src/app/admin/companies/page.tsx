@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { timezones } from '@/lib/timezones';
+import Papa from 'papaparse';
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
@@ -51,6 +53,8 @@ export default function CompanyManagementPage() {
   const [editedMaxUsers, setEditedMaxUsers] = useState('');
   const [editedDeadlineTime, setEditedDeadlineTime] = useState('');
   const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
+  const [editedPreEndDateContact, setEditedPreEndDateContact] = useState('');
+  const [editedPostEndDateContact, setEditedPostEndDateContact] = useState('');
 
   const handleAddCompany = () => {
     if (!newCompanyName || !newHrEmail || !newMaxUsers || !newPreEndDateContact || !newPostEndDateContact) {
@@ -102,6 +106,8 @@ export default function CompanyManagementPage() {
     setEditedMaxUsers(company.maxUsers?.toString() ?? '');
     setEditedDeadlineTime(company.severanceDeadlineTime || '17:00');
     setEditedDeadlineTimezone(company.severanceDeadlineTimezone || 'America/Los_Angeles');
+    setEditedPreEndDateContact(company.preEndDateContactAlias || '');
+    setEditedPostEndDateContact(company.postEndDateContactAlias || '');
     setIsEditDialogOpen(true);
   }
 
@@ -118,6 +124,8 @@ export default function CompanyManagementPage() {
         maxUsers: maxUsersNum,
         severanceDeadlineTime: editedDeadlineTime,
         severanceDeadlineTimezone: editedDeadlineTimezone,
+        preEndDateContactAlias: editedPreEndDateContact,
+        postEndDateContactAlias: editedPostEndDateContact,
     });
     toast({ title: "Company Updated", description: "Changes have been saved." });
     setIsEditDialogOpen(false);
@@ -136,16 +144,51 @@ export default function CompanyManagementPage() {
       const companyConfig = allConfigs[assignment.companyName];
       const users = companyConfig?.users || [];
       const usersAdded = users.length;
+      const usersInvited = users.filter(u => u.notified).length;
       const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
       const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
 
       return {
           ...assignment,
           usersAdded,
+          usersInvited,
           assessmentsCompleted,
           modifiedQuestionCount
       };
   });
+  
+  const handleExportCompanies = () => {
+    if (!companyDataWithStats || companyDataWithStats.length === 0) {
+        toast({ title: "No companies to export", variant: "destructive" });
+        return;
+    }
+    const headers = ["Company Name", "HR Manager", "Version", "Max Users", "Users Added", "Users Invited", "Assessments Completed", "Custom Questions", "Deadline Time", "Deadline Timezone", "Pre-End Date Contact", "Post-End Date Contact"];
+    
+    const dataToExport = companyDataWithStats.map(c => ({
+        "Company Name": c.companyName,
+        "HR Manager": c.hrManagerEmail,
+        "Version": c.version,
+        "Max Users": c.maxUsers,
+        "Users Added": c.usersAdded,
+        "Users Invited": c.usersInvited,
+        "Assessments Completed": c.assessmentsCompleted,
+        "Custom Questions": c.modifiedQuestionCount,
+        "Deadline Time": c.severanceDeadlineTime || '17:00',
+        "Deadline Timezone": c.severanceDeadlineTimezone || 'America/Los_Angeles',
+        "Pre-End Date Contact": c.preEndDateContactAlias || '',
+        "Post-End Date Contact": c.postEndDateContactAlias || '',
+    }));
+
+    const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'all_companies_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   return (
     <div className="p-4 md:p-8">
@@ -217,9 +260,14 @@ export default function CompanyManagementPage() {
         </Card>
 
         <Card>
-            <CardHeader>
-                <CardTitle>Assigned Companies</CardTitle>
-                <CardDescription>List of all companies and their designated HR managers.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                    <CardTitle>Assigned Companies</CardTitle>
+                    <CardDescription>List of all companies and their designated HR managers.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={handleExportCompanies}>
+                    <Download className="mr-2" /> Export to CSV
+                </Button>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -228,7 +276,7 @@ export default function CompanyManagementPage() {
                             <TableHead>Company</TableHead>
                             <TableHead>HR Manager</TableHead>
                             <TableHead>Version</TableHead>
-                            <TableHead>Users Added</TableHead>
+                            <TableHead>Users Added/Invited</TableHead>
                             <TableHead>Max Users</TableHead>
                             <TableHead>Assessments Done</TableHead>
                             <TableHead>Custom Qs</TableHead>
@@ -247,7 +295,7 @@ export default function CompanyManagementPage() {
                                             {version.charAt(0).toUpperCase() + version.slice(1)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-center">{assignment.usersAdded}</TableCell>
+                                    <TableCell className="text-center">{assignment.usersAdded} / {assignment.usersInvited}</TableCell>
                                     <TableCell className="text-center">{assignment.maxUsers ?? '—'}</TableCell>
                                     <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
                                     <TableCell className="text-center">{assignment.modifiedQuestionCount}</TableCell>
@@ -303,32 +351,42 @@ export default function CompanyManagementPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="max-users">Max Users</Label>
-                        <Input 
-                            id="max-users" 
-                            type="number" 
-                            value={editedMaxUsers} 
-                            onChange={(e) => setEditedMaxUsers(e.target.value)} 
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="max-users">Max Users</Label>
+                            <Input 
+                                id="max-users" 
+                                type="number" 
+                                value={editedMaxUsers} 
+                                onChange={(e) => setEditedMaxUsers(e.target.value)} 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="deadline-time">Deadline Time</Label>
+                            <Input 
+                                id="deadline-time" 
+                                type="time" 
+                                value={editedDeadlineTime} 
+                                onChange={(e) => setEditedDeadlineTime(e.target.value)} 
+                            />
+                        </div>
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="deadline-time">Severance Deadline Time</Label>
-                        <Input 
-                            id="deadline-time" 
-                            type="time" 
-                            value={editedDeadlineTime} 
-                            onChange={(e) => setEditedDeadlineTime(e.target.value)} 
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="deadline-timezone">Severance Deadline Timezone</Label>
+                        <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
                         <Select value={editedDeadlineTimezone} onValueChange={setEditedDeadlineTimezone}>
                             <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
+                        <Input id="edit-pre-contact" value={editedPreEndDateContact} onChange={e => setEditedPreEndDateContact(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
+                        <Input id="edit-post-contact" value={editedPostEndDateContact} onChange={e => setEditedPostEndDateContact(e.target.value)} />
                     </div>
                     {(editingCompany?.version || 'basic') === 'basic' && (
                          <Card className="bg-muted/50">

@@ -231,8 +231,9 @@ export default function HrUserManagement() {
                 delimiter: "", // Auto-detect delimiter
                 complete: (results: Papa.ParseResult<Record<string, any>>) => {
                     const requiredHeaders = ["email", "companyid", "notificationdate"];
-                    const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
-                    if (!requiredHeaders.every(h => headers.includes(h))) {
+                    const fields = results.meta.fields || [];
+                    const lowercasedHeaders = fields.map(h => h.trim().toLowerCase());
+                    if (!requiredHeaders.every(h => lowercasedHeaders.includes(h))) {
                         toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
                         return;
                     }
