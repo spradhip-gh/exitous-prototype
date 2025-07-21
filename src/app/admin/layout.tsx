@@ -108,7 +108,7 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
             <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
               <Settings className="mr-2" />
               Company Settings
-              {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500"></span>}
+              {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
             </Button>
           </Link>
           <Separator className="my-2" />
@@ -134,7 +134,7 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { auth, loading } = useAuth();
-  const { companyAssignmentForHr } = useUserData();
+  const { companyAssignments } = useUserData();
   const router = useRouter();
 
   useEffect(() => {
@@ -158,8 +158,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
   
-  const companySettingsComplete = !!(companyAssignmentForHr?.preLayoffContactAlias && companyAssignmentForHr?.postLayoffContactAlias);
-  const navContent = <AdminNav role={auth.role} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
+  const companyAssignment = auth.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
+  const companySettingsComplete = !!(companyAssignment?.preLayoffContactAlias && companyAssignment?.postLayoffContactAlias);
+  
+  const navContent = <AdminNav role={auth.role} version={companyAssignment?.version} companySettingsComplete={companySettingsComplete} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
