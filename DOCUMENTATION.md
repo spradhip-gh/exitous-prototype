@@ -2,7 +2,7 @@
 
 This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
 
-## Recent Updates (Since July 14, 2025)
+## Recent Updates (Prototype 0.1-20250721)
 
 We've been hard at work adding new features to make the ExitBetter platform more powerful for HR Managers and more supportive for end-users. Here’s a look at what's new:
 
