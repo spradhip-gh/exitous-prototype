@@ -57,7 +57,7 @@ export default function ProfileForm() {
     });
 
     useEffect(() => {
-        if (profileData) {
+        if (profileData && !form.formState.isDirty) {
             form.reset(profileData);
         }
     }, [profileData, form]);
