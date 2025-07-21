@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { format, parseISO, differenceInDays, isSameDay, startOfToday, startOfMonth, addMonths, differenceInMonths } from 'date-fns';
+import { format, parseISO, differenceInDays, isSameDay, startOfToday, startOfMonth, addMonths, subMonths, differenceInMonths } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -50,11 +50,9 @@ function ImportantDates() {
             if (date instanceof Date && !isNaN(date.getTime())) return date;
             if (typeof date === 'string') {
                 try {
-                    // Try parsing ISO string first (from Genkit)
                     let parsedDate = parseISO(date);
                     if (!isNaN(parsedDate.getTime())) return parsedDate;
                     
-                    // Fallback to YYYY-MM-DD format (from forms)
                     const [year, month, day] = date.split('-').map(Number);
                     if (!year || !month || !day) return null;
                     return new Date(year, month - 1, day);
@@ -114,18 +112,22 @@ function ImportantDates() {
     }, [keyDates]);
 
     const timelineMetrics = useMemo(() => {
-        if (keyDates.length === 0) return null;
-
         const today = startOfToday();
+        
+        if (keyDates.length === 0) {
+            const minDate = subMonths(today, 1);
+            const maxDate = addMonths(today, 2);
+            const totalDuration = differenceInDays(maxDate, minDate);
+            return { minDate, maxDate, totalDuration, today };
+        }
+        
         const datesOnly = keyDates.map(d => d.date!);
 
-        const minDate = new Date(Math.min(today.getTime(), ...datesOnly.map(d => d.getTime())));
-        let maxDate = new Date(Math.max(today.getTime(), ...datesOnly.map(d => d.getTime())));
-        
-        // Ensure the timeline spans at least 3 months for visual context
-        if (differenceInMonths(maxDate, minDate) < 2) {
-            maxDate = addMonths(minDate, 3);
-        }
+        const earliestDate = new Date(Math.min(...datesOnly.map(d => d.getTime())));
+        const latestDate = new Date(Math.max(...datesOnly.map(d => d.getTime())));
+
+        const minDate = subMonths(earliestDate, 1);
+        const maxDate = addMonths(latestDate, 1);
 
         const totalDuration = differenceInDays(maxDate, minDate);
         if (totalDuration <= 0) return null;
@@ -375,9 +377,11 @@ export default function DashboardPage() {
                   : "Complete your profile and assessment to unlock your personalized plan."}
             </p>
           </div>
-
+        
         {hasPrefilledData && !isProfileComplete && <WelcomeSummary />}
+        
         <ImportantDates />
+
         {isAssessmentComplete ? <TimelineDashboard /> : <ProgressTracker />}
       </div>
     </main>
