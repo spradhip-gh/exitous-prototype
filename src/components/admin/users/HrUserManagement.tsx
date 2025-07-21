@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, parse } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import Papa from 'papaparse';
 import { CalendarIcon } from "lucide-react";
@@ -23,6 +23,30 @@ import BulkActions from "./BulkActions";
 export type SortConfig = {
     key: keyof CompanyUser | 'profileStatus' | 'assessmentStatus';
     direction: 'asc' | 'desc';
+};
+
+/**
+ * A robust function to parse a date string from a CSV.
+ * Ensures the format is strictly YYYY-MM-DD.
+ * @param dateStr The date string from the CSV.
+ * @returns A valid Date object or null if parsing fails.
+ */
+const parseDateFromCsv = (dateStr: any): Date | null => {
+    if (typeof dateStr !== 'string') return null;
+
+    const trimmedDateStr = dateStr.trim();
+    // Regex to strictly match YYYY-MM-DD format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDateStr)) {
+        return null;
+    }
+    
+    const date = parse(trimmedDateStr, 'yyyy-MM-dd', new Date());
+
+    if (isValid(date)) {
+        return date;
+    }
+    
+    return null;
 };
 
 
@@ -240,53 +264,48 @@ export default function HrUserManagement() {
     const processCsvRow = (row: any): { userFromCsv?: CompanyUser, error?: string } => {
         const email = row["email"]?.trim();
         const companyId = row["companyId"]?.trim();
-        const notificationDateStr = row["notificationDate"]?.trim();
+        const notificationDateStr = row["notificationDate"];
 
         if (!email || !companyId || !notificationDateStr) {
-            return { error: `Skipped a row due to missing required fields (email, companyId, notificationDate).` };
+            return { error: `Row for email "${email || 'N/A'}" skipped due to missing required fields (email, companyId, notificationDate).` };
         }
         
-        try {
-            const notificationDate = parse(notificationDateStr, 'yyyy-MM-dd', new Date());
-            if (isNaN(notificationDate.getTime())) {
-               throw new Error('Invalid date');
-            }
-
-            const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
-            const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
-            
-            optionalFields.forEach(field => {
-                const dateStr = row[field]?.trim();
-                if (dateStr) {
-                    const dateVal = parse(dateStr, 'yyyy-MM-dd', new Date());
-                    if (!isNaN(dateVal.getTime())) {
-                       prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
-                    } else {
-                        // Optionally warn about bad optional dates
-                        console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
-                    }
-                }
-            });
-            
-            if (row['preEndDateContactAlias']?.trim()) {
-                prefilledData.preEndDateContactAlias = row['preEndDateContactAlias'].trim();
-            }
-            if (row['postEndDateContactAlias']?.trim()) {
-                prefilledData.postEndDateContactAlias = row['postEndDateContactAlias'].trim();
-            }
-
-            const userFromCsv: CompanyUser = {
-                email,
-                companyId,
-                personalEmail: row["personalEmail"]?.trim() || undefined,
-                notificationDate: format(notificationDate, 'yyyy-MM-dd'),
-                notified: false,
-                prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
-            };
-            return { userFromCsv };
-        } catch (e) {
-            return { error: `Invalid date format for ${email}. Please use YYYY-MM-DD.` };
+        const notificationDate = parseDateFromCsv(notificationDateStr);
+        if (!notificationDate) {
+            return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
         }
+
+        const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+        const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
+        
+        optionalFields.forEach(field => {
+            const dateStr = row[field];
+            if (dateStr) {
+                const dateVal = parseDateFromCsv(dateStr);
+                if (dateVal) {
+                   prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
+                } else {
+                    console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
+                }
+            }
+        });
+        
+        if (row['preEndDateContactAlias']?.trim()) {
+            prefilledData.preEndDateContactAlias = row['preEndDateContactAlias'].trim();
+        }
+        if (row['postEndDateContactAlias']?.trim()) {
+            prefilledData.postEndDateContactAlias = row['postEndDateContactAlias'].trim();
+        }
+
+        const userFromCsv: CompanyUser = {
+            email,
+            companyId,
+            personalEmail: row["personalEmail"]?.trim() || undefined,
+            notificationDate: format(notificationDate, 'yyyy-MM-dd'),
+            notified: false,
+            prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
+        };
+        return { userFromCsv };
     };
 
     const handleDownloadTemplate = () => {
