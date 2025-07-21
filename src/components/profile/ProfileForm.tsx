@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -33,7 +33,7 @@ const lifeEvents = [
     { id: 'prefer_not_to_answer', label: 'Prefer not to answer' },
 ];
 
-function ProfileFormRenderer({ initialData }: { initialData: ProfileData | null }) {
+function ProfileFormRenderer({ initialData }: { initialData: ProfileData }) {
     const router = useRouter();
     const { saveProfileData } = useUserData();
     const { auth } = useAuth();
@@ -41,20 +41,7 @@ function ProfileFormRenderer({ initialData }: { initialData: ProfileData | null 
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
-        defaultValues: initialData || {
-            birthYear: undefined,
-            state: '',
-            gender: '',
-            genderSelfDescribe: '',
-            maritalStatus: '',
-            hasChildrenUnder13: '',
-            hasExpectedChildren: '',
-            impactedPeopleCount: '',
-            livingStatus: '',
-            citizenshipStatus: '',
-            pastLifeEvents: [],
-            hasChildrenAges18To26: '',
-        },
+        values: initialData,
     });
     
     const watchedGender = form.watch('gender');
@@ -65,7 +52,7 @@ function ProfileFormRenderer({ initialData }: { initialData: ProfileData | null 
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
         });
-        router.push('/dashboard');
+        router.push('/dashboard/assessment');
     }
 
     const onInvalid = (errors: any) => {
@@ -269,7 +256,7 @@ function ProfileFormRenderer({ initialData }: { initialData: ProfileData | null 
 export default function ProfileForm() {
     const { profileData, isUserDataLoading } = useUserData();
 
-    if (isUserDataLoading) {
+    if (isUserDataLoading || !profileData) {
          return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
