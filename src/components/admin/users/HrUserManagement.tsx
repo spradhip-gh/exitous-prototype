@@ -190,79 +190,95 @@ export default function HrUserManagement() {
         const file = event.target.files?.[0];
         if (!file || !companyName) return;
 
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: false, // Turn off dynamic typing to handle all data as strings first
-            delimiter: "", // Auto-detect delimiter
-            complete: (results) => {
-                alert("Debugging information has been logged to the developer console. Please copy the output and provide it for analysis.");
-                console.log("--- CSV PARSER DEBUG ---");
-                console.log(results);
-                console.log("------------------------");
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const text = e.target?.result;
+            if (typeof text !== 'string') {
+                toast({ title: "File Read Error", description: "Could not read file content as text.", variant: "destructive" });
+                return;
+            }
 
+            Papa.parse(text, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: false,
+                delimiter: "",
+                complete: (results) => {
+                    alert("Debugging information has been logged to the developer console. Please copy the output and provide it for analysis.");
+                    console.log("--- CSV PARSER DEBUG ---");
+                    console.log(results);
+                    console.log("------------------------");
 
-                const requiredHeaders = ["email", "companyId", "notificationDate"];
-                const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
-                if (!requiredHeaders.every(h => headers.includes(h))) {
-                    toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
-                    return;
-                }
-                
-                let addedCount = 0;
-                let updatedCount = 0;
-                let skippedCount = 0;
-                let errorCount = 0;
-                let newUsersList = [...users];
-
-                for (const row of results.data as any[]) {
-                    // Logic to process each row
-                    const { userFromCsv, error } = processCsvRow(row);
-                    if (error) {
-                        toast({ title: "Skipping Row", description: error, variant: "destructive" });
-                        errorCount++;
-                        continue;
+                    const requiredHeaders = ["email", "companyId", "notificationDate"];
+                    const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
+                    if (!requiredHeaders.every(h => headers.includes(h))) {
+                        toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
+                        return;
                     }
+                    
+                    let addedCount = 0;
+                    let updatedCount = 0;
+                    let skippedCount = 0;
+                    let errorCount = 0;
+                    let newUsersList = [...users];
 
-                    if (userFromCsv) {
-                        const existingUserIndex = newUsersList.findIndex(u => u.email.toLowerCase() === userFromCsv.email.toLowerCase());
-                        if (existingUserIndex !== -1) {
-                            const existingUser = newUsersList[existingUserIndex];
-                            if (existingUser.notified) {
-                                skippedCount++;
-                                continue;
+                    for (const row of results.data as any[]) {
+                        const { userFromCsv, error } = processCsvRow(row);
+                        if (error) {
+                            toast({ title: "Skipping Row", description: error, variant: "destructive" });
+                            errorCount++;
+                            continue;
+                        }
+
+                        if (userFromCsv) {
+                            const existingUserIndex = newUsersList.findIndex(u => u.email.toLowerCase() === userFromCsv.email.toLowerCase());
+                            if (existingUserIndex !== -1) {
+                                const existingUser = newUsersList[existingUserIndex];
+                                if (existingUser.notified) {
+                                    skippedCount++;
+                                    continue;
+                                }
+                                newUsersList[existingUserIndex] = { ...existingUser, ...userFromCsv };
+                                updatedCount++;
+                            } else {
+                                if (companyAssignmentForHr && newUsersList.length >= companyAssignmentForHr.maxUsers) {
+                                    toast({ title: "User Limit Reached", description: `Skipping ${userFromCsv.email} as the user limit has been reached.`, variant: "destructive" });
+                                    continue;
+                                }
+                                addedCount++;
+                                newUsersList.push(userFromCsv);
                             }
-                            newUsersList[existingUserIndex] = { ...existingUser, ...userFromCsv };
-                            updatedCount++;
-                        } else {
-                             if (companyAssignmentForHr && newUsersList.length >= companyAssignmentForHr.maxUsers) {
-                                toast({ title: "User Limit Reached", description: `Skipping ${userFromCsv.email} as the user limit has been reached.`, variant: "destructive" });
-                                continue;
-                            }
-                            addedCount++;
-                            newUsersList.push(userFromCsv);
                         }
                     }
+                    
+                    saveCompanyUsers(companyName, newUsersList);
+                    setUsers(newUsersList);
+                    
+                    let summary = [];
+                    if (addedCount > 0) summary.push(`${addedCount} new users added.`);
+                    if (updatedCount > 0) summary.push(`${updatedCount} users updated.`);
+                    if (skippedCount > 0) summary.push(`${skippedCount} invited users skipped.`);
+                    if (errorCount > 0) summary.push(`${errorCount} rows had errors.`);
+                    
+                    toast({ 
+                        title: "Upload Complete", 
+                        description: summary.length > 0 ? summary.join(' ') : 'No changes were made.' 
+                    });
+                },
+                error: (error) => {
+                    console.error("PapaParse Error:", error);
+                    toast({ title: "Upload Parse Error", description: error.message, variant: "destructive" });
                 }
-                
-                saveCompanyUsers(companyName, newUsersList);
-                setUsers(newUsersList);
-                
-                let summary = [];
-                if (addedCount > 0) summary.push(`${addedCount} new users added.`);
-                if (updatedCount > 0) summary.push(`${updatedCount} users updated.`);
-                if (skippedCount > 0) summary.push(`${skippedCount} invited users skipped.`);
-                if (errorCount > 0) summary.push(`${errorCount} rows had errors.`);
-                
-                toast({ 
-                    title: "Upload Complete", 
-                    description: summary.length > 0 ? summary.join(' ') : 'No changes were made.' 
-                });
-            },
-            error: (error) => {
-                toast({ title: "Upload Error", description: error.message, variant: "destructive" });
-            }
-        });
+            });
+        };
+
+        reader.onerror = (e) => {
+            console.error("FileReader Error:", e);
+            toast({ title: "File Read Error", description: "An error occurred while reading the file.", variant: "destructive" });
+        };
+        
+        reader.readAsText(file);
         
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -424,7 +440,7 @@ export default function HrUserManagement() {
                     <div className="space-y-2">
                         <Label>Bulk Upload User Data</Label>
                         <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
-                         <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                         <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                          <div className="flex items-center gap-2">
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                                <Upload className="mr-2"/> Upload CSV
@@ -465,4 +481,3 @@ export default function HrUserManagement() {
         </div>
     );
 }
-
