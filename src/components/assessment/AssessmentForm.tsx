@@ -54,7 +54,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
             );
         case 'radio':
             return (
-                 <FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-wrap gap-4">
+                 <FormControl><RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="flex flex-wrap gap-4">
                     {question.options?.map(o => <FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o} /></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}
                 </RadioGroup></FormControl>
             );
@@ -75,7 +75,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 </div>
             );
         case 'text':
-             return <FormControl><Input placeholder={question.placeholder} {...field} /></FormControl>;
+             return <FormControl><Input placeholder={question.placeholder} {...field} value={field.value ?? ''} /></FormControl>;
         default:
             return <Input {...field} />;
     }
@@ -149,52 +149,15 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-export default function AssessmentForm() {
-    const { getCompanyConfig, isUserDataLoading, getCompanyUser } = useUserData();
-    const { auth } = useAuth();
-    
-    const [questions, setQuestions] = useState<Question[] | null>(null);
-    const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
-    const [companyUser, setCompanyUser] = useState<ReturnType<typeof getCompanyUser>>(null);
-
-    useEffect(() => {
-        if (!isUserDataLoading && auth?.companyName) {
-            const companyQuestions = getCompanyConfig(auth.companyName, true);
-            setQuestions(companyQuestions);
-            setDynamicSchema(buildAssessmentSchema(companyQuestions));
-            if (auth.email) {
-                setCompanyUser(getCompanyUser(auth.email));
-            }
-        }
-    }, [isUserDataLoading, getCompanyConfig, auth?.companyName, auth?.email, getCompanyUser]);
-
-    if (!questions || !dynamicSchema) {
-        return (
-            <div className="space-y-6">
-                {[...Array(3)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
-                        <CardContent className="space-y-6">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        )
-    }
-
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={companyUser} />;
-}
-
-function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'] }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'], initialData: AssessmentData | null }) {
     const router = useRouter();
-    const { profileData, assessmentData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
+    const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
+        defaultValues: initialData || {},
     });
 
     const { watch, setValue, getValues } = form;
@@ -266,69 +229,6 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
              });
         }
     }, [profileData, watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, getValues, setValue]);
-    
-    useEffect(() => {
-        if (!form.formState.isDirty) {
-            let initialValues: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
-            
-            const parseDateString = (dateString: string | undefined): Date | undefined => {
-                if (!dateString) return undefined;
-                try {
-                    const [year, month, day] = dateString.split('-').map(Number);
-                    if (!year || !month || !day) return undefined;
-                    return new Date(year, month - 1, day);
-                } catch {
-                    return undefined;
-                }
-            };
-
-            if (!assessmentData) {
-                if (companyUser?.user.prefilledAssessmentData) {
-                    const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
-                    for (const key in prefilled) {
-                        const value = prefilled[key as keyof typeof prefilled];
-                        if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                            const date = parseDateString(value);
-                            if (date) {
-                                (prefilled as any)[key] = date;
-                            }
-                        }
-                    }
-                     initialValues = { ...initialValues, ...prefilled };
-                }
-
-                if (companyUser?.user.notificationDate) {
-                   const date = parseDateString(companyUser.user.notificationDate);
-                   if (date) {
-                      initialValues.notificationDate = date;
-                   }
-                }
-                
-                const getDefaults = (q: Question) => {
-                    let defaults: Record<string, any> = {};
-                    if (q.defaultValue && q.defaultValue.length > 0 && !initialValues[q.id as keyof typeof initialValues]) {
-                        defaults[q.id] = q.defaultValue;
-                    }
-                    if (q.subQuestions) {
-                        q.subQuestions.forEach(subQ => {
-                            Object.assign(defaults, getDefaults(subQ));
-                        });
-                    }
-                    return defaults;
-                }
-                
-                let defaultValues: Partial<AssessmentData> = {};
-                questions.forEach(q => {
-                   Object.assign(defaultValues, getDefaults(q))
-                });
-                initialValues = { ...defaultValues, ...initialValues };
-            }
-
-            if (Object.keys(initialValues).length > 0) {
-              form.reset(initialValues);
-            }
-        }
-    }, [questions, assessmentData, form, companyUser]);
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData({ ...data, companyName: auth?.companyName });
@@ -395,4 +295,80 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser }: { que
             </form>
         </Form>
     );
+}
+
+export default function AssessmentForm() {
+    const { getCompanyConfig, isUserDataLoading, getCompanyUser, assessmentData } = useUserData();
+    const { auth } = useAuth();
+    
+    const [questions, setQuestions] = useState<Question[] | null>(null);
+    const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
+    const [initialData, setInitialData] = useState<AssessmentData | null>(null);
+
+    useEffect(() => {
+        if (!isUserDataLoading && auth?.companyName) {
+            const companyQuestions = getCompanyConfig(auth.companyName, true);
+            setQuestions(companyQuestions);
+            setDynamicSchema(buildAssessmentSchema(companyQuestions));
+
+            let loadedData: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
+            const companyUser = auth.email ? getCompanyUser(auth.email) : null;
+
+            if (!assessmentData && companyUser?.user.prefilledAssessmentData) {
+                const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
+                for (const key in prefilled) {
+                    const value = prefilled[key as keyof typeof prefilled];
+                    if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
+                        const [year, month, day] = value.split('-').map(Number);
+                        if (year && month && day) {
+                            (prefilled as any)[key] = new Date(year, month - 1, day);
+                        }
+                    }
+                }
+                loadedData = { ...loadedData, ...prefilled };
+            }
+
+            if (!assessmentData && companyUser?.user.notificationDate) {
+               const dateStr = companyUser.user.notificationDate;
+               const [year, month, day] = dateStr.split('-').map(Number);
+               if (year && month && day) {
+                  loadedData.notificationDate = new Date(year, month - 1, day);
+               }
+            }
+
+            const getDefaults = (q: Question) => {
+                let defaults: Record<string, any> = {};
+                if (q.defaultValue && q.defaultValue.length > 0 && !loadedData[q.id as keyof typeof loadedData]) {
+                    defaults[q.id] = q.defaultValue;
+                }
+                if (q.subQuestions) {
+                    q.subQuestions.forEach(subQ => Object.assign(defaults, getDefaults(subQ)));
+                }
+                return defaults;
+            };
+
+            let defaultValues: Partial<AssessmentData> = {};
+            companyQuestions.forEach(q => Object.assign(defaultValues, getDefaults(q)));
+
+            setInitialData({ ...defaultValues, ...loadedData } as AssessmentData);
+        }
+    }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, getCompanyUser]);
+
+    if (!questions || !dynamicSchema || initialData === null) {
+        return (
+            <div className="space-y-6">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
+                        <CardContent className="space-y-6">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        )
+    }
+
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData} />;
 }
