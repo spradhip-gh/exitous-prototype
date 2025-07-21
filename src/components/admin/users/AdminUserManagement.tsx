@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from "react";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
@@ -7,19 +8,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from "@/components/ui/skeleton";
+import { format, parse } from 'date-fns';
+
+const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
+    isComplete ? (
+        <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
+    ) : (
+        <Badge variant="outline">Pending</Badge>
+    )
+);
+
 
 export default function AdminUserManagement() {
     const { toast } = useToast();
-    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignments, assessmentCompletions } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignments, profileCompletions, assessmentCompletions } = useUserData();
 
     const [selectedCompany, setSelectedCompany] = useState("");
     const [users, setUsers] = useState<CompanyUser[]>([]);
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newCompanyId, setNewCompanyId] = useState("");
+    const [newNotificationDate, setNewNotificationDate] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -27,7 +39,7 @@ export default function AdminUserManagement() {
             setIsLoading(true);
             const configs = getAllCompanyConfigs();
             const companyUsers = configs[selectedCompany]?.users || [];
-            setUsers(companyUsers);
+            setUsers(companyUsers.sort((a,b) => (a.email > b.email) ? 1 : -1));
             setIsLoading(false);
         } else {
             setUsers([]);
@@ -35,8 +47,8 @@ export default function AdminUserManagement() {
     }, [selectedCompany, getAllCompanyConfigs]);
     
     const handleAddUser = () => {
-        if (!newUserEmail || !newCompanyId) {
-            toast({ title: "All Fields Required", description: "Please enter both an email and a Company ID.", variant: "destructive" });
+        if (!newUserEmail || !newCompanyId || !newNotificationDate) {
+            toast({ title: "All Fields Required", description: "Please enter email, Company ID, and notification date.", variant: "destructive" });
             return;
         }
 
@@ -50,11 +62,15 @@ export default function AdminUserManagement() {
             toast({ title: "User Exists", description: "A user with this email address already exists for this company.", variant: "destructive" });
             return;
         }
-        const newUsers = [...users, { email: newUserEmail, companyId: newCompanyId, notified: false }];
+
+        const newUsers = [...users, { email: newUserEmail, companyId: newCompanyId, notificationDate: newNotificationDate, notified: false }];
+        newUsers.sort((a, b) => (a.email > b.email) ? 1 : -1);
+
         setUsers(newUsers);
         saveCompanyUsers(selectedCompany, newUsers);
         setNewUserEmail("");
         setNewCompanyId("");
+        setNewNotificationDate("");
         toast({ title: "User Added", description: `${newUserEmail} has been added.` });
     };
 
@@ -105,7 +121,7 @@ export default function AdminUserManagement() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                             <div className="space-y-2">
                                 <Label htmlFor="newUserEmail">Email Address</Label>
                                 <Input id="newUserEmail" placeholder="employee@email.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
@@ -113,6 +129,10 @@ export default function AdminUserManagement() {
                             <div className="space-y-2">
                                 <Label htmlFor="newCompanyId">Company ID #</Label>
                                 <Input id="newCompanyId" placeholder="123456" value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="newNotificationDate">Notification Date</Label>
+                                <Input id="newNotificationDate" type="date" value={newNotificationDate} onChange={e => setNewNotificationDate(e.target.value)} />
                             </div>
                             <Button onClick={handleAddUser} className="self-end">
                                 <PlusCircle className="mr-2" /> Add User
@@ -132,23 +152,34 @@ export default function AdminUserManagement() {
                                 <TableRow>
                                     <TableHead>Email Address</TableHead>
                                     <TableHead>Company ID</TableHead>
-                                    <TableHead>Assessment Status</TableHead>
+                                    <TableHead>Notification Date</TableHead>
+                                    <TableHead>Profile</TableHead>
+                                    <TableHead>Assessment</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={4}><Skeleton className="h-20 w-full" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6}><Skeleton className="h-20 w-full" /></TableCell></TableRow>
                                 ) : users.length > 0 ? users.map(user => (
                                     <TableRow key={user.email}>
                                         <TableCell className="font-medium">{user.email}</TableCell>
                                         <TableCell>{user.companyId}</TableCell>
                                         <TableCell>
-                                            {assessmentCompletions?.[user.email] ? (
-                                                <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
-                                            ) : (
-                                                <Badge variant="outline">Not Started</Badge>
-                                            )}
+                                            <div className="flex flex-col">
+                                                <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
+                                                {user.notified ? (
+                                                    <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="w-fit">Pending</Badge>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge isComplete={!!profileCompletions[user.email]} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
@@ -159,7 +190,7 @@ export default function AdminUserManagement() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
