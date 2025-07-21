@@ -266,8 +266,14 @@ export default function HrUserManagement() {
         const companyId = row["companyId"]?.trim();
         const notificationDateStr = row["notificationDate"];
 
-        if (!email || !companyId || !notificationDateStr) {
-            return { error: `Row for email "${email || 'N/A'}" skipped due to missing required fields (email, companyId, notificationDate).` };
+        if (!email) {
+            return { error: "A row was skipped because the 'email' field was missing." };
+        }
+        if (!companyId) {
+            return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
+        }
+        if (!notificationDateStr) {
+            return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
         }
         
         const notificationDate = parseDateFromCsv(notificationDateStr);
