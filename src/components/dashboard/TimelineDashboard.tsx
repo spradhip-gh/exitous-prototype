@@ -357,6 +357,11 @@ function ImportantDates({ assessmentData, companyDetails, userTimezone, customDe
             if (date instanceof Date && !isNaN(date.getTime())) return date;
             if (typeof date === 'string') {
                 try {
+                    // This handles 'yyyy-MM-dd' or ISO strings
+                    const parsedDate = parseISO(date);
+                    if (!isNaN(parsedDate.getTime())) return parsedDate;
+
+                    // Fallback for just 'yyyy-MM-dd'
                     const [year, month, day] = date.split('-').map(Number);
                     if (!year || !month || !day) return null;
                     return new Date(year, month - 1, day);
