@@ -193,9 +193,10 @@ export default function HrUserManagement() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
+            dynamicTyping: true, // Auto-detects delimiter
             complete: (results) => {
                 const requiredHeaders = ["email", "companyId", "notificationDate"];
-                const headers = (results.meta.fields || []).map(h => h.toLowerCase());
+                const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
                 if (!requiredHeaders.every(h => headers.includes(h))) {
                     toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
                     return;
@@ -262,8 +263,8 @@ export default function HrUserManagement() {
     };
 
     const processCsvRow = (row: any): { userFromCsv?: CompanyUser, error?: string } => {
-        const email = row["email"]?.trim();
-        const companyId = row["companyId"]?.trim();
+        const email = row["email"]?.toString().trim();
+        const companyId = row["companyId"]?.toString().trim();
         const notificationDateStr = row["notificationDate"];
 
         if (!email) {
@@ -296,17 +297,17 @@ export default function HrUserManagement() {
             }
         });
         
-        if (row['preEndDateContactAlias']?.trim()) {
-            prefilledData.preEndDateContactAlias = row['preEndDateContactAlias'].trim();
+        if (row['preEndDateContactAlias']?.toString().trim()) {
+            prefilledData.preEndDateContactAlias = row['preEndDateContactAlias'].toString().trim();
         }
-        if (row['postEndDateContactAlias']?.trim()) {
-            prefilledData.postEndDateContactAlias = row['postEndDateContactAlias'].trim();
+        if (row['postEndDateContactAlias']?.toString().trim()) {
+            prefilledData.postEndDateContactAlias = row['postEndDateContactAlias'].toString().trim();
         }
 
         const userFromCsv: CompanyUser = {
             email,
             companyId,
-            personalEmail: row["personalEmail"]?.trim() || undefined,
+            personalEmail: row["personalEmail"]?.toString().trim() || undefined,
             notificationDate: format(notificationDate, 'yyyy-MM-dd'),
             notified: false,
             prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
