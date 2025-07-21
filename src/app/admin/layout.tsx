@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -67,6 +68,13 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
               Export User Data
             </Button>
           </Link>
+          <Separator className="my-2" />
+           <Link href="/help/admin-guide" target="_blank" rel="noopener noreferrer">
+            <Button variant='ghost' className="w-full justify-start">
+                <HelpCircle className="mr-2" />
+                Help & Guide
+            </Button>
+           </Link>
         </>
       )}
       {role === 'hr' && (
