@@ -306,8 +306,26 @@ export default function HrUserManagement() {
 
     const handleDownloadTemplate = useCallback(() => {
         const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
-        const csv = headers.join(',');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const sampleRow = [
+            "user@company.com", // email
+            "EMP123", // companyId
+            "2025-12-31", // notificationDate
+            "user@personal.com", // personalEmail
+            "2026-01-31", // finalDate
+            "2026-02-15", // severanceAgreementDeadline
+            "", // medicalCoverageEndDate
+            "", // dentalCoverageEndDate
+            "", // visionCoverageEndDate
+            "", // eapCoverageEndDate
+            "Your HR Business Partner", // preEndDateContactAlias
+            "alumni-support@company.com" // postEndDateContactAlias
+        ];
+        const csvContent = [
+            headers.join(','),
+            sampleRow.join(',')
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.setAttribute('download', 'user_upload_template.csv');
