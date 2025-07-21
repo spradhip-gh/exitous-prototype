@@ -193,8 +193,15 @@ export default function HrUserManagement() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: true, // Auto-detects delimiter
+            dynamicTyping: false, // Turn off dynamic typing to handle all data as strings first
+            delimiter: "", // Auto-detect delimiter
             complete: (results) => {
+                alert("Debugging information has been logged to the developer console. Please copy the output and provide it for analysis.");
+                console.log("--- CSV PARSER DEBUG ---");
+                console.log(results);
+                console.log("------------------------");
+
+
                 const requiredHeaders = ["email", "companyId", "notificationDate"];
                 const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
                 if (!requiredHeaders.every(h => headers.includes(h))) {
@@ -458,3 +465,4 @@ export default function HrUserManagement() {
         </div>
     );
 }
+
