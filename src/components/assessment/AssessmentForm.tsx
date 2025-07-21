@@ -29,13 +29,15 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
+import { convertStringsToDates } from '@/hooks/use-user-data';
+
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     // Special handling for workStatus due to long option text
     if (question.id === 'workStatus') {
         const simplifiedOptions = question.options?.map(o => o.split(':')[0]) || [];
         return (
-            <Select onValueChange={field.onChange} value={field.value || ''}>
+            <Select onValueChange={field.onChange} value={field.value ?? ''}>
                 <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                 <SelectContent>
                     {question.options?.map((o, index) => (
@@ -49,7 +51,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     switch (question.type) {
         case 'select':
             return (
-                <Select onValueChange={field.onChange} value={field.value || ''}>
+                <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                     <SelectContent>{question.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                 </Select>
@@ -172,44 +174,16 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        defaultValues: initialData,
     });
 
     useEffect(() => {
-        if(initialData){
-            // The initialData might have date strings from localStorage, so we convert them to Date objects before resetting the form
-            const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-            
-            const convertStringsToDates = (obj: any): any => {
-                if (!obj) return obj;
-                if (typeof obj === 'string') {
-                    if (isoDateRegex.test(obj) || isoDateTimeRegex.test(obj.split('T')[0])) {
-                         const [year, month, day] = obj.split('T')[0].split('-').map(Number);
-                         if (year && month && day) {
-                            return new Date(year, month - 1, day);
-                         }
-                    }
-                }
-                if (Array.isArray(obj)) {
-                    return obj.map(item => convertStringsToDates(item));
-                }
-                if (typeof obj === 'object') {
-                    const newObj: { [key: string]: any } = {};
-                    for (const key in obj) {
-                        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                            newObj[key] = convertStringsToDates(obj[key]);
-                        }
-                    }
-                    return newObj;
-                }
-                return obj;
-            };
-
+        if (initialData) {
+            // This is the crucial fix: ensure all string dates are converted
+            // to Date objects BEFORE resetting the form.
             const dataWithDateObjects = convertStringsToDates(initialData);
             form.reset(dataWithDateObjects);
         }
-    }, [initialData, form.reset])
+    }, [initialData, form.reset]);
 
     const { watch, setValue, getValues } = form;
     
@@ -394,7 +368,7 @@ export default function AssessmentForm() {
         }
     }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, getCompanyUser]);
 
-    if (isLoading) {
+    if (isLoading || !initialData || !questions || !dynamicSchema) {
         return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -410,5 +384,5 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer questions={questions!} dynamicSchema={dynamicSchema!} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData!} />;
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData} />;
 }

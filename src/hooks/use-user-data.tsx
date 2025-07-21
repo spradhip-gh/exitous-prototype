@@ -97,13 +97,14 @@ export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Questio
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
-const convertStringsToDates = (obj: any): any => {
+export const convertStringsToDates = (obj: any): any => {
     if (!obj) return obj;
     if (typeof obj === 'string') {
         if (isoDateRegex.test(obj) || isoDateTimeRegex.test(obj.split('T')[0])) {
              const [year, month, day] = obj.split('T')[0].split('-').map(Number);
              if (year && month && day) {
-                return new Date(year, month - 1, day);
+                // Return a Date object in UTC to avoid timezone shifts.
+                return new Date(Date.UTC(year, month - 1, day));
              }
         }
     }
@@ -122,13 +123,11 @@ const convertStringsToDates = (obj: any): any => {
     return obj;
 };
 
-const convertDatesToStrings = (obj: any): any => {
+export const convertDatesToStrings = (obj: any): any => {
     if (!obj) return obj;
     if (obj instanceof Date) {
-        const year = obj.getFullYear();
-        const month = (obj.getMonth() + 1).toString().padStart(2, '0');
-        const day = obj.getDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        // Format to YYYY-MM-DD string
+        return obj.toISOString().split('T')[0];
     }
     if (Array.isArray(obj)) {
         return obj.map(item => convertDatesToStrings(item));
@@ -212,13 +211,8 @@ export function useUserData() {
       }
       
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
+      setAssessmentData(assessmentJson ? JSON.parse(assessmentJson) : null);
 
-      if (assessmentJson) {
-        const parsedData = JSON.parse(assessmentJson);
-        setAssessmentData(convertStringsToDates(parsedData));
-      } else {
-        setAssessmentData(null);
-      }
 
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
@@ -264,7 +258,7 @@ export function useUserData() {
     try {
       const dataWithStrings = convertDatesToStrings(data);
       localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-      setAssessmentData(data); // Keep Date objects in local state for components
+      setAssessmentData(dataWithStrings); // Save strings to state as well to match localStorage
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
@@ -554,7 +548,7 @@ export function useUserData() {
 
         const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
         localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
-        setAssessmentData(convertStringsToDates(prefilledData));
+        setAssessmentData(prefilledDataWithStrings);
 
       } else {
         setAssessmentData(null);
