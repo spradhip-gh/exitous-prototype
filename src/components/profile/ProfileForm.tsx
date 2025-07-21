@@ -40,7 +40,7 @@ export default function ProfileForm() {
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(profileSchema),
-        defaultValues: {
+        values: profileData || { // Use `values` for dynamic defaults
             birthYear: undefined,
             state: '',
             gender: '',
@@ -55,12 +55,6 @@ export default function ProfileForm() {
             hasChildrenAges18To26: '',
         },
     });
-
-    useEffect(() => {
-        if (profileData) {
-            form.reset(profileData);
-        }
-    }, [profileData, form]);
 
     const watchedGender = form.watch('gender');
 
@@ -83,7 +77,7 @@ export default function ProfileForm() {
     };
 
     return (
-        <Form {...form}>
+        <Form {...form} key={profileData ? 'loaded' : 'loading'}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 <Card>
                     <CardHeader>
@@ -103,7 +97,7 @@ export default function ProfileForm() {
                         <FormField control={form.control} name="state" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>What state do you live in?</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value ?? ''}>
+                                <Select onValueChange={field.onChange} value={field.value ?? ''}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a state" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {usStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
