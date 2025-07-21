@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
-import { convertStringsToDates, convertDatesToStrings } from '@/hooks/use-user-data';
+import { convertStringsToDates } from '@/hooks/use-user-data';
 
 
 const renderFormControl = (question: Question, field: any, form: any) => {
@@ -171,21 +171,21 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
     const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
+
+    // Prepare data once with useMemo, ensuring date conversions happen before form initialization.
+    const formValues = useMemo(() => {
+      if (initialData) {
+        return convertStringsToDates(initialData);
+      }
+      return {};
+    }, [initialData]);
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        defaultValues: {},
+        values: formValues, // Use `values` for reliable async data handling
     });
 
-    const { watch, setValue, getValues, reset } = form;
-
-    useEffect(() => {
-        if(initialData) {
-            const dataWithDates = convertStringsToDates(initialData);
-            reset(dataWithDates);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialData, reset]);
+    const { watch, setValue, getValues } = form;
     
     const companyDetails = useMemo(() => {
         if (!auth?.companyName) return null;
@@ -293,7 +293,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8" key={initialData ? 'form-loaded' : 'form-loading'}>
                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
                     <Card key={section}>
                         <CardHeader>
