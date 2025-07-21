@@ -72,7 +72,9 @@ const initializeDb = (): DemoDatabase => {
                 version: 'pro', 
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
-                severanceDeadlineTimezone: 'America/Los_Angeles'
+                severanceDeadlineTimezone: 'America/Los_Angeles',
+                preLayoffContactAlias: 'hr@globex.com',
+                postLayoffContactAlias: 'alumni-support@globex.com',
             },
             { 
                 companyName: 'Initech', 
@@ -80,7 +82,9 @@ const initializeDb = (): DemoDatabase => {
                 version: 'basic', 
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
-                severanceDeadlineTimezone: 'America/Chicago'
+                severanceDeadlineTimezone: 'America/Chicago',
+                preLayoffContactAlias: 'hr@initech.com',
+                postLayoffContactAlias: 'alumni-support@initech.com',
             }
         ],
         companyConfigs: {
