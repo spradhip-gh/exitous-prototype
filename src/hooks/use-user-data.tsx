@@ -211,7 +211,15 @@ export function useUserData() {
       }
       
       setProfileData(profileJson ? JSON.parse(profileJson) : null);
-      setAssessmentData(assessmentJson ? JSON.parse(assessmentJson) : null);
+      
+      const rawAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
+      if (rawAssessmentData) {
+        // Convert date strings to Date objects before setting state
+        const assessmentWithDates = convertStringsToDates(rawAssessmentData);
+        setAssessmentData(assessmentWithDates);
+      } else {
+        setAssessmentData(null);
+      }
 
 
       const completedTasksJson = localStorage.getItem(completedTasksKey);
@@ -258,7 +266,8 @@ export function useUserData() {
     try {
       const dataWithStrings = convertDatesToStrings(data);
       localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-      setAssessmentData(dataWithStrings); // Save strings to state as well to match localStorage
+      // The component expects Date objects, so we keep the passed `data` in state
+      setAssessmentData(data); 
 
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
@@ -548,7 +557,7 @@ export function useUserData() {
 
         const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
         localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
-        setAssessmentData(prefilledDataWithStrings);
+        setAssessmentData(convertStringsToDates(prefilledDataWithStrings));
 
       } else {
         setAssessmentData(null);

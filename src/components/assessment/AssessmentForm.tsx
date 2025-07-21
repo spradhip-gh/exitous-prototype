@@ -166,7 +166,7 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'], initialData: AssessmentData }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData }) {
     const router = useRouter();
     const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
@@ -317,12 +317,11 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
 }
 
 export default function AssessmentForm() {
-    const { getCompanyConfig, isUserDataLoading, getCompanyUser, assessmentData } = useUserData();
+    const { getCompanyConfig, isUserDataLoading, assessmentData } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
-    const [initialData, setInitialData] = useState<AssessmentData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -330,43 +329,11 @@ export default function AssessmentForm() {
             const companyQuestions = getCompanyConfig(auth.companyName, true);
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions));
-
-            let loadedData: Partial<AssessmentData> = assessmentData ? { ...assessmentData } : {};
-            const companyUser = auth.email ? getCompanyUser(auth.email) : null;
-
-            if (!assessmentData && companyUser?.user.prefilledAssessmentData) {
-                const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
-                loadedData = { ...loadedData, ...prefilled };
-            }
-
-            if (!assessmentData && companyUser?.user.notificationDate) {
-               loadedData.notificationDate = companyUser.user.notificationDate;
-            }
-
-            const getDefaults = (q: Question) => {
-                let defaults: Record<string, any> = {};
-                if (q.defaultValue && q.defaultValue.length > 0 && !loadedData[q.id as keyof typeof loadedData]) {
-                    defaults[q.id] = q.defaultValue;
-                }
-                if (q.subQuestions) {
-                    q.subQuestions.forEach(subQ => Object.assign(defaults, getDefaults(subQ)));
-                }
-                return defaults;
-            };
-
-            let defaultValues: Partial<AssessmentData> = {};
-            companyQuestions.forEach(q => Object.assign(defaultValues, getDefaults(q)));
-            
-            // The key fix: convert date strings to Date objects *before* setting the initial data.
-            const rawData = { ...defaultValues, ...loadedData };
-            const dataWithDateObjects = convertStringsToDates(rawData);
-
-            setInitialData(dataWithDateObjects as AssessmentData);
             setIsLoading(false);
         }
-    }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, getCompanyUser]);
+    }, [isUserDataLoading, getCompanyConfig, auth]);
 
-    if (isLoading || !initialData || !questions || !dynamicSchema) {
+    if (isLoading || !assessmentData || !questions || !dynamicSchema) {
         return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -382,5 +349,5 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData} />;
+    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={assessmentData} />;
 }
