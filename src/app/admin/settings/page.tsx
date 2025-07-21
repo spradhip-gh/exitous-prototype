@@ -14,7 +14,8 @@ import { timezones } from '@/lib/timezones';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function CompanySettingsPage() {
   const { toast } = useToast();
@@ -35,6 +36,8 @@ export default function CompanySettingsPage() {
   const userCount = companyConfig?.users?.length ?? 0;
   const maxUsers = companyAssignmentForHr?.maxUsers ?? 0;
   const userProgress = maxUsers > 0 ? (userCount / maxUsers) * 100 : 0;
+  
+  const companySettingsComplete = !!(companyAssignmentForHr?.preLayoffContactAlias && companyAssignmentForHr?.postLayoffContactAlias);
 
   useEffect(() => {
     if (companyAssignmentForHr) {
@@ -101,6 +104,16 @@ export default function CompanySettingsPage() {
             Manage your company's plan and default settings.
           </p>
         </div>
+        
+        {!companySettingsComplete && (
+            <Alert variant="destructive">
+                <Info className="h-4 w-4"/>
+                <AlertTitle>Complete Your Setup</AlertTitle>
+                <AlertDescription>
+                   Please set the default pre- and post-layoff contact aliases before inviting users. This ensures your employees know who to contact for help.
+                </AlertDescription>
+            </Alert>
+        )}
 
         <Card>
             <CardHeader>

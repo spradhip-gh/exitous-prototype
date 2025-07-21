@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -17,7 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
-function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro' }) {
+function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
@@ -104,9 +105,10 @@ function AdminNav({ role, version }: { role: 'hr' | 'consultant' | 'admin', vers
             </Button>
           </Link>
           <Link href="/admin/settings">
-            <Button variant={getVariant('/admin/settings')} className="w-full justify-start">
+            <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
               <Settings className="mr-2" />
               Company Settings
+              {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500"></span>}
             </Button>
           </Link>
           <Separator className="my-2" />
@@ -156,7 +158,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
   
-  const navContent = <AdminNav role={auth.role as any} version={companyAssignmentForHr?.version} />;
+  const companySettingsComplete = !!(companyAssignmentForHr?.preLayoffContactAlias && companyAssignmentForHr?.postLayoffContactAlias);
+  const navContent = <AdminNav role={auth.role as any} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
