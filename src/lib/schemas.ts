@@ -26,7 +26,14 @@ export type ProfileData = z.infer<typeof profileSchema>;
 
 const baseAssessmentFields = {
   companyName: z.string().optional(),
-  workStatus: z.string({ required_error: 'Work status is required.'}).min(1, 'Work status is required.'),
+  workStatus: z.enum([
+        'Contract employee',
+        'Full-time employee',
+        'Independent contractor',
+        'Intern or apprentice',
+        'Part-time employee',
+        'Other'
+    ], { required_error: 'Work status is required.'}),
   startDate: z.date({ required_error: 'Start date is required.' }),
   notificationDate: z.date({ required_error: 'Notification date is required.' }),
   finalDate: z.date({ required_error: 'Final employment date is required.' }),

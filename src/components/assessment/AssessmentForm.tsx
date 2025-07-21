@@ -31,6 +31,21 @@ import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
+    // Special handling for workStatus due to long option text
+    if (question.id === 'workStatus') {
+        const simplifiedOptions = question.options?.map(o => o.split(':')[0]) || [];
+        return (
+            <Select onValueChange={field.onChange} value={field.value || ''}>
+                <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
+                <SelectContent>
+                    {question.options?.map((o, index) => (
+                        <SelectItem key={simplifiedOptions[index]} value={simplifiedOptions[index]}>{o}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        )
+    }
+
     switch (question.type) {
         case 'select':
             return (
@@ -159,6 +174,12 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
         resolver: zodResolver(dynamicSchema),
         defaultValues: initialData,
     });
+
+    useEffect(() => {
+        if(initialData){
+            form.reset(initialData);
+        }
+    }, [initialData, form.reset])
 
     const { watch, setValue, getValues } = form;
     
