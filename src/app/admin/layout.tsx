@@ -143,7 +143,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [auth, loading, router]);
 
-  if (loading || (auth?.role !== 'hr' && auth?.role !== 'consultant' && auth?.role !== 'admin')) {
+  if (loading || !auth || (auth.role !== 'hr' && auth.role !== 'consultant' && auth.role !== 'admin')) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -159,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
   
   const companySettingsComplete = !!(companyAssignmentForHr?.preLayoffContactAlias && companyAssignmentForHr?.postLayoffContactAlias);
-  const navContent = <AdminNav role={auth.role as any} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
+  const navContent = <AdminNav role={auth.role} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
