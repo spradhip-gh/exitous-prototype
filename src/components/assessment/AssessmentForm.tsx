@@ -34,7 +34,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
     switch (question.type) {
         case 'select':
             return (
-                <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                     <SelectContent>{question.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                 </Select>
@@ -149,7 +149,7 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'], initialData: AssessmentData | null }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, companyUser: ReturnType<typeof useUserData>['getCompanyUser'], initialData: AssessmentData }) {
     const router = useRouter();
     const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
@@ -157,7 +157,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        defaultValues: initialData || {},
+        defaultValues: initialData,
     });
 
     const { watch, setValue, getValues } = form;
