@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
@@ -177,7 +177,37 @@ function AssessmentFormRenderer({ questions, dynamicSchema, companyUser, initial
 
     useEffect(() => {
         if(initialData){
-            form.reset(initialData);
+            // The initialData might have date strings from localStorage, so we convert them to Date objects before resetting the form
+            const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+            
+            const convertStringsToDates = (obj: any): any => {
+                if (!obj) return obj;
+                if (typeof obj === 'string') {
+                    if (isoDateRegex.test(obj) || isoDateTimeRegex.test(obj.split('T')[0])) {
+                         const [year, month, day] = obj.split('T')[0].split('-').map(Number);
+                         if (year && month && day) {
+                            return new Date(year, month - 1, day);
+                         }
+                    }
+                }
+                if (Array.isArray(obj)) {
+                    return obj.map(item => convertStringsToDates(item));
+                }
+                if (typeof obj === 'object') {
+                    const newObj: { [key: string]: any } = {};
+                    for (const key in obj) {
+                        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                            newObj[key] = convertStringsToDates(obj[key]);
+                        }
+                    }
+                    return newObj;
+                }
+                return obj;
+            };
+
+            const dataWithDateObjects = convertStringsToDates(initialData);
+            form.reset(dataWithDateObjects);
         }
     }, [initialData, form.reset])
 
@@ -325,6 +355,7 @@ export default function AssessmentForm() {
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
     const [initialData, setInitialData] = useState<AssessmentData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
@@ -337,24 +368,11 @@ export default function AssessmentForm() {
 
             if (!assessmentData && companyUser?.user.prefilledAssessmentData) {
                 const prefilled: Record<string, any> = { ...companyUser.user.prefilledAssessmentData };
-                for (const key in prefilled) {
-                    const value = prefilled[key as keyof typeof prefilled];
-                    if (typeof value === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('deadline'))) {
-                        const [year, month, day] = value.split('-').map(Number);
-                        if (year && month && day) {
-                            (prefilled as any)[key] = new Date(year, month - 1, day);
-                        }
-                    }
-                }
                 loadedData = { ...loadedData, ...prefilled };
             }
 
             if (!assessmentData && companyUser?.user.notificationDate) {
-               const dateStr = companyUser.user.notificationDate;
-               const [year, month, day] = dateStr.split('-').map(Number);
-               if (year && month && day) {
-                  loadedData.notificationDate = new Date(year, month - 1, day);
-               }
+               loadedData.notificationDate = companyUser.user.notificationDate;
             }
 
             const getDefaults = (q: Question) => {
@@ -372,10 +390,11 @@ export default function AssessmentForm() {
             companyQuestions.forEach(q => Object.assign(defaultValues, getDefaults(q)));
 
             setInitialData({ ...defaultValues, ...loadedData } as AssessmentData);
+            setIsLoading(false);
         }
     }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, getCompanyUser]);
 
-    if (!questions || !dynamicSchema || initialData === null) {
+    if (isLoading) {
         return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -391,5 +410,5 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData} />;
+    return <AssessmentFormRenderer questions={questions!} dynamicSchema={dynamicSchema!} companyUser={getCompanyUser(auth?.email || '')} initialData={initialData!} />;
 }
