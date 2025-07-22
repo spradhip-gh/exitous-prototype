@@ -285,7 +285,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   hasChildrenAges18To26: 'No',
                 },
                 assessment: {
-                  workStatus: 'Full-time employee',
+                  workStatus: 'Full-time employee: Employed for 40 hours or more per week with salary and benefits',
                   startDate: new Date('2020-01-15'),
                   notificationDate: new Date(getPastDate(5)),
                   finalDate: new Date(getFutureDate(25)),
@@ -294,7 +294,8 @@ This checklist is designed to help you manage key tasks during your employment t
                   relocationPaid: 'No',
                   unionMember: 'No',
                   workArrangement: 'Hybrid',
-                  workVisa: 'No/Not Applicable',
+                  workArrangementOther: '',
+                  workVisa: 'None of the above',
                   onLeave: ['None of the above'],
                   accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
                   emailAccessEndDate: new Date(getFutureDate(32)),
