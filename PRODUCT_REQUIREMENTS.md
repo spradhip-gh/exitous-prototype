@@ -108,28 +108,32 @@ Stores users with platform-wide access roles.
 Stores end-users associated with a specific company.
 | Column                       | Type      | Description                                                    |
 | ---------------------------- | --------- | -------------------------------------------------------------- |
-| `id`                         | `UUID`    | Primary Key                                                    |
-| `company_id`                 | `UUID`    | Foreign key to `companies.id`.                                 |
+| `id`                         | `UUID`    | **Primary Key**.                                               |
+| `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                             |
 | `email`                      | `TEXT`    | The end-user's primary (work) email.                           |
 | `company_user_id`            | `TEXT`    | The user's ID within their company's system.                   |
 | `personal_email`             | `TEXT`    | Optional personal email for the user.                          |
 | `notification_date`          | `DATE`    | The date the user was notified of their exit.                  |
-| `notified`                   | `BOOLEAN` | `true` if an invitation has been sent.                         |
+| `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.       |
 | `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.      |
+| `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.        |
+| `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment.     |
 
 ### `user_profiles`
 Stores the profile data for each end-user.
 | Column      | Type      | Description                                  |
 | ----------- | --------- | -------------------------------------------- |
-| `user_id`   | `UUID`    | Foreign key to `company_users.id` (Primary Key). |
+| `user_id`   | `UUID`    | **Primary Key** and **Foreign Key** to `company_users.id`. |
 | `data`      | `JSONB`   | The complete JSON object of the user's profile. |
+| `updated_at`| `TIMESTAMPTZ`| Timestamp of the last update. |
 
 ### `user_assessments`
 Stores the assessment (exit details) data for each end-user.
 | Column      | Type      | Description                                      |
 | ----------- | --------- | ------------------------------------------------ |
-| `user_id`   | `UUID`    | Foreign key to `company_users.id` (Primary Key). |
+| `user_id`   | `UUID`    | **Primary Key** and **Foreign Key** to `company_users.id`. |
 | `data`      | `JSONB`   | The complete JSON object of the user's assessment. |
+| `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update. |
 
 ### `master_questions`
 Stores the master list of all possible assessment questions.
@@ -142,7 +146,7 @@ Stores the master list of all possible assessment questions.
 Stores company-specific customizations for the assessment form.
 | Column                   | Type      | Description                                                |
 | ------------------------ | --------- | ---------------------------------------------------------- |
-| `company_id`             | `UUID`    | Foreign key to `companies.id` (Primary Key).                 |
+| `company_id`             | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`. |
 | `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified.   |
 | `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
 | `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
