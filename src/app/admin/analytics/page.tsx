@@ -15,7 +15,7 @@ const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--c
 
 export default function AnalyticsPage() {
   const { auth } = useAuth();
-  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, companyAssignments, assessmentCompletions } = useUserData();
+  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading } = useUserData();
   const companyName = auth?.companyName;
   const isAdmin = auth?.role === 'admin';
 
@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
     if (isUserDataLoading) return null;
 
     const allConfigs = getAllCompanyConfigs();
-    const companiesToProcess = isAdmin ? companyAssignments.map(c => c.companyName) : (companyName ? [companyName] : []);
+    const companiesToProcess = isAdmin ? Object.keys(allConfigs) : (companyName ? [companyName] : []);
     
     if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [] };
 
@@ -41,17 +41,12 @@ export default function AnalyticsPage() {
     flattenQuestions(allQuestions);
 
     const unsureCountsByCompany: Record<string, Record<string, number>> = {};
-    const completionsByCompany: Record<string, number> = {};
 
     for (const compName of companiesToProcess) {
         const companyConfig = allConfigs[compName];
         if (!companyConfig || !companyConfig.users) continue;
         
-        let completedCount = 0;
         for (const user of companyConfig.users) {
-            if (assessmentCompletions[user.email]) {
-              completedCount++;
-            }
             const assessmentData = user.prefilledAssessmentData;
             if (assessmentData) {
                 for (const questionId in assessmentData) {
@@ -65,17 +60,13 @@ export default function AnalyticsPage() {
                 }
             }
         }
-        completionsByCompany[compName] = completedCount;
     }
     
-    const totalCompletions = Object.values(completionsByCompany).reduce((sum, count) => sum + count, 0);
-
     const overallSummary = Object.entries(unsureCountsByCompany).map(([questionId, companyCounts]) => {
         const totalUnsure = Object.values(companyCounts).reduce((sum, count) => sum + count, 0);
         return {
             questionId,
             questionLabel: questionMap.get(questionId)?.label || questionId,
-            percentage: totalCompletions > 0 ? (totalUnsure / totalCompletions) * 100 : 0,
             count: totalUnsure,
         }
     }).sort((a,b) => b.count - a.count);
@@ -85,9 +76,7 @@ export default function AnalyticsPage() {
         const entry: { [key: string]: string | number } = { questionLabel };
         const companyCounts = unsureCountsByCompany[questionId] || {};
         for(const compName of companiesToProcess) {
-            const unsureCount = companyCounts[compName] || 0;
-            const completedCount = completionsByCompany[compName] || 0;
-            entry[compName] = completedCount > 0 ? (unsureCount / completedCount) * 100 : 0;
+            entry[compName] = companyCounts[compName] || 0;
         }
         return entry;
     });
@@ -98,7 +87,7 @@ export default function AnalyticsPage() {
         companyKeys: companiesToProcess,
     };
 
-  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin, companyAssignments, assessmentCompletions]);
+  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin]);
   
   if (isUserDataLoading || !analyticsData) {
       return (
@@ -114,8 +103,7 @@ export default function AnalyticsPage() {
 
   const { overall, byCompany, companyKeys } = analyticsData;
 
-  const yAxisFormatter = (value: number) => `${value.toFixed(0)}%`;
-  const tooltipFormatter = (value: number) => `${value.toFixed(1)}%`;
+  const yAxisFormatter = (value: number) => `${value}`;
 
   return (
     <div className="p-4 md:p-8">
@@ -129,9 +117,9 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top "Unsure" Answers</CardTitle>
+            <CardTitle>Top "Unsure" Questions</CardTitle>
             <CardDescription>
-              This shows the percentage of employees who answered "Unsure" out of all employees who completed the assessment. This helps identify areas for documentation improvement.
+              This shows which questions employees answered "Unsure" to most frequently. This helps identify areas for documentation improvement.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -140,12 +128,12 @@ export default function AnalyticsPage() {
                 <div className="h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart 
-                            data={isAdmin ? byCompany : overall.slice(0, 5).map(item => ({ questionLabel: item.questionLabel, percentage: item.percentage }))} 
+                            data={isAdmin ? byCompany : overall.slice(0, 5).map(item => ({ questionLabel: item.questionLabel, count: item.count }))} 
                             layout={"vertical"}
                             margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} tickFormatter={yAxisFormatter} domain={[0, 100]}/>
+                            <XAxis type="number" allowDecimals={false} />
                             <YAxis 
                                 dataKey="questionLabel" 
                                 type="category" 
@@ -160,15 +148,14 @@ export default function AnalyticsPage() {
                                     backgroundColor: 'hsl(var(--background))',
                                     borderColor: 'hsl(var(--border))',
                                 }}
-                                formatter={tooltipFormatter}
                             />
                             <Legend verticalAlign="top" />
                             {isAdmin ? (
                                 companyKeys.map((key, index) => (
-                                    <Bar key={key} dataKey={key} name={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]} unit="%"/>
+                                    <Bar key={key} dataKey={key} name={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]}/>
                                 ))
                             ) : (
-                                <Bar dataKey="percentage" name="% Unsure" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} unit="%"/>
+                                <Bar dataKey="count" name="Count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}/>
                             )}
                         </BarChart>
                     </ResponsiveContainer>
@@ -177,7 +164,7 @@ export default function AnalyticsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Question</TableHead>
-                            <TableHead className="text-right">Total Unsure / % of Completed</TableHead>
+                            <TableHead className="text-right">Total Unsure</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -185,7 +172,7 @@ export default function AnalyticsPage() {
                             <TableRow key={item.questionId}>
                                 <TableCell className="font-medium">{item.questionLabel}</TableCell>
                                 <TableCell className="text-right">
-                                    <Badge variant="destructive">{item.count} / {item.percentage.toFixed(1)}%</Badge>
+                                    <Badge variant="destructive">{item.count}</Badge>
                                 </TableCell>
                             </TableRow>
                         ))}
