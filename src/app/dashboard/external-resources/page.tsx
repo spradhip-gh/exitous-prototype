@@ -66,10 +66,18 @@ export default function ExternalResourcesPage() {
                     hasExpectedChildren: String(profileData.hasExpectedChildren).startsWith('Yes'),
                     hasChildrenAges18To26: String(profileData.hasChildrenAges18To26).startsWith('Yes'),
                 };
+                
+                const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
+                Object.keys(assessmentData).forEach(key => {
+                    const value = (assessmentData as any)[key];
+                    if (value instanceof Date) {
+                        stringifiedAssessmentData[key] = value.toISOString();
+                    }
+                });
 
                 const result = await findExpertMatches({
                     profileData: transformedProfileData,
-                    layoffDetails: assessmentData,
+                    layoffDetails: stringifiedAssessmentData,
                 } as ExpertMatchInput);
                 setMatches(result);
             } catch (e) {
