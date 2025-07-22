@@ -376,45 +376,51 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 
         return (
           <div key={item.taskId || index} className="relative mb-8 flex items-start gap-4">
-            <div className="absolute left-[-2.25rem] top-1.5 flex h-6 items-center">
-              <Checkbox
-                id={`task-timeline-${item.taskId}`}
-                checked={isCompleted}
-                onCheckedChange={() => toggleTaskCompletion(item.taskId)}
-                className="h-6 w-6"
-              />
-            </div>
             <div className="absolute left-3 top-1.5 h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background -translate-x-1/2">
-               <Icon className={cn("h-4 w-4 text-primary-foreground", isCompleted && "text-gray-400")} />
+               <Icon className={cn("h-4 w-4 text-primary-foreground")} />
             </div>
-            <div className={cn("pl-8 pt-0.5 w-full", isCompleted && "text-muted-foreground line-through")}>
+            <div className={cn("pl-8 pt-0.5 w-full", isCompleted && "text-muted-foreground")}>
               <p className="text-sm font-semibold">{item.timeline}</p>
               <div className="flex items-center gap-2 mb-1">
-                 <p className="text-base font-semibold">{item.task}</p>
+                 <p className={cn("text-base font-semibold", isCompleted && "line-through")}>{item.task}</p>
                  <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
               </div>
-              <p className="text-sm">{item.details}</p>
-               {displayDate && (
-                  <div className="flex items-center gap-1 text-sm mt-2 font-medium text-destructive/80">
-                    <Calendar className="h-4 w-4" />
-                    <span>Due: {formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
-                     {!isCompleted && <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarPicker
-                          mode="single"
-                          selected={displayDate}
-                          onSelect={(date) => handleDateSelect(item.taskId, date)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>}
-                  </div>
+              <p className={cn("text-sm", isCompleted && "line-through")}>{item.details}</p>
+              
+               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                {displayDate && (
+                    <div className="flex items-center gap-1 text-sm font-medium text-destructive/80">
+                        <Calendar className="h-4 w-4" />
+                        <span>Due: {formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
+                        {!isCompleted && <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <Edit className="h-3 w-3" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <CalendarPicker
+                            mode="single"
+                            selected={displayDate}
+                            onSelect={(date) => handleDateSelect(item.taskId, date)}
+                            initialFocus
+                            />
+                        </PopoverContent>
+                        </Popover>}
+                    </div>
                 )}
+                
+                <div className="flex items-center space-x-2">
+                    <Checkbox
+                        id={`task-timeline-${item.taskId}`}
+                        checked={isCompleted}
+                        onCheckedChange={() => toggleTaskCompletion(item.taskId)}
+                    />
+                    <Label htmlFor={`task-timeline-${item.taskId}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Mark as Complete
+                    </Label>
+                </div>
+              </div>
             </div>
           </div>
         );
