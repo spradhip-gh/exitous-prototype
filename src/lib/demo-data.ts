@@ -294,7 +294,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   relocationPaid: 'No',
                   unionMember: 'No',
                   workArrangement: 'Hybrid',
-                  workVisa: 'None of the above',
+                  workVisa: 'No/Not Applicable',
                   onLeave: ['None of the above'],
                   accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
                   emailAccessEndDate: new Date(getFutureDate(32)),
@@ -306,7 +306,8 @@ This checklist is designed to help you manage key tasks during your employment t
                   hadVisionInsurance: 'No',
                   hadEAP: 'Yes',
                   eapCoverageEndDate: new Date('2025-08-31'),
-                } as AssessmentData, // Cast to avoid TS date/string conflicts
+                  'globex-corp-custom-1': 'No',
+                } as any, // Cast to any to avoid TS conflicts with custom questions
             },
             'employee2@globex.com': {
                 profile: {
