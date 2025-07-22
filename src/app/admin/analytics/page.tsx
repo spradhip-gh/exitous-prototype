@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
     };
     flattenQuestions(allQuestions);
 
-    const unsureCountsByCompany: Record<string, Record<string, number>> = {}; // { questionId: { companyName: count } }
+    const unsureCountsByCompany: Record<string, Record<string, number>> = {};
 
     for (const compName of companiesToProcess) {
         const companyConfig = allConfigs[compName];
@@ -128,14 +128,15 @@ export default function AnalyticsPage() {
                         <BarChart 
                             data={isAdmin ? byCompany : overall.slice(0, 5)} 
                             layout="vertical" 
-                            margin={{ left: 120 }}
+                            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" allowDecimals={false} />
                             <YAxis 
                                 dataKey="questionLabel" 
                                 type="category" 
-                                width={150}
+                                width={180}
+                                interval={0}
                                 tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 25)}...` : value}
                             />
                             <Tooltip 
@@ -149,7 +150,7 @@ export default function AnalyticsPage() {
                                 <>
                                 <Legend />
                                 {companyKeys.map((key, index) => (
-                                    <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]} />
+                                    <Bar key={key} dataKey={key} name={key} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]} />
                                 ))}
                                 </>
                             ) : (
