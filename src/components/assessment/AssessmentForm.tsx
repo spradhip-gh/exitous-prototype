@@ -191,7 +191,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
         defaultValues: initialData,
     });
 
-    const { watch, setValue, getValues } = form;
+    const { watch, setValue, getValues, reset } = form;
+
+    useEffect(() => {
+        if (initialData) {
+            reset(initialData);
+        }
+    }, [initialData, reset]);
     
     const companyDetails = useMemo(() => {
         if (!auth?.companyName) return null;
