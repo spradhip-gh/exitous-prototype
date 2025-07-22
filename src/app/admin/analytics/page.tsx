@@ -129,10 +129,9 @@ export default function AnalyticsPage() {
                             data={isAdmin ? byCompany : overall.slice(0, 5)} 
                             layout="vertical" 
                             margin={{ left: 120 }}
-                            stackOffset={isAdmin ? "expand" : undefined}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} domain={isAdmin ? [0, 1] : undefined} tickFormatter={isAdmin ? (tick) => `${tick * 100}%` : undefined} />
+                            <XAxis type="number" allowDecimals={false} />
                             <YAxis 
                                 dataKey="questionLabel" 
                                 type="category" 
@@ -145,12 +144,6 @@ export default function AnalyticsPage() {
                                     backgroundColor: 'hsl(var(--background))',
                                     borderColor: 'hsl(var(--border))',
                                 }}
-                                formatter={isAdmin ? (value: number, name: string, props) => {
-                                    const total = props.payload.total;
-                                    const percent = total > 0 ? (value / total * 100).toFixed(1) : 0;
-                                    return `${value} (${percent}%)`;
-                                } : undefined}
-
                             />
                             {isAdmin ? (
                                 <>

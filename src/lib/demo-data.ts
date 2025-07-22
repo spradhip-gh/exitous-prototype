@@ -215,6 +215,38 @@ This checklist is designed to help you manage key tasks during your employment t
             'Initech': {
                 questions: {},
                 users: [
+                    { 
+                        email: 'peter.gibbons@initech.com', 
+                        companyId: 'I-001', 
+                        notificationDate: getPastDate(14), 
+                        notified: true,
+                        prefilledAssessmentData: {
+                            relocationPaid: 'No',
+                            unionMember: 'Unsure',
+                        }
+                    },
+                    { 
+                        email: 'samir.nagheenanajar@initech.com', 
+                        companyId: 'I-002', 
+                        notificationDate: getPastDate(14), 
+                        notified: true,
+                        prefilledAssessmentData: {
+                            relocationPaid: 'Unsure',
+                            unionMember: 'No',
+                            hadVisionInsurance: 'Unsure',
+                        }
+                    },
+                     { 
+                        email: 'michael.bolton@initech.com', 
+                        companyId: 'I-003', 
+                        notificationDate: getPastDate(14), 
+                        notified: true,
+                        prefilledAssessmentData: {
+                            relocationPaid: 'No',
+                            hadMedicalInsurance: 'Unsure',
+                            hadDentalInsurance: 'Unsure',
+                        }
+                    },
                     { email: 'employee@initech.com', companyId: 'I-99', notificationDate: new Date().toISOString().split('T')[0], notified: false }
                 ],
                 customQuestions: {},
