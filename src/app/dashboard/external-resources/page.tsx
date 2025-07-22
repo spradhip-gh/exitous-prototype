@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { externalResources, type ExternalResource } from '@/lib/external-resources';
-import { findExpertMatches, type ExpertMatchOutput } from '@/ai/flows/find-expert-matches';
+import { findExpertMatches, type ExpertMatchOutput, type ExpertMatchInput } from '@/ai/flows/find-expert-matches';
 import { useUserData } from '@/hooks/use-user-data';
 import { Sparkles, Search, ExternalLink, Terminal } from 'lucide-react';
 import Image from 'next/image';
@@ -59,10 +60,17 @@ export default function ExternalResourcesPage() {
                 return;
             }
             try {
+                const transformedProfileData = {
+                    ...profileData,
+                    hasChildrenUnder13: String(profileData.hasChildrenUnder13).startsWith('Yes'),
+                    hasExpectedChildren: String(profileData.hasExpectedChildren).startsWith('Yes'),
+                    hasChildrenAges18To26: String(profileData.hasChildrenAges18To26).startsWith('Yes'),
+                };
+
                 const result = await findExpertMatches({
-                    profileData,
+                    profileData: transformedProfileData,
                     layoffDetails: assessmentData,
-                });
+                } as ExpertMatchInput);
                 setMatches(result);
             } catch (e) {
                 console.error(e);
