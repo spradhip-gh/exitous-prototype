@@ -79,14 +79,7 @@ export function buildProfileSchema(questions: Question[]) {
 
 const baseAssessmentFields = {
   companyName: z.string().optional(),
-  workStatus: z.enum([
-        'Contract employee',
-        'Full-time employee',
-        'Independent contractor',
-        'Intern or apprentice',
-        'Part-time employee',
-        'Other'
-    ], { required_error: 'Work status is required.'}),
+  workStatus: z.string({ required_error: 'Work status is required.'}).min(1),
   startDate: z.date({ required_error: 'Start date is required.' }),
   notificationDate: z.date({ required_error: 'Notification date is required.' }),
   finalDate: z.date({ required_error: 'Final employment date is required.' }),

@@ -173,15 +173,13 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        defaultValues: initialData,
+        values: initialData,
     });
 
     const { watch, setValue, getValues, reset } = form;
-
+    
     useEffect(() => {
-        if (initialData) {
-            reset(initialData);
-        }
+        reset(initialData);
     }, [initialData, reset]);
 
     const companyDetails = useMemo(() => {
@@ -327,17 +325,21 @@ export default function AssessmentForm() {
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [initialData, setInitialData] = useState<AssessmentData | null>(null);
 
     useEffect(() => {
-        if (!isUserDataLoading && auth?.companyName) {
+        if (!isUserDataLoading && auth?.companyName && assessmentData) {
             const companyQuestions = getCompanyConfig(auth.companyName, true);
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions));
+            setInitialData(assessmentData);
+            setIsLoading(false);
+        } else if (!isUserDataLoading) {
             setIsLoading(false);
         }
-    }, [isUserDataLoading, getCompanyConfig, auth]);
+    }, [isUserDataLoading, getCompanyConfig, auth, assessmentData]);
 
-    if (isLoading || !assessmentData || !questions || !dynamicSchema) {
+    if (isLoading || !initialData || !questions || !dynamicSchema) {
         return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -353,7 +355,7 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={assessmentData} />;
+    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} />;
 }
 
     
