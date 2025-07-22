@@ -26,7 +26,7 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import ProgressTracker from './ProgressTracker';
-import { externalResources, ExternalResource } from '@/lib/external-resources';
+import { type ExternalResource } from '@/lib/external-resources';
 import Image from 'next/image';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
@@ -89,6 +89,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     addCustomDeadline,
     isAssessmentComplete,
     getTargetTimezone,
+    externalResources,
   } = useUserData();
 
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
@@ -333,6 +334,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
                                   onConnectClick={handleConnectClick}
+                                  externalResources={externalResources}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -348,6 +350,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
                                   onConnectClick={handleConnectClick}
+                                  externalResources={externalResources}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -403,9 +406,10 @@ type RecommendationProps = {
     updateTaskDate: (taskId: string, newDate: Date) => void;
     userTimezone: string;
     onConnectClick: (taskId: string, category: string) => void;
+    externalResources: ExternalResource[];
 }
 
-function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick }: RecommendationProps) {
+function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick, externalResources }: RecommendationProps) {
   if (!recommendations || recommendations.length === 0) {
     return <p className="text-muted-foreground text-center">No recommendations available.</p>;
   }
@@ -436,8 +440,10 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 
         return (
           <div key={item.taskId || index} className="relative mb-8 flex items-start gap-4">
-            <div className="absolute left-3 top-1.5 h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background -translate-x-1/2">
-               <Icon className={cn("h-4 w-4 text-primary-foreground")} />
+            <div className="flex items-center absolute left-3 top-1.5 -translate-x-1/2">
+                <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background">
+                   <Icon className={cn("h-4 w-4 text-primary-foreground")} />
+                </div>
             </div>
             <div className={cn("pl-8 pt-0.5 w-full", isCompleted && "text-muted-foreground")}>
               <p className="text-sm font-semibold">{item.timeline}</p>
@@ -495,7 +501,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 }
 
 
-function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick }: RecommendationProps) {
+function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick, externalResources }: RecommendationProps) {
     if (!recommendations || recommendations.length === 0) {
       return <p className="text-muted-foreground text-center">No recommendations available.</p>;
     }

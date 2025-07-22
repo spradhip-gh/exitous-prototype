@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
+import type { ExternalResource } from '@/lib/external-resources';
 import {
   getCompanyAssignments as getCompanyAssignmentsFromDb, saveCompanyAssignments as saveCompanyAssignmentsToDb,
   getCompanyConfigs as getCompanyConfigsFromDb, saveCompanyConfigs as saveCompanyConfigsToDb,
@@ -12,6 +14,7 @@ import {
   getAssessmentCompletions as getAssessmentCompletionsFromDb, saveAssessmentCompletions as saveAssessmentCompletionsToDb,
   getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
+  getExternalResources as getExternalResourcesFromDb, saveExternalResources as saveExternalResourcesToDb
 } from '@/lib/demo-data';
 
 const PROFILE_KEY = 'exitbetter-profile';
@@ -172,6 +175,7 @@ export function useUserData() {
   const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   const [profileCompletions, setProfileCompletionsState] = useState<Record<string, boolean>>({});
   const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
+  const [externalResources, setExternalResourcesState] = useState<ExternalResource[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -196,6 +200,7 @@ export function useUserData() {
       setProfileCompletionsState(getProfileCompletionsFromDb());
       setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
       setMasterQuestionsState(getMasterQuestionsFromDb());
+      setExternalResourcesState(getExternalResourcesFromDb());
 
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
@@ -335,6 +340,11 @@ export function useUserData() {
     saveCompanyConfigsToDb(newConfigs);
     setCompanyConfigsState(newConfigs);
   }, [companyConfigs]);
+
+  const saveExternalResources = useCallback((resources: ExternalResource[]) => {
+    saveExternalResourcesToDb(resources);
+    setExternalResourcesState(resources);
+  }, []);
   
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
     return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
@@ -605,6 +615,7 @@ export function useUserData() {
     profileCompletions,
     assessmentCompletions,
     platformUsers,
+    externalResources,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,
@@ -625,5 +636,6 @@ export function useUserData() {
     addPlatformUser,
     deletePlatformUser,
     getPlatformUserRole,
+    saveExternalResources,
   };
 }
