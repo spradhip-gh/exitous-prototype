@@ -183,12 +183,6 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
             reset(initialData);
         }
     }, [initialData, reset]);
-    
-    useEffect(() => {
-        if (initialData?.workVisa && form.getValues('workVisa') !== initialData.workVisa) {
-            form.setValue('workVisa', initialData.workVisa, { shouldValidate: true, shouldDirty: true });
-        }
-    }, [initialData, form]);
 
     const companyDetails = useMemo(() => {
         if (!auth?.companyName) return null;
@@ -361,3 +355,5 @@ export default function AssessmentForm() {
 
     return <AssessmentFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={assessmentData} />;
 }
+
+    
