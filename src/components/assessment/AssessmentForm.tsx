@@ -46,21 +46,6 @@ const safeFormatDate = (value: any, formatString: string) => {
 }
 
 const renderFormControl = (question: Question, field: any, form: any) => {
-    // Special handling for workStatus due to long option text
-    if (question.id === 'workStatus') {
-        const simplifiedOptions = question.options?.map(o => o.split(':')[0]) || [];
-        return (
-            <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
-                <SelectContent>
-                    {question.options?.map((o, index) => (
-                        <SelectItem key={simplifiedOptions[index]} value={o}>{o}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        )
-    }
-
     switch (question.type) {
         case 'select':
             return (
