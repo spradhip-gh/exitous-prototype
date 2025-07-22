@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import type { Question } from './questions';
 
@@ -114,9 +115,9 @@ const baseAssessmentFields = {
   eapCoverageEndDate: z.date().optional(),
 };
 
-export type AssessmentData = z.infer<z.ZodObject<typeof baseAssessmentFields>>;
+export type AssessmentData = z.infer<z.ZodObject<typeof baseAssessmentFields>> & { citizenshipStatus?: string };
 
-export function buildAssessmentSchema(activeQuestions: Question[]) {
+export function buildAssessmentSchema(activeQuestions: Question[], citizenshipStatus: string | undefined) {
   const getAllQuestionIds = (questions: Question[]): string[] => {
     let ids: string[] = [];
     questions.forEach(q => {
@@ -132,9 +133,14 @@ export function buildAssessmentSchema(activeQuestions: Question[]) {
   const shape: any = {};
 
   for (const key in baseAssessmentFields) {
-    const fieldKey = key as keyof AssessmentData;
+    const fieldKey = key as keyof typeof baseAssessmentFields;
     if (activeIds.has(fieldKey)) {
-      shape[fieldKey] = baseAssessmentFields[fieldKey];
+      // Special handling for workVisaStatus
+      if (fieldKey === 'workVisaStatus' && citizenshipStatus === 'U.S. citizen') {
+        shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
+      } else {
+        shape[fieldKey] = baseAssessmentFields[fieldKey];
+      }
     } else {
       if (baseAssessmentFields[fieldKey] && !baseAssessmentFields[fieldKey].isOptional()) {
         shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
