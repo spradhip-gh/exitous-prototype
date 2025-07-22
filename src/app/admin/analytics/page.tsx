@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import type { Question } from '@/lib/questions';
@@ -10,14 +10,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
+interface AnalyticsItem {
+    questionId: string;
+    questionLabel: string;
+    count: number;
+    companyCounts?: Record<string, number>;
+}
+
 
 export default function AnalyticsPage() {
   const { auth } = useAuth();
   const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading } = useUserData();
   const companyName = auth?.companyName;
   const isAdmin = auth?.role === 'admin';
+  const [selectedQuestion, setSelectedQuestion] = useState<AnalyticsItem | null>(null);
 
   const analyticsData = useMemo(() => {
     if (isUserDataLoading) return null;
@@ -28,7 +38,8 @@ export default function AnalyticsPage() {
     if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [] };
 
     const questionMap: Map<string, Question> = new Map();
-    const allQuestions = getCompanyConfig(isAdmin ? undefined : companyName, false);
+    // For admins, get all possible questions across all companies. For HR, just their own.
+    const allQuestions = getCompanyConfig(undefined, false);
     
     const flattenQuestions = (questions: Question[]) => {
       for (const q of questions) {
@@ -62,30 +73,17 @@ export default function AnalyticsPage() {
         }
     }
     
-    const overallSummary = Object.entries(unsureCountsByCompany).map(([questionId, companyCounts]) => {
+    const overallSummary: AnalyticsItem[] = Object.entries(unsureCountsByCompany).map(([questionId, companyCounts]) => {
         const totalUnsure = Object.values(companyCounts).reduce((sum, count) => sum + count, 0);
         return {
             questionId,
             questionLabel: questionMap.get(questionId)?.label || questionId,
             count: totalUnsure,
+            companyCounts: companyCounts,
         }
     }).sort((a,b) => b.count - a.count);
 
-
-    const chartDataByCompany = overallSummary.slice(0, 5).map(({ questionId, questionLabel }) => {
-        const entry: { [key: string]: string | number } = { questionLabel };
-        const companyCounts = unsureCountsByCompany[questionId] || {};
-        for(const compName of companiesToProcess) {
-            entry[compName] = companyCounts[compName] || 0;
-        }
-        return entry;
-    });
-
-    return {
-        overall: overallSummary,
-        byCompany: chartDataByCompany,
-        companyKeys: companiesToProcess,
-    };
+    return { overall: overallSummary, companyKeys: companiesToProcess };
 
   }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin]);
   
@@ -101,9 +99,8 @@ export default function AnalyticsPage() {
       )
   }
 
-  const { overall, byCompany, companyKeys } = analyticsData;
-
-  const yAxisFormatter = (value: number) => `${value}`;
+  const { overall } = analyticsData;
+  const drilldownChartData = selectedQuestion?.companyCounts ? Object.entries(selectedQuestion.companyCounts).map(([name, count]) => ({ name, count })) : [];
 
   return (
     <div className="p-4 md:p-8">
@@ -117,9 +114,10 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top "Unsure" Questions</CardTitle>
+            <CardTitle>Top "Unsure" Answers</CardTitle>
             <CardDescription>
-              This shows which questions employees answered "Unsure" to most frequently. This helps identify areas for documentation improvement.
+              This shows which questions employees answered "Unsure" to most frequently.
+              {isAdmin && " Click a row to see the company breakdown."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -127,11 +125,7 @@ export default function AnalyticsPage() {
               <div className="grid gap-8">
                 <div className="h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                            data={isAdmin ? byCompany : overall.slice(0, 5).map(item => ({ questionLabel: item.questionLabel, count: item.count }))} 
-                            layout={"vertical"}
-                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                        >
+                        <BarChart data={overall.slice(0, 5)} layout={"vertical"} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" allowDecimals={false} />
                             <YAxis 
@@ -141,7 +135,6 @@ export default function AnalyticsPage() {
                                 interval={0}
                                 tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 25)}...` : value}
                             />
-                           
                             <Tooltip 
                                 cursor={{ fill: 'hsl(var(--muted))' }}
                                 contentStyle={{
@@ -149,14 +142,7 @@ export default function AnalyticsPage() {
                                     borderColor: 'hsl(var(--border))',
                                 }}
                             />
-                            <Legend verticalAlign="top" />
-                            {isAdmin ? (
-                                companyKeys.map((key, index) => (
-                                    <Bar key={key} dataKey={key} name={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]}/>
-                                ))
-                            ) : (
-                                <Bar dataKey="count" name="Count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}/>
-                            )}
+                            <Bar dataKey="count" name="Total Unsure" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}/>
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -169,7 +155,11 @@ export default function AnalyticsPage() {
                     </TableHeader>
                     <TableBody>
                         {overall.map(item => (
-                            <TableRow key={item.questionId}>
+                            <TableRow 
+                                key={item.questionId}
+                                onClick={() => isAdmin && setSelectedQuestion(item)}
+                                className={isAdmin ? "cursor-pointer" : ""}
+                            >
                                 <TableCell className="font-medium">{item.questionLabel}</TableCell>
                                 <TableCell className="text-right">
                                     <Badge variant="destructive">{item.count}</Badge>
@@ -188,6 +178,30 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+      
+       <Dialog open={!!selectedQuestion} onOpenChange={(isOpen) => !isOpen && setSelectedQuestion(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Company Breakdown for "{selectedQuestion?.questionLabel}"</DialogTitle>
+                    <DialogDescription>
+                        Number of "Unsure" answers per company for this question.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="h-[300px] py-4">
+                     <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={drilldownChartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}/>
+                            <Legend />
+                             <Bar dataKey="count" name="Unsure Count" fill={'hsl(var(--chart-1))'} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
+
