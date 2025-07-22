@@ -376,12 +376,12 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 
         return (
           <div key={item.taskId || index} className="relative mb-8 flex items-start gap-4">
-             <div className="absolute left-0 top-1">
-              <Checkbox 
+            <div className="absolute left-[-2.25rem] top-1.5 flex h-6 items-center">
+              <Checkbox
                 id={`task-timeline-${item.taskId}`}
                 checked={isCompleted}
                 onCheckedChange={() => toggleTaskCompletion(item.taskId)}
-                className="h-6 w-6 rounded-full"
+                className="h-6 w-6"
               />
             </div>
             <div className="absolute left-3 top-1.5 h-6 w-6 rounded-full bg-primary flex items-center justify-center ring-8 ring-background -translate-x-1/2">
@@ -506,4 +506,3 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
         </Card>
     );
 }
-
