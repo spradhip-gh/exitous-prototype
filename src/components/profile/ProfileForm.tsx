@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema as buildStaticProfileSchema, buildProfileSchema, type ProfileData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
