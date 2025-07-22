@@ -111,6 +111,34 @@ const initializeDb = (): DemoDatabase => {
                     { email: 'p.jones@globex.com', companyId: 'G101', notificationDate: getFutureDate(15), notified: false },
                     { email: 'a.williams@globex.com', companyId: 'G112', notificationDate: getFutureDate(20), notified: false },
                     { email: 'b.davis@globex.com', companyId: 'G213', notificationDate: getPastDate(10), notified: false },
+                    {
+                        email: 'j.doe@globex.com',
+                        companyId: 'G314',
+                        notificationDate: getPastDate(1),
+                        notified: true,
+                        prefilledAssessmentData: {
+                            relocationPaid: 'Unsure',
+                            unionMember: 'No',
+                            hadMedicalInsurance: 'Unsure',
+                            hadDentalInsurance: 'Yes',
+                            hadVisionInsurance: 'No',
+                            hadEAP: 'Yes'
+                        }
+                    },
+                    {
+                        email: 'm.chen@globex.com',
+                        companyId: 'G516',
+                        notificationDate: getPastDate(3),
+                        notified: true,
+                        prefilledAssessmentData: {
+                            relocationPaid: 'No',
+                            unionMember: 'Unsure',
+                            hadMedicalInsurance: 'Yes',
+                            hadDentalInsurance: 'Yes',
+                            hadVisionInsurance: 'Unsure',
+                            hadEAP: 'Unsure'
+                        }
+                    }
                 ],
                 customQuestions: {
                     'globex-corp-custom-1': {
