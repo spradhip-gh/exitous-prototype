@@ -9,7 +9,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import ProgressTracker from './ProgressTracker';
+import { externalResources, ExternalResource } from '@/lib/external-resources';
+import Image from 'next/image';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
@@ -35,6 +37,42 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   "Custom": CalendarPlus,
   "default": Calendar,
 };
+
+function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalResource | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!resource) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <Card className="border-0 shadow-none">
+                    <div className="relative h-40 w-full">
+                         <Image
+                            src={resource.imageUrl}
+                            alt={resource.name}
+                            fill
+                            className="object-cover rounded-t-lg"
+                            data-ai-hint={resource.imageHint}
+                        />
+                    </div>
+                    <CardHeader>
+                        <CardTitle>{resource.name}</CardTitle>
+                        <Badge variant="secondary" className="w-fit">{resource.category}</Badge>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground">{resource.description}</p>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="default" asChild className="w-full">
+                            <a href={resource.website} target="_blank" rel="noopener noreferrer">
+                                Learn More
+                            </a>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export default function TimelineDashboard({ isPreview = false }: { isPreview?: boolean }) {
   const { 
@@ -60,6 +98,8 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const [newDateLabel, setNewDateLabel] = useState('');
   const [newDate, setNewDate] = useState<Date | undefined>();
   const { toast } = useToast();
+  
+  const [selectedResource, setSelectedResource] = useState<ExternalResource | null>(null);
 
   const userTimezone = getTargetTimezone();
 
@@ -211,6 +251,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   return (
     <>
+      <ResourceDialog resource={selectedResource} open={!!selectedResource} onOpenChange={(open) => !open && setSelectedResource(null)} />
       {sortedRecommendations.length > 0 && (
           <Card className="shadow-lg">
               <CardHeader>
@@ -277,6 +318,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   taskDateOverrides={taskDateOverrides}
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
+                                  onConnectClick={setSelectedResource}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -291,6 +333,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   taskDateOverrides={taskDateOverrides}
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
+                                  onConnectClick={setSelectedResource}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -345,9 +388,10 @@ type RecommendationProps = {
     taskDateOverrides: Record<string, string>;
     updateTaskDate: (taskId: string, newDate: Date) => void;
     userTimezone: string;
+    onConnectClick: (resource: ExternalResource) => void;
 }
 
-function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone }: RecommendationProps) {
+function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick }: RecommendationProps) {
   if (!recommendations || recommendations.length === 0) {
     return <p className="text-muted-foreground text-center">No recommendations available.</p>;
   }
@@ -368,6 +412,8 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         const isCompleted = completedTasks.has(item.taskId);
         const overriddenDateStr = taskDateOverrides[item.taskId];
         const rawDateStr = overriddenDateStr || item.endDate;
+        const matchedResource = externalResources.find(res => res.relatedTaskIds?.includes(item.taskId));
+        
         let displayDate: Date | null = null;
         if(rawDateStr) {
             const [year, month, day] = rawDateStr.split('-').map(Number);
@@ -420,6 +466,11 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                         Mark as Complete
                     </Label>
                 </div>
+                 {matchedResource && (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-sm" onClick={() => onConnectClick(matchedResource)}>
+                        <Handshake className="mr-1.5 h-4 w-4"/> Connect with a Professional
+                    </Button>
+                )}
               </div>
             </div>
           </div>
@@ -430,7 +481,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
 }
 
 
-function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone }: RecommendationProps) {
+function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick }: RecommendationProps) {
     if (!recommendations || recommendations.length === 0) {
       return <p className="text-muted-foreground text-center">No recommendations available.</p>;
     }
@@ -459,6 +510,8 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                     const isCompleted = completedTasks.has(item.taskId);
                     const overriddenDateStr = taskDateOverrides[item.taskId];
                     const rawDateStr = overriddenDateStr || item.endDate;
+                    const matchedResource = externalResources.find(res => res.relatedTaskIds?.includes(item.taskId));
+
                     let displayDate: Date | null = null;
                     if(rawDateStr) {
                         const [year, month, day] = rawDateStr.split('-').map(Number);
@@ -477,6 +530,11 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             <p className="font-medium">{item.task}</p>
                             <p className="text-xs text-muted-foreground">{item.details}</p>
+                             {matchedResource && (
+                                <Button variant="link" size="sm" className="h-auto p-0 text-xs -ml-1 mt-1" onClick={() => onConnectClick(matchedResource)}>
+                                    <Handshake className="mr-1.5 h-3 w-3"/> Connect with a Professional
+                                </Button>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>

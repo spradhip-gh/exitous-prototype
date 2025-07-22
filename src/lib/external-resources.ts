@@ -7,6 +7,7 @@ export interface ExternalResource {
     imageUrl: string;
     imageHint: string;
     keywords: string[];
+    relatedTaskIds?: string[];
 }
 
 export const externalResources: ExternalResource[] = [
@@ -19,7 +20,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'financial planning',
-        keywords: ['finance', '401k', 'investment', 'budget', 'severance', 'taxes']
+        keywords: ['finance', '401k', 'investment', 'budget', 'severance', 'taxes'],
+        relatedTaskIds: ['create-transition-budget', 'understand-401k-options']
     },
     {
         id: 'fin-2',
@@ -29,7 +31,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'tax document',
-        keywords: ['tax', 'cpa', 'severance', 'stock options', 'irs']
+        keywords: ['tax', 'cpa', 'severance', 'stock options', 'irs'],
+        relatedTaskIds: ['consult-tax-advisor']
     },
     // Legal
     {
@@ -40,7 +43,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'legal document',
-        keywords: ['legal', 'lawyer', 'severance agreement', 'negotiation', 'employment law']
+        keywords: ['legal', 'lawyer', 'severance agreement', 'negotiation', 'employment law'],
+        relatedTaskIds: ['review-severance-agreement']
     },
     {
         id: 'legal-2',
@@ -50,7 +54,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'passport visa',
-        keywords: ['visa', 'immigration', 'h1b', 'green card', 'ead']
+        keywords: ['visa', 'immigration', 'h1b', 'green card', 'ead'],
+        relatedTaskIds: ['handle-work-visa-implications']
     },
     // Job Search
     {
@@ -61,7 +66,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'career coaching',
-        keywords: ['job search', 'resume', 'interview prep', 'career coach', 'linkedin']
+        keywords: ['job search', 'resume', 'interview prep', 'career coach', 'linkedin'],
+        relatedTaskIds: ['update-resume-and-linkedin', 'practice-interviewing']
     },
     {
         id: 'job-2',
@@ -71,7 +77,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'tech recruitment',
-        keywords: ['recruiter', 'tech job', 'software engineer', 'product manager']
+        keywords: ['recruiter', 'tech job', 'software engineer', 'product manager'],
+        relatedTaskIds: ['start-networking']
     },
     {
         id: 'job-3',
@@ -81,7 +88,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'professional networking',
-        keywords: ['networking', 'connections', 'career events']
+        keywords: ['networking', 'connections', 'career events'],
+        relatedTaskIds: ['start-networking']
     },
     // Well-being
     {
@@ -92,7 +100,8 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'therapy session',
-        keywords: ['therapy', 'mental health', 'counseling', 'stress', 'anxiety', 'resilience']
+        keywords: ['therapy', 'mental health', 'counseling', 'stress', 'anxiety', 'resilience'],
+        relatedTaskIds: ['seek-emotional-support']
     },
     {
         id: 'well-2',
@@ -102,6 +111,7 @@ export const externalResources: ExternalResource[] = [
         website: '#',
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'health insurance',
-        keywords: ['healthcare', 'insurance', 'cobra', 'aca', 'benefits']
+        keywords: ['healthcare', 'insurance', 'cobra', 'aca', 'benefits'],
+        relatedTaskIds: ['explore-health-insurance']
     }
 ];
