@@ -206,29 +206,48 @@ export function useUserData() {
       setMasterProfileQuestionsState(getMasterProfileQuestionsFromDb());
       setExternalResourcesState(getExternalResourcesFromDb());
 
+      // --- USER SPECIFIC DATA ---
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
+      const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
 
-      // Check for seeded data for this specific user if their localStorage is empty
-      if (auth?.email && !profileJson && !assessmentJson) {
-          const seeded = getSeededDataForUser(auth.email);
-          if (seeded) {
-              // The seeded data already has Date objects, so convert them to strings for storage
-              const profileWithStrings = convertDatesToStrings(seeded.profile);
-              const assessmentWithStrings = convertDatesToStrings(seeded.assessment);
-              profileJson = JSON.stringify(profileWithStrings);
-              assessmentJson = JSON.stringify(assessmentWithStrings);
-              localStorage.setItem(profileKey, profileJson);
-              localStorage.setItem(assessmentKey, assessmentJson);
-          }
+      // Handle profile data
+      if (profileJson) {
+        setProfileData(JSON.parse(profileJson));
+      } else if (auth?.email) {
+        const seeded = getSeededDataForUser(auth.email);
+        if (seeded?.profile) {
+          const profileWithStrings = convertDatesToStrings(seeded.profile);
+          localStorage.setItem(profileKey, JSON.stringify(profileWithStrings));
+          setProfileData(seeded.profile);
+        }
+      } else {
+        setProfileData(null);
+      }
+
+      // Handle assessment data
+      if (assessmentJson) {
+        setAssessmentData(convertStringsToDates(JSON.parse(assessmentJson)));
+      } else if (auth?.email) {
+        const seeded = getSeededDataForUser(auth.email);
+        const hrPrefilled = companyUser?.user.prefilledAssessmentData || {};
+        
+        // Merge seeded data and HR-prefilled data
+        const initialAssessmentData = { 
+          ...seeded?.assessment, 
+          ...hrPrefilled,
+          notificationDate: companyUser?.user.notificationDate
+        };
+
+        if (Object.keys(initialAssessmentData).length > 0) {
+          const dataWithStrings = convertDatesToStrings(initialAssessmentData);
+          localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
+          setAssessmentData(convertStringsToDates(initialAssessmentData));
+        }
+      } else {
+        setAssessmentData(null);
       }
       
-      setProfileData(profileJson ? JSON.parse(profileJson) : null);
-      
-      // Assessment data is loaded and immediately converted to have Date objects
-      const rawAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
-      setAssessmentData(rawAssessmentData ? convertStringsToDates(rawAssessmentData) : null);
-
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
 
