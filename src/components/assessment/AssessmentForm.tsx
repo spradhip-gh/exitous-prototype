@@ -184,6 +184,12 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
         }
     }, [initialData, reset]);
     
+    useEffect(() => {
+        if (initialData?.workVisa && form.getValues('workVisa') !== initialData.workVisa) {
+            form.setValue('workVisa', initialData.workVisa, { shouldValidate: true, shouldDirty: true });
+        }
+    }, [initialData, form]);
+
     const companyDetails = useMemo(() => {
         if (!auth?.companyName) return null;
         return companyAssignments.find(c => c.companyName === auth.companyName);
