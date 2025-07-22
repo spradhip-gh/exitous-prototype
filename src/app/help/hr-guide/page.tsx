@@ -128,7 +128,8 @@ export default function HrManagerGuidePage() {
                         <li><strong>Adding Sub-Questions:</strong> For questions with options (like Radio or Checkbox), you can add conditional sub-questions that only appear when a specific option is chosen by the user.</li>
                     </ul>
 
-                    <h2>3. Resources</h2>
+                    <h2>3. Resources & Support</h2>
+                    <h3>Company Resources</h3>
                     <p>
                         Here you can upload and manage documents that will be available to all of your exiting employees in their dashboard's "Resources" section. This is a great place for:
                     </p>
@@ -137,8 +138,9 @@ export default function HrManagerGuidePage() {
                         <li>Company policies (e.g., PTO payout)</li>
                         <li>Contact lists for HR or benefits administrators</li>
                     </ul>
+                    <h3>External Resources</h3>
                     <p>
-                        Currently, the platform supports uploading text-based files.
+                        Your employees also have access to a directory of external professionals (e.g., financial advisors, lawyers) that are curated and managed by the platform administrator. This provides an additional layer of support for your employees.
                     </p>
 
                     <h2>4. Company Settings</h2>

@@ -1,9 +1,10 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, User, FileText, Library, Users2 } from 'lucide-react';
+import { LayoutDashboard, User, FileText, Library, Users2, HelpCircle } from 'lucide-react';
 
 export default function DashboardNav() {
   const pathname = usePathname();
@@ -29,6 +30,12 @@ export default function DashboardNav() {
                 </Button>
             </Link>
         ))}
+        <Link href="/help/user-guide" target="_blank" rel="noopener noreferrer">
+             <Button variant='ghost' className="w-full justify-start mt-4">
+                <HelpCircle className="mr-2" />
+                Help & Guide
+            </Button>
+        </Link>
     </nav>
   )
 }

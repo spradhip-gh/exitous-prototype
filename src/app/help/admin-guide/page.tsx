@@ -40,7 +40,17 @@ export default function AdminGuidePage() {
                         While HR Managers handle their own users, you have a global view. You can select any company and see its list of end-users, add new users, or remove existing ones. This is useful for support or initial setup.
                     </p>
 
-                    <h2>3. Platform User Management</h2>
+                    <h2>3. External Resources Management</h2>
+                    <p>
+                        This page allows you to curate the directory of professional services and companies that are recommended to users. Maintaining a high-quality, relevant list of resources is key to the platform's value.
+                    </p>
+                    <ul>
+                        <li><strong>Adding & Editing Resources:</strong> You can add new partners or edit existing ones. Key fields include the resource's name, category, description, and website.</li>
+                        <li><strong>Verification & Offers:</strong> You can mark a resource as "Exitous Verified" to build user trust, and you can add a "Special Offer" to highlight exclusive deals for your users.</li>
+                        <li><strong>AI Matching Keywords:</strong> The <code>relatedTaskIds</code> field is critical. It links a resource directly to one or more AI-generated task IDs (e.g., 'review-severance-agreement'). This allows the system to automatically recommend the right professional for a specific user need.</li>
+                    </ul>
+
+                    <h2>4. Platform User Management</h2>
                     <p>
                         Here, you can grant or revoke access for other high-level users of the ExitBetter platform.
                     </p>
@@ -49,7 +59,7 @@ export default function AdminGuidePage() {
                         <li><strong>Access Control:</strong> You can remove access for any platform user except yourself.</li>
                     </ul>
                     
-                    <h2>4. Export User Data</h2>
+                    <h2>5. Export User Data</h2>
                     <p>
                         This powerful feature provides a comprehensive export of every single user on the platform.
                     </p>

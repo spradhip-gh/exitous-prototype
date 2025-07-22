@@ -25,6 +25,17 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
 
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
+  const getHelpLink = () => {
+      switch (role) {
+          case 'admin':
+              return '/help/admin-guide';
+          case 'hr':
+              return '/help/hr-guide';
+          default:
+              return '/help/user-guide';
+      }
+  }
+
   return (
     <nav className="grid items-start gap-2 text-sm font-medium">
        {role === 'admin' && (
@@ -81,7 +92,7 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
             </Button>
           </Link>
           <Separator className="my-2" />
-           <Link href="/help/admin-guide" target="_blank" rel="noopener noreferrer">
+           <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
             <Button variant='ghost' className="w-full justify-start">
                 <HelpCircle className="mr-2" />
                 Help & Guide
@@ -136,7 +147,7 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
             </Button>
           </Link>
           <Separator className="my-2" />
-           <Link href="/help/hr-guide" target="_blank" rel="noopener noreferrer">
+           <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
             <Button variant='ghost' className="w-full justify-start">
                 <HelpCircle className="mr-2" />
                 Help & Guide
