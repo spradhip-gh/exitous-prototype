@@ -54,7 +54,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                 <SelectContent>
                     {question.options?.map((o, index) => (
-                        <SelectItem key={simplifiedOptions[index]} value={simplifiedOptions[index]}>{o}</SelectItem>
+                        <SelectItem key={simplifiedOptions[index]} value={o}>{o}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
