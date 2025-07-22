@@ -94,7 +94,7 @@ const baseAssessmentFields = {
   relocationPaid: z.string({ required_error: 'This field is required.' }).min(1),
   unionMember: z.string({ required_error: 'This field is required.' }).min(1),
   workArrangement: z.string({ required_error: 'This field is required.' }).min(1),
-  workVisa: z.string({ required_error: 'This field is required.' }).min(1),
+  workVisaStatus: z.string({ required_error: 'This field is required.' }).min(1),
   onLeave: z.array(z.string()).min(1, "Please select at least one option."),
   accessSystems: z.array(z.string()).optional(),
   hadMedicalInsurance: z.string({ required_error: 'This field is required.' }).min(1),

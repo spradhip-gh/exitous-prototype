@@ -241,7 +241,7 @@ export const getDefaultQuestions = (): Question[] => [
         ]
     },
     { 
-        id: 'workVisa', 
+        id: 'workVisaStatus', 
         label: 'Were you on any of these work visas at the time of your exit?', 
         section: "Work Circumstances",
         type: 'select',
