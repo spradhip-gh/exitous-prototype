@@ -8,6 +8,8 @@ export interface ExternalResource {
     imageHint: string;
     keywords: string[];
     relatedTaskIds?: string[];
+    isVerified?: boolean;
+    specialOffer?: string;
 }
 
 export const externalResources: ExternalResource[] = [
@@ -21,7 +23,9 @@ export const externalResources: ExternalResource[] = [
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'financial planning',
         keywords: ['finance', '401k', 'investment', 'budget', 'severance', 'taxes'],
-        relatedTaskIds: ['create-transition-budget', 'understand-401k-options']
+        relatedTaskIds: ['create-transition-budget', 'understand-401k-options'],
+        isVerified: true,
+        specialOffer: '15% off your first consultation for Exitous members.'
     },
     {
         id: 'fin-2',
@@ -44,7 +48,8 @@ export const externalResources: ExternalResource[] = [
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'legal document',
         keywords: ['legal', 'lawyer', 'severance agreement', 'negotiation', 'employment law'],
-        relatedTaskIds: ['review-severance-agreement']
+        relatedTaskIds: ['review-severance-agreement'],
+        isVerified: true,
     },
     {
         id: 'legal-2',
@@ -57,6 +62,18 @@ export const externalResources: ExternalResource[] = [
         keywords: ['visa', 'immigration', 'h1b', 'green card', 'ead'],
         relatedTaskIds: ['handle-work-visa-implications']
     },
+    {
+        id: 'legal-3',
+        name: 'Open Door Legal',
+        description: 'Affordable legal services for employment contract reviews. Offering flat-fee packages for severance agreement analysis.',
+        category: 'Legal',
+        website: '#',
+        imageUrl: 'https://placehold.co/600x400.png',
+        imageHint: 'law office',
+        keywords: ['legal', 'lawyer', 'severance agreement', 'affordable'],
+        relatedTaskIds: ['review-severance-agreement'],
+        specialOffer: 'Free 15-minute initial assessment.'
+    },
     // Job Search
     {
         id: 'job-1',
@@ -67,7 +84,8 @@ export const externalResources: ExternalResource[] = [
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'career coaching',
         keywords: ['job search', 'resume', 'interview prep', 'career coach', 'linkedin'],
-        relatedTaskIds: ['update-resume-and-linkedin', 'practice-interviewing']
+        relatedTaskIds: ['update-resume-and-linkedin', 'practice-interviewing'],
+        isVerified: true,
     },
     {
         id: 'job-2',
@@ -112,6 +130,7 @@ export const externalResources: ExternalResource[] = [
         imageUrl: 'https://placehold.co/600x400.png',
         imageHint: 'health insurance',
         keywords: ['healthcare', 'insurance', 'cobra', 'aca', 'benefits'],
-        relatedTaskIds: ['explore-health-insurance']
+        relatedTaskIds: ['explore-health-insurance'],
+        isVerified: true,
     }
 ];

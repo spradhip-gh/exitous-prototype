@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { externalResources, type ExternalResource } from '@/lib/external-resources';
 import { findExpertMatches, type ExpertMatchOutput, type ExpertMatchInput } from '@/ai/flows/find-expert-matches';
 import { useUserData } from '@/hooks/use-user-data';
-import { Sparkles, Search, ExternalLink, Terminal } from 'lucide-react';
+import { Sparkles, Search, ExternalLink, Terminal, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 
 const categories = ["Finances", "Legal", "Job Search", "Well-being"];
 
 const ResourceCard = ({ resource }: { resource: ExternalResource }) => (
-    <Card className="flex flex-col h-full overflow-hidden shadow-lg transition-transform hover:scale-105">
+    <Card className="flex flex-col h-full overflow-hidden shadow-lg transition-transform hover:scale-105 group">
         <div className="relative h-40 w-full">
             <Image
                 src={resource.imageUrl}
@@ -26,12 +27,23 @@ const ResourceCard = ({ resource }: { resource: ExternalResource }) => (
                 className="object-cover"
                 data-ai-hint={resource.imageHint}
             />
+            {resource.isVerified && (
+                <Badge className="absolute top-2 right-2 bg-green-600 text-white">
+                    <CheckCircle className="mr-1.5" /> Exitous Verified
+                </Badge>
+            )}
         </div>
         <CardHeader>
             <CardTitle>{resource.name}</CardTitle>
             <Badge variant="secondary" className="w-fit">{resource.category}</Badge>
         </CardHeader>
         <CardContent className="flex-grow">
+            {resource.specialOffer && (
+                <div className="mb-4 p-3 rounded-md bg-primary/10 border border-primary/20 text-sm text-primary-foreground">
+                    <p className="font-bold flex items-center gap-1.5 text-primary"><Star className="fill-current"/> Special Offer</p>
+                    <p className="text-primary/90">{resource.specialOffer}</p>
+                </div>
+            )}
             <p className="text-sm text-muted-foreground">{resource.description}</p>
         </CardContent>
         <CardFooter>
@@ -44,9 +56,13 @@ const ResourceCard = ({ resource }: { resource: ExternalResource }) => (
     </Card>
 );
 
-export default function ExternalResourcesPage() {
+function ExternalResourcesContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const preselectedCategory = searchParams.get('category');
+
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(preselectedCategory);
     const [matches, setMatches] = useState<ExpertMatchOutput | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -72,6 +88,8 @@ export default function ExternalResourcesPage() {
                     const value = (assessmentData as any)[key];
                     if (value instanceof Date) {
                         stringifiedAssessmentData[key] = value.toISOString();
+                    } else if (typeof value === 'string') {
+                        stringifiedAssessmentData[key] = value;
                     }
                 });
 
@@ -108,6 +126,16 @@ export default function ExternalResourcesPage() {
         const matchedIds = new Set(matches.matches.map(m => m.resourceId));
         return externalResources.filter(r => matchedIds.has(r.id));
     }, [matches]);
+
+    const handleCategoryClick = (category: string | null) => {
+        setSelectedCategory(category);
+        // Clear category from URL when a new one is selected
+        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        current.delete('category');
+        const search = current.toString();
+        const query = search ? `?${search}` : "";
+        router.replace(`/dashboard/external-resources${query}`);
+    }
 
     return (
         <div className="p-4 md:p-8">
@@ -174,9 +202,9 @@ export default function ExternalResourcesPage() {
                             />
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                            <Button variant={!selectedCategory ? 'default' : 'outline'} onClick={() => setSelectedCategory(null)}>All</Button>
+                            <Button variant={!selectedCategory ? 'default' : 'outline'} onClick={() => handleCategoryClick(null)}>All</Button>
                             {categories.map(cat => (
-                                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'outline'} onClick={() => setSelectedCategory(cat)}>
+                                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'outline'} onClick={() => handleCategoryClick(cat)}>
                                     {cat}
                                 </Button>
                             ))}
@@ -197,5 +225,13 @@ export default function ExternalResourcesPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function ExternalResourcesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ExternalResourcesContent />
+        </Suspense>
     );
 }

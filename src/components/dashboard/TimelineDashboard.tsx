@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
@@ -45,7 +46,7 @@ function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalRe
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <Card className="border-0 shadow-none">
-                    <div className="relative h-40 w-full">
+                     <div className="relative h-40 w-full">
                          <Image
                             src={resource.imageUrl}
                             alt={resource.name}
@@ -75,6 +76,7 @@ function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalRe
 }
 
 export default function TimelineDashboard({ isPreview = false }: { isPreview?: boolean }) {
+  const router = useRouter();
   const { 
     profileData, 
     assessmentData, 
@@ -227,6 +229,18 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     setIsAddDateOpen(false);
   };
   
+  const handleConnectClick = (taskId: string, category: string) => {
+    const matchedResources = externalResources.filter(res => res.relatedTaskIds?.includes(taskId));
+    if (matchedResources.length === 1) {
+        setSelectedResource(matchedResources[0]);
+    } else if (matchedResources.length > 1) {
+        router.push(`/dashboard/external-resources?category=${encodeURIComponent(category)}`);
+    } else {
+        // Fallback or do nothing if no resource is found, though the button shouldn't show.
+        router.push('/dashboard/external-resources');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -318,7 +332,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   taskDateOverrides={taskDateOverrides}
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
-                                  onConnectClick={setSelectedResource}
+                                  onConnectClick={handleConnectClick}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -333,7 +347,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   taskDateOverrides={taskDateOverrides}
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
-                                  onConnectClick={setSelectedResource}
+                                  onConnectClick={handleConnectClick}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -388,7 +402,7 @@ type RecommendationProps = {
     taskDateOverrides: Record<string, string>;
     updateTaskDate: (taskId: string, newDate: Date) => void;
     userTimezone: string;
-    onConnectClick: (resource: ExternalResource) => void;
+    onConnectClick: (taskId: string, category: string) => void;
 }
 
 function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick }: RecommendationProps) {
@@ -412,7 +426,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         const isCompleted = completedTasks.has(item.taskId);
         const overriddenDateStr = taskDateOverrides[item.taskId];
         const rawDateStr = overriddenDateStr || item.endDate;
-        const matchedResource = externalResources.find(res => res.relatedTaskIds?.includes(item.taskId));
+        const hasResource = externalResources.some(res => res.relatedTaskIds?.includes(item.taskId));
         
         let displayDate: Date | null = null;
         if(rawDateStr) {
@@ -466,8 +480,8 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                         Mark as Complete
                     </Label>
                 </div>
-                 {matchedResource && (
-                    <Button variant="link" size="sm" className="h-auto p-0 text-sm" onClick={() => onConnectClick(matchedResource)}>
+                 {hasResource && (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-sm" onClick={() => onConnectClick(item.taskId, item.category)}>
                         <Handshake className="mr-1.5 h-4 w-4"/> Connect with a Professional
                     </Button>
                 )}
@@ -510,7 +524,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                     const isCompleted = completedTasks.has(item.taskId);
                     const overriddenDateStr = taskDateOverrides[item.taskId];
                     const rawDateStr = overriddenDateStr || item.endDate;
-                    const matchedResource = externalResources.find(res => res.relatedTaskIds?.includes(item.taskId));
+                    const hasResource = externalResources.some(res => res.relatedTaskIds?.includes(item.taskId));
 
                     let displayDate: Date | null = null;
                     if(rawDateStr) {
@@ -530,8 +544,8 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             <p className="font-medium">{item.task}</p>
                             <p className="text-xs text-muted-foreground">{item.details}</p>
-                             {matchedResource && (
-                                <Button variant="link" size="sm" className="h-auto p-0 text-xs -ml-1 mt-1" onClick={() => onConnectClick(matchedResource)}>
+                             {hasResource && (
+                                <Button variant="link" size="sm" className="h-auto p-0 text-xs -ml-1 mt-1" onClick={() => onConnectClick(item.taskId, item.category)}>
                                     <Handshake className="mr-1.5 h-3 w-3"/> Connect with a Professional
                                 </Button>
                             )}
