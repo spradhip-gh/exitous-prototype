@@ -192,6 +192,16 @@ export function useUserData() {
     return assignment?.severanceDeadlineTimezone || 'UTC';
   }, [auth?.companyName, companyAssignments]);
 
+  const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
+      if (!email) return null;
+      for (const companyName in companyConfigs) {
+          const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (user) {
+              return { user, companyName };
+          }
+      }
+      return null;
+  }, [companyConfigs]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -229,23 +239,24 @@ export function useUserData() {
       if (assessmentJson) {
         setAssessmentData(convertStringsToDates(JSON.parse(assessmentJson)));
       } else if (auth?.email) {
-        const seeded = getSeededDataForUser(auth.email);
-        const hrPrefilled = companyUser?.user.prefilledAssessmentData || {};
-        
-        // Merge seeded data and HR-prefilled data
-        const initialAssessmentData = { 
-          ...seeded?.assessment, 
-          ...hrPrefilled,
-          notificationDate: companyUser?.user.notificationDate
-        };
+          const seeded = getSeededDataForUser(auth.email);
+          const hrPrefilled = companyUser?.user.prefilledAssessmentData || {};
+          
+          // Merge seeded data and HR-prefilled data
+          const initialAssessmentData = { 
+            ...(seeded?.assessment || {}), 
+            ...hrPrefilled,
+            notificationDate: companyUser?.user.notificationDate
+          };
 
-        if (Object.keys(initialAssessmentData).length > 0) {
-          const dataWithStrings = convertDatesToStrings(initialAssessmentData);
-          localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-          setAssessmentData(convertStringsToDates(initialAssessmentData));
-        }
+          if (Object.keys(initialAssessmentData).length > 0) {
+              const dataWithDates = convertStringsToDates(initialAssessmentData);
+              const dataWithStrings = convertDatesToStrings(dataWithDates);
+              localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
+              setAssessmentData(dataWithDates);
+          }
       } else {
-        setAssessmentData(null);
+          setAssessmentData(null);
       }
       
       const completedTasksJson = localStorage.getItem(completedTasksKey);
@@ -265,7 +276,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, getCompanyUser]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -382,16 +393,6 @@ export function useUserData() {
     return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
   }, [companyAssignments]);
   
-  const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
-      if (!email) return null;
-      for (const companyName in companyConfigs) {
-          const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
-          if (user) {
-              return { user, companyName };
-          }
-      }
-      return null;
-  }, [companyConfigs]);
 
   const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
     const newAssignments = [...companyAssignments, assignment];
