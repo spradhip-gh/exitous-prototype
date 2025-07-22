@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Question } from './questions';
 
-export const profileSchema = z.object({
+const profileBaseSchema = z.object({
     birthYear: z.coerce
         .number({ required_error: 'Birth year is required.' })
         .min(1920, 'Please enter a valid year.')
@@ -17,10 +17,14 @@ export const profileSchema = z.object({
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
-}).refine(data => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
+});
+
+export const profileSchema = profileBaseSchema.refine(data => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
     message: 'Please specify your gender identity.',
     path: ['genderSelfDescribe'],
 });
+
+export const profileQuestionsShape = profileBaseSchema.shape;
 
 export type ProfileData = z.infer<typeof profileSchema>;
 

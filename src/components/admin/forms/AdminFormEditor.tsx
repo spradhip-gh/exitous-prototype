@@ -12,7 +12,7 @@ import { PlusCircle } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { profileSchema } from "@/lib/schemas";
+import { profileQuestionsShape } from "@/lib/schemas";
 import { Label } from "@/components/ui/label";
 
 interface OrderedSection {
@@ -33,7 +33,7 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
 }
 
 function ProfileQuestionsViewer() {
-    const profileFields = Object.keys(profileSchema.shape);
+    const profileFields = Object.keys(profileQuestionsShape);
     // This is a simplified representation for display purposes.
     // In a future iteration, these could be made fully dynamic like assessment questions.
     const questions = [
