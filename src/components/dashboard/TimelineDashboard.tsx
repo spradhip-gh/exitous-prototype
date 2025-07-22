@@ -506,3 +506,4 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
         </Card>
     );
 }
+
