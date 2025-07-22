@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -104,7 +104,12 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
               )}
             </Tooltip>
           </TooltipProvider>
-
+          <Link href="/admin/analytics">
+            <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
+              <BarChart className="mr-2" />
+              Analytics
+            </Button>
+          </Link>
           <Link href="/admin/resources">
             <Button variant={getVariant('/admin/resources')} className="w-full justify-start">
               <Library className="mr-2" />
