@@ -13,41 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
-const CompletionRateTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-        return (
-        <div className="rounded-lg border bg-background p-2 shadow-sm">
-            <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col">
-                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                {label}
-                </span>
-                <span className="font-bold text-muted-foreground">
-                {payload[0].payload.companyName}
-                </span>
-            </div>
-            {payload.map((pld: any, index: number) => (
-                <div key={index} className="flex flex-col">
-                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                        {pld.name}
-                    </span>
-                    <span className="font-bold" style={{color: pld.color}}>
-                        {pld.value}%
-                    </span>
-                </div>
-            ))}
-            </div>
-        </div>
-        );
-    }
-
-    return null;
-};
-
-
 export default function AnalyticsPage() {
   const { auth } = useAuth();
-  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, companyAssignments, profileCompletions, assessmentCompletions } = useUserData();
+  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, companyAssignments } = useUserData();
   const companyName = auth?.companyName;
   const isAdmin = auth?.role === 'admin';
 
@@ -57,7 +25,7 @@ export default function AnalyticsPage() {
     const allConfigs = getAllCompanyConfigs();
     const companiesToProcess = isAdmin ? companyAssignments.map(c => c.companyName) : (companyName ? [companyName] : []);
     
-    if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [], completionRates: [] };
+    if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [] };
 
     const questionMap: Map<string, Question> = new Map();
     const allQuestions = getCompanyConfig(isAdmin ? undefined : companyName, false);
@@ -73,24 +41,11 @@ export default function AnalyticsPage() {
     flattenQuestions(allQuestions);
 
     const unsureCountsByCompany: Record<string, Record<string, number>> = {};
-    const completionData: { companyName: string, profile: number, assessment: number }[] = [];
 
     for (const compName of companiesToProcess) {
         const companyConfig = allConfigs[compName];
         if (!companyConfig || !companyConfig.users) continue;
         
-        const totalUsers = companyConfig.users.length;
-        if(totalUsers > 0) {
-            const profileCompleteCount = companyConfig.users.filter(u => profileCompletions[u.email]).length;
-            const assessmentCompleteCount = companyConfig.users.filter(u => assessmentCompletions[u.email]).length;
-            completionData.push({
-                companyName: compName,
-                profile: (profileCompleteCount / totalUsers) * 100,
-                assessment: (assessmentCompleteCount / totalUsers) * 100,
-            });
-        }
-
-
         for (const user of companyConfig.users) {
             const assessmentData = user.prefilledAssessmentData;
             if (assessmentData) {
@@ -126,19 +81,13 @@ export default function AnalyticsPage() {
         return entry;
     });
 
-    const hrCompletionData = completionData.length > 0 ? [
-        { name: 'Profile', value: completionData[0].profile },
-        { name: 'Assessment', value: completionData[0].assessment },
-    ] : [];
-
     return {
         overall: overallSummary,
         byCompany: chartDataByCompany,
         companyKeys: companiesToProcess,
-        completionRates: isAdmin ? completionData : hrCompletionData,
     };
 
-  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin, companyAssignments, profileCompletions, assessmentCompletions]);
+  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin, companyAssignments]);
   
   if (isUserDataLoading || !analyticsData) {
       return (
@@ -152,7 +101,7 @@ export default function AnalyticsPage() {
       )
   }
 
-  const { overall, byCompany, companyKeys, completionRates } = analyticsData;
+  const { overall, byCompany, companyKeys } = analyticsData;
 
   return (
     <div className="p-4 md:p-8">
@@ -163,34 +112,6 @@ export default function AnalyticsPage() {
             Insights into employee responses for {isAdmin ? 'all companies' : companyName}.
           </p>
         </div>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Completion Rates</CardTitle>
-                <CardDescription>Percentage of users who have completed their Profile and Exit Details assessment.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={completionRates}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey={isAdmin ? 'companyName' : 'name'} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
-                            <Tooltip content={<CompletionRateTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
-                            <Legend />
-                             {isAdmin ? (
-                                <>
-                                    <Bar dataKey="profile" name="Profile" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="assessment" name="Assessment" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
-                                </>
-                            ) : (
-                                <Bar dataKey="value" name="Completion Rate" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                            )}
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
