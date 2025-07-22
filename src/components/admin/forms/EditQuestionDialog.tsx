@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,11 @@ export default function EditQuestionDialog({
                 <div className="space-y-2">
                     <Label htmlFor="question-label">Question Text</Label>
                     <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => q ? { ...q, label: e.target.value } : null)} />
+                </div>
+                
+                 <div className="space-y-2">
+                    <Label htmlFor="question-description">Question Tooltip (Description)</Label>
+                    <Textarea id="question-description" value={currentQuestion.description || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, description: e.target.value } : null)} placeholder="Why are we asking this? Explain what this information is used for."/>
                 </div>
 
                 {currentQuestion.parentId && (
