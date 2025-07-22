@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema } from '@/lib/schemas';
+import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema, buildProfileSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '@/lib/external-resources';
@@ -11,6 +12,7 @@ import {
   getCompanyConfigs as getCompanyConfigsFromDb, saveCompanyConfigs as saveCompanyConfigsToDb,
   getPlatformUsers as getPlatformUsersFromDb, savePlatformUsers as savePlatformUsersToDb,
   getMasterQuestions as getMasterQuestionsFromDb, saveMasterQuestions as saveMasterQuestionsToDb,
+  getMasterProfileQuestions as getMasterProfileQuestionsFromDb, saveMasterProfileQuestions as saveMasterProfileQuestionsToDb,
   getAssessmentCompletions as getAssessmentCompletionsFromDb, saveAssessmentCompletions as saveAssessmentCompletionsToDb,
   getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
@@ -171,6 +173,7 @@ export function useUserData() {
   // Shared data state now acts as a reactive layer over the in-memory store.
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestionsState] = useState<Record<string, Question>>({});
+  const [masterProfileQuestions, setMasterProfileQuestionsState] = useState<Record<string, Question>>({});
   const [companyAssignments, setCompanyAssignmentsState] = useState<CompanyAssignment[]>([]);
   const [platformUsers, setPlatformUsersState] = useState<PlatformUser[]>([]);
   const [profileCompletions, setProfileCompletionsState] = useState<Record<string, boolean>>({});
@@ -200,6 +203,7 @@ export function useUserData() {
       setProfileCompletionsState(getProfileCompletionsFromDb());
       setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
       setMasterQuestionsState(getMasterQuestionsFromDb());
+      setMasterProfileQuestionsState(getMasterProfileQuestionsFromDb());
       setExternalResourcesState(getExternalResourcesFromDb());
 
       let profileJson = localStorage.getItem(profileKey);
@@ -319,6 +323,15 @@ export function useUserData() {
     });
     saveMasterQuestionsToDb(questionsWithTimestamps);
     setMasterQuestionsState(questionsWithTimestamps);
+  }, []);
+
+  const saveMasterProfileQuestions = useCallback((questions: Record<string, Question>) => {
+    const questionsWithTimestamps = { ...questions };
+    Object.values(questionsWithTimestamps).forEach(q => {
+        q.lastUpdated = new Date().toISOString();
+    });
+    saveMasterProfileQuestionsToDb(questionsWithTimestamps);
+    setMasterProfileQuestionsState(questionsWithTimestamps);
   }, []);
   
   const saveCompanyConfig = useCallback((companyName: string, config: CompanyConfig) => {
@@ -610,6 +623,8 @@ export function useUserData() {
     isLoading,
     isUserDataLoading: isLoading,
     masterQuestions,
+    masterProfileQuestions,
+    saveMasterProfileQuestions,
     companyAssignments,
     companyAssignmentForHr,
     profileCompletions,

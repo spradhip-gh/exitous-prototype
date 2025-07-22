@@ -20,6 +20,120 @@ export interface Question {
     parentId?: string; // ID of the parent question.
 }
 
+export const getDefaultProfileQuestions = (): Question[] => [
+    { 
+        id: 'birthYear', 
+        label: 'What’s your birth year?', 
+        section: 'Basic Information',
+        type: 'text',
+        isActive: true,
+        placeholder: 'YYYY'
+    },
+    { 
+        id: 'state', 
+        label: 'What state do you live in?', 
+        section: 'Basic Information',
+        type: 'select',
+        isActive: true,
+        placeholder: 'Select a state',
+        options: [ 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming' ],
+    },
+    { 
+        id: 'gender', 
+        label: 'Which gender do you identify with?', 
+        section: 'Basic Information',
+        type: 'radio',
+        isActive: true,
+        options: ['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'],
+        subQuestions: [
+            { 
+                id: 'genderSelfDescribe', 
+                parentId: 'gender', 
+                triggerValue: 'Prefer to self-describe', 
+                label: 'Self-describe gender', 
+                type: 'text', 
+                isActive: true, 
+                section: "Basic Information", 
+                placeholder: 'Please specify' 
+            },
+        ]
+    },
+    { 
+        id: 'maritalStatus', 
+        label: 'What’s your marital status?', 
+        section: 'Family & Household',
+        type: 'radio',
+        isActive: true,
+        options: ['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'],
+    },
+    { 
+        id: 'hasChildrenUnder13', 
+        label: 'Do you have children under age 13?', 
+        section: 'Family & Household',
+        type: 'radio',
+        isActive: true,
+        options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
+    },
+    { 
+        id: 'hasChildrenAges18To26', 
+        label: 'Do you have children ages 18 - 26?', 
+        section: 'Family & Household',
+        type: 'radio',
+        isActive: true,
+        options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
+    },
+    { 
+        id: 'hasExpectedChildren', 
+        label: 'Do you have 1 or more children expected (by birth or adoption)?', 
+        section: 'Family & Household',
+        type: 'radio',
+        isActive: true,
+        options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
+    },
+    { 
+        id: 'impactedPeopleCount', 
+        label: 'Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your exit?', 
+        section: 'Family & Household',
+        type: 'radio',
+        isActive: true,
+        options: ['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'],
+    },
+    { 
+        id: 'livingStatus', 
+        label: 'Which best describes your living status?', 
+        section: 'Circumstances',
+        type: 'radio',
+        isActive: true,
+        options: ['Homeowner', 'Renter', 'Corporate housing', 'Other', 'Prefer not to answer'],
+    },
+    { 
+        id: 'citizenshipStatus', 
+        label: 'What term best describes your citizenship or residence status?', 
+        section: 'Circumstances',
+        type: 'radio',
+        isActive: true,
+        options: [
+            'U.S. citizen', 'Permanent U.S. resident (green card holder), not a citizen',
+            'Pending I-485; working on an Employment Authorization Document (EAD) based on a pending I-485 (C9 class)',
+            'Undocumented/DREAMer/DACA/student with Mixed-Status Family',
+            'Foreign national, international student (or on a student visa - CPT, OPT, or OPT STEM)',
+            'Other', 'Prefer not to answer'
+        ],
+    },
+    { 
+        id: 'pastLifeEvents', 
+        label: 'Have you experienced any of these life events in the past 9 months?', 
+        section: 'Circumstances',
+        type: 'checkbox',
+        isActive: true,
+        options: [
+            'City/state/country relocation', 'Home purchase', 'College enrollment for yourself or a dependent',
+            'Marriage / separation / divorce', 'Serious mental or physical illness or accident (affecting you, a dependent, or a loved one)',
+            'Death of a family member or loved one', 'Taking on elder care', 'None of the above', 'Prefer not to answer'
+        ],
+    }
+];
+
 // The source of truth is a nested structure to make relationships clear.
 // It will be flattened and processed in the useUserData hook.
 export const getDefaultQuestions = (): Question[] => [

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Question } from './questions';
 
-const profileBaseSchema = z.object({
+const profileBaseShape = {
     birthYear: z.coerce
         .number({ required_error: 'Birth year is required.' })
         .min(1920, 'Please enter a valid year.')
@@ -17,7 +17,8 @@ const profileBaseSchema = z.object({
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
-});
+};
+const profileBaseSchema = z.object(profileBaseShape);
 
 export const profileSchema = profileBaseSchema.refine(data => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
     message: 'Please specify your gender identity.',
@@ -27,6 +28,54 @@ export const profileSchema = profileBaseSchema.refine(data => data.gender !== 'P
 export const profileQuestionsShape = profileBaseSchema.shape;
 
 export type ProfileData = z.infer<typeof profileSchema>;
+
+
+export function buildProfileSchema(questions: Question[]) {
+    const shape: Record<string, z.ZodType<any, any>> = {};
+
+    const buildShape = (qList: Question[]) => {
+        qList.forEach(q => {
+            const key = q.id as keyof ProfileData;
+            switch(q.type) {
+                case 'text':
+                    if (q.id === 'birthYear') {
+                        shape[key] = profileBaseShape.birthYear;
+                    } else {
+                        shape[key] = z.string().optional();
+                    }
+                    break;
+                case 'select':
+                case 'radio':
+                    shape[key] = z.string().min(1, `${q.label} is required.`);
+                    break;
+                case 'checkbox':
+                    shape[key] = z.array(z.string()).min(1, `Please select at least one option for ${q.label}.`);
+                    break;
+                default:
+                    shape[key] = z.any();
+            }
+
+            if(q.subQuestions) {
+                buildShape(q.subQuestions);
+            }
+        });
+    };
+    buildShape(questions);
+
+    let schema: any = z.object(shape);
+
+    const genderQuestion = questions.find(q => q.id === 'gender');
+    if (genderQuestion) {
+         schema = schema.refine((data: any) => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
+            message: 'Please specify your gender identity.',
+            path: ['genderSelfDescribe'],
+        });
+    }
+    
+    return schema;
+}
+
+
 
 const baseAssessmentFields = {
   companyName: z.string().optional(),

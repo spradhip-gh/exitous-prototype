@@ -1,6 +1,6 @@
 
 import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
-import { getDefaultQuestions, type Question } from './questions';
+import { getDefaultQuestions, getDefaultProfileQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
 import type { ExternalResource } from './external-resources';
 
@@ -14,6 +14,7 @@ interface DemoDatabase {
     companyConfigs: Record<string, CompanyConfig>;
     platformUsers: PlatformUser[];
     masterQuestions: Record<string, Question>;
+    masterProfileQuestions: Record<string, Question>;
     profileCompletions: Record<string, boolean>;
     assessmentCompletions: Record<string, boolean>;
     // --- Seeded localStorage data for specific demo users ---
@@ -27,8 +28,8 @@ declare global {
   var __demo_db__: DemoDatabase | undefined;
 }
 
-const initializeMasterQuestions = (): Record<string, Question> => {
-    const defaultQuestions = getDefaultQuestions();
+const initializeQuestions = (getQuestionsFn: () => Question[]): Record<string, Question> => {
+    const defaultQuestions = getQuestionsFn();
     const flatMap: Record<string, Question> = {};
 
     const processQuestions = (questions: Question[]) => {
@@ -260,7 +261,8 @@ This checklist is designed to help you manage key tasks during your employment t
             { email: 'admin@exitous.co', role: 'admin' },
             { email: 'consultant@exitous.co', role: 'consultant' }
         ],
-        masterQuestions: initializeMasterQuestions(),
+        masterQuestions: initializeQuestions(getDefaultQuestions),
+        masterProfileQuestions: initializeQuestions(getDefaultProfileQuestions),
         profileCompletions: {
             'employee1@globex.com': true,
         },
@@ -492,6 +494,9 @@ export const savePlatformUsers = (data: PlatformUser[]) => { db.platformUsers = 
 
 export const getMasterQuestions = () => db.masterQuestions;
 export const saveMasterQuestions = (data: Record<string, Question>) => { db.masterQuestions = data; };
+
+export const getMasterProfileQuestions = () => db.masterProfileQuestions;
+export const saveMasterProfileQuestions = (data: Record<string, Question>) => { db.masterProfileQuestions = data; };
 
 export const getProfileCompletions = () => db.profileCompletions;
 export const saveProfileCompletions = (data: Record<string, boolean>) => { db.profileCompletions = data; };
