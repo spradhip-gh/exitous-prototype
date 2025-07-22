@@ -285,7 +285,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   hasChildrenAges18To26: 'No',
                 },
                 assessment: {
-                  workStatus: 'Full-time employee: Employed for 40 hours or more per week with salary and benefits',
+                  workStatus: 'Full-time employee',
                   startDate: new Date('2020-01-15'),
                   notificationDate: new Date(getPastDate(5)),
                   finalDate: new Date(getFutureDate(25)),
@@ -308,7 +308,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   hadEAP: 'Yes',
                   eapCoverageEndDate: new Date('2025-08-31'),
                   'globex-corp-custom-1': 'No',
-                } as any, // Cast to any to avoid TS conflicts with custom questions
+                } as any,
             },
             'employee2@globex.com': {
                 profile: {

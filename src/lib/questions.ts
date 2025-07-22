@@ -148,12 +148,13 @@ export const getDefaultQuestions = (): Question[] => [
         type: "select",
         isActive: true,
         placeholder: "Select a status",
+        description: "Full-time: 40+ hrs/wk w/salary & benefits. Part-time: <40 hrs/wk at hourly wage. Contract: Predefined period. Independent Contractor: Non-employee.",
         options: [
-            'Contract employee: Employed for a predefined period to provide work according to contract terms',
-            'Full-time employee: Employed for 40 hours or more per week with salary and benefits',
-            'Independent contractor: Non-employee providing labor according to contract terms',
-            'Intern or apprentice: Temporary employee providing labor for educational benefit',
-            'Part-time employee: Employed at hourly wage for fewer than 40 hours per week',
+            'Contract employee',
+            'Full-time employee',
+            'Independent contractor',
+            'Intern or apprentice',
+            'Part-time employee',
             'Other'
         ],
     },
