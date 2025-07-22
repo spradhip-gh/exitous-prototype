@@ -11,7 +11,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { externalResources, type ExternalResource } from '@/lib/external-resources';
+import { getExternalResources } from '@/lib/demo-data';
+import type { ExternalResource } from '@/lib/external-resources';
 
 const ProfileDataSchema = z.object({
   birthYear: z.number().optional(),
@@ -26,6 +27,8 @@ const ProfileDataSchema = z.object({
   pastLifeEvents: z.array(z.string()).optional(),
   hasChildrenAges18To26: z.boolean().optional(),
 });
+
+export type ExpertMatchInput = z.infer<typeof ProfileDataSchema>;
 
 const LayoffDetailsSchema = z.object({
   workStatus: z.string().optional(),
@@ -72,9 +75,9 @@ const findExpertMatchesFlow = ai.defineFlow(
     outputSchema: ExpertMatchOutputSchema,
   },
   async (input) => {
-    // In a real app, this could be a more sophisticated search/retrieval step.
-    // For the prototype, we pass the full list to the model.
-    const allResources = externalResources;
+    // In a real app, this would be a more sophisticated search/retrieval step from a database.
+    // For the prototype, we get the list from our in-memory store.
+    const allResources = getExternalResources();
 
     const prompt = `You are an expert career and life transition counselor. Your task is to analyze a user's profile and layoff details to identify their most pressing needs. Then, you will match them with the most relevant external resources from the provided list.
 

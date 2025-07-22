@@ -9,9 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { externalResources, type ExternalResource } from '@/lib/external-resources';
 import { findExpertMatches, type ExpertMatchOutput, type ExpertMatchInput } from '@/ai/flows/find-expert-matches';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, type ExternalResource } from '@/hooks/use-user-data';
 import { Sparkles, Search, ExternalLink, Terminal, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 
@@ -67,7 +66,7 @@ function ExternalResourcesContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const { profileData, assessmentData } = useUserData();
+    const { profileData, assessmentData, externalResources } = useUserData();
 
     useEffect(() => {
         const fetchMatches = async () => {
@@ -83,15 +82,16 @@ function ExternalResourcesContent() {
                     hasChildrenAges18To26: String(profileData.hasChildrenAges18To26).startsWith('Yes'),
                 };
                 
-                const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
+                const stringifiedAssessmentData: Record<string, any> = {};
                 Object.keys(assessmentData).forEach(key => {
                     const value = (assessmentData as any)[key];
                     if (value instanceof Date) {
                         stringifiedAssessmentData[key] = value.toISOString();
-                    } else if (typeof value === 'string') {
+                    } else if (typeof value === 'string' || typeof value === 'boolean' || Array.isArray(value)) {
                         stringifiedAssessmentData[key] = value;
                     }
                 });
+
 
                 const result = await findExpertMatches({
                     profileData: transformedProfileData,
@@ -119,13 +119,13 @@ function ExternalResourcesContent() {
                 : true;
             return matchesCategory && matchesSearch;
         });
-    }, [searchTerm, selectedCategory]);
+    }, [searchTerm, selectedCategory, externalResources]);
 
     const matchedResources = useMemo(() => {
         if (!matches) return [];
         const matchedIds = new Set(matches.matches.map(m => m.resourceId));
         return externalResources.filter(r => matchedIds.has(r.id));
-    }, [matches]);
+    }, [matches, externalResources]);
 
     const handleCategoryClick = (category: string | null) => {
         setSelectedCategory(category);
