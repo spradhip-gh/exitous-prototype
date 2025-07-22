@@ -49,8 +49,17 @@ export default function AdminGuidePage() {
                         <li><strong>Verification & Offers:</strong> You can mark a resource as "Exitous Verified" to build user trust, and you can add a "Special Offer" to highlight exclusive deals for your users.</li>
                         <li><strong>AI Matching Keywords:</strong> The <code>relatedTaskIds</code> field is critical. It links a resource directly to one or more AI-generated task IDs (e.g., 'review-severance-agreement'). This allows the system to automatically recommend the right professional for a specific user need.</li>
                     </ul>
+                    
+                    <h2>4. Assessment Analytics</h2>
+                    <p>
+                        This page gives you high-level insights into how employees across the entire platform are interacting with the assessment, helping you identify common areas of confusion or concern.
+                    </p>
+                    <ul>
+                        <li><strong>Top "Unsure" Answers:</strong> The main dashboard shows a chart and table of the questions that users most frequently answer with "Unsure". This can indicate that a question is confusing or that users lack the information to answer it.</li>
+                        <li><strong>Company Drill-Down:</strong> As an admin, you can click on any bar in the chart or any row in the table to open a dialog showing a company-by-company breakdown for that specific question. This helps you identify if confusion is widespread or concentrated within a specific client.</li>
+                    </ul>
 
-                    <h2>4. Platform User Management</h2>
+                    <h2>5. Platform User Management</h2>
                     <p>
                         Here, you can grant or revoke access for other high-level users of the ExitBetter platform.
                     </p>
@@ -59,7 +68,7 @@ export default function AdminGuidePage() {
                         <li><strong>Access Control:</strong> You can remove access for any platform user except yourself.</li>
                     </ul>
                     
-                    <h2>5. Export User Data</h2>
+                    <h2>6. Export User Data</h2>
                     <p>
                         This powerful feature provides a comprehensive export of every single user on the platform.
                     </p>

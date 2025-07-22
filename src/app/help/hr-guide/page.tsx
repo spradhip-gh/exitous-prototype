@@ -127,8 +127,13 @@ export default function HrManagerGuidePage() {
                         <li><strong>Adding Custom Questions:</strong> Add new questions that are specific to your company by clicking the "Add Custom Question" button. These will only appear in your company's assessment.</li>
                         <li><strong>Adding Sub-Questions:</strong> For questions with options (like Radio or Checkbox), you can add conditional sub-questions that only appear when a specific option is chosen by the user.</li>
                     </ul>
+                    
+                    <h2>3. Assessment Analytics</h2>
+                    <p>
+                        The Analytics page provides valuable insight into where your employees may be struggling or lack information during the offboarding process. The dashboard displays the questions that your employees have most frequently answered with "Unsure". This can help you identify areas where your offboarding communication or resources could be improved.
+                    </p>
 
-                    <h2>3. Resources & Support</h2>
+                    <h2>4. Resources & Support</h2>
                     <h3>Company Resources</h3>
                     <p>
                         Here you can upload and manage documents that will be available to all of your exiting employees in their dashboard's "Resources" section. This is a great place for:
@@ -143,7 +148,7 @@ export default function HrManagerGuidePage() {
                         Your employees also have access to a directory of external professionals (e.g., financial advisors, lawyers) that are curated and managed by the platform administrator. This provides an additional layer of support for your employees.
                     </p>
 
-                    <h2>4. Company Settings</h2>
+                    <h2>5. Company Settings</h2>
                     <p>
                         Manage your company's subscription plan and default settings. Your platform administrator sets the initial values for contacts and deadlines when creating the company.
                     </p>
@@ -152,7 +157,7 @@ export default function HrManagerGuidePage() {
                         <li><strong>Contact & Deadline Defaults:</strong> Set the default contact aliases and severance agreement deadline time/timezone for all users in your company. The aliases you set here will be shown to users unless you provide a user-specific override in a CSV upload.</li>
                     </ul>
 
-                    <h2>5. User Preview Mode</h2>
+                    <h2>6. User Preview Mode</h2>
                     <p>
                         To see the platform exactly as an end-user would, use the "View as User" option in the header dropdown menu. This is crucial for quality control and ensuring the experience is clear and helpful. In this mode, any profile or assessment data you enter is kept separate from your HR account and can be cleared at any time. To return to your HR view, simply open the dropdown again and select "Return to HR View."
                     </p>
