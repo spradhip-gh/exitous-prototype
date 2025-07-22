@@ -42,8 +42,9 @@ export const getDefaultProfileQuestions = (): Question[] => [
         id: 'gender', 
         label: 'Which gender do you identify with?', 
         section: 'Basic Information',
-        type: 'radio',
+        type: 'select',
         isActive: true,
+        placeholder: "Select an option",
         options: ['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'],
         subQuestions: [
             { 
