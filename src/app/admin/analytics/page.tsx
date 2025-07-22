@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
     }).sort((a,b) => b.count - a.count);
 
 
-    const chartDataByCompany = overallSummary.slice(0, 7).map(({ questionId, questionLabel }) => {
+    const chartDataByCompany = overallSummary.slice(0, 5).map(({ questionId, questionLabel }) => {
         const entry: { [key: string]: string | number } = { questionLabel };
         const companyCounts = unsureCountsByCompany[questionId] || {};
         for(const compName of companiesToProcess) {
@@ -127,18 +127,28 @@ export default function AnalyticsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart 
                             data={isAdmin ? byCompany : overall.slice(0, 5)} 
-                            layout="vertical" 
-                            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                            layout={isAdmin ? "horizontal" : "vertical"}
+                            margin={{ top: 5, right: 20, left: 10, bottom: isAdmin ? 20 : 5 }}
                         >
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis 
-                                dataKey="questionLabel" 
-                                type="category" 
-                                width={180}
-                                interval={0}
-                                tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 25)}...` : value}
-                            />
+                            {isAdmin ? (
+                                <>
+                                  <XAxis dataKey="questionLabel" angle={-20} textAnchor="end" height={60} interval={0} tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value} />
+                                  <YAxis allowDecimals={false} />
+                                </>
+                            ) : (
+                                <>
+                                  <XAxis type="number" allowDecimals={false} />
+                                  <YAxis 
+                                      dataKey="questionLabel" 
+                                      type="category" 
+                                      width={180}
+                                      interval={0}
+                                      tickFormatter={(value) => value.length > 25 ? `${value.substring(0, 25)}...` : value}
+                                  />
+                                </>
+                            )}
+                           
                             <Tooltip 
                                 cursor={{ fill: 'hsl(var(--muted))' }}
                                 contentStyle={{
@@ -148,9 +158,9 @@ export default function AnalyticsPage() {
                             />
                             {isAdmin ? (
                                 <>
-                                <Legend />
+                                <Legend verticalAlign="top" />
                                 {companyKeys.map((key, index) => (
-                                    <Bar key={key} dataKey={key} name={key} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]} />
+                                    <Bar key={key} dataKey={key} name={key} fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[4, 4, 0, 0]} />
                                 ))}
                                 </>
                             ) : (
