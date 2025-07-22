@@ -56,6 +56,12 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
                   </Link>
               </CollapsibleContent>
             </Collapsible>
+          <Link href="/admin/analytics">
+            <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
+              <BarChart className="mr-2" />
+              Analytics
+            </Button>
+          </Link>
            <Link href="/admin/platform-users">
             <Button variant={getVariant('/admin/platform-users')} className="w-full justify-start">
               <UserCog className="mr-2" />

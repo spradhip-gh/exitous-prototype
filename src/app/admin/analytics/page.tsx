@@ -7,29 +7,28 @@ import { useUserData } from '@/hooks/use-user-data';
 import type { Question } from '@/lib/questions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface UnsureAnswer {
-  questionId: string;
-  questionLabel: string;
-  count: number;
-}
+const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function AnalyticsPage() {
   const { auth } = useAuth();
-  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading } = useUserData();
+  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, companyAssignments } = useUserData();
   const companyName = auth?.companyName;
+  const isAdmin = auth?.role === 'admin';
 
-  const unsureAnalytics = useMemo(() => {
-    if (!companyName || isUserDataLoading) return null;
+  const analyticsData = useMemo(() => {
+    if (isUserDataLoading) return null;
 
-    const companyConfig = getAllCompanyConfigs()[companyName];
-    if (!companyConfig || !companyConfig.users) return [];
+    const allConfigs = getAllCompanyConfigs();
+    const companiesToProcess = isAdmin ? companyAssignments.map(c => c.companyName) : (companyName ? [companyName] : []);
+    
+    if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [] };
 
     const questionMap: Map<string, Question> = new Map();
-    const allQuestions = getCompanyConfig(companyName, false);
+    const allQuestions = getCompanyConfig(isAdmin ? undefined : companyName, false);
     
     const flattenQuestions = (questions: Question[]) => {
       for (const q of questions) {
@@ -41,34 +40,56 @@ export default function AnalyticsPage() {
     };
     flattenQuestions(allQuestions);
 
-    const unsureCounts: Record<string, number> = {};
+    const unsureCountsByCompany: Record<string, Record<string, number>> = {}; // { questionId: { companyName: count } }
 
-    for (const user of companyConfig.users) {
-      const assessmentData = user.prefilledAssessmentData; // In demo, this holds the answers
-      if (assessmentData) {
-        for (const questionId in assessmentData) {
-          const answer = (assessmentData as any)[questionId];
-          if (answer === 'Unsure') {
-            unsureCounts[questionId] = (unsureCounts[questionId] || 0) + 1;
-          }
+    for (const compName of companiesToProcess) {
+        const companyConfig = allConfigs[compName];
+        if (!companyConfig || !companyConfig.users) continue;
+
+        for (const user of companyConfig.users) {
+            const assessmentData = user.prefilledAssessmentData;
+            if (assessmentData) {
+                for (const questionId in assessmentData) {
+                    const answer = (assessmentData as any)[questionId];
+                    if (answer === 'Unsure') {
+                        if (!unsureCountsByCompany[questionId]) {
+                            unsureCountsByCompany[questionId] = {};
+                        }
+                        unsureCountsByCompany[questionId][compName] = (unsureCountsByCompany[questionId][compName] || 0) + 1;
+                    }
+                }
+            }
         }
-      }
     }
-
-    return Object.entries(unsureCounts)
-      .map(([questionId, count]) => {
-        const question = questionMap.get(questionId);
+    
+    const overallSummary = Object.entries(unsureCountsByCompany).map(([questionId, companyCounts]) => {
+        const total = Object.values(companyCounts).reduce((sum, count) => sum + count, 0);
         return {
-          questionId,
-          questionLabel: question ? question.label : questionId,
-          count,
-        };
-      })
-      .sort((a, b) => b.count - a.count);
+            questionId,
+            questionLabel: questionMap.get(questionId)?.label || questionId,
+            count: total,
+        }
+    }).sort((a,b) => b.count - a.count);
 
-  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading]);
+
+    const chartDataByCompany = overallSummary.slice(0, 7).map(({ questionId, questionLabel }) => {
+        const entry: { [key: string]: string | number } = { questionLabel };
+        const companyCounts = unsureCountsByCompany[questionId] || {};
+        for(const compName of companiesToProcess) {
+            entry[compName] = companyCounts[compName] || 0;
+        }
+        return entry;
+    });
+
+    return {
+        overall: overallSummary,
+        byCompany: chartDataByCompany,
+        companyKeys: companiesToProcess,
+    };
+
+  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin, companyAssignments]);
   
-  if (isUserDataLoading) {
+  if (isUserDataLoading || !analyticsData) {
       return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -80,13 +101,15 @@ export default function AnalyticsPage() {
       )
   }
 
+  const { overall, byCompany, companyKeys } = analyticsData;
+
   return (
     <div className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
         <div className="space-y-2">
           <h1 className="font-headline text-3xl font-bold">Assessment Analytics</h1>
           <p className="text-muted-foreground">
-            Insights into employee responses for {companyName}.
+            Insights into employee responses for {isAdmin ? 'all companies' : companyName}.
           </p>
         </div>
 
@@ -94,17 +117,22 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Top "Unsure" Answers</CardTitle>
             <CardDescription>
-              These are the questions your employees were most frequently unsure about. This data can help you improve internal documentation and resources.
+              These are the questions employees were most frequently unsure about. This data can help improve documentation and resources.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {unsureAnalytics && unsureAnalytics.length > 0 ? (
+            {overall.length > 0 ? (
               <div className="grid gap-8">
                 <div className="h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={unsureAnalytics.slice(0, 5)} layout="vertical" margin={{ left: 120 }}>
+                        <BarChart 
+                            data={isAdmin ? byCompany : overall.slice(0, 5)} 
+                            layout="vertical" 
+                            margin={{ left: 120 }}
+                            stackOffset={isAdmin ? "expand" : undefined}
+                        >
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" allowDecimals={false} />
+                            <XAxis type="number" allowDecimals={false} domain={isAdmin ? [0, 1] : undefined} tickFormatter={isAdmin ? (tick) => `${tick * 100}%` : undefined} />
                             <YAxis 
                                 dataKey="questionLabel" 
                                 type="category" 
@@ -117,8 +145,23 @@ export default function AnalyticsPage() {
                                     backgroundColor: 'hsl(var(--background))',
                                     borderColor: 'hsl(var(--border))',
                                 }}
+                                formatter={isAdmin ? (value: number, name: string, props) => {
+                                    const total = props.payload.total;
+                                    const percent = total > 0 ? (value / total * 100).toFixed(1) : 0;
+                                    return `${value} (${percent}%)`;
+                                } : undefined}
+
                             />
-                            <Bar dataKey="count" name="Unsure Count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                            {isAdmin ? (
+                                <>
+                                <Legend />
+                                {companyKeys.map((key, index) => (
+                                    <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} radius={[0, 4, 4, 0]} />
+                                ))}
+                                </>
+                            ) : (
+                                <Bar dataKey="count" name="Unsure Count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                            )}
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -126,11 +169,11 @@ export default function AnalyticsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Question</TableHead>
-                            <TableHead className="text-right">"Unsure" Count</TableHead>
+                            <TableHead className="text-right">Total "Unsure" Count</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {unsureAnalytics.map(item => (
+                        {overall.map(item => (
                             <TableRow key={item.questionId}>
                                 <TableCell className="font-medium">{item.questionLabel}</TableCell>
                                 <TableCell className="text-right">
