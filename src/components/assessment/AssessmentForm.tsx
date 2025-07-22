@@ -26,11 +26,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { CalendarIcon, Info, Star } from 'lucide-react';
-import { convertStringsToDates } from '@/hooks/use-user-data';
 
+
+const safeFormatDate = (value: any, formatString: string) => {
+    if (!value) return null;
+    try {
+        const date = typeof value === 'string' ? parseISO(value) : value;
+        if (date instanceof Date && !isNaN(date.getTime())) {
+            return format(date, formatString);
+        }
+    } catch (e) {
+        // Fallback for different string formats if needed, but for now, we just catch the error
+    }
+    return null;
+}
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     // Special handling for workStatus due to long option text
@@ -57,11 +69,12 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 </Select>
             );
         case 'date':
+            const displayDate = safeFormatDate(field.value, "PPP");
             return (
                 <Popover><PopoverTrigger asChild>
                     <FormControl>
                         <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? format(field.value, "PPP") : <span>{question.placeholder}</span>}
+                            {displayDate ? displayDate : <span>{question.placeholder}</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                     </FormControl>
@@ -171,18 +184,10 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
     const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
-
-    // Prepare data once with useMemo, ensuring date conversions happen before form initialization.
-    const formValues = useMemo(() => {
-      if (initialData) {
-        return convertStringsToDates(initialData);
-      }
-      return {};
-    }, [initialData]);
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
-        values: formValues, // Use `values` for reliable async data handling
+        defaultValues: initialData,
     });
 
     const { watch, setValue, getValues } = form;
@@ -293,7 +298,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8" key={initialData ? 'form-loaded' : 'form-loading'}>
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
                     <Card key={section}>
                         <CardHeader>
@@ -324,7 +329,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData }: { que
 }
 
 export default function AssessmentForm() {
-    const { getCompanyConfig, isUserDataLoading, assessmentData } = useUserData();
+    const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
