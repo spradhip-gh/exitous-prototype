@@ -62,9 +62,10 @@ export const getDefaultProfileQuestions = (): Question[] => [
         id: 'maritalStatus', 
         label: 'What’s your marital status?', 
         section: 'Family & Household',
-        type: 'radio',
+        type: 'select',
         isActive: true,
         options: ['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'],
+        placeholder: "Select a status",
     },
     { 
         id: 'hasChildrenUnder13', 
@@ -110,7 +111,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         id: 'citizenshipStatus', 
         label: 'What term best describes your citizenship or residence status?', 
         section: 'Circumstances',
-        type: 'radio',
+        type: 'select',
         isActive: true,
         options: [
             'U.S. citizen', 'Permanent U.S. resident (green card holder), not a citizen',
@@ -119,6 +120,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
             'Foreign national, international student (or on a student visa - CPT, OPT, or OPT STEM)',
             'Other', 'Prefer not to answer'
         ],
+        placeholder: "Select a status",
     },
     { 
         id: 'pastLifeEvents', 
