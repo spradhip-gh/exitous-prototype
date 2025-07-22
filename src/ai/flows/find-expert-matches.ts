@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -44,7 +45,7 @@ const LayoffDetailsSchema = z.object({
   hadVisionInsurance: z.string().optional(),
 });
 
-export const ExpertMatchInputSchema = z.object({
+const ExpertMatchInputSchema = z.object({
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
 });
@@ -55,7 +56,7 @@ const MatchSchema = z.object({
     reason: z.string().describe("A brief, user-facing explanation for why this resource is a good match."),
 });
 
-export const ExpertMatchOutputSchema = z.object({
+const ExpertMatchOutputSchema = z.object({
     matches: z.array(MatchSchema).describe('A list of the top 3-4 most relevant external resources for the user.'),
 });
 export type ExpertMatchOutput = z.infer<typeof ExpertMatchOutputSchema>;
