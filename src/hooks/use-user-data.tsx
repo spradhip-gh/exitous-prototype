@@ -206,54 +206,51 @@ export function useUserData() {
   useEffect(() => {
     setIsLoading(true);
     try {
-      // Load shared data first
+      // Load shared data first from our in-memory "DB"
       const loadedCompanyAssignments = getCompanyAssignmentsFromDb();
       const loadedCompanyConfigs = getCompanyConfigsFromDb();
+      const loadedPlatformUsers = getPlatformUsersFromDb();
+      const loadedProfileCompletions = getProfileCompletionsFromDb();
+      const loadedAssessmentCompletions = getAssessmentCompletionsFromDb();
+      const loadedMasterQuestions = getMasterQuestionsFromDb();
+      const loadedMasterProfileQuestions = getMasterProfileQuestionsFromDb();
+      const loadedExternalResources = getExternalResourcesFromDb();
+
       setCompanyAssignmentsState(loadedCompanyAssignments);
       setCompanyConfigsState(loadedCompanyConfigs);
-      setPlatformUsersState(getPlatformUsersFromDb());
-      setProfileCompletionsState(getProfileCompletionsFromDb());
-      setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
-      setMasterQuestionsState(getMasterQuestionsFromDb());
-      setMasterProfileQuestionsState(getMasterProfileQuestionsFromDb());
-      setExternalResourcesState(getExternalResourcesFromDb());
+      setPlatformUsersState(loadedPlatformUsers);
+      setProfileCompletionsState(loadedProfileCompletions);
+      setAssessmentCompletionsState(loadedAssessmentCompletions);
+      setMasterQuestionsState(loadedMasterQuestions);
+      setMasterProfileQuestionsState(loadedMasterProfileQuestions);
+      setExternalResourcesState(loadedExternalResources);
 
       // --- USER SPECIFIC DATA ---
-      // Load from localStorage
-      let profileJson = localStorage.getItem(profileKey);
-      let assessmentJson = localStorage.getItem(assessmentKey);
+      const profileJson = localStorage.getItem(profileKey);
+      const assessmentJson = localStorage.getItem(assessmentKey);
       
       let finalProfileData = profileJson ? JSON.parse(profileJson) : null;
-      let finalAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
+      let finalAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : {};
 
-      // Handle seeded/pre-filled data for users who might not have local storage yet.
       if (auth?.email) {
           const seeded = getSeededDataForUser(auth.email);
+          const companyUser = loadedCompanyConfigs[auth.companyName as string]?.users?.find(u => u.email === auth.email);
+          const hrPrefilledData = companyUser?.prefilledAssessmentData || {};
+          const notificationDate = companyUser?.notificationDate ? { notificationDate: companyUser.notificationDate } : {};
+          
           if (seeded && !profileJson) {
               finalProfileData = seeded.profile;
-              localStorage.setItem(profileKey, JSON.stringify(convertDatesToStrings(finalProfileData)));
           }
 
-          const companyUser = getCompanyUser(auth.email);
-          const hrPrefilledData = companyUser?.user.prefilledAssessmentData || {};
-          const notificationDate = companyUser?.user.notificationDate ? { notificationDate: companyUser.user.notificationDate } : {};
-
-          // Merge seeded, HR-prefilled, and existing data
-          const mergedAssessmentData = {
+          finalAssessmentData = {
               ...(seeded?.assessment || {}),
               ...hrPrefilledData,
               ...notificationDate,
-              ...(finalAssessmentData || {})
+              ...finalAssessmentData
           };
-
-          if (Object.keys(mergedAssessmentData).length > 0) {
-              finalAssessmentData = mergedAssessmentData;
-              // Save back to local storage to persist the merged data
-              localStorage.setItem(assessmentKey, JSON.stringify(convertDatesToStrings(finalAssessmentData)));
-          }
       }
-
-      setProfileData(finalProfileData);
+      
+      setProfileData(convertStringsToDates(finalProfileData));
       setAssessmentData(convertStringsToDates(finalAssessmentData));
       
       const completedTasksJson = localStorage.getItem(completedTasksKey);
@@ -273,7 +270,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, getCompanyUser]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -586,7 +583,7 @@ export function useUserData() {
 
       // Reset assessment data, but preserve HR-prefilled info
       localStorage.removeItem(assessmentKey);
-      const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+      const companyUser = getCompanyUser(auth?.email as string);
       let prefilledData: any = {};
       if (companyUser?.user.prefilledAssessmentData) {
         prefilledData = { ...companyUser.user.prefilledAssessmentData };
@@ -595,9 +592,9 @@ export function useUserData() {
           prefilledData.notificationDate = companyUser.user.notificationDate;
       }
       
-      const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
-      localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
-      setAssessmentData(convertStringsToDates(prefilledData));
+      const prefilledDataWithDates = convertStringsToDates(prefilledData);
+      setAssessmentData(prefilledDataWithDates);
+      localStorage.setItem(assessmentKey, JSON.stringify(convertDatesToStrings(prefilledDataWithDates)));
       
       // Clear task-related data
       localStorage.removeItem(completedTasksKey);

@@ -340,12 +340,12 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
 
-  const hasAnyAssessmentData = !!assessmentData;
+  const hasPrefilledData = assessmentData && Object.keys(assessmentData).length > 0;
   const isProfileComplete = !!profileData;
   const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
   
   // Show welcome message if there's prefilled data but the profile isn't done yet.
-  const showWelcomeMessage = hasAnyAssessmentData && !isAssessmentComplete && !isProfileComplete;
+  const showWelcomeMessage = hasPrefilledData && !isProfileComplete;
 
   if (!isClient || isLoading) {
     return (
@@ -370,7 +370,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {hasAnyAssessmentData && <ImportantDates />}
+        {hasPrefilledData && <ImportantDates />}
 
         {isReadyForTimeline ? (
           <TimelineDashboard />
