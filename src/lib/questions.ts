@@ -329,8 +329,8 @@ export const getDefaultQuestions = (): Question[] => [
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'medicalCoverage', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'medicalCoverageEndDate', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'medicalCoverage', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Who was covered by medical?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'medicalCoverageEndDate', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Last day of Medical coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
@@ -341,8 +341,8 @@ export const getDefaultQuestions = (): Question[] => [
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'dentalCoverage', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'dentalCoverageEndDate', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'dentalCoverage', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Who was covered by dental?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'dentalCoverageEndDate', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Last day of Dental coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
@@ -353,8 +353,8 @@ export const getDefaultQuestions = (): Question[] => [
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'visionCoverage', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Who was covered?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'visionCoverageEndDate', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Last day of coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'visionCoverage', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Who was covered by vision?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'visionCoverageEndDate', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Last day of Vision coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
