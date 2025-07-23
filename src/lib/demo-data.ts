@@ -310,48 +310,6 @@ This checklist is designed to help you manage key tasks during your employment t
                   'globex-corp-custom-1': 'No',
                 } as any,
             },
-            'employee2@globex.com': {
-                profile: {
-                  birthYear: 1988,
-                  state: 'California',
-                  gender: 'Female',
-                  maritalStatus: 'Married',
-                  hasChildrenUnder13: 'Yes, 1 or more',
-                  hasExpectedChildren: 'No',
-                  impactedPeopleCount: '1 - 3',
-                  livingStatus: 'Homeowner',
-                  citizenshipStatus: 'U.S. citizen',
-                  pastLifeEvents: ['Home purchase'],
-                  hasChildrenAges18To26: 'No',
-                },
-                assessment: {
-                  workStatus: 'Full-time employee',
-                  startDate: new Date('2018-05-15'),
-                  notificationDate: new Date(getPastDate(2)),
-                  finalDate: new Date(getFutureDate(28)),
-                  severanceAgreementDeadline: '2025-08-30',
-                  workState: 'California',
-                  relocationPaid: 'No',
-                  unionMember: 'No',
-                  workArrangement: 'Remote',
-                  workVisaStatus: 'None of the above',
-                  onLeave: ['None of the above'],
-                  accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
-                  emailAccessEndDate: new Date(getFutureDate(32)),
-                  hrPayrollSystemAccessEndDate: new Date(getFutureDate(60)),
-                  hadMedicalInsurance: 'Yes',
-                  medicalCoverage: 'Me and family',
-                  medicalCoverageEndDate: '2025-08-31',
-                  hadDentalInsurance: 'Yes',
-                  dentalCoverage: 'Me and family',
-                  dentalCoverageEndDate: '2025-08-31',
-                  hadVisionInsurance: 'Yes',
-                  visionCoverage: 'Me and family',
-                  visionCoverageEndDate: '2025-08-31',
-                  hadEAP: 'Yes',
-                  eapCoverageEndDate: '2025-08-31',
-                } as AssessmentData,
-            },
         },
         externalResources: [
             // Finances
@@ -522,3 +480,4 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
