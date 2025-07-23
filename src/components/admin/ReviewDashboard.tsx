@@ -17,52 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
-
-const sampleProfileData = {
-  birthYear: 1988,
-  state: 'California',
-  gender: 'Female',
-  maritalStatus: 'Married',
-  hasChildrenUnder13: true,
-  hasExpectedChildren: false,
-  impactedPeopleCount: '1 - 3',
-  livingStatus: 'Homeowner',
-  citizenshipStatus: 'U.S. citizen',
-  pastLifeEvents: ['Home purchase'],
-  hasChildrenAges18To26: false,
-};
-
-const sampleAssessmentData = {
-  workStatus: 'Full-time employee',
-  startDate: new Date('2018-05-15').toISOString(),
-  notificationDate: new Date('2024-06-01').toISOString(),
-  finalDate: new Date('2024-06-30').toISOString(),
-  workState: 'California',
-  relocationPaid: 'No',
-  unionMember: 'No',
-  workArrangement: 'Remote',
-  workVisa: 'None of the above',
-  onLeave: ['None of the above'],
-  accessSystems: ['email', 'hr_payroll'],
-  emailAccessEndDate: new Date('2024-07-15').toISOString(),
-  hrPayrollSystemAccessEndDate: new Date('2024-07-31').toISOString(),
-  hadMedicalInsurance: 'Yes',
-  medicalCoverage: 'Me and family',
-  medicalCoverageEndDate: new Date('2024-06-30').toISOString(),
-  hadDentalInsurance: 'Yes',
-  dentalCoverage: 'Me and family',
-  dentalCoverageEndDate: new Date('2024-06-30').toISOString(),
-  hadVisionInsurance: 'No',
-  hadEAP: 'Yes',
-  eapCoverageEndDate: new Date('2024-09-30').toISOString(),
-};
-
-const tenureOptions: { label: string; condition: Condition }[] = [
-    { label: '< 1 Year', condition: { type: 'tenure', operator: 'lt', value: [1], label: '< 1 Year' }},
-    { label: '1 - 3 Years', condition: { type: 'tenure', operator: 'gte_lt', value: [1, 3], label: '1 - 3 Years' }},
-    { label: '3 - 5 Years', condition: { type: 'tenure', operator: 'gte_lt', value: [3, 5], label: '3 - 5 Years' }},
-    { label: '5+ Years', condition: { type: 'tenure', operator: 'gte', value: [5], label: '5+ Years' }},
-];
+import { tenureOptions } from '@/lib/guidance-helpers';
 
 
 function GuidanceRuleForm({
