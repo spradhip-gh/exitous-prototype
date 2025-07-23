@@ -371,24 +371,27 @@ export default function DashboardPage() {
   return (
     <main className="p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-8">
-         <div className="space-y-2">
-            <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
-            <p className="text-muted-foreground">
-              {isReadyForTimeline
-                  ? "Here’s a timeline of recommended actions based on your details."
-                  : "Complete your profile and assessment to unlock your personalized plan."}
-            </p>
-          </div>
-        
-        {hasPrefilledData && !isProfileComplete && <WelcomeSummary />}
-        
+        <div className="space-y-2">
+          <h1 className="font-headline text-3xl font-bold">Your Dashboard</h1>
+          <p className="text-muted-foreground">
+            {isReadyForTimeline
+              ? "Here’s a timeline of recommended actions based on your details."
+              : "Complete your profile and assessment to unlock your personalized plan."}
+          </p>
+        </div>
+
         {isReadyForTimeline ? (
-            <>
-                <ImportantDates />
-                <TimelineDashboard />
-            </>
-        ) : (
+          <>
+            <ImportantDates />
+            <TimelineDashboard />
+          </>
+        ) : hasPrefilledData && !isProfileComplete ? (
+          <>
+            <WelcomeSummary />
             <ProgressTracker />
+          </>
+        ) : (
+          <ProgressTracker />
         )}
       </div>
     </main>
