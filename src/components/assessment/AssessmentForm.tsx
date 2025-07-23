@@ -55,12 +55,11 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 </Select>
             );
         case 'date':
-            const displayDate = safeFormatDate(field.value, "PPP");
             return (
                 <Popover><PopoverTrigger asChild>
                     <FormControl>
                         <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {displayDate ? displayDate : <span>{question.placeholder}</span>}
+                            {field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>{question.placeholder}</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                     </FormControl>

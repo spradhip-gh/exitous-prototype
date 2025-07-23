@@ -99,7 +99,7 @@ export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Questio
 
 // This regex helps identify YYYY-MM-DD format
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const isoDateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3}Z?)?$/;
 
 export const convertStringsToDates = (obj: any): any => {
     if (!obj) return obj;
@@ -224,7 +224,7 @@ export function useUserData() {
       let assessmentJson = localStorage.getItem(assessmentKey);
       
       let finalProfileData = profileJson ? JSON.parse(profileJson) : null;
-      let finalAssessmentData = assessmentJson ? convertStringsToDates(JSON.parse(assessmentJson)) : null;
+      let finalAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : null;
 
       // Handle seeded/pre-filled data for users who might not have local storage yet.
       if (auth?.email) {
@@ -247,14 +247,14 @@ export function useUserData() {
           };
 
           if (Object.keys(mergedAssessmentData).length > 0) {
-              finalAssessmentData = convertStringsToDates(mergedAssessmentData);
+              finalAssessmentData = mergedAssessmentData;
               // Save back to local storage to persist the merged data
               localStorage.setItem(assessmentKey, JSON.stringify(convertDatesToStrings(finalAssessmentData)));
           }
       }
 
       setProfileData(finalProfileData);
-      setAssessmentData(finalAssessmentData);
+      setAssessmentData(convertStringsToDates(finalAssessmentData));
       
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
@@ -587,22 +587,18 @@ export function useUserData() {
       // Reset assessment data, but preserve HR-prefilled info
       localStorage.removeItem(assessmentKey);
       const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+      let prefilledData: any = {};
       if (companyUser?.user.prefilledAssessmentData) {
-        let prefilledData: any = { ...companyUser.user.prefilledAssessmentData };
-        
-        if(companyUser?.user.notificationDate) {
-            prefilledData.notificationDate = companyUser.user.notificationDate;
-        }
-
-        const prefilledDataWithDates = convertStringsToDates(prefilledData);
-        const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
-        localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
-        setAssessmentData(prefilledDataWithDates);
-
-      } else {
-        setAssessmentData(null);
+        prefilledData = { ...companyUser.user.prefilledAssessmentData };
       }
-
+      if(companyUser?.user.notificationDate) {
+          prefilledData.notificationDate = companyUser.user.notificationDate;
+      }
+      
+      const prefilledDataWithStrings = convertDatesToStrings(prefilledData);
+      localStorage.setItem(assessmentKey, JSON.stringify(prefilledDataWithStrings));
+      setAssessmentData(convertStringsToDates(prefilledData));
+      
       // Clear task-related data
       localStorage.removeItem(completedTasksKey);
       localStorage.removeItem(taskDateOverridesKey);
