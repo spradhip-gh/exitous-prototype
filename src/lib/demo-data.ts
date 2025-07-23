@@ -95,6 +95,36 @@ const initializeDb = (): DemoDatabase => {
         ],
         companyConfigs: {
             'Globex Corp': {
+                guidance: [
+                    {
+                        id: 'tenure-rule-1',
+                        name: 'Guidance for < 1 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'lt', value: [1], label: '< 1 Year' }],
+                        guidanceText: 'With less than one year of service, be aware that you may not be eligible for a 401k match or full severance. Review your employee handbook for details on prorated benefits for employees with your tenure.',
+                        category: 'Finances',
+                    },
+                    {
+                        id: 'tenure-rule-2',
+                        name: 'Guidance for 1-3 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 3], label: '1 - 3 Years' }],
+                        guidanceText: 'You are likely eligible for COBRA and may have partially vested stock options. It is critical to review your grant details and exercise window. Also, consider rolling over your 401k to an IRA to maintain control of your retirement funds.',
+                        category: 'Finances',
+                    },
+                    {
+                        id: 'tenure-rule-3',
+                        name: 'Guidance for 3-5 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [3, 5], label: '3 - 5 Years' }],
+                        guidanceText: 'With your tenure, you are likely fully vested in your 401k employer match. Your severance package may also be more substantial. Carefully review the severance agreement for all details.',
+                        category: 'Finances',
+                    },
+                     {
+                        id: 'tenure-rule-4',
+                        name: 'Guidance for 5+ Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte', value: [5], label: '5+ Years' }],
+                        guidanceText: 'As a long-tenured employee, you may be eligible for extended health coverage options beyond COBRA or specialized outplacement services. Check your severance package for information on these benefits.',
+                        category: 'Healthcare',
+                    },
+                ],
                 questions: {},
                 users: [
                     { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
@@ -272,7 +302,57 @@ This checklist is designed to help you manage key tasks during your employment t
         assessmentCompletions: {
             'employee1@globex.com': true,
         },
-        reviewQueue: [],
+        reviewQueue: [
+            {
+                id: 'review-1',
+                userEmail: 'employee.visa@globex.com',
+                inputData: {
+                    profileData: {
+                        citizenshipStatus: 'Foreign national, international student (or on a student visa - CPT, OPT, or OPT STEM)',
+                        state: 'New York',
+                        birthYear: 1995, gender: 'Male', maritalStatus: 'Single', hasChildrenUnder13: false, hasExpectedChildren: false, impactedPeopleCount: '0', livingStatus: 'Renter', pastLifeEvents: [], hasChildrenAges18To26: false
+                    },
+                    layoffDetails: {
+                        workVisaStatus: 'H-1B'
+                    },
+                    adminGuidance: [],
+                },
+                output: {
+                    recommendations: [
+                        { taskId: 'handle-work-visa-implications', task: 'Consult an Immigration Attorney Immediately', category: 'Legal', timeline: 'Immediately', details: 'Your visa status is tied to your employment. You must consult with an immigration attorney to understand your grace period and options for maintaining legal status, such as a change of status or transferring your visa to a new employer.' },
+                        { taskId: 'update-resume-and-linkedin', task: 'Update Your Resume & LinkedIn', category: 'Job Search', timeline: 'Within 3 days', details: 'Highlight your skills and accomplishments to prepare for your job search. A strong professional presence is crucial for finding a new role quickly.' },
+                    ]
+                },
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: 'review-2',
+                userEmail: 'employee.family@globex.com',
+                inputData: {
+                    profileData: {
+                         maritalStatus: 'Married',
+                         hasChildrenUnder13: true,
+                         state: 'Texas',
+                         birthYear: 1988, gender: 'Female', hasExpectedChildren: false, impactedPeopleCount: '4 - 6', livingStatus: 'Homeowner', citizenshipStatus: 'U.S. citizen', pastLifeEvents: [], hasChildrenAges18To26: false
+                    },
+                    layoffDetails: {
+                        hadMedicalInsurance: 'Yes',
+                        medicalCoverage: 'Me and family',
+                        medicalCoverageEndDate: getFutureDate(30),
+                    },
+                    adminGuidance: [],
+                },
+                output: {
+                    recommendations: [
+                        { taskId: 'explore-health-insurance', task: 'Explore Health Insurance Options (COBRA & ACA)', category: 'Healthcare', timeline: 'Within 1 week', details: 'Since your family was covered by your plan, securing new health insurance is a top priority. Compare the costs of continuing your plan with COBRA against new plans on the ACA Marketplace.' },
+                        { taskId: 'create-transition-budget', task: 'Create a Transition Budget', category: 'Finances', timeline: 'Within 1 week', details: 'Analyze your family\'s expenses and create a new budget to manage your finances during this transition period. Account for potential changes in income and new costs like health insurance premiums.' },
+                    ]
+                },
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            },
+        ],
         seededData: {
             'employee1@globex.com': {
                 profile: {
@@ -500,6 +580,7 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
 
 
