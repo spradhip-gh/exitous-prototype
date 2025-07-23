@@ -222,7 +222,7 @@ export default function ProfileForm() {
         }
     }, [isUserDataLoading]);
 
-    if (isLoading || !profileData || !questions || !dynamicSchema) {
+    if (isLoading || !questions || !dynamicSchema) {
          return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -238,5 +238,5 @@ export default function ProfileForm() {
         )
     }
 
-    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData} />;
+    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} />;
 }
