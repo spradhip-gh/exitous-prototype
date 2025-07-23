@@ -199,19 +199,7 @@ function ImportantDates() {
     if (!assessmentData) return null;
 
     if (keyDates.length === 0) {
-      return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline text-xl">Key Dates Timeline</CardTitle>
-                <CardDescription>A visual overview of your critical deadlines will appear here once you provide dates in your exit details.</CardDescription>
-            </CardHeader>
-             <CardContent>
-                <div className="text-center text-muted-foreground py-8">
-                  <p>No dates to display yet.</p>
-                </div>
-            </CardContent>
-        </Card>
-      )
+      return null;
     }
 
     return (
@@ -352,7 +340,8 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
 
-  const hasPrefilledData = !!assessmentData;
+  const hasAnyAssessmentData = !!assessmentData;
+  const hasPrefilledData = hasAnyAssessmentData && !isAssessmentComplete;
   const isProfileComplete = !!profileData;
   const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
 
@@ -379,18 +368,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {hasAnyAssessmentData && <ImportantDates />}
+
         {isReadyForTimeline ? (
-          <>
-            <ImportantDates />
             <TimelineDashboard />
-          </>
-        ) : (hasPrefilledData && !isProfileComplete) ? (
-          <>
-            <WelcomeSummary />
-            <ProgressTracker />
-          </>
         ) : (
-          <ProgressTracker />
+            <>
+                {hasPrefilledData && !isProfileComplete && <WelcomeSummary />}
+                <ProgressTracker />
+            </>
         )}
       </div>
     </main>

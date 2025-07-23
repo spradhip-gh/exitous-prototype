@@ -219,61 +219,42 @@ export function useUserData() {
       setExternalResourcesState(getExternalResourcesFromDb());
 
       // --- USER SPECIFIC DATA ---
+      // Load from localStorage
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
       
-      const getCompanyUserFromLoadedData = (email: string) => {
-        for (const companyName in loadedCompanyConfigs) {
-            const user = loadedCompanyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
-            if (user) {
-                return { user, companyName };
-            }
-        }
-        return null;
-      }
+      let finalProfileData = profileJson ? JSON.parse(profileJson) : null;
+      let finalAssessmentData = assessmentJson ? convertStringsToDates(JSON.parse(assessmentJson)) : null;
 
-      const companyUser = auth?.email ? getCompanyUserFromLoadedData(auth.email) : null;
-
-      // Handle profile data
-      if (profileJson) {
-        setProfileData(JSON.parse(profileJson));
-      } else if (auth?.email) {
-        const seeded = getSeededDataForUser(auth.email);
-        if (seeded?.profile) {
-          const profileWithStrings = convertDatesToStrings(seeded.profile);
-          localStorage.setItem(profileKey, JSON.stringify(profileWithStrings));
-          setProfileData(seeded.profile);
-        } else {
-            setProfileData(null);
-        }
-      } else {
-        setProfileData(null);
-      }
-
-      // Handle assessment data
-      if (assessmentJson) {
-        setAssessmentData(convertStringsToDates(JSON.parse(assessmentJson)));
-      } else if (auth?.email) {
+      // Handle seeded/pre-filled data for users who might not have local storage yet.
+      if (auth?.email) {
           const seeded = getSeededDataForUser(auth.email);
-          const hrPrefilled = companyUser?.user.prefilledAssessmentData || {};
-          
-          const initialAssessmentData = { 
-            ...(seeded?.assessment || {}), 
-            ...hrPrefilled,
-            notificationDate: companyUser?.user.notificationDate
+          if (seeded && !profileJson) {
+              finalProfileData = seeded.profile;
+              localStorage.setItem(profileKey, JSON.stringify(convertDatesToStrings(finalProfileData)));
+          }
+
+          const companyUser = getCompanyUser(auth.email);
+          const hrPrefilledData = companyUser?.user.prefilledAssessmentData || {};
+          const notificationDate = companyUser?.user.notificationDate ? { notificationDate: companyUser.user.notificationDate } : {};
+
+          // Merge seeded, HR-prefilled, and existing data
+          const mergedAssessmentData = {
+              ...(seeded?.assessment || {}),
+              ...hrPrefilledData,
+              ...notificationDate,
+              ...(finalAssessmentData || {})
           };
 
-          if (Object.keys(initialAssessmentData).length > 0) {
-              const dataWithDates = convertStringsToDates(initialAssessmentData);
-              const dataWithStrings = convertDatesToStrings(dataWithDates);
-              localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-              setAssessmentData(dataWithDates);
-          } else {
-              setAssessmentData(null);
+          if (Object.keys(mergedAssessmentData).length > 0) {
+              finalAssessmentData = convertStringsToDates(mergedAssessmentData);
+              // Save back to local storage to persist the merged data
+              localStorage.setItem(assessmentKey, JSON.stringify(convertDatesToStrings(finalAssessmentData)));
           }
-      } else {
-          setAssessmentData(null);
       }
+
+      setProfileData(finalProfileData);
+      setAssessmentData(finalAssessmentData);
       
       const completedTasksJson = localStorage.getItem(completedTasksKey);
       setCompletedTasks(completedTasksJson ? new Set(JSON.parse(completedTasksJson)) : new Set());
@@ -292,7 +273,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, getCompanyUser]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {

@@ -24,7 +24,7 @@ export default function WelcomeSummary() {
       return companyAssignments.find(c => c.companyName === companyUser.companyName);
   }, [companyUser, companyAssignments]);
 
-  if (!assessmentData) {
+  if (!assessmentData || !assessmentData.finalDate) { // Only show if there's prefilled data to see
     return null;
   }
 
