@@ -16,8 +16,11 @@ import {
   getAssessmentCompletions as getAssessmentCompletionsFromDb, saveAssessmentCompletions as saveAssessmentCompletionsToDb,
   getProfileCompletions as getProfileCompletionsFromDb, saveProfileCompletions as saveProfileCompletionsToDb,
   getSeededDataForUser,
-  getExternalResources as getExternalResourcesFromDb, saveExternalResources as saveExternalResourcesToDb
+  getExternalResources as getExternalResourcesFromDb, saveExternalResources as saveExternalResourcesToDb,
+  getReviewQueue as getReviewQueueFromDb, saveReviewQueue as saveReviewQueueToDb,
 } from '@/lib/demo-data';
+import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
+
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -53,7 +56,7 @@ export type Condition = {
   answer: string;
 } | {
   type: 'tenure';
-  operator: 'lt' | 'gte_lt' | 'gte'; // lt: < val1; gte_lt: >= val1 and < val2; gte: >= val1
+  operator: 'lt' | 'gte_lt' | 'gte'; // lt: < val1; gte_lt: >= val1 and < val2; gte: >= 5
   value: [number, number?]; // e.g., [1] for < 1 year; [1, 5] for 1-5 years; [5] for >= 5 years
   label: string; // User-facing label like "< 1 Year"
 } | {
@@ -74,6 +77,15 @@ export interface GuidanceRule {
     guidanceText: string;
     category: string;
     linkedResourceId?: string;
+}
+
+export interface ReviewQueueItem {
+    id: string;
+    userEmail: string;
+    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'>;
+    output: PersonalizedRecommendationsOutput;
+    status: 'pending' | 'approved' | 'rejected';
+    createdAt: string; // ISO string
 }
 
 export interface CompanyConfig {
@@ -220,6 +232,7 @@ export function useUserData() {
   const [profileCompletions, setProfileCompletionsState] = useState<Record<string, boolean>>({});
   const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
   const [externalResources, setExternalResourcesState] = useState<ExternalResource[]>([]);
+  const [reviewQueue, setReviewQueueState] = useState<ReviewQueueItem[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -256,6 +269,7 @@ export function useUserData() {
       const loadedMasterQuestions = getMasterQuestionsFromDb();
       const loadedMasterProfileQuestions = getMasterProfileQuestionsFromDb();
       const loadedExternalResources = getExternalResourcesFromDb();
+      const loadedReviewQueue = getReviewQueueFromDb();
 
       setCompanyAssignmentsState(loadedCompanyAssignments);
       setCompanyConfigsState(loadedCompanyConfigs);
@@ -265,6 +279,7 @@ export function useUserData() {
       setMasterQuestionsState(loadedMasterQuestions);
       setMasterProfileQuestionsState(loadedMasterProfileQuestions);
       setExternalResourcesState(loadedExternalResources);
+      setReviewQueueState(loadedReviewQueue);
 
       // --- USER SPECIFIC DATA ---
       const profileJson = localStorage.getItem(profileKey);
@@ -426,6 +441,11 @@ export function useUserData() {
   const saveExternalResources = useCallback((resources: ExternalResource[]) => {
     saveExternalResourcesToDb(resources);
     setExternalResourcesState(resources);
+  }, []);
+
+  const saveReviewQueue = useCallback((queue: ReviewQueueItem[]) => {
+    saveReviewQueueToDb(queue);
+    setReviewQueueState(queue);
   }, []);
   
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
@@ -592,13 +612,13 @@ export function useUserData() {
             q.subQuestions.forEach(subQ => {
                 let isTriggered = false;
                 if (q.type === 'checkbox') {
-                    if (subQ.triggerValue === 'NOT_NONE') {
-                        isTriggered = Array.isArray(value) && value.length > 0 && !value.includes('None of the above');
-                    } else {
-                        isTriggered = Array.isArray(value) && value.includes(subQ.triggerValue);
-                    }
+                  if (subQ.triggerValue === 'NOT_NONE') {
+                    isTriggered = Array.isArray(value) && value.length > 0 && !value.includes('None of the above');
+                  } else {
+                    isTriggered = Array.isArray(value) && value.includes(subQ.triggerValue);
+                  }
                 } else {
-                    isTriggered = value === subQ.triggerValue;
+                  isTriggered = value === subQ.triggerValue;
                 }
 
                 if(isTriggered) {
@@ -686,6 +706,8 @@ export function useUserData() {
     assessmentCompletions,
     platformUsers,
     externalResources,
+    reviewQueue,
+    saveReviewQueue,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,

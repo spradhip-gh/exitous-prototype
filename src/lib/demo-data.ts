@@ -1,9 +1,10 @@
 
 
-import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
+import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource, ReviewQueueItem } from '@/hooks/use-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
 import type { ExternalResource } from './external-resources';
+import { PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
 
 // This file acts as a persistent in-memory "database" for the demo.
 // By attaching the data to the global object, it persists across hot-reloads
@@ -18,6 +19,7 @@ interface DemoDatabase {
     masterProfileQuestions: Record<string, Question>;
     profileCompletions: Record<string, boolean>;
     assessmentCompletions: Record<string, boolean>;
+    reviewQueue: ReviewQueueItem[];
     // --- Seeded localStorage data for specific demo users ---
     seededData: Record<string, { profile: ProfileData; assessment: Partial<AssessmentData> }>;
     externalResources: ExternalResource[];
@@ -270,6 +272,7 @@ This checklist is designed to help you manage key tasks during your employment t
         assessmentCompletions: {
             'employee1@globex.com': true,
         },
+        reviewQueue: [],
         seededData: {
             'employee1@globex.com': {
                 profile: {
@@ -475,11 +478,24 @@ export const saveProfileCompletions = (data: Record<string, boolean>) => { db.pr
 export const getAssessmentCompletions = () => db.assessmentCompletions;
 export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db.assessmentCompletions = data; };
 
+export const getReviewQueue = () => db.reviewQueue;
+export const saveReviewQueue = (data: ReviewQueueItem[]) => { db.reviewQueue = data; };
+
+export const addReviewQueueItem = (item: ReviewQueueItem) => { 
+    // Prevent duplicates for the same user
+    const existingIndex = db.reviewQueue.findIndex(i => i.userEmail === item.userEmail);
+    if (existingIndex === -1) {
+        db.reviewQueue.unshift(item); // Add to the top of the queue
+    }
+};
+
+
 export const getSeededDataForUser = (email: string) => db.seededData[email];
 
 export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
 

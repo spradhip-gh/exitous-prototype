@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -156,12 +157,20 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
         </>
       )}
       {role === 'consultant' && (
+        <>
         <Link href="/admin/review">
           <Button variant={getVariant('/admin/review')} className="w-full justify-start">
             <UserCheck className="mr-2" />
+            Guidance Editor
+          </Button>
+        </Link>
+        <Link href="/admin/review-queue">
+          <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
+            <CheckSquare className="mr-2" />
             Review Queue
           </Button>
         </Link>
+        </>
       )}
     </nav>
   )

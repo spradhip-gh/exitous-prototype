@@ -13,6 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { addReviewQueueItem } from '@/lib/demo-data';
 
 const ProfileDataSchema = z.object({
   birthYear: z.number().describe("The user's birth year."),
@@ -73,6 +74,7 @@ const AdminGuidanceSchema = z.object({
 });
 
 const PersonalizedRecommendationsInputSchema = z.object({
+  userEmail: z.string().email(),
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
   adminGuidance: z.array(AdminGuidanceSchema).optional().describe('Pre-defined guidance from an admin based on user answers. This should be prioritized.'),
@@ -196,6 +198,19 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     while (attempt < maxRetries) {
       try {
         const {output} = await prompt(input);
+        
+        // Add the result to the review queue
+        if (output) {
+            addReviewQueueItem({
+                id: `review-${input.userEmail}-${Date.now()}`,
+                userEmail: input.userEmail,
+                inputData: input,
+                output: output,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            });
+        }
+
         return output!;
       } catch (error: any) {
         attempt++;
@@ -211,3 +226,4 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
