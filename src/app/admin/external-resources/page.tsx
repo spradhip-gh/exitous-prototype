@@ -179,7 +179,7 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
         });
     };
 
-    const handleSwitchChange = (name: 'isVerified', checked: boolean) {
+    const handleSwitchChange = (name: 'isVerified', checked: boolean) => {
         setFormData(prev => ({...prev, [name]: checked}));
     };
 
@@ -301,5 +301,7 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
     );
 }
 
+
+    
 
     
