@@ -3,7 +3,7 @@ export interface ExternalResource {
     id: string;
     name: string;
     description: string;
-    category: 'Finances' | 'Legal' | 'Job Search' | 'Well-being';
+    category: 'Finances' | 'Legal' | 'Career' | 'Well-being';
     website: string;
     imageUrl: string;
     imageHint: string;
@@ -14,3 +14,5 @@ export interface ExternalResource {
     basicOffer?: string;
     proOffer?: string;
 }
+
+    

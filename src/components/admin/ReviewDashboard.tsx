@@ -244,7 +244,7 @@ function GuidanceRuleForm({
             <Select value={currentRule.category || 'General'} onValueChange={val => setCurrentRule(p => ({...p, category: val}))}>
                 <SelectTrigger><SelectValue/></SelectTrigger>
                 <SelectContent>
-                    {['Healthcare', 'Finances', 'Job Search', 'Legal', 'Well-being', 'General'].map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    {['Healthcare', 'Finances', 'Career', 'Legal', 'Well-being', 'General'].map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                 </SelectContent>
             </Select>
           </div>
@@ -416,3 +416,5 @@ export default function GuidanceEditor() {
     </>
   );
 }
+
+    

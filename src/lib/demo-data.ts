@@ -96,40 +96,96 @@ const initializeDb = (): DemoDatabase => {
         companyConfigs: {
             'Globex Corp': {
                 guidance: [
-                     {
-                        id: 'tenure-rule-very-short',
+                    {
+                        id: 'tenure-rule-very-short-severance',
                         name: 'Guidance for < 30 Days Tenure',
                         conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
-                        guidanceText: '1) With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.\n2) Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
-                        category: 'Finances',
+                        guidanceText: 'With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.',
+                        category: 'Finances'
+                    },
+                    {
+                        id: 'tenure-rule-very-short-career',
+                        name: 'Guidance for < 30 Days Tenure',
+                        conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
+                        guidanceText: 'Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
+                        category: 'Career'
                     },
                     {
                         id: 'tenure-rule-short',
                         name: 'Guidance for 30 days - 1 Year Tenure',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [0.082, 1], label: '30 days - 1 Year' }],
-                        guidanceText: 'With less than one year of service, you may not be eligible for a 401k match or full severance. Review your employee handbook for details on prorated benefits for employees with your tenure.',
-                        category: 'Finances',
+                        guidanceText: 'Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
+                        category: 'Career'
                     },
                     {
-                        id: 'tenure-rule-medium',
+                        id: 'tenure-rule-medium-financial',
                         name: 'Guidance for 1-5 Year Tenure',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
-                        guidanceText: 'You are likely eligible for COBRA and may have partially vested stock options. It is critical to review your grant details and exercise window. Also, consider rolling over your 401k to an IRA to maintain control of your retirement funds.',
-                        category: 'Finances',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        category: 'Finances'
                     },
                     {
-                        id: 'tenure-rule-long',
+                        id: 'tenure-rule-medium-career',
+                        name: 'Guidance for 1-5 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
+                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-long-financial',
                         name: 'Guidance for 6-10 Year Tenure',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'With your tenure, you are likely fully vested in your 401k employer match. Your severance package may also be more substantial. Carefully review the severance agreement for all details.',
-                        category: 'Finances',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        category: 'Finances'
                     },
-                     {
-                        id: 'tenure-rule-very-long',
+                    {
+                        id: 'tenure-rule-long-career',
+                        name: 'Guidance for 6-10 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
+                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-long-career1',
+                        name: 'Guidance for 6-10 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
+                        guidanceText: 'After a long tenure, your identity may be closely tied to your previous job, but  you can continue to define and evolve your professional self independent of past roles and associations.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-long-career2',
+                        name: 'Guidance for 6-10 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
+                        guidanceText: 'After a long tenure, a refreshed professional image can energize and inspire new considerations, such as conferences, courses or certifications for staying competitive in today’s job market.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-very-long-financial',
                         name: 'Guidance for 10+ Year Tenure',
                         conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'As a long-tenured employee, you may be eligible for extended health coverage options beyond COBRA or specialized outplacement services. Check your severance package for information on these benefits.',
-                        category: 'Healthcare',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        category: 'Finances'
+                    },
+                    {
+                        id: 'tenure-rule-very-long-career',
+                        name: 'Guidance for 10+ Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
+                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-very-long-career1',
+                        name: 'Guidance for 10+ Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
+                        guidanceText: 'After a long tenure, your identity may be closely tied to your previous job, but  you can continue to define and evolve your professional self independent of past roles and associations.',
+                        category: 'Career'
+                    },
+                    {
+                        id: 'tenure-rule-very-long-career2',
+                        name: 'Guidance for 10+ Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
+                        guidanceText: 'After a long tenure, a refreshed professional image can energize and inspire new considerations, such as conferences, courses or certifications for staying competitive in today’s job market.',
+                        category: 'Career'
                     },
                 ],
                 questions: {},
@@ -231,7 +287,7 @@ This checklist is designed to help you manage key tasks during your employment t
 - [ ] Compare the cost and coverage of COBRA vs. other insurance options.
 - [ ] Schedule any necessary medical or dental appointments before your coverage ends.
 
-**Networking & Job Search**
+**Networking & Career**
 - [ ] Notify your professional network about your transition.
 - [ ] Ask for recommendations from colleagues and managers.
 - [ ] Begin your job search activities, tailoring your resume for each application.
@@ -327,7 +383,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 output: {
                     recommendations: [
                         { taskId: 'handle-work-visa-implications', task: 'Consult an Immigration Attorney Immediately', category: 'Legal', timeline: 'Immediately', details: 'Your visa status is tied to your employment. You must consult with an immigration attorney to understand your grace period and options for maintaining legal status, such as a change of status or transferring your visa to a new employer.' },
-                        { taskId: 'update-resume-and-linkedin', task: 'Update Your Resume & LinkedIn', category: 'Job Search', timeline: 'Within 3 days', details: 'Highlight your skills and accomplishments to prepare for your job search. A strong professional presence is crucial for finding a new role quickly.' },
+                        { taskId: 'update-resume-and-linkedin', task: 'Update Your Resume & LinkedIn', category: 'Career', timeline: 'Within 3 days', details: 'Highlight your skills and accomplishments to prepare for your job search. A strong professional presence is crucial for finding a new role quickly.' },
                     ]
                 },
                 status: 'pending',
@@ -469,12 +525,12 @@ This checklist is designed to help you manage key tasks during your employment t
                 availability: ['basic'],
                 basicOffer: 'Free 15-minute initial assessment.'
             },
-            // Job Search
+            // Career
             {
                 id: 'job-1',
                 name: 'CareerLeap Coaching',
                 description: 'Expert career coaches who provide personalized resume reviews, interview prep, and job search strategies to land your next role faster.',
-                category: 'Job Search',
+                category: 'Career',
                 website: '#',
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'career coaching',
@@ -487,7 +543,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 id: 'job-2',
                 name: 'Tech Recruiter Connect',
                 description: 'A specialized recruiting firm that connects talented tech professionals with innovative companies. Get insider access to top roles.',
-                category: 'Job Search',
+                category: 'Career',
                 website: '#',
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'tech recruitment',
@@ -499,7 +555,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 id: 'job-3',
                 name: 'The Professional Network',
                 description: 'Build meaningful connections through curated networking events and workshops designed for professionals in transition.',
-                category: 'Job Search',
+                category: 'Career',
                 website: '#',
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'professional networking',
@@ -595,3 +651,6 @@ export const saveExternalResources = (data: ExternalResource[]) => { db.external
 
 
 
+
+
+    

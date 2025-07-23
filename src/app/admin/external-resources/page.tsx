@@ -179,7 +179,7 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
         });
     };
 
-    const handleSwitchChange = (name: 'isVerified', checked: boolean) => {
+    const handleSwitchChange = (name: 'isVerified', checked: boolean) {
         setFormData(prev => ({...prev, [name]: checked}));
     };
 
@@ -236,7 +236,7 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
                             <SelectContent>
                                 <SelectItem value="Finances">Finances</SelectItem>
                                 <SelectItem value="Legal">Legal</SelectItem>
-                                <SelectItem value="Job Search">Job Search</SelectItem>
+                                <SelectItem value="Career">Career</SelectItem>
                                 <SelectItem value="Well-being">Well-being</SelectItem>
                             </SelectContent>
                         </Select>
@@ -301,3 +301,5 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
     );
 }
 
+
+    

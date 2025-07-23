@@ -88,7 +88,7 @@ export type PersonalizedRecommendationsInput = z.infer<
 const RecommendationItemSchema = z.object({
   taskId: z.string().describe("A unique, kebab-case identifier for the task (e.g., 'review-severance-agreement')."),
   task: z.string().describe('The specific, actionable task for the user to complete.'),
-  category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").'),
+  category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").'),
   timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Immediately", "Within 1 week", "By [specific date based on user input]").'),
   details: z.string().describe('Additional details or context for the recommendation.'),
   endDate: z.string().optional().describe("A specific deadline or key date for this task in 'YYYY-MM-DD' format, if applicable. Extract this from user-provided dates like coverage end dates."),
@@ -178,7 +178,7 @@ Here are the user's exit details:
 Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
 1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details'). For admin guidance with a linked resource, use the specific task ID format 'consultant-guidance-[resourceId]'.
 2.  A specific 'task' for the user to complete.
-3.  A 'category' (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").
+3.  A 'category' (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").
 4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
 5.  Important 'details' or context.
 6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. Otherwise, leave 'endDate' empty.
@@ -214,7 +214,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         return output!;
       } catch (error: any) {
         attempt++;
-        const isOverloaded = error.message && error.message.includes('503');
+        const isOverloaded = error.message && (error.message.includes('503') || error.message.includes('overloaded'));
         
         if (isOverloaded && attempt < maxRetries) {
           console.warn(`Attempt ${attempt} failed with 503 error. Retrying in 2 seconds...`);
@@ -229,3 +229,6 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
+
+    

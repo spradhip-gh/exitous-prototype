@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Sparkles, Search, ExternalLink, Terminal, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 
-const categories = ["Finances", "Legal", "Job Search", "Well-being"];
+const categories = ["Finances", "Legal", "Career", "Well-being"];
 
 const ResourceCard = ({ resource, companyVersion }: { resource: ExternalResource; companyVersion: 'basic' | 'pro' }) => {
     const offerText = companyVersion === 'pro' ? resource.proOffer : resource.basicOffer;
@@ -74,7 +74,7 @@ function ExternalResourcesContent() {
 
     const { profileData, assessmentData, externalResources, companyAssignments } = useUserData();
 
-    const companyVersion = useMemo(() => {
+    const companyVersion = useMemo(() to {
         if (!auth?.companyName) return 'basic';
         return companyAssignments.find(c => c.companyName === auth.companyName)?.version || 'basic';
     }, [auth, companyAssignments]);
@@ -249,3 +249,5 @@ export default function ExternalResourcesPage() {
         </Suspense>
     );
 }
+
+    
