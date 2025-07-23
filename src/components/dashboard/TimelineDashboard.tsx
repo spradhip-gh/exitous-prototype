@@ -175,6 +175,8 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
     return triggeredGuidance;
   }, [profileData, assessmentData, getAllCompanyConfigs]);
+  
+  const stableAdminGuidance = useMemo(() => JSON.stringify(adminGuidance), [adminGuidance]);
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -236,7 +238,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           userEmail: auth.email,
           profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
-          adminGuidance,
+          adminGuidance: JSON.parse(stableAdminGuidance),
         });
         setRecommendations(result);
       } catch (e) {
@@ -248,7 +250,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview, isFullyComplete, adminGuidance, auth]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete, stableAdminGuidance, auth]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
