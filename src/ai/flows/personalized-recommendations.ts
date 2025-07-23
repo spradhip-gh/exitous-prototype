@@ -204,7 +204,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             addReviewQueueItem({
                 id: `review-${input.userEmail}-${Date.now()}`,
                 userEmail: input.userEmail,
-                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails },
+                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, adminGuidance: input.adminGuidance },
                 output: output,
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -214,12 +214,15 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         return output!;
       } catch (error: any) {
         attempt++;
-        if (attempt >= maxRetries) {
-          console.error(`Flow failed after ${maxRetries} attempts.`, error);
-          throw error;
+        const isOverloaded = error.message && error.message.includes('503');
+        
+        if (isOverloaded && attempt < maxRetries) {
+          console.warn(`Attempt ${attempt} failed with 503 error. Retrying in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+            console.error(`Flow failed after ${attempt} attempts.`, error);
+            throw error; // Re-throw the error if it's not a 503 or if max retries are reached
         }
-        console.warn(`Attempt ${attempt} failed. Retrying in 2 seconds...`, error.message);
-        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     // This should not be reached, but is a failsafe.
