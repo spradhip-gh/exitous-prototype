@@ -7,7 +7,7 @@ import { useUserData, GuidanceRule, Question, Condition } from '@/hooks/use-user
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2 } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -89,10 +89,12 @@ function GuidanceRuleForm({
     }
   }, [isOpen, rule]);
   
-  const addCondition = (type: 'question' | 'tenure') => {
+  const addCondition = (type: 'question' | 'tenure' | 'date_offset') => {
     let newCondition: Condition;
-    if(type === 'tenure') {
+    if (type === 'tenure') {
         newCondition = tenureOptions[0].condition;
+    } else if (type === 'date_offset') {
+        newCondition = { type: 'date_offset', dateQuestionId: '', operator: 'gt', value: 30, unit: 'days', comparison: 'from_today', label: '' };
     } else {
         newCondition = { type: 'question', questionId: '', answer: '' };
     }
@@ -130,7 +132,7 @@ function GuidanceRuleForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{rule?.id ? 'Edit Guidance Rule' : 'Create New Guidance Rule'}</DialogTitle>
           <DialogDescription>Define a rule to provide specific guidance when certain conditions are met.</DialogDescription>
@@ -145,7 +147,7 @@ function GuidanceRuleForm({
             <CardContent className="space-y-4">
               {currentRule.conditions?.map((cond, i) => (
                  <div key={i} className="flex items-end gap-2 p-3 border rounded-md relative">
-                    {cond.type === 'question' ? (
+                    {cond.type === 'question' && (
                         <div className="grid grid-cols-2 gap-2 flex-grow">
                             <div className="space-y-2">
                                 <Label>Question</Label>
@@ -166,15 +168,14 @@ function GuidanceRuleForm({
                                 </Select>
                             </div>
                         </div>
-                    ) : (
+                    )}
+                    {cond.type === 'tenure' && (
                          <div className="grid grid-cols-2 gap-2 flex-grow">
                              <div className="space-y-2 col-span-2">
                                 <Label>Tenure</Label>
                                 <Select value={cond.label} onValueChange={val => {
                                     const selectedOption = tenureOptions.find(t => t.label === val);
-                                    if(selectedOption) {
-                                        handleConditionChange(i, selectedOption.condition)
-                                    }
+                                    if(selectedOption) { handleConditionChange(i, selectedOption.condition) }
                                 }}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
@@ -184,14 +185,42 @@ function GuidanceRuleForm({
                              </div>
                          </div>
                     )}
+                    {cond.type === 'date_offset' && (
+                        <div className="grid grid-cols-3 gap-2 flex-grow items-end">
+                            <div className="space-y-2">
+                                <Label>Date Question</Label>
+                                <Select value={cond.dateQuestionId} onValueChange={val => handleConditionChange(i, {...cond, dateQuestionId: val})}>
+                                    <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
+                                    <SelectContent>
+                                        {questions.filter(q => q.type === 'date').map(q => <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Is</Label>
+                                <Select value={cond.operator} onValueChange={val => handleConditionChange(i, {...cond, operator: val as any})}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="gt">Greater Than</SelectItem>
+                                        <SelectItem value="lt">Less Than</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Offset (days)</Label>
+                                <Input type="number" value={cond.value} onChange={e => handleConditionChange(i, {...cond, value: parseInt(e.target.value, 10) || 0})}/>
+                            </div>
+                        </div>
+                    )}
                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => handleRemoveCondition(i)}>
                         <Trash2 className="h-4 w-4" />
                      </Button>
                   </div>
               ))}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => addCondition('question')}><PlusCircle className="mr-2"/> Add Question Condition</Button>
-                <Button variant="outline" size="sm" onClick={() => addCondition('tenure')}><CalendarCheck2 className="mr-2"/> Add Tenure Condition</Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={() => addCondition('question')}><PlusCircle className="mr-2"/> Question Condition</Button>
+                <Button variant="outline" size="sm" onClick={() => addCondition('tenure')}><CalendarCheck2 className="mr-2"/> Tenure Condition</Button>
+                 <Button variant="outline" size="sm" onClick={() => addCondition('date_offset')}><Clock className="mr-2"/> Date Condition</Button>
               </div>
             </CardContent>
           </Card>
@@ -334,6 +363,11 @@ export default function GuidanceEditor() {
                                                 }
                                                 if (c.type === 'tenure') {
                                                      return <Badge key={i} variant="secondary" className="bg-blue-100 text-blue-800">IF Tenure is {c.label}</Badge>
+                                                }
+                                                if (c.type === 'date_offset') {
+                                                    const q = allQuestions.find(q => q.id === c.dateQuestionId);
+                                                    const operator = c.operator === 'gt' ? '>' : '<';
+                                                    return <Badge key={i} variant="secondary" className="bg-purple-100 text-purple-800">IF {q?.label} is {operator} {c.value} days away</Badge>
                                                 }
                                                 return null;
                                             })}

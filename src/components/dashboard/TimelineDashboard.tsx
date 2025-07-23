@@ -156,6 +156,15 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                 if (condition.operator === 'gte') return tenureInYears >= val1;
                 if (condition.operator === 'gte_lt' && val2) return tenureInYears >= val1 && tenureInYears < val2;
             }
+            if (condition.type === 'date_offset') {
+                const dateValue = (allAnswers as any)[condition.dateQuestionId];
+                if (!dateValue || !(dateValue instanceof Date)) return false;
+
+                const today = startOfToday();
+                const diff = differenceInDays(dateValue, today);
+                if (condition.operator === 'gt') return diff > condition.value;
+                if (condition.operator === 'lt') return diff < condition.value;
+            }
             return false;
         });
       
