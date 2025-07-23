@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -158,15 +159,24 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         };
         
         const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
-        Object.keys(stringifiedAssessmentData).forEach(key => {
+        // Explicitly format date fields to ISO strings or set to undefined
+        const dateFields: (keyof typeof assessmentData)[] = [
+            'startDate', 'notificationDate', 'finalDate', 'severanceAgreementDeadline',
+            'relocationDate', 'internalMessagingAccessEndDate', 'emailAccessEndDate',
+            'networkDriveAccessEndDate', 'layoffPortalAccessEndDate', 'hrPayrollSystemAccessEndDate',
+            'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'
+        ];
+        
+        for (const key in assessmentData) {
             const value = (assessmentData as any)[key];
-            if (value instanceof Date) {
+            if (dateFields.includes(key as any) && value instanceof Date && !isNaN(value.getTime())) {
                 stringifiedAssessmentData[key] = value.toISOString();
-            } else if (value === null || value === undefined) {
+            } else if (dateFields.includes(key as any)) {
+                 stringifiedAssessmentData[key] = undefined; // Ensure invalid or empty dates are not sent
+            } else if (value === null) {
                 stringifiedAssessmentData[key] = undefined;
             }
-        });
-
+        }
 
         const result = await getPersonalizedRecommendations({
           profileData: transformedProfileData,
