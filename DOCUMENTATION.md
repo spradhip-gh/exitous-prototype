@@ -26,11 +26,29 @@ We've been hard at work adding new features to make the ExitBetter platform more
 
 ---
 
-## 1. Initial Project Setup
+## 1. Date Handling Standards
+
+To prevent regressions and ensure data consistency, the application follows a strict standard for handling date and time values.
+
+| Context                  | Format Required                                      | Implementation Notes                                                                                                                              |
+| ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Data Storage**         | `YYYY-MM-DD` (string)                                | All dates in `src/lib/demo-data.ts` and `localStorage` must be stored in this simple string format. This ensures serializability and consistency. |
+| **React Application State** | JavaScript `Date` object                             | Within the `useUserData` hook and React components, date strings are parsed into `Date` objects. This is required for UI components like `react-day-picker`. |
+| **API/AI Communication**   | Full ISO 8601 String                                 | When sending data to external services like Genkit flows, `Date` objects must be converted to a full ISO string (e.g., `date.toISOString()`).          |
+
+**Key Utilities:**
+- `convertStringsToDates()` in `use-user-data.tsx`: Used when loading data into the app state.
+- `convertDatesToStrings()` in `use-user-data.tsx`: Used when saving data back to `localStorage`.
+
+Adhering to this standard is critical for application stability.
+
+---
+
+## 2. Initial Project Setup
 
 The foundation of the application is a standard Next.js project.
 
-### 1.1. Initialize Next.js App
+### 2.1. Initialize Next.js App
 
 Start by creating a new Next.js project with TypeScript and Tailwind CSS.
 
@@ -38,7 +56,7 @@ Start by creating a new Next.js project with TypeScript and Tailwind CSS.
 npx create-next-app@latest exitbetter --typescript --tailwind --eslint
 ```
 
-### 1.2. Install Core Dependencies
+### 2.2. Install Core Dependencies
 
 Navigate into your project directory and install the necessary packages for UI components, state management, forms, and drag-and-drop functionality.
 
@@ -57,7 +75,7 @@ npm install \
   @dnd-kit/core @dnd-kit/sortable papaparse
 ```
 
-### 1.3. Install AI Dependencies
+### 2.3. Install AI Dependencies
 
 Install Genkit for handling AI-powered features.
 
@@ -65,9 +83,9 @@ Install Genkit for handling AI-powered features.
 npm install genkit @genkit-ai/googleai @genkit-ai/next
 ```
 
-## 2. UI and Styling Configuration
+## 3. UI and Styling Configuration
 
-### 2.1. Initialize ShadCN UI
+### 3.1. Initialize ShadCN UI
 
 Initialize ShadCN UI to manage your component library. This will create the `components.json` file and set up necessary folders.
 
@@ -76,13 +94,13 @@ npx shadcn-ui@latest init
 ```
 Follow the prompts, selecting `Default` style, `Neutral` for the base color, and confirming your paths for `globals.css` and `tailwind.config.ts`.
 
-### 2.2. Configure Fonts and Theme
+### 3.2. Configure Fonts and Theme
 
 Update `src/app/layout.tsx` to import and use the 'Inter' and 'Space Grotesk' fonts from Google Fonts for body and headline text, respectively. Then, update `src/app/globals.css` and `tailwind.config.ts` to reflect the application's color palette (primary, accent, background) using HSL CSS variables as defined in the project files.
 
-## 3. Core Application Logic
+## 4. Core Application Logic
 
-### 3.1. Authentication (`useAuth`)
+### 4.1. Authentication (`useAuth`)
 
 Create a custom React hook `src/hooks/use-auth.tsx` to manage the user's authentication state globally.
 - **Technology:** Use `React.Context` to provide auth state to the entire application. Wrap the root layout in an `AuthProvider`.
@@ -94,7 +112,7 @@ Create a custom React hook `src/hooks/use-auth.tsx` to manage the user's authent
   - `startUserView()`: For HR Managers, saves current auth state as "original" and creates a temporary "end-user" auth state for previewing the user experience.
   - `stopUserView()`: Restores the original HR Manager auth state from `localStorage`.
 
-### 3.2. Data Management (`useUserData`)
+### 4.2. Data Management (`useUserData`)
 
 Create a central data management hook `src/hooks/use-user-data.tsx`. This hook is the single source of truth for all application data, abstracting away the underlying storage mechanism.
 
@@ -109,16 +127,16 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
   - **Data Mutators:** Create functions to save changes back to the in-memory store (e.g., `saveCompanyConfig(name, config)`, `saveMasterQuestions(questions)`). This pattern makes it easy to swap the in-memory store for a real database later.
   - **Derived Data:** Implement logic like `getCompanyConfig(companyName)` which intelligently merges the `masterQuestions` with company-specific `overrides` and `customQuestions` to produce the final form for that company.
 
-## 4. Building Pages and Components
+## 5. Building Pages and Components
 
-### 4.1. Create App Structure and Layouts
+### 5.1. Create App Structure and Layouts
 
 -   `src/app/layout.tsx`: Root layout that includes the `AuthProvider`, `Toaster`, and global font definitions.
 -   `src/app/page.tsx`: The main landing page, which contains the multi-role `Login` component. It includes logic to redirect authenticated users to their respective dashboards.
 -   `src/app/dashboard/layout.tsx`: Layout for the end-user dashboard, including the `DashboardNav` sidebar.
 -   `src/app/admin/layout.tsx`: Layout for all administrative roles (Admin, HR), including the collapsible admin sidebar with role-based navigation links.
 
-### 4.2. End-User Flow Pages
+### 5.2. End-User Flow Pages
 
 -   **Profile (`/dashboard/profile`):**
     -   Create a `ProfileForm` component that uses `react-hook-form` and a `zod` schema (`src/lib/schemas.ts`) for robust validation.
@@ -133,7 +151,7 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Create a `ProgressTracker` component to show before both the profile and assessment are complete. It should disable the "Exit Details" button until the profile is done.
     -   Create the `TimelineDashboard` component to display the AI-generated recommendations after both forms are complete. This component fetches data from the Genkit flow.
 
-### 4.3. Admin & HR Flow Pages
+### 5.3. Admin & HR Flow Pages
 
 -   **Form Editor (`/admin/forms`):**
     -   Build a dual-mode page that renders either the `AdminFormEditor` or `HrFormEditor` based on the user's role.
@@ -152,9 +170,9 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Display key user statuses, such as invitation status, profile completion, and assessment completion. For the Admin view, show a simplified "Past" or "Future" indicator for notification dates.
     -   Provide an "Export to CSV" function that generates and triggers a download of the user list.
 
-## 5. AI Integration with Genkit
+## 6. AI Integration with Genkit
 
-### 5.1. Create Genkit Flow
+### 6.1. Create Genkit Flow
 
 In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that generates a personalized action plan for the user.
 -   **Input/Output Schemas:** Use `zod` to define strongly-typed input and output schemas.
