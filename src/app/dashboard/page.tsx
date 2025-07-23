@@ -340,9 +340,13 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
 
-  const hasPrefilledData = assessmentData && Object.keys(assessmentData).length > 0;
   const isProfileComplete = !!profileData;
   const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
+  
+  const hasPrefilledData = useMemo(() => {
+    // Determine if there's HR-prefilled data by checking a key field that a user wouldn't have yet, like `finalDate`.
+    return !!assessmentData?.finalDate;
+  }, [assessmentData]);
   
   // Show welcome message if there's prefilled data but the profile isn't done yet.
   const showWelcomeMessage = hasPrefilledData && !isProfileComplete;
@@ -370,15 +374,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {hasPrefilledData && <ImportantDates />}
+        {showWelcomeMessage && <WelcomeSummary />}
 
         {isReadyForTimeline ? (
-          <TimelineDashboard />
-        ) : (
           <>
-            {showWelcomeMessage && <WelcomeSummary />}
-            <ProgressTracker />
+            <ImportantDates />
+            <TimelineDashboard />
           </>
+        ) : (
+          <ProgressTracker />
         )}
       </div>
     </main>

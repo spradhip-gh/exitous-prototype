@@ -5,7 +5,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, parse } from 'date-fns';
+import { format, parse, parseISO } from 'date-fns';
 import { Key, Bell, CalendarX2, Stethoscope, HandCoins, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useMemo } from 'react';
@@ -24,13 +24,16 @@ export default function WelcomeSummary() {
       return companyAssignments.find(c => c.companyName === companyUser.companyName);
   }, [companyUser, companyAssignments]);
 
-  if (!assessmentData || !assessmentData.finalDate) { // Only show if there's prefilled data to see
+  // Only render the component if there is pre-filled assessment data.
+  if (!assessmentData || !assessmentData.finalDate) { 
     return null;
   }
 
-  const formatDate = (date: Date | undefined): string => {
-    if (!date) return 'N/A';
+  const formatDate = (dateValue: Date | string | undefined): string => {
+    if (!dateValue) return 'N/A';
     try {
+      const date = (dateValue instanceof Date) ? dateValue : parseISO(dateValue);
+      if (isNaN(date.getTime())) return 'N/A';
       return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch {
       return 'N/A';
@@ -40,17 +43,22 @@ export default function WelcomeSummary() {
   const severanceDeadlineTooltip = `Deadline is at ${companyDetails?.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`;
   
   const importantInfo = [
-    { label: 'Notification Date', value: assessmentData.notificationDate ? formatDate(assessmentData.notificationDate) : 'N/A', icon: Bell, tooltip: null },
-    { label: 'Final Day of Employment', value: assessmentData.finalDate ? formatDate(assessmentData.finalDate) : 'N/A', icon: CalendarX2, tooltip: null },
-    { label: 'Severance Agreement Deadline', value: assessmentData.severanceAgreementDeadline ? formatDate(assessmentData.severanceAgreementDeadline) : 'N/A', icon: Key, tooltip: severanceDeadlineTooltip },
-    { label: 'Medical Coverage Ends', value: assessmentData.medicalCoverageEndDate ? formatDate(assessmentData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope, tooltip: null },
+    { label: 'Notification Date', value: formatDate(assessmentData.notificationDate), icon: Bell, tooltip: null },
+    { label: 'Final Day of Employment', value: formatDate(assessmentData.finalDate), icon: CalendarX2, tooltip: null },
+    { label: 'Severance Agreement Deadline', value: formatDate(assessmentData.severanceAgreementDeadline), icon: Key, tooltip: severanceDeadlineTooltip },
+    { label: 'Medical Coverage Ends', value: formatDate(assessmentData.medicalCoverageEndDate), icon: Stethoscope, tooltip: null },
   ].filter(info => info.value && info.value !== 'N/A');
 
-  const additionalDataCount = [
-    assessmentData.dentalCoverageEndDate,
-    assessmentData.visionCoverageEndDate,
-    assessmentData.eapCoverageEndDate
-  ].filter(Boolean).length;
+  const additionalDataCount = Object.keys(assessmentData).filter(key => 
+    ![
+      'notificationDate', 
+      'finalDate', 
+      'severanceAgreementDeadline', 
+      'medicalCoverageEndDate', 
+      'companyName', 
+      'workStatus' // Exclude keys that are not "additional data"
+    ].includes(key) && assessmentData[key as keyof typeof assessmentData]
+  ).length;
 
 
   return (
