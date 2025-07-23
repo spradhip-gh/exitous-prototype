@@ -96,31 +96,38 @@ const initializeDb = (): DemoDatabase => {
         companyConfigs: {
             'Globex Corp': {
                 guidance: [
-                    {
-                        id: 'tenure-rule-1',
-                        name: 'Guidance for < 1 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'lt', value: [1], label: '< 1 Year' }],
-                        guidanceText: 'With less than one year of service, be aware that you may not be eligible for a 401k match or full severance. Review your employee handbook for details on prorated benefits for employees with your tenure.',
+                     {
+                        id: 'tenure-rule-very-short',
+                        name: 'Guidance for < 30 Days Tenure',
+                        conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
+                        guidanceText: 'With less than 30 days of service, you are likely ineligible for severance or COBRA. Your final paycheck should include all hours worked. Immediately look into healthcare options on the ACA marketplace.',
                         category: 'Finances',
                     },
                     {
-                        id: 'tenure-rule-2',
-                        name: 'Guidance for 1-3 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 3], label: '1 - 3 Years' }],
+                        id: 'tenure-rule-short',
+                        name: 'Guidance for 30 days - 1 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [0.082, 1], label: '30 days - 1 Year' }],
+                        guidanceText: 'With less than one year of service, you may not be eligible for a 401k match or full severance. Review your employee handbook for details on prorated benefits for employees with your tenure.',
+                        category: 'Finances',
+                    },
+                    {
+                        id: 'tenure-rule-medium',
+                        name: 'Guidance for 1-5 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
                         guidanceText: 'You are likely eligible for COBRA and may have partially vested stock options. It is critical to review your grant details and exercise window. Also, consider rolling over your 401k to an IRA to maintain control of your retirement funds.',
                         category: 'Finances',
                     },
                     {
-                        id: 'tenure-rule-3',
-                        name: 'Guidance for 3-5 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [3, 5], label: '3 - 5 Years' }],
+                        id: 'tenure-rule-long',
+                        name: 'Guidance for 6-10 Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
                         guidanceText: 'With your tenure, you are likely fully vested in your 401k employer match. Your severance package may also be more substantial. Carefully review the severance agreement for all details.',
                         category: 'Finances',
                     },
                      {
-                        id: 'tenure-rule-4',
-                        name: 'Guidance for 5+ Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [5], label: '5+ Years' }],
+                        id: 'tenure-rule-very-long',
+                        name: 'Guidance for 10+ Year Tenure',
+                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
                         guidanceText: 'As a long-tenured employee, you may be eligible for extended health coverage options beyond COBRA or specialized outplacement services. Check your severance package for information on these benefits.',
                         category: 'Healthcare',
                     },
@@ -580,6 +587,7 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
 
 
