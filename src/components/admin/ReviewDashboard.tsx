@@ -3,11 +3,11 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useUserData, GuidanceRule, Question } from '@/hooks/use-user-data';
+import { useUserData, GuidanceRule, Question, Condition } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -16,6 +16,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '../ui/separator';
 
 const sampleProfileData = {
   birthYear: 1988,
@@ -56,6 +57,14 @@ const sampleAssessmentData = {
   eapCoverageEndDate: new Date('2024-09-30').toISOString(),
 };
 
+const tenureOptions: { label: string; condition: Condition }[] = [
+    { label: '< 1 Year', condition: { type: 'tenure', operator: 'lt', value: [1], label: '< 1 Year' }},
+    { label: '1 - 3 Years', condition: { type: 'tenure', operator: 'gte_lt', value: [1, 3], label: '1 - 3 Years' }},
+    { label: '3 - 5 Years', condition: { type: 'tenure', operator: 'gte_lt', value: [3, 5], label: '3 - 5 Years' }},
+    { label: '5+ Years', condition: { type: 'tenure', operator: 'gte', value: [5], label: '5+ Years' }},
+];
+
+
 function GuidanceRuleForm({
   isOpen,
   onOpenChange,
@@ -79,11 +88,17 @@ function GuidanceRuleForm({
       setCurrentRule(rule ? { ...rule } : { id: `rule-${Date.now()}`, name: '', conditions: [], guidanceText: '', category: 'General' });
     }
   }, [isOpen, rule]);
-
-  const handleAddCondition = () => {
+  
+  const addCondition = (type: 'question' | 'tenure') => {
+    let newCondition: Condition;
+    if(type === 'tenure') {
+        newCondition = tenureOptions[0].condition;
+    } else {
+        newCondition = { type: 'question', questionId: '', answer: '' };
+    }
     setCurrentRule(prev => ({
       ...prev,
-      conditions: [...(prev?.conditions || []), { questionId: '', answer: '' }],
+      conditions: [...(prev?.conditions || []), newCondition],
     }));
   };
   
@@ -94,14 +109,10 @@ function GuidanceRuleForm({
     }));
   };
 
-  const handleConditionChange = (index: number, field: 'questionId' | 'answer', value: string) => {
+  const handleConditionChange = (index: number, newCondition: Condition) => {
     setCurrentRule(prev => {
-        const newConditions = [...(prev?.conditions || [])];
-        const newCondition = { ...newConditions[index], [field]: value };
-        // If question changes, clear the answer
-        if(field === 'questionId') {
-            newCondition.answer = '';
-        }
+        if(!prev?.conditions) return prev;
+        const newConditions = [...prev.conditions];
         newConditions[index] = newCondition;
         return {...prev, conditions: newConditions};
     });
@@ -132,37 +143,56 @@ function GuidanceRuleForm({
           <Card>
             <CardHeader><CardTitle className="text-base">Conditions</CardTitle><CardDescription className="text-xs">This guidance will apply IF all these conditions are true:</CardDescription></CardHeader>
             <CardContent className="space-y-4">
-              {currentRule.conditions?.map((cond, i) => {
-                const selectedQuestion = questions.find(q => q.id === cond.questionId);
-                return (
-                  <div key={i} className="flex items-end gap-2 p-3 border rounded-md relative">
-                    <div className="grid grid-cols-2 gap-2 flex-grow">
-                        <div className="space-y-2">
-                            <Label>Question</Label>
-                            <Select value={cond.questionId} onValueChange={val => handleConditionChange(i, 'questionId', val)}>
-                                <SelectTrigger><SelectValue placeholder="Select a question..." /></SelectTrigger>
-                                <SelectContent>
-                                    {questions.filter(q => q.options && q.options.length > 0).map(q => <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+              {currentRule.conditions?.map((cond, i) => (
+                 <div key={i} className="flex items-end gap-2 p-3 border rounded-md relative">
+                    {cond.type === 'question' ? (
+                        <div className="grid grid-cols-2 gap-2 flex-grow">
+                            <div className="space-y-2">
+                                <Label>Question</Label>
+                                <Select value={cond.questionId} onValueChange={val => handleConditionChange(i, { ...cond, questionId: val, answer: '' })}>
+                                    <SelectTrigger><SelectValue placeholder="Select a question..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {questions.filter(q => q.options && q.options.length > 0).map(q => <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Answer Is</Label>
+                                <Select value={cond.answer} onValueChange={val => handleConditionChange(i, { ...cond, answer: val })} disabled={!cond.questionId}>
+                                    <SelectTrigger><SelectValue placeholder="Select an answer..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {questions.find(q => q.id === cond.questionId)?.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                         <div className="space-y-2">
-                            <Label>Answer Is</Label>
-                            <Select value={cond.answer} onValueChange={val => handleConditionChange(i, 'answer', val)} disabled={!selectedQuestion}>
-                                <SelectTrigger><SelectValue placeholder="Select an answer..." /></SelectTrigger>
-                                <SelectContent>
-                                    {selectedQuestion?.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveCondition(i)}>
+                    ) : (
+                         <div className="grid grid-cols-2 gap-2 flex-grow">
+                             <div className="space-y-2 col-span-2">
+                                <Label>Tenure</Label>
+                                <Select value={cond.label} onValueChange={val => {
+                                    const selectedOption = tenureOptions.find(t => t.label === val);
+                                    if(selectedOption) {
+                                        handleConditionChange(i, selectedOption.condition)
+                                    }
+                                }}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {tenureOptions.map(opt => <SelectItem key={opt.label} value={opt.label}>{opt.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                             </div>
+                         </div>
+                    )}
+                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => handleRemoveCondition(i)}>
                         <Trash2 className="h-4 w-4" />
                      </Button>
                   </div>
-                );
-              })}
-              <Button variant="outline" size="sm" onClick={handleAddCondition}><PlusCircle className="mr-2"/> Add Condition</Button>
+              ))}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => addCondition('question')}><PlusCircle className="mr-2"/> Add Question Condition</Button>
+                <Button variant="outline" size="sm" onClick={() => addCondition('tenure')}><CalendarCheck2 className="mr-2"/> Add Tenure Condition</Button>
+              </div>
             </CardContent>
           </Card>
           <div className="space-y-2">
@@ -298,8 +328,14 @@ export default function GuidanceEditor() {
                                         <CardTitle className="text-base">{rule.name}</CardTitle>
                                         <div className="flex flex-wrap gap-1 mt-2">
                                             {rule.conditions.map((c, i) => {
-                                                const q = allQuestions.find(q => q.id === c.questionId);
-                                                return <Badge key={i} variant="secondary">{q?.label.substring(0, 20)}... is "{c.answer}"</Badge>
+                                                if (c.type === 'question') {
+                                                    const q = allQuestions.find(q => q.id === c.questionId);
+                                                    return <Badge key={i} variant="secondary">IF {q?.label.substring(0, 20)}... is "{c.answer}"</Badge>
+                                                }
+                                                if (c.type === 'tenure') {
+                                                     return <Badge key={i} variant="secondary" className="bg-blue-100 text-blue-800">IF Tenure is {c.label}</Badge>
+                                                }
+                                                return null;
                                             })}
                                         </div>
                                     </div>

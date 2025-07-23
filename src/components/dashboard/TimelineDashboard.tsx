@@ -4,9 +4,9 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth, differenceInYears } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
-import { useUserData, CompanyAssignment, GuidanceRule } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, GuidanceRule, Condition } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -139,10 +139,25 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     const allAnswers = { ...profileData, ...assessmentData };
 
     guidanceRules.forEach((rule: GuidanceRule) => {
-      const allConditionsMet = rule.conditions.every(condition => {
-        const userAnswer = (allAnswers as any)[condition.questionId];
-        return userAnswer === condition.answer;
-      });
+        const allConditionsMet = rule.conditions.every(condition => {
+            if (condition.type === 'question') {
+                const userAnswer = (allAnswers as any)[condition.questionId];
+                return userAnswer === condition.answer;
+            }
+            if (condition.type === 'tenure') {
+                const startDate = assessmentData.startDate;
+                const finalDate = assessmentData.finalDate;
+                if (!startDate || !finalDate) return false;
+
+                const tenureInYears = differenceInYears(finalDate, startDate);
+                const [val1, val2] = condition.value;
+
+                if (condition.operator === 'lt') return tenureInYears < val1;
+                if (condition.operator === 'gte') return tenureInYears >= val1;
+                if (condition.operator === 'gte_lt' && val2) return tenureInYears >= val1 && tenureInYears < val2;
+            }
+            return false;
+        });
       
       if (allConditionsMet) {
         triggeredGuidance.push({ text: rule.guidanceText, category: rule.category, linkedResourceId: rule.linkedResourceId });

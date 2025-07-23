@@ -47,13 +47,22 @@ export interface Resource {
   content?: string; // Can be text content or a data URI
 }
 
+export type Condition = {
+  type: 'question';
+  questionId: string;
+  answer: string;
+} | {
+  type: 'tenure';
+  operator: 'lt' | 'gte_lt' | 'gte'; // lt: < val1; gte_lt: >= val1 and < val2; gte: >= val1
+  value: [number, number?]; // e.g., [1] for < 1 year; [1, 5] for 1-5 years; [5] for >= 5 years
+  label: string; // User-facing label like "< 1 Year"
+};
+
+
 export interface GuidanceRule {
     id: string;
     name: string;
-    conditions: {
-        questionId: string;
-        answer: string;
-    }[];
+    conditions: Condition[];
     guidanceText: string;
     category: string;
     linkedResourceId?: string;
@@ -88,7 +97,9 @@ export interface PlatformUser {
 // --- HELPER FUNCTIONS ---
 
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
-    if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) return [];
+    if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) {
+        return [];
+    }
     
     // Create a copy of the questions to avoid mutating the original source.
     // This also ensures subQuestions arrays are properly handled if they are missing.
@@ -272,7 +283,11 @@ export function useUserData() {
           };
       }
       
-      setProfileData(convertStringsToDates(finalProfileData));
+      if(finalProfileData) {
+        setProfileData(convertStringsToDates(finalProfileData));
+      } else {
+        setProfileData(null);
+      }
       setAssessmentData(convertStringsToDates(finalAssessmentData));
       
       const completedTasksJson = localStorage.getItem(completedTasksKey);
