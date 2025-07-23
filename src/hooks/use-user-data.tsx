@@ -298,11 +298,12 @@ export function useUserData() {
               finalProfileData = seeded.profile;
           }
 
+          // **FIXED**: Load localStorage data first, then layer seeded/prefilled data on top.
           finalAssessmentData = {
+              ...finalAssessmentData,
               ...(seeded?.assessment || {}),
               ...hrPrefilledData,
               ...notificationDate,
-              ...finalAssessmentData
           };
       }
       
