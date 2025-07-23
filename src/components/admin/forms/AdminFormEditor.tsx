@@ -31,23 +31,18 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
     return null;
 }
 
-function QuestionEditor({ questionType }: { questionType: 'profile' | 'assessment' }) {
+function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }: { 
+    questionType: 'profile' | 'assessment';
+    questions: Record<string, Question>;
+    saveFn: (questions: Record<string, Question>) => void;
+    defaultQuestionsFn: () => Question[];
+}) {
     const { toast } = useToast();
-    const { 
-        masterQuestions, 
-        saveMasterQuestions, 
-        masterProfileQuestions,
-        saveMasterProfileQuestions,
-        isLoading 
-    } = useUserData();
+    const { isLoading } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-
-    const questions = questionType === 'profile' ? masterProfileQuestions : masterQuestions;
-    const saveFn = questionType === 'profile' ? saveMasterProfileQuestions : saveMasterQuestions;
-    const defaultQuestionsFn = questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
 
     const orderedSections = useMemo(() => {
         if (isLoading || Object.keys(questions).length === 0) {
@@ -253,6 +248,13 @@ function QuestionEditor({ questionType }: { questionType: 'profile' | 'assessmen
 
 
 export default function AdminFormEditor() {
+    const {
+        masterQuestions, 
+        saveMasterQuestions, 
+        masterProfileQuestions,
+        saveMasterProfileQuestions,
+    } = useUserData();
+
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -266,10 +268,20 @@ export default function AdminFormEditor() {
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile" className="mt-6">
-                        <QuestionEditor questionType="profile" />
+                        <QuestionEditor
+                            questionType="profile"
+                            questions={masterProfileQuestions}
+                            saveFn={saveMasterProfileQuestions}
+                            defaultQuestionsFn={getDefaultProfileQuestions}
+                        />
                     </TabsContent>
                     <TabsContent value="assessment" className="mt-6">
-                        <QuestionEditor questionType="assessment" />
+                        <QuestionEditor
+                            questionType="assessment"
+                            questions={masterQuestions}
+                            saveFn={saveMasterQuestions}
+                            defaultQuestionsFn={getDefaultQuestions}
+                        />
                     </TabsContent>
                 </Tabs>
             </div>
