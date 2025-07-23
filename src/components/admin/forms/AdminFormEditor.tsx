@@ -45,7 +45,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
     const orderedSections = useMemo(() => {
-        if (isLoading || Object.keys(questions).length === 0) {
+        if (isLoading || !questions || Object.keys(questions).length === 0) {
             return [];
         }
 
