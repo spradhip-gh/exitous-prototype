@@ -295,7 +295,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   unionMember: 'No',
                   workArrangement: 'Hybrid',
                   workArrangementOther: '',
-                  workVisaStatus: 'None of the above',
+                  workVisa: 'None of the above',
                   onLeave: ['None of the above'],
                   accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
                   emailAccessEndDate: new Date(getFutureDate(32)),
@@ -366,7 +366,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 keywords: ['finance', '401k', 'investment', 'budget', 'severance', 'taxes'],
                 relatedTaskIds: ['create-transition-budget', 'understand-401k-options'],
                 isVerified: true,
-                specialOffer: '15% off your first consultation for Exitous members.'
+                availability: ['basic', 'pro'],
+                proOffer: '15% off your first consultation for Exitous members.'
             },
             {
                 id: 'fin-2',
@@ -377,7 +378,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'tax document',
                 keywords: ['tax', 'cpa', 'severance', 'stock options', 'irs'],
-                relatedTaskIds: ['consult-tax-advisor']
+                relatedTaskIds: ['consult-tax-advisor'],
+                availability: ['basic', 'pro'],
             },
             // Legal
             {
@@ -391,6 +393,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 keywords: ['legal', 'lawyer', 'severance agreement', 'negotiation', 'employment law'],
                 relatedTaskIds: ['review-severance-agreement'],
                 isVerified: true,
+                availability: ['basic', 'pro'],
             },
             {
                 id: 'legal-2',
@@ -401,7 +404,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'passport visa',
                 keywords: ['visa', 'immigration', 'h1b', 'green card', 'ead'],
-                relatedTaskIds: ['handle-work-visa-implications']
+                relatedTaskIds: ['handle-work-visa-implications'],
+                availability: ['pro'],
             },
             {
                 id: 'legal-3',
@@ -413,7 +417,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageHint: 'law office',
                 keywords: ['legal', 'lawyer', 'severance agreement', 'affordable'],
                 relatedTaskIds: ['review-severance-agreement'],
-                specialOffer: 'Free 15-minute initial assessment.'
+                availability: ['basic'],
+                basicOffer: 'Free 15-minute initial assessment.'
             },
             // Job Search
             {
@@ -427,6 +432,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 keywords: ['job search', 'resume', 'interview prep', 'career coach', 'linkedin'],
                 relatedTaskIds: ['update-resume-and-linkedin', 'practice-interviewing'],
                 isVerified: true,
+                availability: ['basic', 'pro'],
             },
             {
                 id: 'job-2',
@@ -437,7 +443,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'tech recruitment',
                 keywords: ['recruiter', 'tech job', 'software engineer', 'product manager'],
-                relatedTaskIds: ['start-networking']
+                relatedTaskIds: ['start-networking'],
+                availability: ['pro'],
             },
             {
                 id: 'job-3',
@@ -448,7 +455,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'professional networking',
                 keywords: ['networking', 'connections', 'career events'],
-                relatedTaskIds: ['start-networking']
+                relatedTaskIds: ['start-networking'],
+                availability: ['basic', 'pro'],
             },
             // Well-being
             {
@@ -460,7 +468,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 imageUrl: 'https://placehold.co/600x400.png',
                 imageHint: 'therapy session',
                 keywords: ['therapy', 'mental health', 'counseling', 'stress', 'anxiety', 'resilience'],
-                relatedTaskIds: ['seek-emotional-support']
+                relatedTaskIds: ['seek-emotional-support'],
+                availability: ['basic', 'pro'],
             },
             {
                 id: 'well-2',
@@ -473,6 +482,7 @@ This checklist is designed to help you manage key tasks during your employment t
                 keywords: ['healthcare', 'insurance', 'cobra', 'aca', 'benefits'],
                 relatedTaskIds: ['explore-health-insurance'],
                 isVerified: true,
+                availability: ['basic', 'pro'],
             }
         ]
     }

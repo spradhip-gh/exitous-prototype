@@ -11,54 +11,60 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { findExpertMatches, type ExpertMatchOutput, type ExpertMatchInput } from '@/ai/flows/find-expert-matches';
 import { useUserData, type ExternalResource } from '@/hooks/use-user-data';
+import { useAuth } from '@/hooks/use-auth';
 import { Sparkles, Search, ExternalLink, Terminal, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 
 const categories = ["Finances", "Legal", "Job Search", "Well-being"];
 
-const ResourceCard = ({ resource }: { resource: ExternalResource }) => (
-    <Card className="flex flex-col h-full overflow-hidden shadow-lg transition-transform hover:scale-105 group">
-        <div className="relative h-40 w-full">
-            <Image
-                src={resource.imageUrl}
-                alt={resource.name}
-                fill
-                className="object-cover"
-                data-ai-hint={resource.imageHint}
-            />
-            {resource.isVerified && (
-                <Badge className="absolute top-2 right-2 bg-green-600 text-white">
-                    <CheckCircle className="mr-1.5" /> Exitous Verified
-                </Badge>
-            )}
-        </div>
-        <CardHeader>
-            <CardTitle>{resource.name}</CardTitle>
-            <Badge variant="secondary" className="w-fit">{resource.category}</Badge>
-        </CardHeader>
-        <CardContent className="flex-grow">
-            {resource.specialOffer && (
-                <div className="mb-4 p-3 rounded-md bg-primary/10 border border-primary/20 text-sm text-primary-foreground">
-                    <p className="font-bold flex items-center gap-1.5 text-primary"><Star className="fill-current"/> Special Offer</p>
-                    <p className="text-primary/90">{resource.specialOffer}</p>
-                </div>
-            )}
-            <p className="text-sm text-muted-foreground">{resource.description}</p>
-        </CardContent>
-        <CardFooter>
-            <Button variant="outline" asChild>
-                <a href={resource.website} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2" /> Learn More
-                </a>
-            </Button>
-        </CardFooter>
-    </Card>
-);
+const ResourceCard = ({ resource, companyVersion }: { resource: ExternalResource; companyVersion: 'basic' | 'pro' }) => {
+    const offerText = companyVersion === 'pro' ? resource.proOffer : resource.basicOffer;
+    
+    return (
+        <Card className="flex flex-col h-full overflow-hidden shadow-lg transition-transform hover:scale-105 group">
+            <div className="relative h-40 w-full">
+                <Image
+                    src={resource.imageUrl}
+                    alt={resource.name}
+                    fill
+                    className="object-cover"
+                    data-ai-hint={resource.imageHint}
+                />
+                {resource.isVerified && (
+                    <Badge className="absolute top-2 right-2 bg-green-600 text-white">
+                        <CheckCircle className="mr-1.5" /> Exitous Verified
+                    </Badge>
+                )}
+            </div>
+            <CardHeader>
+                <CardTitle>{resource.name}</CardTitle>
+                <Badge variant="secondary" className="w-fit">{resource.category}</Badge>
+            </CardHeader>
+            <CardContent className="flex-grow">
+                {offerText && (
+                    <div className="mb-4 p-3 rounded-md bg-primary/10 border border-primary/20 text-sm text-primary-foreground">
+                        <p className="font-bold flex items-center gap-1.5 text-primary"><Star className="fill-current"/> Special Offer</p>
+                        <p className="text-primary/90">{offerText}</p>
+                    </div>
+                )}
+                <p className="text-sm text-muted-foreground">{resource.description}</p>
+            </CardContent>
+            <CardFooter>
+                <Button variant="outline" asChild>
+                    <a href={resource.website} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2" /> Learn More
+                    </a>
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
 
 function ExternalResourcesContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const preselectedCategory = searchParams.get('category');
+    const { auth } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(preselectedCategory);
@@ -66,7 +72,12 @@ function ExternalResourcesContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const { profileData, assessmentData, externalResources } = useUserData();
+    const { profileData, assessmentData, externalResources, companyAssignments } = useUserData();
+
+    const companyVersion = useMemo(() => {
+        if (!auth?.companyName) return 'basic';
+        return companyAssignments.find(c => c.companyName === auth.companyName)?.version || 'basic';
+    }, [auth, companyAssignments]);
 
     useEffect(() => {
         const fetchMatches = async () => {
@@ -111,6 +122,9 @@ function ExternalResourcesContent() {
 
     const filteredResources = useMemo(() => {
         return externalResources.filter(resource => {
+            const isAvailableForTier = resource.availability?.includes(companyVersion);
+            if (!isAvailableForTier) return false;
+
             const matchesCategory = selectedCategory ? resource.category === selectedCategory : true;
             const matchesSearch = searchTerm ? 
                 resource.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -119,13 +133,13 @@ function ExternalResourcesContent() {
                 : true;
             return matchesCategory && matchesSearch;
         });
-    }, [searchTerm, selectedCategory, externalResources]);
+    }, [searchTerm, selectedCategory, externalResources, companyVersion]);
 
     const matchedResources = useMemo(() => {
         if (!matches) return [];
         const matchedIds = new Set(matches.matches.map(m => m.resourceId));
-        return externalResources.filter(r => matchedIds.has(r.id));
-    }, [matches, externalResources]);
+        return externalResources.filter(r => matchedIds.has(r.id) && r.availability?.includes(companyVersion));
+    }, [matches, externalResources, companyVersion]);
 
     const handleCategoryClick = (category: string | null) => {
         setSelectedCategory(category);
@@ -180,7 +194,7 @@ function ExternalResourcesContent() {
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {matchedResources.map(resource => (
-                                <ResourceCard key={resource.id} resource={resource} />
+                                <ResourceCard key={resource.id} resource={resource} companyVersion={companyVersion} />
                             ))}
                         </CardContent>
                     </Card>
@@ -213,7 +227,7 @@ function ExternalResourcesContent() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredResources.map(resource => (
-                            <ResourceCard key={resource.id} resource={resource} />
+                            <ResourceCard key={resource.id} resource={resource} companyVersion={companyVersion} />
                         ))}
                     </div>
 

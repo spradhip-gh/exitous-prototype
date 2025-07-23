@@ -1,3 +1,4 @@
+
 export interface ExternalResource {
     id: string;
     name: string;
@@ -9,5 +10,7 @@ export interface ExternalResource {
     keywords: string[];
     relatedTaskIds?: string[];
     isVerified?: boolean;
-    specialOffer?: string;
+    availability: Array<'basic' | 'pro'>;
+    basicOffer?: string;
+    proOffer?: string;
 }

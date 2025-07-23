@@ -27,6 +27,7 @@ import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import ProgressTracker from './ProgressTracker';
 import { type ExternalResource } from '@/lib/external-resources';
+import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
@@ -77,6 +78,7 @@ function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalRe
 
 export default function TimelineDashboard({ isPreview = false }: { isPreview?: boolean }) {
   const router = useRouter();
+  const { auth } = useAuth();
   const { 
     profileData, 
     assessmentData, 
@@ -105,6 +107,11 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const [selectedResource, setSelectedResource] = useState<ExternalResource | null>(null);
 
   const userTimezone = getTargetTimezone();
+  
+  const companyVersion = useMemo(() => {
+    if (!auth?.companyName) return 'basic';
+    return companyAssignments.find(c => c.companyName === auth.companyName)?.version || 'basic';
+  }, [auth, companyAssignments]);
 
   const companyDetails = useMemo(() => {
     if (!assessmentData?.companyName) return null;
@@ -334,7 +341,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
                                   onConnectClick={handleConnectClick}
-                                  externalResources={externalResources}
+                                  externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
@@ -350,7 +357,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                   updateTaskDate={updateTaskDate}
                                   userTimezone={userTimezone}
                                   onConnectClick={handleConnectClick}
-                                  externalResources={externalResources}
+                                  externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
                               />
                            ) : (
                               <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>

@@ -84,7 +84,7 @@ export default function ExternalResourcesAdminPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Category</TableHead>
-                                    <TableHead>Website</TableHead>
+                                    <TableHead>Availability</TableHead>
                                     <TableHead>Verified</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -94,7 +94,12 @@ export default function ExternalResourcesAdminPage() {
                                     <TableRow key={resource.id}>
                                         <TableCell className="font-medium">{resource.name}</TableCell>
                                         <TableCell><Badge variant="secondary">{resource.category}</Badge></TableCell>
-                                        <TableCell><a href={resource.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{resource.website}</a></TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-1">
+                                                {resource.availability?.includes('basic') && <Badge variant="outline">Basic</Badge>}
+                                                {resource.availability?.includes('pro') && <Badge className="bg-green-600">Pro</Badge>}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
                                             {resource.isVerified && <CheckCircle className="h-5 w-5 text-green-600" />}
                                         </TableCell>
@@ -163,6 +168,17 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
         setFormData(prev => ({ ...prev, [name]: arr }));
     };
 
+    const handleAvailabilityChange = (tier: 'basic' | 'pro', checked: boolean) => {
+        setFormData(prev => {
+            const currentAvailability = prev.availability || [];
+            if (checked) {
+                return { ...prev, availability: [...currentAvailability, tier] };
+            } else {
+                return { ...prev, availability: currentAvailability.filter(t => t !== tier) };
+            }
+        });
+    };
+
     const handleSwitchChange = (name: 'isVerified', checked: boolean) => {
         setFormData(prev => ({...prev, [name]: checked}));
     };
@@ -171,6 +187,10 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
         const id = resource?.id || `res-${Date.now()}`;
         if (!formData.name || !formData.category || !formData.description) {
             alert('Name, Category, and Description are required.');
+            return;
+        }
+        if (!formData.availability || formData.availability.length === 0) {
+            alert('Please select availability (Basic and/or Pro).');
             return;
         }
         onSave({ ...formData, id } as ExternalResource);
@@ -190,7 +210,9 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
                 keywords: [],
                 relatedTaskIds: [],
                 isVerified: false,
-                specialOffer: ''
+                availability: ['basic', 'pro'],
+                basicOffer: '',
+                proOffer: ''
             });
         }
     }, [resource, isOpen]);
@@ -236,14 +258,32 @@ function ResourceForm({ isOpen, onOpenChange, onSave, resource }: {
                         <Input id="imageHint" name="imageHint" value={formData.imageHint || ''} onChange={handleInputChange} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="specialOffer">Special Offer</Label>
-                        <Input id="specialOffer" name="specialOffer" value={formData.specialOffer || ''} onChange={handleInputChange} />
+                         <Label>Availability</Label>
+                         <div className="flex gap-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="avail-basic" checked={formData.availability?.includes('basic')} onCheckedChange={(c) => handleAvailabilityChange('basic', !!c)} />
+                                <Label htmlFor="avail-basic">Basic</Label>
+                            </div>
+                             <div className="flex items-center space-x-2">
+                                <Checkbox id="avail-pro" checked={formData.availability?.includes('pro')} onCheckedChange={(c) => handleAvailabilityChange('pro', !!c)} />
+                                <Label htmlFor="avail-pro">Pro</Label>
+                            </div>
+                         </div>
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="basicOffer">Basic Tier Offer</Label>
+                        <Input id="basicOffer" name="basicOffer" value={formData.basicOffer || ''} onChange={handleInputChange} placeholder="e.g., Free 15-min consultation" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="proOffer">Pro Tier Offer</Label>
+                        <Input id="proOffer" name="proOffer" value={formData.proOffer || ''} onChange={handleInputChange} placeholder="e.g., 15% off first service"/>
+                    </div>
+                    
                      <div className="space-y-2">
                         <Label htmlFor="keywords">Keywords (comma-separated)</Label>
                         <Input id="keywords" name="keywords" value={formData.keywords?.join(', ') || ''} onChange={(e) => handleArrayChange('keywords', e.target.value)} />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="relatedTaskIds">Related Task IDs (comma-separated)</Label>
                         <Textarea id="relatedTaskIds" name="relatedTaskIds" value={formData.relatedTaskIds?.join(', ') || ''} onChange={(e) => handleArrayChange('relatedTaskIds', e.target.value)} />
                     </div>
