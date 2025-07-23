@@ -118,25 +118,11 @@ const initializeDb = (): DemoDatabase => {
                         category: 'Career'
                     },
                     {
-                        id: 'tenure-rule-medium-financial',
-                        name: 'Guidance for 1-5 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
-                        category: 'Finances'
-                    },
-                    {
                         id: 'tenure-rule-medium-career',
                         name: 'Guidance for 1-5 Year Tenure',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
                         guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
                         category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-long-financial',
-                        name: 'Guidance for 6-10 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
-                        category: 'Finances'
                     },
                     {
                         id: 'tenure-rule-long-career',
@@ -158,13 +144,6 @@ const initializeDb = (): DemoDatabase => {
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
                         guidanceText: 'After a long tenure, a refreshed professional image can energize and inspire new considerations, such as conferences, courses or certifications for staying competitive in today’s job market.',
                         category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-very-long-financial',
-                        name: 'Guidance for 10+ Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
-                        category: 'Finances'
                     },
                     {
                         id: 'tenure-rule-very-long-career',
