@@ -33,8 +33,13 @@ const parseDateFromCsv = (dateStr: any): Date | null => {
         return null;
     }
     
-    const date = parse(trimmedDateStr, 'yyyy-MM-dd', new Date());
-
+    // The issue is that parse assumes local timezone. If a user enters '2025-01-01'
+    // and they are in a timezone ahead of UTC, it might become '2024-12-31T23:00:00Z'.
+    // We need to parse it as if it's UTC to keep the date consistent.
+    const [year, month, day] = trimmedDateStr.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    
     if (isValid(date)) {
         return date;
     }
