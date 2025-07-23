@@ -178,7 +178,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (!isFullyComplete) {
+      if (!isFullyComplete || !auth?.email) {
         setIsLoading(false);
         return;
       }
@@ -233,6 +233,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         }
 
         const result = await getPersonalizedRecommendations({
+          userEmail: auth.email,
           profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
           adminGuidance,
@@ -247,7 +248,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview, isFullyComplete, adminGuidance]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete, adminGuidance, auth]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
