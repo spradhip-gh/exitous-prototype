@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question } from "@/hooks/use-user-data";
@@ -44,6 +45,14 @@ export default function EditQuestionDialog({
         }
     }, [masterProfileQuestions, masterQuestions]);
 
+    const sourceQuestionOptions = useMemo(() => {
+        if (!currentQuestion?.dependencySource || !currentQuestion?.dependsOn) {
+            return [];
+        }
+        const sourceMap = currentQuestion.dependencySource === 'profile' ? masterProfileQuestions : masterQuestions;
+        return sourceMap[currentQuestion.dependsOn]?.options || [];
+    }, [currentQuestion, masterProfileQuestions, masterQuestions]);
+
     useEffect(() => {
         if (isOpen) {
             setCurrentQuestion(question);
@@ -65,6 +74,20 @@ export default function EditQuestionDialog({
             return;
         }
         onSave(currentQuestion, isCreatingNewSection ? newSectionName : undefined);
+    };
+
+    const handleDependsOnValueChange = (option: string, isChecked: boolean) => {
+        setCurrentQuestion(prev => {
+            if (!prev) return null;
+            const existingValues = Array.isArray(prev.dependsOnValue) ? prev.dependsOnValue : (prev.dependsOnValue ? [prev.dependsOnValue] : []);
+            let newValues: string[];
+            if (isChecked) {
+                newValues = [...existingValues, option];
+            } else {
+                newValues = existingValues.filter(v => v !== option);
+            }
+            return { ...prev, dependsOnValue: newValues };
+        });
     };
 
     return (
@@ -187,7 +210,7 @@ export default function EditQuestionDialog({
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-2">
                         <Label htmlFor="question-options">Answer Options (one per line)</Label>
-                        <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} />
+                        <Textarea id="question-options" value={currentQuestion.options?.join('\\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\\n') } : null)} rows={currentQuestion.options?.length || 3} />
                     </div>
                 )}
 
@@ -218,7 +241,7 @@ export default function EditQuestionDialog({
                         </div>
                         <div className="space-y-2">
                             <Label>Source Question</Label>
-                             <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: '' } : null)} disabled={!currentQuestion.dependencySource}>
+                             <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: [] } : null)} disabled={!currentQuestion.dependencySource}>
                                 <SelectTrigger><SelectValue placeholder="Select Question..." /></SelectTrigger>
                                 <SelectContent>
                                     {(currentQuestion.dependencySource && dependencyQuestions[currentQuestion.dependencySource])?.map(q => (
@@ -228,16 +251,27 @@ export default function EditQuestionDialog({
                             </Select>
                         </div>
                     </div>
-                     <div className="space-y-2">
-                        <Label>Trigger Answer(s)</Label>
-                        <Input 
-                            value={Array.isArray(currentQuestion.dependsOnValue) ? currentQuestion.dependsOnValue.join(',') : currentQuestion.dependsOnValue || ''}
-                            onChange={(e) => setCurrentQuestion(q => q ? { ...q, dependsOnValue: e.target.value.includes(',') ? e.target.value.split(',').map(s => s.trim()) : e.target.value } : null)}
-                            placeholder="e.g., Yes"
-                            disabled={!currentQuestion.dependsOn}
-                        />
-                        <p className="text-xs text-muted-foreground">The answer that makes this question appear. For multiple values, separate with a comma.</p>
-                     </div>
+                    {sourceQuestionOptions.length > 0 && (
+                        <div className="space-y-2">
+                            <Label>Trigger Answer(s)</Label>
+                            <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                {sourceQuestionOptions.map(option => {
+                                    const isChecked = Array.isArray(currentQuestion.dependsOnValue) && currentQuestion.dependsOnValue.includes(option);
+                                    return (
+                                        <div key={option} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`trigger-${option}`}
+                                                checked={isChecked}
+                                                onCheckedChange={(checked) => handleDependsOnValueChange(option, !!checked)}
+                                            />
+                                            <Label htmlFor={`trigger-${option}`} className="font-normal">{option}</Label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-muted-foreground">The answer(s) that will make this question appear.</p>
+                        </div>
+                    )}
                       <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
                 </div>
 
