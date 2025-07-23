@@ -165,9 +165,9 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileCitizenship }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileCitizenship: string | undefined }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileData: any }) {
     const router = useRouter();
-    const { profileData, saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
+    const { saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     
@@ -276,10 +276,19 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         const sections: Record<string, Question[]> = {};
         questions.forEach(q => {
             if (q.parentId) return;
-            // Conditionally skip rendering the visa question
-            if (q.id === 'workVisaStatus' && profileCitizenship === 'U.S. citizen') {
-                return;
+
+            // Handle cross-form dependencies
+            if(q.dependsOn && q.dependencySource === 'profile' && profileData) {
+                const dependencyValue = profileData[q.dependsOn as keyof typeof profileData];
+                let isTriggered = false;
+                if(Array.isArray(q.dependsOnValue)) {
+                    isTriggered = q.dependsOnValue.includes(dependencyValue as string);
+                } else {
+                    isTriggered = dependencyValue === q.dependsOnValue;
+                }
+                if(!isTriggered) return; // Don't render the question if dependency not met
             }
+            
             const sectionName = q.section || "Uncategorized";
             if (!sections[sectionName]) {
                 sections[sectionName] = [];
@@ -287,7 +296,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
             sections[sectionName].push(q);
         });
         return sections;
-    }, [questions, profileCitizenship]);
+    }, [questions, profileData]);
 
 
     return (
@@ -332,10 +341,10 @@ export default function AssessmentForm() {
     const [initialData, setInitialData] = useState<AssessmentData | null>(null);
 
     useEffect(() => {
-        if (!isUserDataLoading && auth?.companyName && assessmentData) {
+        if (!isUserDataLoading && auth?.companyName) {
             const companyQuestions = getCompanyConfig(auth.companyName, true);
             setQuestions(companyQuestions);
-            setDynamicSchema(buildAssessmentSchema(companyQuestions, profileData?.citizenshipStatus));
+            setDynamicSchema(buildAssessmentSchema(companyQuestions, profileData));
             setInitialData(assessmentData);
             setIsLoading(false);
         } else if (!isUserDataLoading) {
@@ -359,5 +368,5 @@ export default function AssessmentForm() {
         )
     }
 
-    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileCitizenship={profileData?.citizenshipStatus} />;
+    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} />;
 }

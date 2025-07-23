@@ -14,10 +14,14 @@ export interface Question {
     placeholder?: string;
     description?: string;
     lastUpdated?: string; // ISO date string
-    // New properties for sub-questions
-    triggerValue?: string; // The value of the parent that triggers this sub-question. If present, it's a sub-question.
+    // --- Sub-questions within the same form ---
+    triggerValue?: string; // The value of the parent that triggers this sub-question.
     subQuestions?: Question[]; // Array of sub-questions for tree structure, not for storage.
     parentId?: string; // ID of the parent question.
+    // --- Cross-form dependencies (e.g., Assessment depends on Profile) ---
+    dependencySource?: 'profile' | 'assessment';
+    dependsOn?: string; // ID of the question in the source that this question depends on.
+    dependsOnValue?: string | string[]; // The value(s) of the dependency that trigger this question.
 }
 
 export const getDefaultProfileQuestions = (): Question[] => [
@@ -148,13 +152,13 @@ export const getDefaultQuestions = (): Question[] => [
         type: "select",
         isActive: true,
         placeholder: "Select a status",
-        description: "Full-time: 40+ hrs/wk w/salary & benefits. Part-time: <40 hrs/wk at hourly wage. Contract: Predefined period. Independent Contractor: Non-employee.",
+        description: "Full-time: Employed for 40 hours or more per week with salary and benefits. Part-time: Employed for less than 40 hours per week at an hourly wage. Contract: Employed for a predefined period. Independent Contractor: A non-employee.",
         options: [
-            'Contract employee',
             'Full-time employee',
+            'Part-time employee',
+            'Contract employee',
             'Independent contractor',
             'Intern or apprentice',
-            'Part-time employee',
             'Other'
         ],
     },
@@ -247,6 +251,15 @@ export const getDefaultQuestions = (): Question[] => [
         type: 'select',
         isActive: true,
         placeholder: "Select a visa status",
+        dependencySource: 'profile',
+        dependsOn: 'citizenshipStatus',
+        dependsOnValue: [
+            'Permanent U.S. resident (green card holder), not a citizen',
+            'Pending I-485; working on an Employment Authorization Document (EAD) based on a pending I-485 (C9 class)',
+            'Undocumented/DREAMer/DACA/student with Mixed-Status Family',
+            'Foreign national, international student (or on a student visa - CPT, OPT, or OPT STEM)',
+            'Other', 'Prefer not to answer'
+        ],
         options: [
             'H-1B', 'H-2A / H-2B', 'H-3', 'I', 'L-1A / L-1B', 'O visa', 'P', 'R', 'TN (NAFTA/USMCA)',
             'E-2 (corporate transfer as either an manager/executive or essential worker)',

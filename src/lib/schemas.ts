@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import type { Question } from './questions';
 
@@ -88,7 +89,7 @@ const baseAssessmentFields = {
   relocationPaid: z.string({ required_error: 'This field is required.' }).min(1),
   unionMember: z.string({ required_error: 'This field is required.' }).min(1),
   workArrangement: z.string({ required_error: 'This field is required.' }).min(1),
-  workVisaStatus: z.string({ required_error: 'This field is required.' }).min(1),
+  workVisaStatus: z.string().optional(), // Now optional by default, will be refined later
   onLeave: z.array(z.string()).min(1, "Please select at least one option."),
   accessSystems: z.array(z.string()).optional(),
   hadMedicalInsurance: z.string({ required_error: 'This field is required.' }).min(1),
@@ -117,7 +118,7 @@ const baseAssessmentFields = {
 
 export type AssessmentData = z.infer<z.ZodObject<typeof baseAssessmentFields>> & { citizenshipStatus?: string };
 
-export function buildAssessmentSchema(activeQuestions: Question[], citizenshipStatus: string | undefined) {
+export function buildAssessmentSchema(activeQuestions: Question[], profileData: ProfileData | null) {
   const getAllQuestionIds = (questions: Question[]): string[] => {
     let ids: string[] = [];
     questions.forEach(q => {
@@ -132,21 +133,23 @@ export function buildAssessmentSchema(activeQuestions: Question[], citizenshipSt
   const activeIds = new Set(getAllQuestionIds(activeQuestions));
   const shape: any = {};
 
+  // Find all questions with cross-form dependencies
+  const dependencyMap = new Map<string, Question>();
+  activeQuestions.forEach(q => {
+    if (q.dependsOn) {
+      dependencyMap.set(q.id, q);
+    }
+  });
+
+
   for (const key in baseAssessmentFields) {
     const fieldKey = key as keyof typeof baseAssessmentFields;
+    
     if (activeIds.has(fieldKey)) {
-      // Special handling for workVisaStatus
-      if (fieldKey === 'workVisaStatus' && citizenshipStatus === 'U.S. citizen') {
-        shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
-      } else {
         shape[fieldKey] = baseAssessmentFields[fieldKey];
-      }
     } else {
-      if (baseAssessmentFields[fieldKey] && !baseAssessmentFields[fieldKey].isOptional()) {
-        shape[fieldKey] = baseAssessmentFields[fieldKey].optional();
-      } else {
-         shape[fieldKey] = baseAssessmentFields[fieldKey];
-      }
+      // If a field is not active, make it optional so it doesn't cause validation errors.
+       shape[fieldKey] = baseAssessmentFields[fieldKey]?.optional();
     }
   }
 
@@ -154,6 +157,30 @@ export function buildAssessmentSchema(activeQuestions: Question[], citizenshipSt
 
   const addRefinements = (questions: Question[]) => {
     questions.forEach(q => {
+      
+      // Handle cross-form dependencies (e.g., assessment question depends on profile question)
+      if (q.dependsOn && q.dependencySource === 'profile' && profileData) {
+        schema = schema.refine((data: any) => {
+            const dependencyValue = profileData[q.dependsOn as keyof ProfileData];
+            let isTriggered = false;
+            if (Array.isArray(q.dependsOnValue)) {
+                isTriggered = q.dependsOnValue.includes(dependencyValue as string);
+            } else {
+                isTriggered = dependencyValue === q.dependsOnValue;
+            }
+
+            if (!isTriggered) return true; // Not required if dependency not met
+
+            const value = data[q.id];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        }, {
+            message: `${q.label} is required.`,
+            path: [q.id]
+        });
+      }
+
+
+      // Handle intra-form sub-question dependencies
       if (q.subQuestions) {
         q.subQuestions.forEach(subQ => {
           if (!activeIds.has(subQ.id)) return;
@@ -161,7 +188,6 @@ export function buildAssessmentSchema(activeQuestions: Question[], citizenshipSt
           schema = schema.refine((data: any) => {
             const parentValue = data[q.id];
             
-            // Determine if sub-question is triggered
             let isTriggered = false;
             if (q.type === 'checkbox') {
               if (subQ.triggerValue === 'NOT_NONE') {
@@ -173,10 +199,8 @@ export function buildAssessmentSchema(activeQuestions: Question[], citizenshipSt
               isTriggered = parentValue === subQ.triggerValue;
             }
 
-            // If not triggered, validation passes
             if (!isTriggered) return true;
             
-            // If triggered, value must be present
             const subValue = data[subQ.id];
             return subValue !== undefined && subValue !== null && subValue !== '' && (!Array.isArray(subValue) || subValue.length > 0);
           }, {
@@ -185,7 +209,6 @@ export function buildAssessmentSchema(activeQuestions: Question[], citizenshipSt
           });
         });
         
-        // Recurse for deeper nesting
         addRefinements(q.subQuestions);
       }
     });
