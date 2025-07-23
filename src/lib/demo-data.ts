@@ -1,4 +1,5 @@
 
+
 import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource } from '@/hooks/use-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
@@ -18,7 +19,7 @@ interface DemoDatabase {
     profileCompletions: Record<string, boolean>;
     assessmentCompletions: Record<string, boolean>;
     // --- Seeded localStorage data for specific demo users ---
-    seededData: Record<string, { profile: ProfileData; assessment: AssessmentData }>;
+    seededData: Record<string, { profile: ProfileData; assessment: Partial<AssessmentData> }>;
     externalResources: ExternalResource[];
 }
 
@@ -286,10 +287,10 @@ This checklist is designed to help you manage key tasks during your employment t
                 },
                 assessment: {
                   workStatus: 'Full-time employee',
-                  startDate: new Date('2020-01-15'),
-                  notificationDate: new Date(getPastDate(5)),
-                  finalDate: new Date(getFutureDate(25)),
-                  severanceAgreementDeadline: new Date('2025-08-30'),
+                  startDate: '2020-01-15',
+                  notificationDate: getPastDate(5),
+                  finalDate: getFutureDate(25),
+                  severanceAgreementDeadline: '2025-08-30',
                   workState: 'California',
                   relocationPaid: 'No',
                   unionMember: 'No',
@@ -298,17 +299,17 @@ This checklist is designed to help you manage key tasks during your employment t
                   workVisa: 'None of the above',
                   onLeave: ['None of the above'],
                   accessSystems: ['Email', 'HR/Payroll system (e.g., ADP, Workday)'],
-                  emailAccessEndDate: new Date(getFutureDate(32)),
-                  hrPayrollSystemAccessEndDate: new Date(getFutureDate(60)),
+                  emailAccessEndDate: getFutureDate(32),
+                  hrPayrollSystemAccessEndDate: getFutureDate(60),
                   hadMedicalInsurance: 'Yes',
                   medicalCoverage: 'Me and family',
-                  medicalCoverageEndDate: new Date('2025-08-31'),
+                  medicalCoverageEndDate: '2025-08-31',
                   hadDentalInsurance: 'No',
                   hadVisionInsurance: 'No',
                   hadEAP: 'Yes',
-                  eapCoverageEndDate: new Date('2025-08-31'),
+                  eapCoverageEndDate: '2025-08-31',
                   'globex-corp-custom-1': 'No',
-                } as any,
+                },
             },
         },
         externalResources: [
@@ -480,4 +481,5 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
