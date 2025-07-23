@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,58 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, CalendarCheck2, Clock, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, Trash2, CalendarCheck2, Clock, Link as LinkIcon, Bold, Italic, List, ListOrdered } from 'lucide-react';
 import { Question, Condition, GuidanceRule, ExternalResource } from '@/hooks/use-user-data';
 import { tenureOptions } from '@/lib/guidance-helpers';
 import { PersonalizedRecommendationsInput } from '@/ai/flows/personalized-recommendations';
 
+
+function FormattingToolbar({ textareaRef, onTextChange }: { textareaRef: React.RefObject<HTMLTextAreaElement>, onTextChange: (value: string) => void }) {
+    const formatText = (style: 'bold' | 'italic' | 'ul' | 'ol') => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let newText;
+
+        switch (style) {
+            case 'bold':
+                newText = `**${selectedText}**`;
+                break;
+            case 'italic':
+                newText = `*${selectedText}*`;
+                break;
+            case 'ul':
+                newText = selectedText.split('\n').map(line => `- ${line}`).join('\n');
+                break;
+            case 'ol':
+                newText = selectedText.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
+                break;
+            default:
+                newText = selectedText;
+        }
+
+        const updatedValue = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+        onTextChange(updatedValue);
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.selectionStart = start + newText.length - selectedText.length;
+            textarea.selectionEnd = start + newText.length - selectedText.length;
+        }, 0);
+    };
+    
+    return (
+        <div className="flex items-center gap-1 rounded-t-md border border-b-0 border-input p-1 bg-muted/50">
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('bold')} className="h-7 px-2"><Bold className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('italic')} className="h-7 px-2"><Italic className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ul')} className="h-7 px-2"><List className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ol')} className="h-7 px-2"><ListOrdered className="h-4 w-4" /></Button>
+        </div>
+    );
+}
 
 export default function GuidanceRuleForm({
   isOpen,
@@ -33,6 +80,7 @@ export default function GuidanceRuleForm({
 }) {
   const { toast } = useToast();
   const [currentRule, setCurrentRule] = useState<Partial<GuidanceRule>>({});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen && ruleToConvert) {
@@ -185,7 +233,15 @@ export default function GuidanceRuleForm({
           </Card>
           <div className="space-y-2">
             <Label htmlFor="guidance-text">Guidance To Provide</Label>
-            <Textarea id="guidance-text" value={currentRule.guidanceText || ''} onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} rows={4} />
+            <FormattingToolbar textareaRef={textareaRef} onTextChange={(v) => setCurrentRule(p => ({ ...p, guidanceText: v }))} />
+            <Textarea 
+                ref={textareaRef}
+                id="guidance-text" 
+                value={currentRule.guidanceText || ''} 
+                onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} 
+                rows={4} 
+                className="rounded-t-none"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="guidance-category">Category</Label>

@@ -2,12 +2,12 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useUserData, GuidanceRule, Question, Condition } from '@/hooks/use-user-data';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useUserData, GuidanceRule, Question, Condition, ExternalResource } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays, Bold, Italic, List, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -19,6 +19,52 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
 import { tenureOptions } from '@/lib/guidance-helpers';
 
+function FormattingToolbar({ textareaRef, onTextChange }: { textareaRef: React.RefObject<HTMLTextAreaElement>, onTextChange: (value: string) => void }) {
+    const formatText = (style: 'bold' | 'italic' | 'ul' | 'ol') => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let newText;
+
+        switch (style) {
+            case 'bold':
+                newText = `**${selectedText}**`;
+                break;
+            case 'italic':
+                newText = `*${selectedText}*`;
+                break;
+            case 'ul':
+                newText = selectedText.split('\n').map(line => `- ${line}`).join('\n');
+                break;
+            case 'ol':
+                newText = selectedText.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
+                break;
+            default:
+                newText = selectedText;
+        }
+
+        const updatedValue = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+        onTextChange(updatedValue);
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.selectionStart = start + newText.length - selectedText.length;
+            textarea.selectionEnd = start + newText.length - selectedText.length;
+        }, 0);
+    };
+    
+    return (
+        <div className="flex items-center gap-1 rounded-t-md border border-b-0 border-input p-1 bg-muted/50">
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('bold')} className="h-7 px-2"><Bold className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('italic')} className="h-7 px-2"><Italic className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ul')} className="h-7 px-2"><List className="h-4 w-4" /></Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ol')} className="h-7 px-2"><ListOrdered className="h-4 w-4" /></Button>
+        </div>
+    );
+}
 
 function GuidanceRuleForm({
   isOpen,
@@ -37,6 +83,7 @@ function GuidanceRuleForm({
 }) {
   const { toast } = useToast();
   const [currentRule, setCurrentRule] = useState<Partial<GuidanceRule> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -90,7 +137,7 @@ function GuidanceRuleForm({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{rule?.id ? 'Edit Guidance Rule' : 'Create New Guidance Rule'}</DialogTitle>
-          <DialogDescription>Define a rule to provide specific guidance when certain conditions are met.</DialogDescription>
+          <DialogDescription>Define a rule to provide specific, targeted advice when certain conditions are met.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="space-y-2">
@@ -181,7 +228,16 @@ function GuidanceRuleForm({
           </Card>
           <div className="space-y-2">
             <Label htmlFor="guidance-text">Guidance To Provide</Label>
-            <Textarea id="guidance-text" value={currentRule.guidanceText || ''} onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} placeholder="e.g., 'Since you lost medical coverage, it is critical to explore COBRA...'" rows={4}/>
+            <FormattingToolbar textareaRef={textareaRef} onTextChange={(v) => setCurrentRule(p => ({ ...p, guidanceText: v }))} />
+            <Textarea 
+                ref={textareaRef}
+                id="guidance-text" 
+                value={currentRule.guidanceText || ''} 
+                onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} 
+                placeholder="e.g., 'Since you lost medical coverage, it is critical to explore COBRA...'" 
+                rows={4}
+                className="rounded-t-none"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="guidance-category">Category</Label>

@@ -30,6 +30,7 @@ import ProgressTracker from './ProgressTracker';
 import { type ExternalResource } from '@/lib/external-resources';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
@@ -557,7 +558,9 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
                  <p className={cn("text-base font-semibold", isCompleted && "line-through")}>{item.task}</p>
                  <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
               </div>
-              <p className={cn("text-sm", isCompleted && "line-through")}>{item.details}</p>
+              <div className={cn("text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1", isCompleted && "line-through")}>
+                <ReactMarkdown>{item.details}</ReactMarkdown>
+              </div>
               
                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                 {displayDate && (
@@ -664,7 +667,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                           </TableCell>
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
                             <p className="font-medium">{item.task}</p>
-                            <p className="text-xs text-muted-foreground">{item.details}</p>
+                            <div className="text-xs text-muted-foreground prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1"><ReactMarkdown>{item.details}</ReactMarkdown></div>
                              {hasResource && (
                                 <Button variant="link" size="sm" className="h-auto p-0 text-xs -ml-1 mt-1" onClick={() => onConnectClick(item.taskId, item.category)}>
                                     <Handshake className="mr-1.5 h-3 w-3"/> Connect with a Professional
