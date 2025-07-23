@@ -481,7 +481,11 @@ export const saveAssessmentCompletions = (data: Record<string, boolean>) => { db
 export const getReviewQueue = () => db.reviewQueue;
 export const saveReviewQueue = (data: ReviewQueueItem[]) => { db.reviewQueue = data; };
 
-export const addReviewQueueItem = (item: ReviewQueueItem) => { 
+export const addReviewQueueItem = (item: ReviewQueueItem) => {
+    // Ensure the queue exists before trying to access it.
+    if (!db.reviewQueue) {
+        db.reviewQueue = [];
+    }
     // Prevent duplicates for the same user
     const existingIndex = db.reviewQueue.findIndex(i => i.userEmail === item.userEmail);
     if (existingIndex === -1) {
@@ -496,6 +500,7 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
 
 
