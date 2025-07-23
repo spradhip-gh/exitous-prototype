@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -351,6 +352,11 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
 
+  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+  const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData && Object.keys(companyUser.user.prefilledAssessmentData).length > 0;
+  const isProfileComplete = !!profileData;
+  const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
+
   if (!isClient || isLoading) {
     return (
       <main className="p-4 md:p-8">
@@ -361,11 +367,6 @@ export default function DashboardPage() {
       </main>
     );
   }
-
-  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
-  const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData;
-  const isProfileComplete = !!profileData;
-  const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
   
   return (
     <main className="p-4 md:p-8">
@@ -381,9 +382,14 @@ export default function DashboardPage() {
         
         {hasPrefilledData && !isProfileComplete && <WelcomeSummary />}
         
-        <ImportantDates />
-
-        {isReadyForTimeline ? <TimelineDashboard /> : <ProgressTracker />}
+        {isReadyForTimeline ? (
+            <>
+                <ImportantDates />
+                <TimelineDashboard />
+            </>
+        ) : (
+            <ProgressTracker />
+        )}
       </div>
     </main>
   )

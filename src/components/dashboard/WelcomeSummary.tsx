@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -57,54 +58,52 @@ export default function WelcomeSummary() {
 
 
   return (
-    <div className="p-4 md:p-8 md:pb-4">
-      <div className="mx-auto max-w-4xl space-y-4">
+    <div className="space-y-4">
         <Alert variant="default" className="border-orange-300 bg-orange-50">
-          <Bell className="h-4 w-4 !text-orange-600" />
-          <AlertTitle className="text-orange-900">Welcome to ExitBetter</AlertTitle>
-          <AlertDescription className="text-orange-800">
-            We know this is a difficult time. The information below has been pre-filled by your company to help you get started. Let&apos;s begin by creating your profile to unlock personalized guidance.
-          </AlertDescription>
+            <Bell className="h-4 w-4 !text-orange-600" />
+            <AlertTitle className="text-orange-900">Welcome to ExitBetter</AlertTitle>
+            <AlertDescription className="text-orange-800">
+                We know this is a difficult time. The information below has been pre-filled by your company to help you get started. Let&apos;s begin by creating your profile to unlock personalized guidance.
+            </AlertDescription>
         </Alert>
 
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">Your Exit Information Summary</CardTitle>
-            <CardDescription>
-              Here are key dates provided by {companyUser?.companyName}. 
-              {additionalDataCount > 0 && ` ${additionalDataCount} additional data points have also been pre-filled.`}
-              You can review and confirm these details in the full assessment after creating your profile.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6 sm:grid-cols-2">
-            <TooltipProvider>
-              {importantInfo.map(({ label, value, icon: Icon, tooltip }) => (
-                <div key={label} className="flex items-start gap-4">
-                  <div className="bg-muted text-muted-foreground p-3 rounded-lg mt-1">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{label}</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg text-foreground">{value}</p>
-                      {tooltip && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </TooltipProvider>
-          </CardContent>
+            <CardHeader>
+                <CardTitle className="font-headline text-xl">Your Exit Information Summary</CardTitle>
+                <CardDescription>
+                    Here are key dates provided by {companyUser?.companyName}. 
+                    {additionalDataCount > 0 && ` ${additionalDataCount} additional data points have also been pre-filled.`}
+                    You can review and confirm these details in the full assessment after creating your profile.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 sm:grid-cols-2">
+                <TooltipProvider>
+                    {importantInfo.map(({ label, value, icon: Icon, tooltip }) => (
+                        <div key={label} className="flex items-start gap-4">
+                            <div className="bg-muted text-muted-foreground p-3 rounded-lg mt-1">
+                                <Icon className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="font-semibold">{label}</p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-lg text-foreground">{value}</p>
+                                    {tooltip && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{tooltip}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </TooltipProvider>
+            </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
