@@ -7,7 +7,7 @@ import { useUserData, GuidanceRule, Question, Condition, ExternalResource } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays, Bold, Italic, List, ListOrdered } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays, Bold, Italic, List, ListOrdered, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -274,6 +274,8 @@ export default function GuidanceEditor() {
   const { masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, externalResources } = useUserData();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<GuidanceRule> | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const allQuestions = useMemo(() => {
     const flatList: Question[] = [];
@@ -290,6 +292,16 @@ export default function GuidanceEditor() {
       const firstCompanyKey = Object.keys(getAllCompanyConfigs())[0];
       return firstCompanyKey ? getAllCompanyConfigs()[firstCompanyKey].guidance || [] : [];
   }, [getAllCompanyConfigs]);
+
+  const ruleCategories = useMemo(() => [...new Set(allGuidanceRules.map(r => r.category))], [allGuidanceRules]);
+  
+  const filteredRules = useMemo(() => {
+    return allGuidanceRules.filter(rule => {
+        const matchesCategory = activeCategory ? rule.category === activeCategory : true;
+        const matchesSearch = searchTerm ? rule.name.toLowerCase().includes(searchTerm.toLowerCase()) : true;
+        return matchesCategory && matchesSearch;
+    });
+  }, [allGuidanceRules, activeCategory, searchTerm]);
   
   const handleSaveRule = useCallback((rule: GuidanceRule) => {
     const allConfigs = getAllCompanyConfigs();
@@ -335,31 +347,52 @@ export default function GuidanceEditor() {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-          <div className="space-y-1">
-            <h1 className="font-headline text-3xl font-bold">Consultant Guidance Editor</h1>
-            <p className="text-muted-foreground">
-                Create rules to provide specific, targeted advice to users based on their answers.
-            </p>
-          </div>
-          <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add Guidance Rule</Button>
+      <div className="space-y-1 mb-6">
+        <h1 className="font-headline text-3xl font-bold">Consultant Guidance Editor</h1>
+        <p className="text-muted-foreground">
+            Create and manage rules to provide specific, targeted advice to users based on their answers.
+        </p>
       </div>
       
        <Card>
             <CardHeader>
-                <CardTitle>Guidance Rules</CardTitle>
-                <CardDescription>These rules will be automatically applied to user recommendations.</CardDescription>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Guidance Rules</CardTitle>
+                        <CardDescription>These rules will be automatically applied to user recommendations.</CardDescription>
+                    </div>
+                    <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add Rule</Button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    <div className="relative flex-grow">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search by rule name..."
+                            className="pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                        <Button variant={!activeCategory ? 'default' : 'outline'} onClick={() => setActiveCategory(null)}>All</Button>
+                        {ruleCategories.map(cat => (
+                            <Button key={cat} variant={activeCategory === cat ? 'default' : 'outline'} onClick={() => setActiveCategory(cat)}>
+                                {cat}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    {allGuidanceRules.length === 0 && (
+                    {filteredRules.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
                             <Wand2 className="mx-auto h-12 w-12" />
-                            <h3 className="mt-4 text-lg font-semibold">No Guidance Rules Created</h3>
-                            <p className="mt-1 text-sm">Click "Add Guidance Rule" to create your first one.</p>
+                            <h3 className="mt-4 text-lg font-semibold">No Guidance Rules Found</h3>
+                            <p className="mt-1 text-sm">No rules match your current filters. Try adjusting your search or filter.</p>
                         </div>
                     )}
-                    {allGuidanceRules.map(rule => {
+                    {filteredRules.map(rule => {
                         const linkedResource = rule.linkedResourceId ? externalResources.find(r => r.id === rule.linkedResourceId) : null;
                         return (
                             <Card key={rule.id} className="bg-muted/50">
@@ -408,8 +441,8 @@ export default function GuidanceEditor() {
       <GuidanceRuleForm
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
-        onSave={handleSaveRule}
         rule={editingRule}
+        onSave={handleSaveRule}
         questions={allQuestions}
         externalResources={externalResources}
       />
