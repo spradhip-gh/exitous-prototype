@@ -210,7 +210,7 @@ export default function EditQuestionDialog({
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-2">
                         <Label htmlFor="question-options">Answer Options (one per line)</Label>
-                        <Textarea id="question-options" value={currentQuestion.options?.join('\\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\\n') } : null)} rows={currentQuestion.options?.length || 3} />
+                        <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} />
                     </div>
                 )}
 
