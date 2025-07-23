@@ -35,7 +35,7 @@ import ReactMarkdown from 'react-markdown';
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
   "Finances": Banknote,
-  "Job Search": ListChecks,
+  "Career": ListChecks,
   "Legal": Scale,
   "Well-being": HeartHandshake,
   "Custom": CalendarPlus,

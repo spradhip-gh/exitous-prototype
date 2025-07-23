@@ -100,7 +100,7 @@ const initializeDb = (): DemoDatabase => {
                         id: 'tenure-rule-very-short-severance',
                         name: 'Guidance for < 30 Days Tenure',
                         conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
-                        guidanceText: 'With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.',
+                        guidanceText: '1) With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.\n2) Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
                         category: 'Finances'
                     },
                     {
@@ -361,9 +361,11 @@ This checklist is designed to help you manage key tasks during your employment t
         masterProfileQuestions: initializeQuestions(getDefaultProfileQuestions),
         profileCompletions: {
             'employee1@globex.com': true,
+            'j.doe@globex.com': true,
         },
         assessmentCompletions: {
             'employee1@globex.com': true,
+            'j.doe@globex.com': true,
         },
         reviewQueue: [
             {
@@ -376,7 +378,7 @@ This checklist is designed to help you manage key tasks during your employment t
                         birthYear: 1995, gender: 'Male', maritalStatus: 'Single', hasChildrenUnder13: false, hasExpectedChildren: false, impactedPeopleCount: '0', livingStatus: 'Renter', pastLifeEvents: [], hasChildrenAges18To26: false
                     },
                     layoffDetails: {
-                        workVisaStatus: 'H-1B'
+                        workVisa: 'H-1B'
                     },
                     adminGuidance: [],
                 },
@@ -432,8 +434,8 @@ This checklist is designed to help you manage key tasks during your employment t
                   hasChildrenAges18To26: 'No',
                 },
                 assessment: {
-                  workStatus: 'Full-time employee',
                   startDate: '2020-01-15',
+                  workStatus: 'Full-time employee',
                   notificationDate: getPastDate(5),
                   finalDate: getFutureDate(25),
                   severanceAgreementDeadline: '2025-08-30',
