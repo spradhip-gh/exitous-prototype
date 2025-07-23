@@ -90,7 +90,7 @@ const RecommendationItemSchema = z.object({
   task: z.string().describe('The specific, actionable task for the user to complete.'),
   category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").'),
   timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Immediately", "Within 1 week", "By [specific date based on user input]").'),
-  details: z.string().describe('Additional details or context for the recommendation.'),
+  details: z.string().describe('Additional details or context for the recommendation. This should be formatted in Markdown.'),
   endDate: z.string().optional().describe("A specific deadline or key date for this task in 'YYYY-MM-DD' format, if applicable. Extract this from user-provided dates like coverage end dates."),
 });
 
@@ -121,7 +121,11 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps.
 
 {{#if adminGuidance}}
-**IMPORTANT: Start with the Admin-Provided Guidance.** A human expert has provided the following critical advice based on the user's answers. You MUST incorporate this guidance directly into your recommendations. Use the provided text and category. You should generate a relevant task and timeline for it. This expert guidance takes precedence over your own generated advice.
+**IMPORTANT: Start with the Admin-Provided Guidance.** A human expert has provided the following critical advice. This guidance takes precedence.
+Your task is to:
+1.  Use the provided guidance text and category to create a recommendation. Generate a clear, actionable 'task' for it (e.g., "Review your unemployment eligibility").
+2.  If you have relevant state-specific information (e.g., the name of the state's unemployment office like the "EDD" for California), **merge it into the details of the existing admin guidance**.
+3.  **DO NOT** create a separate, duplicate recommendation on the same topic. For example, if admin guidance about unemployment is provided, do not create a second task about unemployment. Enhance the existing one.
 ---
 {{#each adminGuidance}}
 Expert Guidance: {{{this.text}}}
@@ -180,7 +184,7 @@ Based on all this information, generate a structured list of critical, time-sens
 2.  A specific 'task' for the user to complete.
 3.  A 'category' (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").
 4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
-5.  Important 'details' or context.
+5.  Important 'details' or context, formatted in Markdown.
 6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. Otherwise, leave 'endDate' empty.
 7.  **IMPORTANT**: If the user is on a work visa (the 'workVisa' field is not "None of the above"), you MUST create a recommendation with the 'taskId' 'handle-work-visa-implications' to advise them to consult an immigration attorney.
 `,
