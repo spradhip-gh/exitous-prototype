@@ -158,10 +158,12 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         };
         
         const stringifiedAssessmentData: Record<string, any> = { ...assessmentData };
-        Object.keys(assessmentData).forEach(key => {
+        Object.keys(stringifiedAssessmentData).forEach(key => {
             const value = (assessmentData as any)[key];
             if (value instanceof Date) {
                 stringifiedAssessmentData[key] = value.toISOString();
+            } else if (value === null || value === undefined) {
+                stringifiedAssessmentData[key] = undefined;
             }
         });
 

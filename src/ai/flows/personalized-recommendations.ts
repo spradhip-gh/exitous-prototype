@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -42,7 +43,7 @@ const LayoffDetailsSchema = z.object({
   unionMember: z.string().optional().describe('If the user was a union member.'),
   workArrangement: z.string().optional().describe('The user\'s work arrangement (remote, hybrid, etc.).'),
   workArrangementOther: z.string().optional().describe('Details if work arrangement was "Other".'),
-  workVisa: z.string().optional().describe('The user\'s work visa status.'),
+  workVisa: z.string().optional().describe("The user's work visa status."),
   onLeave: z.array(z.string()).optional().describe('Types of leave the user was on.'),
   usedLeaveManagement: z.string().optional().describe('If the user was using a leave management system.'),
   accessSystems: z.array(z.string()).optional().describe('Internal systems the user still has access to.'),
