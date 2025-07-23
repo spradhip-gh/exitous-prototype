@@ -156,6 +156,7 @@ Based on all this information, generate a structured list of critical, time-sens
 4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
 5.  Important 'details' or context.
 6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. Otherwise, leave 'endDate' empty.
+7.  **IMPORTANT**: If the user is on a work visa (the 'workVisa' field is not "None of the above"), you MUST create a recommendation with the 'taskId' 'handle-work-visa-implications' to advise them to consult an immigration attorney.
 `,
 });
 
