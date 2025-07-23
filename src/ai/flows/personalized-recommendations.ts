@@ -204,7 +204,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             addReviewQueueItem({
                 id: `review-${input.userEmail}-${Date.now()}`,
                 userEmail: input.userEmail,
-                inputData: input,
+                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails },
                 output: output,
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -226,4 +226,3 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
-

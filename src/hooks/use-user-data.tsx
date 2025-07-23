@@ -18,6 +18,7 @@ import {
   getSeededDataForUser,
   getExternalResources as getExternalResourcesFromDb, saveExternalResources as saveExternalResourcesToDb,
   getReviewQueue as getReviewQueueFromDb, saveReviewQueue as saveReviewQueueToDb,
+  addReviewQueueItem as addReviewQueueItemToDb,
 } from '@/lib/demo-data';
 import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
 
@@ -300,7 +301,7 @@ export function useUserData() {
 
           // **FIXED**: Load localStorage data first, then layer seeded/prefilled data on top.
           finalAssessmentData = {
-              ...finalAssessmentData,
+              ...(assessmentJson ? JSON.parse(assessmentJson) : {}),
               ...(seeded?.assessment || {}),
               ...hrPrefilledData,
               ...notificationDate,
@@ -449,6 +450,11 @@ export function useUserData() {
     setReviewQueueState(queue);
   }, []);
   
+  const addReviewQueueItem = useCallback((item: ReviewQueueItem) => {
+    addReviewQueueItemToDb(item);
+    setReviewQueueState(getReviewQueueFromDb());
+  }, []);
+
   const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
     return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
   }, [companyAssignments]);
@@ -709,6 +715,7 @@ export function useUserData() {
     externalResources,
     reviewQueue,
     saveReviewQueue,
+    addReviewQueueItem,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,
