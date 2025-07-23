@@ -74,7 +74,7 @@ function ExternalResourcesContent() {
 
     const { profileData, assessmentData, externalResources, companyAssignments } = useUserData();
 
-    const companyVersion = useMemo(() to {
+    const companyVersion = useMemo(() => {
         if (!auth?.companyName) return 'basic';
         return companyAssignments.find(c => c.companyName === auth.companyName)?.version || 'basic';
     }, [auth, companyAssignments]);
@@ -249,5 +249,3 @@ export default function ExternalResourcesPage() {
         </Suspense>
     );
 }
-
-    
