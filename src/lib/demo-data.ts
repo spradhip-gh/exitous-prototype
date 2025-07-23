@@ -100,7 +100,7 @@ const initializeDb = (): DemoDatabase => {
                         id: 'tenure-rule-very-short',
                         name: 'Guidance for < 30 Days Tenure',
                         conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
-                        guidanceText: 'With less than 30 days of service, you are likely ineligible for severance or COBRA. Your final paycheck should include all hours worked. Immediately look into healthcare options on the ACA marketplace.',
+                        guidanceText: 'Did you know...With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.\nEven with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
                         category: 'Finances',
                     },
                     {
@@ -587,6 +587,7 @@ export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
 
     
+
 
 
 
