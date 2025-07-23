@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
-import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, GuidanceRule } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,8 +38,10 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   "Legal": Scale,
   "Well-being": HeartHandshake,
   "Custom": CalendarPlus,
+  "General": Info,
   "default": Calendar,
 };
+
 
 function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalResource | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!resource) return null;
@@ -88,6 +90,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     taskDateOverrides,
     updateTaskDate,
     companyAssignments,
+    getAllCompanyConfigs,
     customDeadlines,
     addCustomDeadline,
     isAssessmentComplete,
@@ -121,6 +124,33 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   const isProfileComplete = !!profileData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
+
+  const adminGuidance = useMemo(() => {
+    const configs = getAllCompanyConfigs();
+    const firstCompanyKey = Object.keys(configs)[0];
+    const guidanceRules = firstCompanyKey ? configs[firstCompanyKey].guidance || [] : [];
+    
+    const triggeredGuidance: { text: string; category: string }[] = [];
+    
+    if (!profileData || !assessmentData) {
+      return triggeredGuidance;
+    }
+    
+    const allAnswers = { ...profileData, ...assessmentData };
+
+    guidanceRules.forEach((rule: GuidanceRule) => {
+      const allConditionsMet = rule.conditions.every(condition => {
+        const userAnswer = (allAnswers as any)[condition.questionId];
+        return userAnswer === condition.answer;
+      });
+      
+      if (allConditionsMet) {
+        triggeredGuidance.push({ text: rule.guidanceText, category: rule.category });
+      }
+    });
+
+    return triggeredGuidance;
+  }, [profileData, assessmentData, getAllCompanyConfigs]);
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -181,6 +211,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         const result = await getPersonalizedRecommendations({
           profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
+          adminGuidance,
         });
         setRecommendations(result);
       } catch (e) {
@@ -192,7 +223,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview, isFullyComplete]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete, adminGuidance]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {

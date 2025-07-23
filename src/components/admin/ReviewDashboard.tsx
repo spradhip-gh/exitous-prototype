@@ -1,15 +1,20 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useUserData, GuidanceRule, Question } from '@/hooks/use-user-data';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, Clock } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 const sampleProfileData = {
   birthYear: 1988,
@@ -50,148 +55,259 @@ const sampleAssessmentData = {
   eapCoverageEndDate: new Date('2024-09-30').toISOString(),
 };
 
-type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'snoozed' | 'editing';
-
-interface ReviewableItem extends RecommendationItem {
-    reviewStatus: ReviewStatus;
-    feedback?: string;
-}
-
-
-export default function ReviewDashboard() {
-  const [recommendations, setRecommendations] = useState<ReviewableItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function GuidanceRuleForm({
+  isOpen,
+  onOpenChange,
+  onSave,
+  rule,
+  questions,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (rule: GuidanceRule) => void;
+  rule: Partial<GuidanceRule> | null;
+  questions: Question[];
+}) {
+  const { toast } = useToast();
+  const [currentRule, setCurrentRule] = useState<Partial<GuidanceRule> | null>(null);
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const result = await getPersonalizedRecommendations({
-          profileData: sampleProfileData,
-          layoffDetails: sampleAssessmentData as any, // Cast to any to bypass date object issues in sample data
-        });
+    if (isOpen) {
+      setCurrentRule(rule ? { ...rule } : { id: `rule-${Date.now()}`, name: '', conditions: [], guidanceText: '', category: 'General' });
+    }
+  }, [isOpen, rule]);
 
-        const reviewable = result.recommendations.map(r => ({ ...r, reviewStatus: 'pending' as ReviewStatus }));
-        setRecommendations(reviewable);
-
-      } catch (e) {
-        console.error(e);
-        setError('Failed to generate sample recommendations. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchRecommendations();
-  }, []);
-
-  const handleStatusChange = (taskId: string, status: ReviewStatus) => {
-    setRecommendations(prev => prev.map(r => r.taskId === taskId ? { ...r, reviewStatus: status } : r));
+  const handleAddCondition = () => {
+    setCurrentRule(prev => ({
+      ...prev,
+      conditions: [...(prev?.conditions || []), { questionId: '', answer: '' }],
+    }));
   };
   
-  const handleSaveFeedback = (taskId: string, feedback: string) => {
-    setRecommendations(prev => prev.map(r => r.taskId === taskId ? { ...r, reviewStatus: 'rejected', feedback } : r));
+  const handleRemoveCondition = (index: number) => {
+    setCurrentRule(prev => ({
+        ...prev,
+        conditions: prev?.conditions?.filter((_, i) => i !== index),
+    }));
   };
 
-  if (isLoading) {
-    return (
-        <Card>
-            <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className="space-y-2 rounded-lg border p-4">
-                        <Skeleton className="h-5 w-3/4" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-2/4" />
-                         <div className="flex justify-end gap-2 pt-2">
-                             <Skeleton className="h-9 w-24" />
-                             <Skeleton className="h-9 w-24" />
-                         </div>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
-    );
-  }
+  const handleConditionChange = (index: number, field: 'questionId' | 'answer', value: string) => {
+    setCurrentRule(prev => {
+        const newConditions = [...(prev?.conditions || [])];
+        const newCondition = { ...newConditions[index], [field]: value };
+        // If question changes, clear the answer
+        if(field === 'questionId') {
+            newCondition.answer = '';
+        }
+        newConditions[index] = newCondition;
+        return {...prev, conditions: newConditions};
+    });
+  };
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <Terminal className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+  const handleSave = () => {
+    if (!currentRule || !currentRule.name || !currentRule.guidanceText || currentRule.conditions?.length === 0) {
+      toast({ title: 'Missing Fields', description: 'Please provide a name, guidance text, and at least one condition.', variant: 'destructive' });
+      return;
+    }
+    onSave(currentRule as GuidanceRule);
+  };
+
+  if (!isOpen || !currentRule) return null;
 
   return (
-    <div className="space-y-4">
-        {recommendations.map(item => (
-            <RecommendationReviewCard key={item.taskId} item={item} onStatusChange={handleStatusChange} onSaveFeedback={handleSaveFeedback} />
-        ))}
-    </div>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{rule?.id ? 'Edit Guidance Rule' : 'Create New Guidance Rule'}</DialogTitle>
+          <DialogDescription>Define a rule to provide specific guidance when certain conditions are met.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="rule-name">Rule Name</Label>
+            <Input id="rule-name" value={currentRule.name || ''} onChange={(e) => setCurrentRule(p => ({ ...p, name: e.target.value }))} placeholder="e.g., 'Advise on COBRA'" />
+          </div>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Conditions</CardTitle><CardDescription className="text-xs">This guidance will apply IF all these conditions are true:</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+              {currentRule.conditions?.map((cond, i) => {
+                const selectedQuestion = questions.find(q => q.id === cond.questionId);
+                return (
+                  <div key={i} className="flex items-end gap-2 p-3 border rounded-md relative">
+                    <div className="grid grid-cols-2 gap-2 flex-grow">
+                        <div className="space-y-2">
+                            <Label>Question</Label>
+                            <Select value={cond.questionId} onValueChange={val => handleConditionChange(i, 'questionId', val)}>
+                                <SelectTrigger><SelectValue placeholder="Select a question..." /></SelectTrigger>
+                                <SelectContent>
+                                    {questions.filter(q => q.options && q.options.length > 0).map(q => <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label>Answer Is</Label>
+                            <Select value={cond.answer} onValueChange={val => handleConditionChange(i, 'answer', val)} disabled={!selectedQuestion}>
+                                <SelectTrigger><SelectValue placeholder="Select an answer..." /></SelectTrigger>
+                                <SelectContent>
+                                    {selectedQuestion?.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveCondition(i)}>
+                        <Trash2 className="h-4 w-4" />
+                     </Button>
+                  </div>
+                );
+              })}
+              <Button variant="outline" size="sm" onClick={handleAddCondition}><PlusCircle className="mr-2"/> Add Condition</Button>
+            </CardContent>
+          </Card>
+          <div className="space-y-2">
+            <Label htmlFor="guidance-text">Guidance To Provide</Label>
+            <Textarea id="guidance-text" value={currentRule.guidanceText || ''} onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} placeholder="e.g., 'Since you lost medical coverage, it is critical to explore COBRA...'" rows={4}/>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="guidance-category">Category</Label>
+            <Select value={currentRule.category || 'General'} onValueChange={val => setCurrentRule(p => ({...p, category: val}))}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                    {['Healthcare', 'Finances', 'Job Search', 'Legal', 'Well-being', 'General'].map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave}>Save Rule</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 
-function RecommendationReviewCard({ item, onStatusChange, onSaveFeedback }: { item: ReviewableItem, onStatusChange: (id: string, status: ReviewStatus) => void, onSaveFeedback: (id: string, feedback: string) => void }) {
-    const [feedbackText, setFeedbackText] = useState(item.feedback || '');
+export default function GuidanceEditor() {
+  const { masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig } = useUserData();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<Partial<GuidanceRule> | null>(null);
 
-    const statusConfig = {
-        pending: { color: 'bg-gray-500', text: 'Pending' },
-        approved: { color: 'bg-green-500', text: 'Approved' },
-        rejected: { color: 'bg-red-500', text: 'Rejected' },
-        snoozed: { color: 'bg-yellow-500', text: 'Snoozed' },
-        editing: { color: 'bg-blue-500', text: 'Editing' },
+  const allQuestions = useMemo(() => {
+    const flatList: Question[] = [];
+    const process = (qMap: Record<string, Question>) => {
+        Object.values(qMap).forEach(q => flatList.push(q));
+    };
+    process(masterQuestions);
+    process(masterProfileQuestions);
+    return flatList;
+  }, [masterQuestions, masterProfileQuestions]);
+
+  const allGuidanceRules = useMemo(() => {
+      // For this prototype, we'll assume guidance is platform-wide and stored on the first company.
+      const firstCompanyKey = Object.keys(getAllCompanyConfigs())[0];
+      return firstCompanyKey ? getAllCompanyConfigs()[firstCompanyKey].guidance || [] : [];
+  }, [getAllCompanyConfigs]);
+  
+  const handleSaveRule = useCallback((rule: GuidanceRule) => {
+    const allConfigs = getAllCompanyConfigs();
+    const firstCompanyKey = Object.keys(allConfigs)[0];
+    if (!firstCompanyKey) return; // Should not happen
+
+    const config = allConfigs[firstCompanyKey];
+    const existingRules = config.guidance || [];
+    const ruleIndex = existingRules.findIndex(r => r.id === rule.id);
+
+    let updatedRules;
+    if (ruleIndex > -1) {
+        updatedRules = [...existingRules];
+        updatedRules[ruleIndex] = rule;
+    } else {
+        updatedRules = [...existingRules, rule];
     }
+    
+    saveCompanyConfig(firstCompanyKey, { ...config, guidance: updatedRules });
+    setIsFormOpen(false);
+    setEditingRule(null);
+  }, [getAllCompanyConfigs, saveCompanyConfig]);
+  
+  const handleDeleteRule = (ruleId: string) => {
+    const allConfigs = getAllCompanyConfigs();
+    const firstCompanyKey = Object.keys(allConfigs)[0];
+    if (!firstCompanyKey) return;
+    
+    const config = allConfigs[firstCompanyKey];
+    const updatedRules = (config.guidance || []).filter(r => r.id !== ruleId);
+    saveCompanyConfig(firstCompanyKey, { ...config, guidance: updatedRules });
+  }
 
-    return (
-        <Card className="overflow-hidden">
-            <div className="flex items-center gap-4 p-4 border-b">
-                 <div className={`h-3 w-3 rounded-full ${statusConfig[item.reviewStatus].color}`}></div>
-                 <p className="font-semibold">{item.task}</p>
-                 <Badge variant="secondary" className="ml-auto">{item.category}</Badge>
-            </div>
-            <CardContent className="p-4 space-y-4">
-                <div>
-                    <p className="text-sm text-muted-foreground">Details</p>
-                    <p className="text-sm">{item.details}</p>
-                </div>
-                 {item.endDate && <div>
-                    <p className="text-sm text-muted-foreground">Timeline / Due Date</p>
-                    <p className="text-sm font-medium">{item.endDate}</p>
-                </div>}
+  const handleEditClick = (rule: GuidanceRule) => {
+    setEditingRule(rule);
+    setIsFormOpen(true);
+  };
+  
+  const handleAddClick = () => {
+    setEditingRule(null);
+    setIsFormOpen(true);
+  }
 
-                {item.reviewStatus === 'editing' && (
-                    <div className="space-y-2">
-                        <Label htmlFor={`feedback-${item.taskId}`}>Feedback / Edit Suggestion</Label>
-                        <Textarea id={`feedback-${item.taskId}`} value={feedbackText} onChange={e => setFeedbackText(e.target.value)} placeholder="e.g., 'Rephrase this to be more empathetic.'"/>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => onStatusChange(item.taskId, 'pending')}>Cancel</Button>
-                            <Button size="sm" onClick={() => handleSaveFeedback(item.taskId, feedbackText)}>Save as Rejection</Button>
+  return (
+    <>
+      <div className="flex justify-between items-center mb-6">
+          <div className="space-y-1">
+            <h1 className="font-headline text-3xl font-bold">Consultant Guidance Editor</h1>
+            <p className="text-muted-foreground">
+                Create rules to provide specific, targeted advice to users based on their answers.
+            </p>
+          </div>
+          <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add Guidance Rule</Button>
+      </div>
+      
+       <Card>
+            <CardHeader>
+                <CardTitle>Guidance Rules</CardTitle>
+                <CardDescription>These rules will be automatically applied to user recommendations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {allGuidanceRules.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <Wand2 className="mx-auto h-12 w-12" />
+                            <h3 className="mt-4 text-lg font-semibold">No Guidance Rules Created</h3>
+                            <p className="mt-1 text-sm">Click "Add Guidance Rule" to create your first one.</p>
                         </div>
-                    </div>
-                )}
-                 {item.feedback && item.reviewStatus === 'rejected' && (
-                    <div className="p-3 rounded-md bg-destructive/10">
-                        <p className="text-sm font-semibold text-destructive">Rejection Feedback:</p>
-                        <p className="text-sm text-destructive/80">{item.feedback}</p>
-                    </div>
-                 )}
-
-
+                    )}
+                    {allGuidanceRules.map(rule => (
+                        <Card key={rule.id} className="bg-muted/50">
+                            <CardHeader className="flex flex-row justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-base">{rule.name}</CardTitle>
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {rule.conditions.map((c, i) => {
+                                            const q = allQuestions.find(q => q.id === c.questionId);
+                                            return <Badge key={i} variant="secondary">{q?.label.substring(0, 20)}... is "{c.answer}"</Badge>
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(rule)}><Pencil className="h-4 w-4"/></Button>
+                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteRule(rule.id)}><Trash2 className="h-4 w-4"/></Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm border-l-2 border-primary pl-3 py-1 bg-background rounded-r-md">{rule.guidanceText}</p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </CardContent>
-            {item.reviewStatus !== 'editing' && <div className="flex justify-end gap-2 bg-muted/50 p-3">
-                 <Button variant="outline" size="sm" onClick={() => onStatusChange(item.taskId, 'approved')}><CheckCircle className="mr-2"/>Approve</Button>
-                 <Button variant="outline" size="sm" onClick={() => onStatusChange(item.taskId, 'snoozed')}><Clock className="mr-2"/>Snooze</Button>
-                 <Button variant="destructive" size="sm" onClick={() => onStatusChange(item.taskId, 'editing')}><Pencil className="mr-2"/>Reject / Edit</Button>
-            </div>}
         </Card>
-    );
+      
+      <GuidanceRuleForm
+        isOpen={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSave={handleSaveRule}
+        rule={editingRule}
+        questions={allQuestions}
+      />
+    </>
+  );
 }

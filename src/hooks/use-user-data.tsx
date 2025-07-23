@@ -47,6 +47,27 @@ export interface Resource {
   content?: string; // Can be text content or a data URI
 }
 
+export interface GuidanceRule {
+    id: string;
+    name: string;
+    conditions: {
+        questionId: string;
+        answer: string;
+    }[];
+    guidanceText: string;
+    category: string;
+}
+
+export interface CompanyConfig {
+    questions?: Record<string, Partial<Question>>;
+    customQuestions?: Record<string, Question>;
+    questionOrderBySection?: Record<string, string[]>;
+    users?: CompanyUser[];
+    resources?: Resource[];
+    guidance?: GuidanceRule[];
+}
+
+
 export interface CompanyAssignment {
     companyName: string;
     hrManagerEmail: string;

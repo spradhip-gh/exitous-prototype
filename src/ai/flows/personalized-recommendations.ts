@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -65,11 +66,17 @@ const LayoffDetailsSchema = z.object({
   eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
 
+const AdminGuidanceSchema = z.object({
+  text: z.string().describe('The pre-written guidance text from an admin or consultant.'),
+  category: z.string().describe('The category of the guidance.'),
+});
 
 const PersonalizedRecommendationsInputSchema = z.object({
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
+  adminGuidance: z.array(AdminGuidanceSchema).optional().describe('Pre-defined guidance from an admin based on user answers. This should be prioritized.'),
 });
+
 
 export type PersonalizedRecommendationsInput = z.infer<
   typeof PersonalizedRecommendationsInputSchema
@@ -108,7 +115,19 @@ const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
-  prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps. Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
+  prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps.
+
+{{#if adminGuidance}}
+**IMPORTANT: Start with the Admin-Provided Guidance.** A human expert has provided the following critical advice based on the user's answers. You MUST incorporate this guidance directly into your recommendations. Use the provided text and category. You should generate a relevant task and timeline for it. This expert guidance takes precedence over your own generated advice.
+---
+{{#each adminGuidance}}
+Expert Guidance: {{{this.text}}}
+Category: {{{this.category}}}
+---
+{{/each}}
+{{/if}}
+
+Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
 
 Here is the user's profile data:
 - Birth Year: {{{profileData.birthYear}}}
