@@ -96,9 +96,10 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     isAssessmentComplete,
     getTargetTimezone,
     externalResources,
+    recommendations,
+    saveRecommendations,
   } = useUserData();
 
-  const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -185,6 +186,11 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         return;
       }
       
+      if (recommendations) {
+        setIsLoading(false);
+        return;
+      }
+
       if (!profileData || !assessmentData) {
         setIsLoading(false);
         return;
@@ -240,7 +246,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           layoffDetails: stringifiedAssessmentData,
           adminGuidance: JSON.parse(stableAdminGuidance),
         });
-        setRecommendations(result);
+        saveRecommendations(result);
       } catch (e) {
         console.error(e);
         setError('Failed to generate personalized recommendations. Please try again later.');
@@ -250,7 +256,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview, isFullyComplete, stableAdminGuidance, auth]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete, stableAdminGuidance, auth, recommendations, saveRecommendations]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {

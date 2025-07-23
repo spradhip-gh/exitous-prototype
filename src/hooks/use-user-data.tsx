@@ -28,6 +28,7 @@ const ASSESSMENT_KEY = 'exitbetter-assessment';
 const COMPLETED_TASKS_KEY = 'exitbetter-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitbetter-task-date-overrides';
 const CUSTOM_DEADLINES_KEY = 'exitbetter-custom-deadlines';
+const RECOMMENDATIONS_KEY = 'exitbetter-recommendations';
 const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface CompanyUser {
@@ -216,6 +217,7 @@ export function useUserData() {
   const completedTasksKey = auth?.isPreview ? `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}` : COMPLETED_TASKS_KEY;
   const taskDateOverridesKey = auth?.isPreview ? `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}` : TASK_DATE_OVERRIDES_KEY;
   const customDeadlinesKey = auth?.isPreview ? `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}` : CUSTOM_DEADLINES_KEY;
+  const recommendationsKey = auth?.isPreview ? `${RECOMMENDATIONS_KEY}${PREVIEW_SUFFIX}` : RECOMMENDATIONS_KEY;
 
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -223,7 +225,8 @@ export function useUserData() {
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
   const [customDeadlines, setCustomDeadlines] = useState<Record<string, { label: string; date: string }>>({});
-  
+  const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
+
   // Shared data state now acts as a reactive layer over the in-memory store.
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
   const [masterQuestions, setMasterQuestionsState] = useState<Record<string, Question>>({});
@@ -299,7 +302,6 @@ export function useUserData() {
               finalProfileData = seeded.profile;
           }
 
-          // **FIXED**: Load localStorage data first, then layer seeded/prefilled data on top.
           finalAssessmentData = {
               ...(assessmentJson ? JSON.parse(assessmentJson) : {}),
               ...(seeded?.assessment || {}),
@@ -323,16 +325,19 @@ export function useUserData() {
 
       const customDeadlinesJson = localStorage.getItem(customDeadlinesKey);
       setCustomDeadlines(customDeadlinesJson ? JSON.parse(customDeadlinesJson) : {});
+
+      const recommendationsJson = localStorage.getItem(recommendationsKey);
+      setRecommendations(recommendationsJson ? JSON.parse(recommendationsJson) : null);
       
     } catch (error) {
       console.error('Failed to load user data', error);
-      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, CUSTOM_DEADLINES_KEY,
-       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`, `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}`
+      [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, CUSTOM_DEADLINES_KEY, RECOMMENDATIONS_KEY,
+       `${PROFILE_KEY}${PREVIEW_SUFFIX}`, `${ASSESSMENT_KEY}${PREVIEW_SUFFIX}`, `${COMPLETED_TASKS_KEY}${PREVIEW_SUFFIX}`, `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}`, `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}`, `${RECOMMENDATIONS_KEY}${PREVIEW_SUFFIX}`
       ].forEach(k => localStorage.removeItem(k));
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -343,17 +348,23 @@ export function useUserData() {
     }
   }, [auth, isLoading, companyAssignments]);
 
+  const clearRecommendations = useCallback(() => {
+    setRecommendations(null);
+    localStorage.removeItem(recommendationsKey);
+  }, [recommendationsKey]);
+
   const saveProfileData = useCallback((data: ProfileData) => {
     try {
       localStorage.setItem(profileKey, JSON.stringify(data));
       setProfileData(data);
-       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
+      if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...profileCompletions, [auth.email!]: true };
         saveProfileCompletionsToDb(newCompletions);
         setProfileCompletionsState(newCompletions);
       }
+      clearRecommendations();
     } catch (error) { console.error('Failed to save profile data', error); }
-  }, [profileKey, auth, profileCompletions]);
+  }, [profileKey, auth, profileCompletions, clearRecommendations]);
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
@@ -368,8 +379,18 @@ export function useUserData() {
         saveAssessmentCompletionsToDb(newCompletions);
         setAssessmentCompletionsState(newCompletions);
       }
+      clearRecommendations();
     } catch (error) { console.error('Failed to save assessment data', error); }
-  }, [auth, assessmentKey, assessmentCompletions]);
+  }, [auth, assessmentKey, assessmentCompletions, clearRecommendations]);
+
+  const saveRecommendations = useCallback((data: PersonalizedRecommendationsOutput) => {
+      try {
+          localStorage.setItem(recommendationsKey, JSON.stringify(data));
+          setRecommendations(data);
+      } catch (e) {
+          console.error('Failed to save recommendations', e);
+      }
+  }, [recommendationsKey]);
 
   const toggleTaskCompletion = useCallback((taskId: string) => {
     setCompletedTasks(prev => {
@@ -672,9 +693,11 @@ export function useUserData() {
       localStorage.removeItem(completedTasksKey);
       localStorage.removeItem(taskDateOverridesKey);
       localStorage.removeItem(customDeadlinesKey);
+      localStorage.removeItem(recommendationsKey);
       setCompletedTasks(new Set());
       setTaskDateOverrides({});
       setCustomDeadlines({});
+      setRecommendations(null);
       
       // Reset completion status in the 'database'
       if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
@@ -690,12 +713,14 @@ export function useUserData() {
       }
 
     } catch (error) { console.error('Failed to clear user data', error); }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, profileCompletions, assessmentCompletions, getCompanyUser]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, profileCompletions, assessmentCompletions, getCompanyUser]);
 
   return {
     profileData,
     assessmentData,
     isAssessmentComplete,
+    recommendations,
+    saveRecommendations,
     getProfileCompletion,
     getAssessmentCompletion,
     completedTasks,
