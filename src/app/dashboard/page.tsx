@@ -345,15 +345,14 @@ function ImportantDates() {
 
 export default function DashboardPage() {
   const { auth } = useAuth();
-  const { profileData, isLoading, getCompanyUser, isAssessmentComplete } = useUserData();
+  const { profileData, isLoading, assessmentData, isAssessmentComplete } = useUserData();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
-  const hasPrefilledData = !!companyUser?.user.prefilledAssessmentData && Object.keys(companyUser.user.prefilledAssessmentData).length > 0;
+  const hasPrefilledData = !!assessmentData;
   const isProfileComplete = !!profileData;
   const isReadyForTimeline = isProfileComplete && isAssessmentComplete;
 
@@ -385,7 +384,7 @@ export default function DashboardPage() {
             <ImportantDates />
             <TimelineDashboard />
           </>
-        ) : hasPrefilledData && !isProfileComplete ? (
+        ) : (hasPrefilledData && !isProfileComplete) ? (
           <>
             <WelcomeSummary />
             <ProgressTracker />

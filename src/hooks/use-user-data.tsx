@@ -193,7 +193,7 @@ export function useUserData() {
   }, [auth?.companyName, companyAssignments]);
 
   const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
-      if (!email) return null;
+      if (!email || Object.keys(companyConfigs).length === 0) return null;
       for (const companyName in companyConfigs) {
           const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
           if (user) {
@@ -207,8 +207,10 @@ export function useUserData() {
     setIsLoading(true);
     try {
       // Load shared data first
-      setCompanyAssignmentsState(getCompanyAssignmentsFromDb());
-      setCompanyConfigsState(getCompanyConfigsFromDb());
+      const loadedCompanyAssignments = getCompanyAssignmentsFromDb();
+      const loadedCompanyConfigs = getCompanyConfigsFromDb();
+      setCompanyAssignmentsState(loadedCompanyAssignments);
+      setCompanyConfigsState(loadedCompanyConfigs);
       setPlatformUsersState(getPlatformUsersFromDb());
       setProfileCompletionsState(getProfileCompletionsFromDb());
       setAssessmentCompletionsState(getAssessmentCompletionsFromDb());
@@ -219,7 +221,18 @@ export function useUserData() {
       // --- USER SPECIFIC DATA ---
       let profileJson = localStorage.getItem(profileKey);
       let assessmentJson = localStorage.getItem(assessmentKey);
-      const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
+      
+      const getCompanyUserFromLoadedData = (email: string) => {
+        for (const companyName in loadedCompanyConfigs) {
+            const user = loadedCompanyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+            if (user) {
+                return { user, companyName };
+            }
+        }
+        return null;
+      }
+
+      const companyUser = auth?.email ? getCompanyUserFromLoadedData(auth.email) : null;
 
       // Handle profile data
       if (profileJson) {
@@ -230,6 +243,8 @@ export function useUserData() {
           const profileWithStrings = convertDatesToStrings(seeded.profile);
           localStorage.setItem(profileKey, JSON.stringify(profileWithStrings));
           setProfileData(seeded.profile);
+        } else {
+            setProfileData(null);
         }
       } else {
         setProfileData(null);
@@ -242,7 +257,6 @@ export function useUserData() {
           const seeded = getSeededDataForUser(auth.email);
           const hrPrefilled = companyUser?.user.prefilledAssessmentData || {};
           
-          // Merge seeded data and HR-prefilled data
           const initialAssessmentData = { 
             ...(seeded?.assessment || {}), 
             ...hrPrefilled,
@@ -254,6 +268,8 @@ export function useUserData() {
               const dataWithStrings = convertDatesToStrings(dataWithDates);
               localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
               setAssessmentData(dataWithDates);
+          } else {
+              setAssessmentData(null);
           }
       } else {
           setAssessmentData(null);
@@ -276,7 +292,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, getCompanyUser]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {

@@ -14,10 +14,9 @@ import { toZonedTime, format as formatInTz } from 'date-fns-tz';
 
 export default function WelcomeSummary() {
   const { auth } = useAuth();
-  const { getCompanyUser, companyAssignments, getTargetTimezone } = useUserData();
+  const { assessmentData, companyAssignments, getTargetTimezone, getCompanyUser } = useUserData();
 
   const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
-  const prefilledData = companyUser?.user.prefilledAssessmentData;
   const userTimezone = getTargetTimezone();
   
   const companyDetails = useMemo(() => {
@@ -25,16 +24,13 @@ export default function WelcomeSummary() {
       return companyAssignments.find(c => c.companyName === companyUser.companyName);
   }, [companyUser, companyAssignments]);
 
-  if (!prefilledData) {
+  if (!assessmentData) {
     return null;
   }
 
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return 'N/A';
+  const formatDate = (date: Date | undefined): string => {
+    if (!date) return 'N/A';
     try {
-      // Parse the YYYY-MM-DD string into a Date object without timezone conversion
-      const date = parse(dateString, 'yyyy-MM-dd', new Date());
-      // Format the date object into a string for the target timezone
       return formatInTz(date, 'PPP', { timeZone: userTimezone });
     } catch {
       return 'N/A';
@@ -44,16 +40,16 @@ export default function WelcomeSummary() {
   const severanceDeadlineTooltip = `Deadline is at ${companyDetails?.severanceDeadlineTime || '23:59'} on the specified date in the ${userTimezone} timezone.`;
   
   const importantInfo = [
-    { label: 'Notification Date', value: companyUser?.user.notificationDate ? formatDate(companyUser.user.notificationDate) : 'N/A', icon: Bell, tooltip: null },
-    { label: 'Final Day of Employment', value: prefilledData.finalDate ? formatDate(prefilledData.finalDate) : 'N/A', icon: CalendarX2, tooltip: null },
-    { label: 'Severance Agreement Deadline', value: prefilledData.severanceAgreementDeadline ? formatDate(prefilledData.severanceAgreementDeadline) : 'N/A', icon: Key, tooltip: severanceDeadlineTooltip },
-    { label: 'Medical Coverage Ends', value: prefilledData.medicalCoverageEndDate ? formatDate(prefilledData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope, tooltip: null },
+    { label: 'Notification Date', value: assessmentData.notificationDate ? formatDate(assessmentData.notificationDate) : 'N/A', icon: Bell, tooltip: null },
+    { label: 'Final Day of Employment', value: assessmentData.finalDate ? formatDate(assessmentData.finalDate) : 'N/A', icon: CalendarX2, tooltip: null },
+    { label: 'Severance Agreement Deadline', value: assessmentData.severanceAgreementDeadline ? formatDate(assessmentData.severanceAgreementDeadline) : 'N/A', icon: Key, tooltip: severanceDeadlineTooltip },
+    { label: 'Medical Coverage Ends', value: assessmentData.medicalCoverageEndDate ? formatDate(assessmentData.medicalCoverageEndDate) : 'N/A', icon: Stethoscope, tooltip: null },
   ].filter(info => info.value && info.value !== 'N/A');
 
   const additionalDataCount = [
-    prefilledData.dentalCoverageEndDate,
-    prefilledData.visionCoverageEndDate,
-    prefilledData.eapCoverageEndDate
+    assessmentData.dentalCoverageEndDate,
+    assessmentData.visionCoverageEndDate,
+    assessmentData.eapCoverageEndDate
   ].filter(Boolean).length;
 
 
