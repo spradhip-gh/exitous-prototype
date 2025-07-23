@@ -97,13 +97,6 @@ const initializeDb = (): DemoDatabase => {
             'Globex Corp': {
                 guidance: [
                     {
-                        id: 'tenure-rule-very-short-severance',
-                        name: 'Guidance for < 30 Days Tenure (Financial)',
-                        conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
-                        guidanceText: '1) With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights.\n2) Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
-                        category: 'Finances'
-                    },
-                    {
                         id: 'tenure-rule-very-short-career',
                         name: 'Guidance for < 30 Days Tenure (Career)',
                         conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
@@ -121,7 +114,7 @@ const initializeDb = (): DemoDatabase => {
                         id: 'tenure-rule-medium-financial',
                         name: 'Guidance for 1-5 Year Tenure (Financial)',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
                         category: 'Finances'
                     },
                     {
@@ -135,7 +128,7 @@ const initializeDb = (): DemoDatabase => {
                         id: 'tenure-rule-long-financial',
                         name: 'Guidance for 6-10 Year Tenure (Financial)',
                         conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
                         category: 'Finances'
                     },
                     {
@@ -163,7 +156,7 @@ const initializeDb = (): DemoDatabase => {
                         id: 'tenure-rule-very-long-financial',
                         name: 'Guidance for 10+ Year Tenure (Financial)',
                         conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. Check your state\'s specific eligibility.',
+                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
                         category: 'Finances'
                     },
                     {
@@ -434,7 +427,7 @@ This checklist is designed to help you manage key tasks during your employment t
                   hasChildrenAges18To26: 'No',
                 },
                 assessment: {
-                  startDate: '2020-01-15',
+                  startDate: '2022-01-15',
                   workStatus: 'Full-time employee',
                   notificationDate: getPastDate(5),
                   finalDate: getFutureDate(25),

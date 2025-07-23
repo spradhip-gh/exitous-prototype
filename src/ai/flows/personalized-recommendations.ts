@@ -14,6 +14,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { addReviewQueueItem } from '@/lib/demo-data';
+import { stateUnemploymentLinks } from '@/lib/state-resources';
 
 const ProfileDataSchema = z.object({
   birthYear: z.number().describe("The user's birth year."),
@@ -118,6 +119,9 @@ const prompt = ai.definePrompt({
   name: 'personalizedRecommendationsPrompt',
   input: {schema: PersonalizedRecommendationsInputSchema},
   output: {schema: PersonalizedRecommendationsOutputSchema},
+  context: {
+    stateUnemploymentLinks: stateUnemploymentLinks
+  },
   prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps.
 
 {{#if adminGuidance}}
@@ -125,7 +129,8 @@ const prompt = ai.definePrompt({
 Your task is to:
 1.  Use the provided guidance text and category to create a recommendation. Generate a clear, actionable 'task' for it (e.g., "Review your unemployment eligibility").
 2.  If you have relevant state-specific information (e.g., the name of the state's unemployment office like the "EDD" for California), **merge it into the details of the existing admin guidance**.
-3.  **DO NOT** create a separate, duplicate recommendation on the same topic. For example, if admin guidance about unemployment is provided, do not create a second task about unemployment. Enhance the existing one.
+3.  **If the guidance text includes the phrase "[STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]", you must replace it with a markdown link to the appropriate state unemployment website from the provided 'stateUnemploymentLinks' context data.**
+4.  **DO NOT** create a separate, duplicate recommendation on the same topic. For example, if admin guidance about unemployment is provided, do not create a second task about unemployment. Enhance the existing one.
 ---
 {{#each adminGuidance}}
 Expert Guidance: {{{this.text}}}
@@ -185,7 +190,7 @@ Based on all this information, generate a structured list of critical, time-sens
 3.  A 'category' (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").
 4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
 5.  Important 'details' or context, formatted in Markdown.
-6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. Otherwise, leave 'endDate' empty.
+6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. **For any task related to unemployment benefits, if the user's finalDate is available, the endDate MUST be set to the day *after* their finalDate of employment.** Otherwise, leave 'endDate' empty.
 7.  **IMPORTANT**: If the user is on a work visa (the 'workVisa' field is not "None of the above"), you MUST create a recommendation with the 'taskId' 'handle-work-visa-implications' to advise them to consult an immigration attorney.
 `,
 });
@@ -233,6 +238,3 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
-
-
-    
