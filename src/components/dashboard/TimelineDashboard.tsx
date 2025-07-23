@@ -130,7 +130,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     const firstCompanyKey = Object.keys(configs)[0];
     const guidanceRules = firstCompanyKey ? configs[firstCompanyKey].guidance || [] : [];
     
-    const triggeredGuidance: { text: string; category: string }[] = [];
+    const triggeredGuidance: { text: string; category: string, linkedResourceId?: string }[] = [];
     
     if (!profileData || !assessmentData) {
       return triggeredGuidance;
@@ -145,7 +145,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       });
       
       if (allConditionsMet) {
-        triggeredGuidance.push({ text: rule.guidanceText, category: rule.category });
+        triggeredGuidance.push({ text: rule.guidanceText, category: rule.category, linkedResourceId: rule.linkedResourceId });
       }
     });
 
@@ -281,7 +281,21 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   };
   
   const handleConnectClick = (taskId: string, category: string) => {
-    const matchedResources = externalResources.filter(res => res.relatedTaskIds?.includes(taskId));
+    const isConsultantTask = taskId.startsWith('consultant-guidance-');
+    const resourceId = isConsultantTask ? taskId.replace('consultant-guidance-', '') : null;
+    
+    let matchedResources: ExternalResource[] = [];
+
+    if (resourceId) {
+        const resource = externalResources.find(res => res.id === resourceId);
+        if (resource) {
+            matchedResources.push(resource);
+        }
+    } else {
+        matchedResources = externalResources.filter(res => res.relatedTaskIds?.includes(taskId));
+    }
+
+
     if (matchedResources.length === 1) {
         setSelectedResource(matchedResources[0]);
     } else if (matchedResources.length > 1) {
@@ -472,6 +486,15 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
     }
   };
 
+  const getHasResource = (taskId: string) => {
+    const isConsultantTask = taskId.startsWith('consultant-guidance-');
+    if (isConsultantTask) {
+        const resourceId = taskId.replace('consultant-guidance-', '');
+        return externalResources.some(res => res.id === resourceId);
+    }
+    return externalResources.some(res => res.relatedTaskIds?.includes(taskId));
+  }
+
   return (
     <div className="relative pl-8">
       <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-border -translate-x-1/2"></div>
@@ -480,7 +503,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         const isCompleted = completedTasks.has(item.taskId);
         const overriddenDateStr = taskDateOverrides[item.taskId];
         const rawDateStr = overriddenDateStr || item.endDate;
-        const hasResource = externalResources.some(res => res.relatedTaskIds?.includes(item.taskId));
+        const hasResource = getHasResource(item.taskId);
         
         let displayDate: Date | null = null;
         if(rawDateStr) {
@@ -564,6 +587,15 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
         }
     };
 
+    const getHasResource = (taskId: string) => {
+        const isConsultantTask = taskId.startsWith('consultant-guidance-');
+        if (isConsultantTask) {
+            const resourceId = taskId.replace('consultant-guidance-', '');
+            return externalResources.some(res => res.id === resourceId);
+        }
+        return externalResources.some(res => res.relatedTaskIds?.includes(taskId));
+    }
+
     return (
         <Card>
           <Table>
@@ -580,7 +612,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                     const isCompleted = completedTasks.has(item.taskId);
                     const overriddenDateStr = taskDateOverrides[item.taskId];
                     const rawDateStr = overriddenDateStr || item.endDate;
-                    const hasResource = externalResources.some(res => res.relatedTaskIds?.includes(item.taskId));
+                    const hasResource = getHasResource(item.taskId);
 
                     let displayDate: Date | null = null;
                     if(rawDateStr) {

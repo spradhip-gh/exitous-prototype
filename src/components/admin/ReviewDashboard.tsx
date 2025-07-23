@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -6,7 +7,7 @@ import { useUserData, GuidanceRule, Question } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2 } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -61,12 +62,14 @@ function GuidanceRuleForm({
   onSave,
   rule,
   questions,
+  externalResources
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (rule: GuidanceRule) => void;
   rule: Partial<GuidanceRule> | null;
   questions: Question[];
+  externalResources: any[];
 }) {
   const { toast } = useToast();
   const [currentRule, setCurrentRule] = useState<Partial<GuidanceRule> | null>(null);
@@ -175,6 +178,17 @@ function GuidanceRuleForm({
                 </SelectContent>
             </Select>
           </div>
+           <div className="space-y-2">
+            <Label htmlFor="linked-resource">Linked Resource (Optional)</Label>
+            <Select value={currentRule.linkedResourceId || ''} onValueChange={val => setCurrentRule(p => ({...p, linkedResourceId: val === 'none' ? undefined : val}))}>
+                <SelectTrigger><SelectValue placeholder="Select a resource..." /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {externalResources.map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">If selected, a "Connect with a Professional" button will appear with this guidance.</p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -187,7 +201,7 @@ function GuidanceRuleForm({
 
 
 export default function GuidanceEditor() {
-  const { masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig } = useUserData();
+  const { masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, externalResources } = useUserData();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<GuidanceRule> | null>(null);
 
@@ -275,28 +289,37 @@ export default function GuidanceEditor() {
                             <p className="mt-1 text-sm">Click "Add Guidance Rule" to create your first one.</p>
                         </div>
                     )}
-                    {allGuidanceRules.map(rule => (
-                        <Card key={rule.id} className="bg-muted/50">
-                            <CardHeader className="flex flex-row justify-between items-start">
-                                <div>
-                                    <CardTitle className="text-base">{rule.name}</CardTitle>
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                        {rule.conditions.map((c, i) => {
-                                            const q = allQuestions.find(q => q.id === c.questionId);
-                                            return <Badge key={i} variant="secondary">{q?.label.substring(0, 20)}... is "{c.answer}"</Badge>
-                                        })}
+                    {allGuidanceRules.map(rule => {
+                        const linkedResource = rule.linkedResourceId ? externalResources.find(r => r.id === rule.linkedResourceId) : null;
+                        return (
+                            <Card key={rule.id} className="bg-muted/50">
+                                <CardHeader className="flex flex-row justify-between items-start">
+                                    <div>
+                                        <CardTitle className="text-base">{rule.name}</CardTitle>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {rule.conditions.map((c, i) => {
+                                                const q = allQuestions.find(q => q.id === c.questionId);
+                                                return <Badge key={i} variant="secondary">{q?.label.substring(0, 20)}... is "{c.answer}"</Badge>
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex gap-2">
-                                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(rule)}><Pencil className="h-4 w-4"/></Button>
-                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteRule(rule.id)}><Trash2 className="h-4 w-4"/></Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm border-l-2 border-primary pl-3 py-1 bg-background rounded-r-md">{rule.guidanceText}</p>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                    <div className="flex gap-2">
+                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(rule)}><Pencil className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteRule(rule.id)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm border-l-2 border-primary pl-3 py-1 bg-background rounded-r-md">{rule.guidanceText}</p>
+                                     {linkedResource && (
+                                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                            <LinkIcon className="h-3 w-3" />
+                                            <span>Links to: <span className="font-medium text-foreground">{linkedResource.name}</span></span>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
                 </div>
             </CardContent>
         </Card>
@@ -307,6 +330,7 @@ export default function GuidanceEditor() {
         onSave={handleSaveRule}
         rule={editingRule}
         questions={allQuestions}
+        externalResources={externalResources}
       />
     </>
   );

@@ -69,6 +69,7 @@ const LayoffDetailsSchema = z.object({
 const AdminGuidanceSchema = z.object({
   text: z.string().describe('The pre-written guidance text from an admin or consultant.'),
   category: z.string().describe('The category of the guidance.'),
+  linkedResourceId: z.string().optional().describe("An ID of an external resource that is linked to this guidance."),
 });
 
 const PersonalizedRecommendationsInputSchema = z.object({
@@ -123,6 +124,10 @@ const prompt = ai.definePrompt({
 {{#each adminGuidance}}
 Expert Guidance: {{{this.text}}}
 Category: {{{this.category}}}
+{{#if this.linkedResourceId}}
+Linked Resource ID: {{{this.linkedResourceId}}}
+Task ID to generate: consultant-guidance-{{{this.linkedResourceId}}}
+{{/if}}
 ---
 {{/each}}
 {{/if}}
@@ -169,7 +174,7 @@ Here are the user's exit details:
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
 Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
-1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details').
+1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details'). For admin guidance with a linked resource, use the specific task ID format 'consultant-guidance-[resourceId]'.
 2.  A specific 'task' for the user to complete.
 3.  A 'category' (e.g., "Healthcare", "Finances", "Job Search", "Legal", "Well-being").
 4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").

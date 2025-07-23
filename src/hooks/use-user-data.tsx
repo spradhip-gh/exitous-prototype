@@ -56,6 +56,7 @@ export interface GuidanceRule {
     }[];
     guidanceText: string;
     category: string;
+    linkedResourceId?: string;
 }
 
 export interface CompanyConfig {
