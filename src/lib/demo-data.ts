@@ -69,12 +69,21 @@ const getSpecificDate = (month: number, day: number) => {
 
 
 const initializeDb = (): DemoDatabase => {
+    const defaultPermissions = {
+        userManagement: 'read' as const,
+        formEditor: 'read' as const,
+        resources: 'read' as const,
+        companySettings: 'read' as const,
+    };
 
     return {
         companyAssignments: [
             { 
                 companyName: 'Globex Corp', 
-                hrManagers: [{ email: 'hr@globex.com', isPrimary: true }], 
+                hrManagers: [
+                    { email: 'hr@globex.com', isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } },
+                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'write-upload', formEditor: 'read', resources: 'read', companySettings: 'read' }}
+                ], 
                 version: 'pro', 
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
@@ -84,7 +93,7 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Initech', 
-                hrManagers: [{ email: 'hr@initech.com', isPrimary: true }],
+                hrManagers: [{ email: 'hr@initech.com', isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } }],
                 version: 'basic', 
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
@@ -94,7 +103,10 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Globex Software', 
-                hrManagers: [{ email: 'hr@globex.com', isPrimary: true }],
+                hrManagers: [
+                    { email: 'hr@globex.com', isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } },
+                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'write', formEditor: 'write', resources: 'read', companySettings: 'read' }}
+                ],
                 version: 'pro', 
                 maxUsers: 25,
                 severanceDeadlineTime: '17:00',
