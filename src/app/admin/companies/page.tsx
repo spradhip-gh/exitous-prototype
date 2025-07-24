@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { timezones } from '@/lib/timezones';
 import Papa from 'papaparse';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
@@ -47,6 +50,7 @@ export default function CompanyManagementPage() {
   const [newPreEndDateContact, setNewPreEndDateContact] = useState('');
   const [newPostEndDateContact, setNewPostEndDateContact] = useState('');
 
+  const [isHrComboboxOpen, setIsHrComboboxOpen] = useState(false);
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
@@ -55,6 +59,10 @@ export default function CompanyManagementPage() {
   const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
   const [editedPreEndDateContact, setEditedPreEndDateContact] = useState('');
   const [editedPostEndDateContact, setEditedPostEndDateContact] = useState('');
+
+  const existingHrEmails = useMemo(() => {
+    return [...new Set(companyAssignments.map(a => a.hrManagerEmail))];
+  }, [companyAssignments]);
 
   const handleAddCompany = () => {
     if (!newCompanyName || !newHrEmail || !newMaxUsers || !newPreEndDateContact || !newPostEndDateContact) {
@@ -70,10 +78,9 @@ export default function CompanyManagementPage() {
         toast({ title: "Company Exists", description: "A company with this name already exists.", variant: "destructive" });
         return;
     }
-    if (companyAssignments.some(a => a.hrManagerEmail.toLowerCase() === newHrEmail.toLowerCase())) {
-        toast({ title: "HR Manager Assigned", description: "This HR manager is already assigned to another company.", variant: "destructive" });
-        return;
-    }
+    
+    // An existing HR manager can be assigned to multiple companies. A new HR manager can be added.
+    // The check for an HR manager being already assigned is no longer needed.
 
     addCompanyAssignment({ 
         companyName: newCompanyName, 
@@ -212,8 +219,43 @@ export default function CompanyManagementPage() {
                         <Input id="newCompanyName" placeholder="e.g., Globex Corp" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} />
                     </div>
                      <div className="space-y-2 lg:col-span-2">
-                        <Label htmlFor="newHrEmail">HR Manager Email</Label>
-                        <Input id="newHrEmail" type="email" placeholder="hr@globex.com" value={newHrEmail} onChange={e => setNewHrEmail(e.target.value)} />
+                        <Label>HR Manager Email</Label>
+                        <Popover open={isHrComboboxOpen} onOpenChange={setIsHrComboboxOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isHrComboboxOpen}
+                                    className="w-full justify-between font-normal"
+                                >
+                                    {newHrEmail || "Select or type an email..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                                <Command shouldFilter={false}>
+                                    <CommandInput placeholder="Search or add new email..." onValueChange={setNewHrEmail} value={newHrEmail} />
+                                    <CommandList>
+                                        <CommandEmpty>No existing emails found. Type to add new.</CommandEmpty>
+                                        <CommandGroup>
+                                            {existingHrEmails.filter(email => email.toLowerCase().includes(newHrEmail.toLowerCase())).map((email) => (
+                                                <CommandItem
+                                                    key={email}
+                                                    value={email}
+                                                    onSelect={(currentValue) => {
+                                                        setNewHrEmail(currentValue === newHrEmail ? "" : currentValue);
+                                                        setIsHrComboboxOpen(false);
+                                                    }}
+                                                >
+                                                    <Check className={cn("mr-2 h-4 w-4", newHrEmail === email ? "opacity-100" : "opacity-0")} />
+                                                    {email}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="newCompanyVersion">Version</Label>
