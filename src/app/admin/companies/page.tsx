@@ -55,6 +55,129 @@ const permissionLabels: Record<string, string> = {
     'invite-only': 'Invite Only',
 };
 
+function AddHrManagerDialog({ open, onOpenChange, companyName, onSave, currentManagers }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    companyName: string;
+    onSave: (companyName: string, newManager: HrManager) => void;
+    currentManagers: HrManager[];
+}) {
+    const { toast } = useToast();
+    const [email, setEmail] = useState('');
+    const [permissions, setPermissions] = useState<HrPermissions>(defaultPermissions);
+    const [isPrimary, setIsPrimary] = useState(false);
+
+    useEffect(() => {
+        if (!open) {
+            setEmail('');
+            setPermissions(defaultPermissions);
+            setIsPrimary(false);
+        }
+    }, [open]);
+    
+    useEffect(() => {
+        if(isPrimary) {
+            setPermissions(fullPermissions);
+        }
+    }, [isPrimary]);
+
+    const handlePermissionChange = (key: keyof HrPermissions, value: string) => {
+        setPermissions(p => ({ ...p, [key]: value as any }));
+    };
+
+    const handleSave = () => {
+        if (!email) {
+            toast({ title: 'Email is required', variant: 'destructive' });
+            return;
+        }
+        if (currentManagers.some(m => m.email.toLowerCase() === email.toLowerCase())) {
+            toast({ title: 'Manager already exists', description: `${email} is already assigned to this company.`, variant: 'destructive' });
+            return;
+        }
+
+        const newManager: HrManager = { email, isPrimary, permissions };
+        onSave(companyName, newManager);
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add HR Manager to {companyName}</DialogTitle>
+                    <DialogDescription>Assign a new HR Manager and set their initial permissions.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="new-hr-email">Email Address</Label>
+                        <Input id="new-hr-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="new.manager@email.com" />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div>
+                            <Label>Primary Manager</Label>
+                            <p className="text-xs text-muted-foreground">Grants full permissions and demotes the current primary.</p>
+                        </div>
+                        <Switch checked={isPrimary} onCheckedChange={setIsPrimary} />
+                    </div>
+                    {!isPrimary && (
+                        <Card className="bg-muted/50">
+                            <CardHeader><CardTitle className="text-base">Permissions</CardTitle></CardHeader>
+                            <CardContent className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>User Management</Label>
+                                    <Select value={permissions.userManagement} onValueChange={(v) => handlePermissionChange('userManagement', v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="read">Read Only</SelectItem>
+                                            <SelectItem value="invite-only">Invite Only</SelectItem>
+                                            <SelectItem value="write">Write</SelectItem>
+                                            <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Form Editor</Label>
+                                    <Select value={permissions.formEditor} onValueChange={(v) => handlePermissionChange('formEditor', v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="read">Read Only</SelectItem>
+                                            <SelectItem value="write">Write</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Resources</Label>
+                                    <Select value={permissions.resources} onValueChange={(v) => handlePermissionChange('resources', v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="read">Read Only</SelectItem>
+                                            <SelectItem value="write">Write</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Company Settings</Label>
+                                    <Select value={permissions.companySettings} onValueChange={(v) => handlePermissionChange('companySettings', v)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="read">Read Only</SelectItem>
+                                            <SelectItem value="write">Write</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave}>Add Manager</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }: {
     manager: HrManager,
     companyName: string,
@@ -161,7 +284,7 @@ export default function CompanyManagementPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
   const [editingManager, setEditingManager] = useState<HrManager | null>(null);
-  const [addHrEmail, setAddHrEmail] = useState('');
+  const [isAddHrDialogOpen, setIsAddHrDialogOpen] = useState(false);
 
   const existingHrEmails = useMemo(() => {
     return [...new Set(companyAssignments.flatMap(a => a.hrManagers.map(hr => hr.email)))];
@@ -280,20 +403,11 @@ export default function CompanyManagementPage() {
         updateCompanyAssignment(companyName, { hrManagerToRemove: emailToRemove });
     };
 
-    const handleAddHrToCompany = (companyName: string) => {
-        if (!companyName || !addHrEmail) return;
-        
-        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
-        if (!companyToUpdate) return;
-
-        if (companyToUpdate.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
-            toast({ title: "Manager Already Assigned", description: `${addHrEmail} is already assigned to this company.`, variant: "destructive" });
-            return;
+    const handleAddHrToCompany = (companyName: string, newManager: HrManager) => {
+        if (newManager.isPrimary) {
+            handleMakePrimary(companyName, newManager.email);
         }
-
-        const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
-        updateCompanyAssignment(companyName, { hrManagerToAdd: newHr });
-        setAddHrEmail('');
+        updateCompanyAssignment(companyName, { hrManagerToAdd: newManager });
     };
 
     const handlePermissionsEdit = (manager: HrManager) => {
@@ -572,7 +686,14 @@ export default function CompanyManagementPage() {
                         </Card>
 
                         <Card>
-                            <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-base">HR Team Management</CardTitle>
+                                    <Button size="sm" variant="outline" onClick={() => setIsAddHrDialogOpen(true)}>
+                                        <UserPlus className="mr-2" /> Add Manager
+                                    </Button>
+                                </div>
+                            </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
                                     {editingCompany.hrManagers.map(hr => {
@@ -603,7 +724,6 @@ export default function CompanyManagementPage() {
                                                           <Switch
                                                               id={`primary-switch-${hr.email}`}
                                                               checked={hr.isPrimary}
-                                                              onCheckedChange={() => {}} // dummy to allow trigger
                                                               disabled={hr.isPrimary}
                                                           />
                                                         </AlertDialogTrigger>
@@ -633,11 +753,6 @@ export default function CompanyManagementPage() {
                                         </div>
                                     )})}
                                 </div>
-                                <Separator className="my-4"/>
-                                <div className="flex items-center gap-2">
-                                    <Input placeholder="new.manager@email.com" value={addHrEmail} onChange={e => setAddHrEmail(e.target.value)} />
-                                    <Button onClick={() => handleAddHrToCompany(editingCompany.companyName)}><UserPlus className="mr-2"/>Add HR</Button>
-                                </div>
                             </CardContent>
                         </Card>
 
@@ -662,6 +777,17 @@ export default function CompanyManagementPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        
+        {editingCompany && (
+            <AddHrManagerDialog
+                open={isAddHrDialogOpen}
+                onOpenChange={setIsAddHrDialogOpen}
+                companyName={editingCompany.companyName}
+                onSave={handleAddHrToCompany}
+                currentManagers={editingCompany.hrManagers}
+            />
+        )}
+
 
         {editingManager && editingCompany && (
             <PermissionsDialog 
@@ -675,4 +801,3 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
-
