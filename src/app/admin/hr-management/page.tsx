@@ -204,6 +204,7 @@ export default function HrManagementPage() {
                                                     <SelectTrigger><SelectValue/></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="read">Read Only</SelectItem>
+                                                        <SelectItem value="invite-only">Invite Only</SelectItem>
                                                         <SelectItem value="write">Write</SelectItem>
                                                         <SelectItem value="write-upload">Write & Upload</SelectItem>
                                                     </SelectContent>
@@ -331,6 +332,7 @@ export default function HrManagementPage() {
                             <SelectTrigger><SelectValue/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="invite-only">Invite Only</SelectItem>
                                 <SelectItem value="write">Write</SelectItem>
                                 <SelectItem value="write-upload">Write & Upload</SelectItem>
                             </SelectContent>

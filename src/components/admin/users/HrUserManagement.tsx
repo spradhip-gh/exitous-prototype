@@ -58,6 +58,7 @@ export default function HrUserManagement() {
     const permissions = auth?.permissions;
     const canWrite = permissions?.userManagement === 'write' || permissions?.userManagement === 'write-upload';
     const canUpload = permissions?.userManagement === 'write-upload';
+    const canInvite = canWrite || permissions?.userManagement === 'invite-only';
     
     const [users, setUsers] = useState<CompanyUser[]>([]);
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
@@ -94,7 +95,7 @@ export default function HrUserManagement() {
                     aValue = profileCompletions[a.email] ? 1 : 0;
                     bValue = profileCompletions[b.email] ? 1 : 0;
                 } else if (config.key === 'assessmentStatus') {
-                    aValue = assessmentCompletions[a.email] ? 1 : 0;
+                    aValue = assessmentCompletions[b.email] ? 1 : 0;
                     bValue = assessmentCompletions[b.email] ? 1 : 0;
                 } else {
                     aValue = a[config.key as keyof CompanyUser];
@@ -487,6 +488,7 @@ export default function HrUserManagement() {
                         setSelectedUsers={setSelectedUsers}
                         onExport={handleExportUsers}
                         canWrite={canWrite}
+                        canInvite={canInvite}
                     />
                 </CardHeader>
                 <CardContent>
@@ -498,6 +500,7 @@ export default function HrUserManagement() {
                      sortConfig={sortConfig}
                      requestSort={requestSort}
                      canWrite={canWrite}
+                     canInvite={canInvite}
                    />
                 </CardContent>
             </Card>

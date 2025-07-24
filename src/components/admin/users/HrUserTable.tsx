@@ -54,7 +54,7 @@ const SortableHeader = ({
 };
 
 
-export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers, sortConfig, requestSort, canWrite }: {
+export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers, sortConfig, requestSort, canWrite, canInvite }: {
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
     selectedUsers: Set<string>;
@@ -62,6 +62,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     sortConfig: SortConfig;
     requestSort: (key: SortConfig['key']) => void;
     canWrite: boolean;
+    canInvite: boolean;
 }) {
     const { auth } = useAuth();
     const { toast } = useToast();
@@ -78,7 +79,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     const isNotifyDisabled = (user: CompanyUser): boolean => {
-        if (user.notified || !canWrite) return true;
+        if (user.notified || !canInvite) return true;
         if (!user.notificationDate) return true;
         const notificationDate = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
         return !(isToday(notificationDate) || isPast(notificationDate));
@@ -164,7 +165,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                 onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                 aria-label="Select all"
                                 data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
-                                disabled={!canWrite}
+                                disabled={!canInvite}
                             />
                         </TableHead>
                         <SortableHeader sortKey="email" sortConfig={sortConfig} requestSort={requestSort}>Work Email</SortableHeader>
@@ -178,7 +179,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                 <TableBody>
                     {users.length > 0 ? users.map(user => {
                         const notifyDisabled = isNotifyDisabled(user);
-                        const isSelectionDisabled = user.notified || !canWrite;
+                        const isSelectionDisabled = user.notified || !canInvite;
                         return (
                             <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(user.notified && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell>
@@ -239,7 +240,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                             </TooltipTrigger>
                                             {notifyDisabled && !user.notified && (
                                                 <TooltipContent>
-                                                    <p>{!canWrite ? 'You do not have permission to invite users.' : 'Only available on or after the notification date.'}</p>
+                                                    <p>{!canInvite ? 'You do not have permission to invite users.' : 'Only available on or after the notification date.'}</p>
                                                 </TooltipContent>
                                             )}
                                         </Tooltip>

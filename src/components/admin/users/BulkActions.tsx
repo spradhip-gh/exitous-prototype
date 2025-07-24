@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,14 @@ import { useUserData, CompanyUser } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
-export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport, canWrite }: {
+export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport, canWrite, canInvite }: {
     selectedUsers: Set<string>;
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
     setSelectedUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
     onExport: () => void;
     canWrite: boolean;
+    canInvite: boolean;
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -45,7 +47,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         return { eligibleCount: eligible, pastDateCount: past };
     }, [selectedUsers, users]);
 
-    const isBulkNotifyDisabled = eligibleCount === 0 || !canWrite;
+    const isBulkNotifyDisabled = eligibleCount === 0 || !canInvite;
 
     const handleBulkDateChange = () => {
         if (!newBulkNotificationDate || selectedUsers.size === 0 || !companyName) {

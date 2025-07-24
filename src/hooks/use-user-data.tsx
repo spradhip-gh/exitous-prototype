@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema, buildProfileSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
-import type { ExternalResource } from './external-resources';
+import type { ExternalResource } from '../lib/external-resources';
 import {
   getCompanyAssignments as getCompanyAssignmentsFromDb, saveCompanyAssignments as saveCompanyAssignmentsToDb,
   getCompanyConfigs as getCompanyConfigsFromDb, saveCompanyConfigs as saveCompanyConfigsToDb,
@@ -33,7 +33,7 @@ const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface HrPermissions {
-    userManagement: 'read' | 'write' | 'write-upload';
+    userManagement: 'read' | 'write' | 'write-upload' | 'invite-only';
     formEditor: 'read' | 'write';
     resources: 'read' | 'write';
     companySettings: 'read';
