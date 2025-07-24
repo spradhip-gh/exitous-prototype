@@ -106,29 +106,11 @@ export type PersonalizedRecommendationsOutput = z.infer<
   typeof PersonalizedRecommendationsOutputSchema
 >;
 
-export async function getPersonalizedRecommendations(
-  input: PersonalizedRecommendationsInput
-): Promise<PersonalizedRecommendationsOutput> {
-  return personalizedRecommendationsFlow(input);
-}
-
-const personalizedRecommendationsFlow = ai.defineFlow(
-  {
-    name: 'personalizedRecommendationsFlow',
-    inputSchema: PersonalizedRecommendationsInputSchema,
-    outputSchema: PersonalizedRecommendationsOutputSchema,
-  },
-  async (input, streamingCallback) => {
-    
-    // In a real app, this might come from a different source, but for the prototype,
-    // we fetch it from the same demo-data store.
-    const externalResources = getExternalResources();
-    const availableResourcesText = externalResources.map(r => 
-        `Resource: ${r.name} (ID: ${r.id})\nDescription: ${r.description}\nRelated Task IDs: ${r.relatedTaskIds?.join(', ')}`
-    ).join('\n---\n');
-
-    
-    const prompt = `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
+const prompt = ai.definePrompt({
+    name: 'personalizedRecommendationsPrompt',
+    input: { schema: PersonalizedRecommendationsInputSchema },
+    output: { schema: PersonalizedRecommendationsOutputSchema },
+    prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
 
 Your task is to generate a comprehensive list of actionable recommendations based on ALL of the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
 
@@ -150,8 +132,12 @@ Your task is to generate a comprehensive list of actionable recommendations base
 
 **AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
 ---
-${availableResourcesText}
+{{#each externalResources}}
+Resource: {{this.name}} (ID: {{this.id}})
+Description: {{this.description}}
+Related Task IDs: {{#each this.relatedTaskIds}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 ---
+{{/each}}
 
 **FULL USER PROFILE:**
 - Birth Year: {{{profileData.birthYear}}}
@@ -198,26 +184,34 @@ ${availableResourcesText}
   - Vision Coverage End Date: {{{layoffDetails.visionCoverageEndDate}}}
 - Had EAP: {{{layoffDetails.hadEAP}}}
   - EAP Coverage End Date: {{{layoffDetails.eapCoverageEndDate}}}
+`,
+});
 
-**Context Data:**
-- State Unemployment Links: {{stateUnemploymentLinks}}
-`;
+export async function getPersonalizedRecommendations(
+  input: PersonalizedRecommendationsInput
+): Promise<PersonalizedRecommendationsOutput> {
+  return personalizedRecommendationsFlow(input);
+}
 
+const personalizedRecommendationsFlow = ai.defineFlow(
+  {
+    name: 'personalizedRecommendationsFlow',
+    inputSchema: PersonalizedRecommendationsInputSchema,
+    outputSchema: PersonalizedRecommendationsOutputSchema,
+  },
+  async (input, streamingCallback) => {
+    
+    // In a real app, this might come from a different source, but for the prototype,
+    // we fetch it from the same demo-data store.
+    const externalResources = getExternalResources();
+    
     const maxRetries = 3;
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const {output} = await ai.generate({
-            prompt,
-            model: 'googleai/gemini-2.0-flash',
-            output: {
-                schema: PersonalizedRecommendationsOutputSchema
-            },
-            context: {
-                profileData: input.profileData,
-                layoffDetails: input.layoffDetails,
-                stateUnemploymentLinks: stateUnemploymentLinks
-            }
+        const {output} = await prompt({
+            ...input,
+            externalResources,
         });
         
         // Add the result to the review queue
