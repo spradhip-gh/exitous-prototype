@@ -70,13 +70,6 @@ const LayoffDetailsSchema = z.object({
   eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
 
-const AdminGuidanceSchema = z.object({
-    id: z.string(),
-    guidanceText: z.string(),
-    category: z.string(),
-    linkedResourceId: z.string().optional(),
-});
-
 const PersonalizedRecommendationsInputSchema = z.object({
   userEmail: z.string().email(),
   companyName: z.string().optional(),
@@ -196,3 +189,5 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
+    
