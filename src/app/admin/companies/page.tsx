@@ -265,7 +265,7 @@ export default function CompanyManagementPage() {
   };
   
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
-        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
+        updateCompanyAssignment(companyName, { newPrimaryManagerEmail: newPrimaryEmail });
         toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager.`});
     };
 
