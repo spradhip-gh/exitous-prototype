@@ -51,11 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedAuth = localStorage.getItem(AUTH_KEY);
       if (storedAuth) {
         let authData = JSON.parse(storedAuth);
-        // If HR user, ensure permissions are loaded on initial load
-        if(authData.role === 'hr' && authData.email && authData.companyName) {
-            const assignments = getCompanyAssignmentsFromDb();
-            authData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
-        }
         setAuthState(authData);
       }
     } catch (error) {
