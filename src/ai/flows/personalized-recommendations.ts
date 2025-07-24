@@ -1,5 +1,4 @@
 
-
 'use server';
 
 /**
@@ -13,8 +12,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { addReviewQueueItem } from '@/lib/demo-data';
+import { addReviewQueueItem, getCompanyConfig } from '@/lib/demo-data';
 import { stateUnemploymentLinks } from '@/lib/state-resources';
+import { differenceInYears, parseISO } from 'date-fns';
+import { tenureOptions } from '@/lib/guidance-helpers';
+import type { GuidanceRule } from '@/hooks/use-user-data';
 
 const ProfileDataSchema = z.object({
   birthYear: z.number().describe("The user's birth year."),
@@ -68,10 +70,19 @@ const LayoffDetailsSchema = z.object({
   eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
 
+const AdminGuidanceSchema = z.object({
+    id: z.string(),
+    guidanceText: z.string(),
+    category: z.string(),
+    linkedResourceId: z.string().optional(),
+});
+
 const PersonalizedRecommendationsInputSchema = z.object({
   userEmail: z.string().email(),
+  companyName: z.string().optional(),
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
+  adminGuidance: z.array(AdminGuidanceSchema).optional().describe("A list of pre-defined guidance items to be included and enriched."),
 });
 
 
@@ -83,9 +94,10 @@ const RecommendationItemSchema = z.object({
   taskId: z.string().describe("A unique, kebab-case identifier for the task (e.g., 'review-severance-agreement')."),
   task: z.string().describe('The specific, actionable task for the user to complete.'),
   category: z.string().describe('The category of the recommendation (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").'),
-  timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Immediately", "Within 1 week", "By [specific date based on user input]").'),
+  timeline: z.string().describe('A suggested timeframe or deadline for this task (e.g., "Action Required", "Upcoming Deadline", "Within 2 weeks").'),
   details: z.string().describe('Additional details or context for the recommendation. This should be formatted in Markdown.'),
   endDate: z.string().optional().describe("A specific deadline or key date for this task in 'YYYY-MM-DD' format, if applicable. Extract this from user-provided dates like coverage end dates."),
+  isGoal: z.boolean().optional().describe("Set to true if this is a flexible goal (like 'Within 2 weeks'), false if it is a hard deadline."),
 });
 
 
@@ -105,7 +117,33 @@ export type PersonalizedRecommendationsOutput = z.infer<
 export async function getPersonalizedRecommendations(
   input: PersonalizedRecommendationsInput
 ): Promise<PersonalizedRecommendationsOutput> {
-  return personalizedRecommendationsFlow(input);
+  // Logic to determine which admin guidance rules apply
+  const allGuidance = input.companyName ? getCompanyConfig(input.companyName, true).guidance || [] : [];
+  
+  const tenure = input.layoffDetails.startDate ? differenceInYears(new Date(), parseISO(input.layoffDetails.startDate)) : null;
+
+  const checkCondition = (condition: any) => {
+    if (condition.type === 'tenure' && tenure !== null) {
+        if (condition.operator === 'lt') return tenure < condition.value[0];
+        if (condition.operator === 'gte') return tenure >= condition.value[0];
+        if (condition.operator === 'gte_lt') return tenure >= condition.value[0] && tenure < condition.value[1];
+    }
+    // Add other condition types (question, date_offset) here if needed in the future
+    return false;
+  };
+
+  const triggeredGuidance = allGuidance.filter(rule => 
+      rule.conditions.every(checkCondition)
+  ).map(rule => ({
+      id: rule.id,
+      guidanceText: rule.guidanceText,
+      category: rule.category,
+      linkedResourceId: rule.linkedResourceId,
+  }));
+
+  const flowInput = { ...input, adminGuidance: triggeredGuidance };
+
+  return personalizedRecommendationsFlow(flowInput);
 }
 
 const prompt = ai.definePrompt({
@@ -115,57 +153,53 @@ const prompt = ai.definePrompt({
   context: {
     stateUnemploymentLinks: stateUnemploymentLinks
   },
-  prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps.
+  prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Your primary goal is to provide a structured list of actionable and personalized recommendations.
 
-Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
+You have two sources of information:
+1.  **User Data**: The user's profile and specific layoff details.
+2.  **Admin Guidance**: A list of pre-approved, vetted recommendations from HR professionals.
 
-Here is the user's profile data:
-- Birth Year: {{{profileData.birthYear}}}
+**Your Tasks:**
+
+1.  **Enrich Admin Guidance**: For every item provided in the \`adminGuidance\` array, you MUST include it in your response. Your role is to enrich this guidance, not replace it.
+    *   **Create a \`taskId\`**: This is critical. For each admin guidance item, create a unique taskId by using the provided guidance \`id\` as a prefix. For example, if the guidance id is \`rule-123\`, the taskId should be \`guidance-rule-123\`.
+    *   **Personalize the \`details\`**: Take the provided \`guidanceText\` and make it more specific to the user. For instance, if the text mentions unemployment, replace placeholders like \`[STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]\` with the actual link for the user's state from the context provided.
+    *   **Use the correct \`category\`**: Use the category provided in the admin guidance item.
+    *   **Generate a \`task\` title**: Create a short, actionable title based on the guidance text.
+    *   **Determine \`timeline\` and \`isGoal\`**: Based on the urgency, set an appropriate timeline (e.g., "Within 1 week") and set \`isGoal\` to true.
+
+2.  **Generate AI-specific Recommendations**: Based on the user's full profile and layoff details, identify any gaps not covered by the admin guidance and generate 3-5 additional, critical recommendations.
+    *   **Create a truly unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
+    *   **Analyze User Data**: Pay close attention to critical dates (final day, severance deadline), insurance status, and visa status.
+    *   **Set \`timeline\` and \`isGoal\`**:
+        *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated with the user-provided date.
+        *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
+    *   **Sort by Urgency**: The final list of all recommendations (both enriched admin guidance and your generated ones) must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
+
+**User Profile:**
 - State of Residence: {{{profileData.state}}}
-- Gender: {{{profileData.gender}}}
 - Marital Status: {{{profileData.maritalStatus}}}
-- Has Children Under 13: {{{profileData.hasChildrenUnder13}}}
-- Has Expected Children: {{{profileData.hasExpectedChildren}}}
-- People Impacted by Layoff: {{{profileData.impactedPeopleCount}}}
-- Living Status: {{{profileData.livingStatus}}}
-- Citizenship Status: {{{profileData.citizenshipStatus}}}
-- Recent Major Life Events: {{#each profileData.pastLifeEvents}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-- Has Children Ages 18-26: {{{profileData.hasChildrenAges18To26}}}
+- Dependents: {{#if profileData.hasChildrenUnder13}}Has children under 13{{/if}}
+- Citizenship/Visa Status: {{{profileData.citizenshipStatus}}} / {{{layoffDetails.workVisa}}}
+- Employment Start Date: {{{layoffDetails.startDate}}}
+- Final Day of Employment: {{{layoffDetails.finalDate}}}
+- Severance Deadline: {{{layoffDetails.severanceAgreementDeadline}}}
+- Lost Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}} (Coverage ends: {{{layoffDetails.medicalCoverageEndDate}}})
+- Union Member: {{{layoffDetails.unionMember}}}
+- On Leave: {{{layoffDetails.onLeave}}}
 
-Here are the user's exit details:
-{{#if layoffDetails.workStatus}}- Work Status: {{{layoffDetails.workStatus}}}{{/if}}
-{{#if layoffDetails.startDate}}- Employment Start Date: {{{layoffDetails.startDate}}}{{/if}}
-{{#if layoffDetails.notificationDate}}- Exit Notification Date: {{{layoffDetails.notificationDate}}}{{/if}}
-{{#if layoffDetails.finalDate}}- Final Day of Employment: {{{layoffDetails.finalDate}}}{{/if}}
-{{#if layoffDetails.severanceAgreementDeadline}}- Deadline to Sign Severance: {{{layoffDetails.severanceAgreementDeadline}}}{{/if}}
-{{#if layoffDetails.workState}}- Work Location State: {{{layoffDetails.workState}}}{{/if}}
-{{#if layoffDetails.relocationPaid}}- Relocation Paid by Company: {{{layoffDetails.relocationPaid}}}{{/if}}
-{{#if layoffDetails.relocationDate}}- Relocation Date: {{{layoffDetails.relocationDate}}}{{/if}}
-{{#if layoffDetails.unionMember}}- Union Member: {{{layoffDetails.unionMember}}}{{/if}}
-{{#if layoffDetails.workArrangement}}- Work Arrangement: {{{layoffDetails.workArrangement}}}{{/if}}
-{{#if layoffDetails.workArrangementOther}}- Other Arrangement Details: {{{layoffDetails.workArrangementOther}}}{{/if}}
-{{#if layoffDetails.workVisa}}- Work Visa: {{{layoffDetails.workVisa}}}{{/if}}
-{{#if layoffDetails.onLeave}}- On Leave During Exit: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
-{{#if layoffDetails.usedLeaveManagement}}- Used Leave Management System: {{{layoffDetails.usedLeaveManagement}}}{{/if}}
-{{#if layoffDetails.accessSystems}}- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
-{{#if layoffDetails.emailAccessEndDate}}- Email Access Ends: {{{layoffDetails.emailAccessEndDate}}}{{/if}}
-{{#if layoffDetails.hadMedicalInsurance}}- Had Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}}{{/if}}
-{{#if layoffDetails.medicalCoverageEndDate}}- Medical Coverage Ends: {{{layoffDetails.medicalCoverageEndDate}}}{{/if}}
-{{#if layoffDetails.hadDentalInsurance}}- Had Dental Insurance: {{{layoffDetails.hadDentalInsurance}}}{{/if}}
-{{#if layoffDetails.dentalCoverageEndDate}}- Dental Coverage Ends: {{{layoffDetails.dentalCoverageEndDate}}}{{/if}}
-{{#if layoffDetails.hadVisionInsurance}}- Had Vision Insurance: {{{layoffDetails.hadVisionInsurance}}}{{/if}}
-{{#if layoffDetails.visionCoverageEndDate}}- Vision Coverage Ends: {{{layoffDetails.visionCoverageEndDate}}}{{/if}}
-{{#if layoffDetails.hadEAP}}- Had EAP: {{{layoffDetails.hadEAP}}}{{/if}}
-{{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
+**Admin Guidance to Include:**
+---
+{{#each adminGuidance}}
+- **ID**: {{{this.id}}}
+- **Guidance Text**: {{{this.guidanceText}}}
+- **Category**: {{{this.category}}}
+- **Linked Resource ID**: {{{this.linkedResourceId}}}
+---
+{{/each}}
 
-Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
-1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details'). 
-2.  A specific 'task' for the user to complete.
-3.  A 'category' (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").
-4.  A 'timeline' for action (e.g., "Immediately", "Within 1 week").
-5.  Important 'details' or context, formatted in Markdown.
-6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. **For any task related to unemployment benefits, if the user's finalDate is available, the endDate MUST be set to the day *after* their finalDate of employment.** Otherwise, leave 'endDate' empty.
-7.  **IMPORTANT**: If the user is on a work visa (the 'workVisa' field is not "None of the above"), you MUST create a recommendation with the 'taskId' 'handle-work-visa-implications' to advise them to consult an immigration attorney.
+**Context Data:**
+- State Unemployment Links: {{jsonStringify stateUnemploymentLinks}}
 `,
 });
 
@@ -187,7 +221,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             addReviewQueueItem({
                 id: `review-${input.userEmail}-${Date.now()}`,
                 userEmail: input.userEmail,
-                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails },
+                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName, adminGuidance: input.adminGuidance },
                 output: output,
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -212,4 +246,3 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
-
