@@ -150,9 +150,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
   
-  const switchCompany = useCallback((newCompanyName: string) => {
-    if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        const newAuth = { ...auth, companyName: newCompanyName, permissions: undefined }; // Permissions will be set by useUserData
+  const switchCompany = useCallback((companyName: string) => {
+    if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(companyName)) {
+        // Create a new auth object, but crucially remove the permissions.
+        // The useUserData hook will see the new companyName and re-evaluate/re-set the correct permissions.
+        // This forces a re-render of components that depend on those permissions, like the Header.
+        const newAuth = { ...auth, companyName, permissions: undefined };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
     }
@@ -169,8 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setPermissions = useCallback((permissions: HrPermissions) => {
     setAuthState(prev => {
         if (!prev) return null;
+        // Only update if permissions have actually changed to prevent loops
+        if (JSON.stringify(prev.permissions) === JSON.stringify(permissions)) {
+            return prev;
+        }
         const newAuth = { ...prev, permissions };
-        // Save the updated auth state with new permissions to localStorage
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         return newAuth;
     });

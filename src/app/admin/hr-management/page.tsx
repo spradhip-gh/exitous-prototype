@@ -181,7 +181,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                             </Button>
                                                         </span>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>
+                                                     <TooltipContent>
                                                           <p>
                                                             {isLastManager ? "Cannot remove the last manager of a company." :
                                                              manager.isPrimary ? "Cannot remove a Primary Manager. Assign a new primary first." : 
@@ -356,14 +356,25 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
     };
     
     const handlePrimaryChange = (companyName: string) => {
-        setAssignments(prev => ({
-            ...prev,
-            [companyName]: {
-                ...prev[companyName],
+        setAssignments(prev => {
+            const newAssignments = {...prev};
+            
+            // Unset other primaries for this user
+            Object.keys(newAssignments).forEach(cn => {
+                if (newAssignments[cn].isPrimary) {
+                    newAssignments[cn] = {...newAssignments[cn], isPrimary: false, permissions: defaultPermissions };
+                }
+            });
+
+            // Set the new primary
+            newAssignments[companyName] = {
+                ...newAssignments[companyName],
                 isPrimary: true,
-                permissions: fullPermissions
-            }
-        }));
+                permissions: fullPermissions,
+            };
+
+            return newAssignments;
+        });
     };
 
     const handleSave = () => {
@@ -439,6 +450,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                         <AlertDialogTrigger asChild>
                                                             <Switch 
                                                                 checked={isPrimary}
+                                                                onCheckedChange={() => {}} // dummy to allow trigger
                                                                 disabled={isPrimary}
                                                             />
                                                         </AlertDialogTrigger>
@@ -525,7 +537,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
 }
 
 export default function HrManagementPage() {
-    const { auth } = useAuth();
+    const { auth, switchCompany } = useAuth();
     const { companyAssignments, saveCompanyAssignments } = useUserData();
     const { toast } = useToast();
 
@@ -579,6 +591,18 @@ export default function HrManagementPage() {
         saveCompanyAssignments(updatedAssignments);
         setLocalAssignments(updatedAssignments); // sync local state after save
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
+
+        // If the current user's primary status for the current company has changed, refresh auth.
+        if (auth?.email && auth.companyName) {
+            const currentAssignment = updatedAssignments.find(a => a.companyName === auth.companyName);
+            const isNowPrimary = currentAssignment?.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary);
+            
+            const wasPrimary = managedCompanies.includes(auth.companyName);
+            
+            if (wasPrimary && !isNowPrimary) {
+                switchCompany(auth.companyName); // This will re-evaluate permissions
+            }
+        }
     };
     
     const handleAddHrSave = (updatedAssignments: CompanyAssignment[]) => {
