@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { addReviewQueueItem, getCompanyConfigs } from '@/lib/demo-data';
+import { addReviewQueueItem, getExternalResources } from '@/lib/demo-data';
 import { stateUnemploymentLinks } from '@/lib/state-resources';
 import { differenceInYears, parseISO } from 'date-fns';
 import { tenureOptions } from '@/lib/guidance-helpers';
@@ -112,31 +112,46 @@ export async function getPersonalizedRecommendations(
   return personalizedRecommendationsFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'personalizedRecommendationsPrompt',
-  input: {schema: PersonalizedRecommendationsInputSchema},
-  output: {schema: PersonalizedRecommendationsOutputSchema},
-  context: {
-    stateUnemploymentLinks: stateUnemploymentLinks
+const personalizedRecommendationsFlow = ai.defineFlow(
+  {
+    name: 'personalizedRecommendationsFlow',
+    inputSchema: PersonalizedRecommendationsInputSchema,
+    outputSchema: PersonalizedRecommendationsOutputSchema,
   },
-  prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
+  async (input, streamingCallback) => {
+    
+    // In a real app, this might come from a different source, but for the prototype,
+    // we fetch it from the same demo-data store.
+    const externalResources = getExternalResources();
+    const availableResourcesText = externalResources.map(r => 
+        `Resource: ${r.name} (ID: ${r.id})\nDescription: ${r.description}\nRelated Task IDs: ${r.relatedTaskIds?.join(', ')}`
+    ).join('\n---\n');
+
+    
+    const prompt = `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
 
 Your task is to generate a comprehensive list of actionable recommendations based on ALL of the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
 
 **CRITICAL INSTRUCTIONS:**
 1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Do not guess or provide unverified guidance. Your recommendations should be based only on the data provided.
-2.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
-3.  **Consolidate Healthcare Deadlines:** Create a single, primary recommendation with the taskId 'explore-health-insurance-options' to cover all lost health benefits (medical, dental, vision).
+2.  **Use Pre-defined Task IDs for Resources:** You have been provided with a list of external professional resources and their corresponding \`Related Task IDs\`. When you generate a recommendation that matches the purpose of a resource, you MUST use one of the exact \`taskId\`s from that resource's list. This is critical for connecting the user to the right professional. For example, if you advise reviewing a severance agreement, you MUST use the taskId \`review-severance-agreement\`.
+3.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
+4.  **Consolidate Healthcare Deadlines:** Create a single, primary recommendation with the taskId 'explore-health-insurance' to cover all lost health benefits (medical, dental, vision).
     *   The details of this task MUST list out each specific coverage end date. For example: "Your medical coverage ends on YYYY-MM-DD, and your dental ends on YYYY-MM-DD. It is critical to explore new options like COBRA or ACA Marketplace plans before these dates to avoid a gap in coverage."
     *   The \`endDate\` for this consolidated task should be the EARLIEST of all the user's health-related coverage end dates.
-4.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline MUST be for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
-5.  **Comprehensive Categories:** Provide a thorough and comprehensive set of recommendations across all relevant categories: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, exploring COBRA, and networking. Do not limit the number of recommendations; be exhaustive and helpful.
-6.  **Create a unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
-7.  **Set \`timeline\` and \`isGoal\`**:
+5.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline MUST be for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
+6.  **Comprehensive Categories:** Provide a thorough and comprehensive set of recommendations across all relevant categories: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, exploring COBRA, and networking. Do not limit the number of recommendations; be exhaustive and helpful.
+7.  **Create a unique \`taskId\`**: For tasks that do not have a pre-defined ID from the resource list, create a new, unique, descriptive, kebab-case taskId (e.g., \`backup-work-files\`, \`check-pto-payout\`).
+8.  **Set \`timeline\` and \`isGoal\`**:
     *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated.
     *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
-8.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
-9.  **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
+9.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
+10. **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
+
+**AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
+---
+${availableResourcesText}
+---
 
 **FULL USER PROFILE:**
 - Birth Year: {{{profileData.birthYear}}}
@@ -186,21 +201,24 @@ Your task is to generate a comprehensive list of actionable recommendations base
 
 **Context Data:**
 - State Unemployment Links: {{stateUnemploymentLinks}}
-`,
-});
+`;
 
-const personalizedRecommendationsFlow = ai.defineFlow(
-  {
-    name: 'personalizedRecommendationsFlow',
-    inputSchema: PersonalizedRecommendationsInputSchema,
-    outputSchema: PersonalizedRecommendationsOutputSchema,
-  },
-  async (input, streamingCallback) => {
     const maxRetries = 3;
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const {output} = await prompt(input);
+        const {output} = await ai.generate({
+            prompt,
+            model: 'googleai/gemini-2.0-flash',
+            output: {
+                schema: PersonalizedRecommendationsOutputSchema
+            },
+            context: {
+                profileData: input.profileData,
+                layoffDetails: input.layoffDetails,
+                stateUnemploymentLinks: stateUnemploymentLinks
+            }
+        });
         
         // Add the result to the review queue
         if (output) {
@@ -232,10 +250,3 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
-
-
-
-    
-
-
-    
