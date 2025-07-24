@@ -39,7 +39,7 @@ const defaultPermissions: HrPermissions = {
 export default function HrManagementPage() {
   const { toast } = useToast();
   const { auth } = useAuth();
-  const { companyAssignments, updateCompanyAssignment } = useUserData();
+  const { companyAssignments, updateCompanyAssignment, saveCompanyAssignments } = useUserData();
 
   const [newUserEmail, setNewUserEmail] = useState('');
   const [companyPermissions, setCompanyPermissions] = useState<Record<string, HrPermissions>>({});
@@ -80,19 +80,29 @@ export default function HrManagementPage() {
         toast({ title: 'Invalid Email', description: 'Please enter a valid email address.', variant: 'destructive' });
         return;
     }
-    
-    companiesToUpdate.forEach(companyName => {
-        const assignment = companyAssignments.find(a => a.companyName === companyName);
-        if (assignment && !assignment.hrManagers.some(hr => hr.email.toLowerCase() === newUserEmail.toLowerCase())) {
-            const newHr: HrManager = { email: newUserEmail, isPrimary: false, permissions: companyPermissions[companyName] };
-            updateCompanyAssignment(companyName, { hrManagers: [...assignment.hrManagers, newHr] });
+
+    // Create a new list of assignments with all updates applied
+    const newAssignments = companyAssignments.map(assignment => {
+        if (companiesToUpdate.includes(assignment.companyName)) {
+             if (assignment.hrManagers.some(hr => hr.email.toLowerCase() === newUserEmail.toLowerCase())) {
+                // User already exists in this company, skip
+                return assignment;
+            }
+            const newHr: HrManager = { email: newUserEmail, isPrimary: false, permissions: companyPermissions[assignment.companyName] };
+            return {
+                ...assignment,
+                hrManagers: [...assignment.hrManagers, newHr]
+            };
         }
+        return assignment;
     });
 
+    saveCompanyAssignments(newAssignments);
+    
     toast({ title: 'HR Manager Added', description: `${newUserEmail} has been added to the selected companies.` });
     setNewUserEmail('');
     setCompanyPermissions({});
-  }, [newUserEmail, companyPermissions, companyAssignments, updateCompanyAssignment, toast]);
+  }, [newUserEmail, companyPermissions, companyAssignments, saveCompanyAssignments, toast]);
   
   const handleEditClick = (manager: HrManager, companyName: string) => {
     setEditingManager({ manager, companyName });

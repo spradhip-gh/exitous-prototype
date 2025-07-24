@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema, buildProfileSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
-import type { ExternalResource } from '@/lib/external-resources';
+import type { ExternalResource } from './external-resources';
 import {
   getCompanyAssignments as getCompanyAssignmentsFromDb, saveCompanyAssignments as saveCompanyAssignmentsToDb,
   getCompanyConfigs as getCompanyConfigsFromDb, saveCompanyConfigs as saveCompanyConfigsToDb,
@@ -546,6 +546,11 @@ export function useUserData() {
     setCompanyAssignmentsState(newAssignments);
   }, [companyAssignments]);
 
+  const saveCompanyAssignments = useCallback((assignments: CompanyAssignment[]) => {
+    saveCompanyAssignmentsToDb(assignments);
+    setCompanyAssignmentsState(assignments);
+  }, []);
+
   const deleteCompanyAssignment = useCallback((companyName: string) => {
     const newAssignments = companyAssignments.filter(a => a.companyName !== companyName);
     saveCompanyAssignmentsToDb(newAssignments);
@@ -782,6 +787,7 @@ export function useUserData() {
     masterProfileQuestions,
     saveMasterProfileQuestions,
     companyAssignments,
+    saveCompanyAssignments,
     companyAssignmentForHr,
     profileCompletions,
     assessmentCompletions,
