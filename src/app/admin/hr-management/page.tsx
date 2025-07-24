@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
