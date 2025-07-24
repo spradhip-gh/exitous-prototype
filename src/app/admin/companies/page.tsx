@@ -575,7 +575,9 @@ export default function CompanyManagementPage() {
                             <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    {editingCompany.hrManagers.map(hr => (
+                                    {editingCompany.hrManagers.map(hr => {
+                                        const currentPrimaryEmail = editingCompany?.hrManagers.find(m => m.isPrimary)?.email;
+                                        return (
                                         <div key={hr.email} className="flex items-center justify-between">
                                             <div>
                                                 <p className="font-medium">{hr.email}</p>
@@ -594,14 +596,31 @@ export default function CompanyManagementPage() {
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
-                                                <div className="flex items-center space-x-2 p-3">
+                                                <div className="flex items-center space-x-2 rounded-lg border p-3">
                                                     <Label htmlFor={`primary-switch-${hr.email}`} className="text-xs text-muted-foreground">Primary</Label>
-                                                    <Switch
-                                                        id={`primary-switch-${hr.email}`}
-                                                        checked={hr.isPrimary}
-                                                        onCheckedChange={(checked) => checked && handleMakePrimary(editingCompany.companyName, hr.email)}
-                                                        disabled={hr.isPrimary}
-                                                    />
+                                                     <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                          <Switch
+                                                              id={`primary-switch-${hr.email}`}
+                                                              checked={hr.isPrimary}
+                                                              onCheckedChange={() => {}} // dummy to allow trigger
+                                                              disabled={hr.isPrimary}
+                                                          />
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Are you sure you want to make <span className="font-bold">{hr.email}</span> the new Primary Manager for <span className="font-bold">{editingCompany.companyName}</span>?
+                                                                    This will demote the current primary ({currentPrimaryEmail}).
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)}>Confirm & Transfer</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
                                                 </div>
                                                 <Separator orientation="vertical" className="h-6" />
                                                 <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
@@ -612,7 +631,7 @@ export default function CompanyManagementPage() {
                                                 </Button>
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                                 <Separator className="my-4"/>
                                 <div className="flex items-center gap-2">
@@ -656,3 +675,4 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
+
