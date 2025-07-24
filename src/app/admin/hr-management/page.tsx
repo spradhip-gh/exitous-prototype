@@ -167,6 +167,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                 const canEditThisCompany = managedCompanies.includes(assignment.companyName);
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
+                                const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -209,13 +210,15 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Are you sure you want to make <span className="font-bold">{manager.email}</span> the new Primary Manager for <span className="font-bold">{assignment.companyName}</span>?
-                                                                    <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
-                                                                        <Info className="h-4 w-4 !text-amber-600" />
-                                                                        <AlertTitle>Warning</AlertTitle>
-                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
-                                                                    </Alert>
+                                                                <AlertDialogDescription asChild>
+                                                                    <div>
+                                                                        Are you sure you want to make <span className="font-bold">{manager.email}</span> the new Primary Manager for <span className="font-bold">{assignment.companyName}</span>?
+                                                                        <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
+                                                                            <Info className="h-4 w-4 !text-amber-600" />
+                                                                            <AlertTitle>Warning</AlertTitle>
+                                                                            <AlertDescription>This will demote the current primary ({currentPrimaryEmail}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
+                                                                        </Alert>
+                                                                    </div>
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
@@ -427,6 +430,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                         {managedCompanies.map(company => {
                             const isAssigned = !!assignments[company];
                             const isPrimary = isAssigned && assignments[company].isPrimary;
+                            const currentPrimaryEmail = allAssignments.find(a => a.companyName === company)?.hrManagers.find(m => m.isPrimary)?.email;
 
                             return (
                                 <Card key={company} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
@@ -457,13 +461,15 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                          <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
-                                                                <AlertDialogDescription>
-                                                                    Are you sure you want to make <span className="font-bold">{email}</span> the new Primary Manager for <span className="font-bold">{company}</span>?
-                                                                     <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
-                                                                        <Info className="h-4 w-4 !text-amber-600" />
-                                                                        <AlertTitle>Warning</AlertTitle>
-                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
-                                                                    </Alert>
+                                                                <AlertDialogDescription asChild>
+                                                                    <div>
+                                                                        Are you sure you want to make <span className="font-bold">{email}</span> the new Primary Manager for <span className="font-bold">{company}</span>?
+                                                                        <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
+                                                                            <Info className="h-4 w-4 !text-amber-600" />
+                                                                            <AlertTitle>Warning</AlertTitle>
+                                                                            <AlertDescription>This will demote the current primary ({currentPrimaryEmail}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
+                                                                        </Alert>
+                                                                    </div>
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
@@ -600,7 +606,7 @@ export default function HrManagementPage() {
             const wasPrimary = managedCompanies.includes(auth.companyName);
             
             if (wasPrimary && !isNowPrimary) {
-                switchCompany(auth.companyName); // This will re-evaluate permissions
+                switchCompany(auth.companyName);
             }
         }
     };
@@ -678,5 +684,3 @@ export default function HrManagementPage() {
         </div>
     );
 }
-
-    

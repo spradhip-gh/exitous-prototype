@@ -151,14 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout]);
   
   const switchCompany = useCallback((companyName: string) => {
-    if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(companyName)) {
-        // This function now just changes the company name in the auth state.
-        // The permission re-evaluation is handled by the useEffect in `useUserData`.
-        const newAuth = { ...auth, companyName, permissions: undefined };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-        setAuthState(newAuth);
-    }
-  }, [auth]);
+    setAuthState(prev => {
+        if (prev?.role === 'hr' && prev.email && prev.assignedCompanyNames?.includes(companyName)) {
+            // This function now just changes the company name in the auth state and clears permissions.
+            // This forces a re-evaluation in the useUserData hook.
+            const newAuth = { ...prev, companyName, permissions: undefined };
+            localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+            return newAuth;
+        }
+        return prev;
+    });
+  }, []);
 
   const updateEmail = useCallback((newEmail: string) => {
     if (auth) {
