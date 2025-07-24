@@ -36,6 +36,13 @@ const defaultPermissions: HrPermissions = {
     companySettings: 'read',
 };
 
+const permissionLabels: Record<string, string> = {
+    'read': 'Read',
+    'write': 'Write',
+    'write-upload': 'Write & Upload',
+    'invite-only': 'Invite Only',
+};
+
 export default function HrManagementPage() {
   const { toast } = useToast();
   const { auth } = useAuth();
@@ -275,9 +282,9 @@ export default function HrManagementPage() {
                                      <TableCell>
                                         {!hr.isPrimary && (
                                             <div className="flex flex-wrap gap-1">
-                                                <Badge variant="outline">Users: {hr.permissions.userManagement}</Badge>
-                                                <Badge variant="outline">Forms: {hr.permissions.formEditor}</Badge>
-                                                <Badge variant="outline">Resources: {hr.permissions.resources}</Badge>
+                                                <Badge variant="outline">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
+                                                <Badge variant="outline">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
+                                                <Badge variant="outline">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
                                             </div>
                                         )}
                                     </TableCell>
