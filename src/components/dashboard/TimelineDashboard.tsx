@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth, differenceInYears } from 'date-fns';
+import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth, isValid } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
 import { useUserData, CompanyAssignment, GuidanceRule, Condition } from '@/hooks/use-user-data';
 import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
@@ -122,7 +122,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   const companyDetails = useMemo(() => {
     if (!assessmentData?.companyName) return null;
-    return companyAssignments.find(c => c.companyName === assessmentData.companyName) || null;
+    return companyAssignments.find(c => c.companyName === assessmentData.companyName);
   }, [assessmentData, companyAssignments]);
 
   const isProfileComplete = !!profileData;
@@ -191,6 +191,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
         const result = await getPersonalizedRecommendations({
           userEmail: auth.email,
+          companyName: auth.companyName,
           profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
         });
@@ -213,8 +214,15 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
     const getDateValue = (dateStr: string | undefined) => {
       if (!dateStr) return Infinity;
-      const [year, month, day] = dateStr.split('-').map(Number);
-      return new Date(year, month - 1, day).getTime();
+      try {
+        const parsedDate = parse(dateStr, 'yyyy-MM-dd', new Date());
+        if (isValid(parsedDate)) {
+          return parsedDate.getTime();
+        }
+      } catch (e) {
+        return Infinity;
+      }
+      return Infinity;
     };
 
     return [...recommendations.recommendations].sort((a, b) => {
@@ -505,8 +513,14 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
         
         let displayDate: Date | null = null;
         if(rawDateStr) {
-            const [year, month, day] = rawDateStr.split('-').map(Number);
-            displayDate = new Date(year, month-1, day);
+            try {
+                const parsed = parse(rawDateStr, 'yyyy-MM-dd', new Date());
+                if(isValid(parsed)) {
+                    displayDate = parsed;
+                }
+            } catch (e) {
+                console.warn(`Could not parse date: ${rawDateStr}`);
+            }
         }
 
         return (
@@ -527,7 +541,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
               </div>
               
                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
-                {displayDate && (
+                {displayDate && isValid(displayDate) && (
                     <div className="flex items-center gap-1 text-sm font-medium text-destructive/80">
                         <Calendar className="h-4 w-4" />
                         <span>Due: {formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
@@ -616,8 +630,14 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
 
                     let displayDate: Date | null = null;
                     if(rawDateStr) {
-                        const [year, month, day] = rawDateStr.split('-').map(Number);
-                        displayDate = new Date(year, month-1, day);
+                       try {
+                            const parsed = parse(rawDateStr, 'yyyy-MM-dd', new Date());
+                            if(isValid(parsed)) {
+                                displayDate = parsed;
+                            }
+                        } catch (e) {
+                            console.warn(`Could not parse date: ${rawDateStr}`);
+                        }
                     }
                     
                     return (
@@ -642,7 +662,7 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
                             <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
                           </TableCell>
                           <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
-                            {displayDate ? (
+                            {displayDate && isValid(displayDate) ? (
                                 <div className="flex items-center gap-1 text-sm font-medium">
                                     <span>{formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
                                      {!isCompleted && <Popover>
