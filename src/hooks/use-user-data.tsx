@@ -222,7 +222,7 @@ export const convertDatesToStrings = (obj: any): any => {
 
 
 export function useUserData() {
-  const { auth } = useAuth();
+  const { auth, setPermissions } = useAuth();
   
   // User-specific data remains in localStorage for a personalized demo flow.
   const profileKey = auth?.isPreview ? `${PROFILE_KEY}${PREVIEW_SUFFIX}` : PROFILE_KEY;
@@ -373,14 +373,35 @@ export function useUserData() {
     }
   }, [auth?.email, auth?.companyName, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, timezoneKey]);
   
+  // This effect is now the single source of truth for HR permissions.
+  // It watches for changes in the auth object or the company assignments state.
   useEffect(() => {
-    if (auth?.role === 'hr' && auth.companyName && !isLoading) {
+    if (auth?.role === 'hr' && auth.companyName && auth.email) {
+      const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
+      if (assignment) {
+        const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === auth.email!.toLowerCase());
+        if (manager) {
+          const newPermissions = manager.isPrimary
+            ? {
+                userManagement: 'write-upload' as const,
+                formEditor: 'write' as const,
+                resources: 'write' as const,
+                companySettings: 'write' as const,
+              }
+            : manager.permissions;
+          setPermissions(newPermissions);
+        }
+      }
+    }
+    // Also update the companyAssignmentForHr state for UI rendering
+    if (auth?.role === 'hr' && auth.companyName) {
         const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
         setCompanyAssignmentForHr(assignment || null);
     } else if (!auth || auth.role !== 'hr') {
         setCompanyAssignmentForHr(null);
     }
-  }, [auth?.role, auth?.companyName, isLoading, companyAssignments]);
+  }, [auth?.role, auth?.email, auth?.companyName, companyAssignments, setPermissions]);
+
 
   const clearRecommendations = useCallback(() => {
     setRecommendations(null);
@@ -824,5 +845,3 @@ export function useUserData() {
     saveExternalResources,
   };
 }
-
-    

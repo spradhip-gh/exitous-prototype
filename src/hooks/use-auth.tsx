@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { HrPermissions, CompanyAssignment } from './use-user-data';
-import { getCompanyAssignments as getCompanyAssignmentsFromDb } from '@/lib/demo-data';
+import { getCompanyAssignments as getCompanyAssignmentsFromDb, getCompanyConfigs as getCompanyConfigsFromDb, getPlatformUsers as getPlatformUsersFromDb } from '@/lib/demo-data';
 
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
@@ -29,27 +29,12 @@ interface AuthContextType {
   logout: () => void;
   startUserView: () => void;
   stopUserView: () => void;
-  switchCompany: (newCompanyName: string, currentAssignments: CompanyAssignment[]) => void;
+  switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
+  setPermissions: (permissions: HrPermissions) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const getPermissionsForHr = (email: string, companyName: string, assignments: CompanyAssignment[]): HrPermissions | undefined => {
-    const assignment = assignments.find(a => a.companyName === companyName);
-    if (!assignment || !assignment.hrManagers) return undefined;
-    const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === email.toLowerCase());
-    
-    if (manager?.isPrimary) {
-        return {
-            userManagement: 'write-upload',
-            formEditor: 'write',
-            resources: 'write',
-            companySettings: 'write'
-        };
-    }
-    return manager?.permissions;
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuthState] = useState<AuthState | null>(null);
@@ -76,28 +61,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (authData.role === 'hr' && authData.email) {
         const assignedCompanies = assignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase()));
-        if (assignedCompanies.length === 0) {
-            // This case should be handled by the login form, but as a fallback.
-            return;
-        }
+        if (assignedCompanies.length === 0) return;
 
+        // Default to a company where the user is primary, if they are primary for only one.
         const primaryAssignments = assignedCompanies.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase() && hr.isPrimary));
+        const defaultCompany = primaryAssignments.length === 1 ? primaryAssignments[0] : assignedCompanies[0];
         
-        let defaultCompany: CompanyAssignment;
-        if (primaryAssignments.length === 1) {
-            // If they are primary for exactly one company, default to that one.
-            defaultCompany = primaryAssignments[0];
-        } else {
-            // Otherwise, default to the first one they are assigned to.
-            defaultCompany = assignedCompanies[0];
-        }
-
         finalAuthData.companyName = defaultCompany.companyName;
         finalAuthData.assignedCompanyNames = assignedCompanies.map(c => c.companyName);
-        finalAuthData.permissions = getPermissionsForHr(authData.email, defaultCompany.companyName, assignments);
 
       } else if (authData.role === 'end-user') {
-          const assignment = assignments.find(a => a.companyConfigs[authData.companyId!] !== undefined);
+          const companyConfigs = getCompanyConfigsFromDb();
+          const assignment = assignments.find(a => companyConfigs[a.companyName]?.users?.some(u => u.email.toLowerCase() === authData.email?.toLowerCase()));
           if (assignment) {
             finalAuthData.companyName = assignment.companyName;
           }
@@ -175,27 +150,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
   
- const switchCompany = useCallback((newCompanyName: string, currentAssignments: CompanyAssignment[]) => {
+  const switchCompany = useCallback((newCompanyName: string) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        // Find the specific assignment for the new company from the up-to-date list
-        const newAssignment = currentAssignments.find(a => a.companyName === newCompanyName);
-        if (!newAssignment) return;
-
-        // Find the specific manager object within that assignment to get their current permissions
-        const manager = newAssignment.hrManagers.find(hr => hr.email.toLowerCase() === auth.email!.toLowerCase());
-        if (!manager) return;
-        
-        // Determine permissions. If primary, grant full access. Otherwise, use stored permissions.
-        const newPermissions = manager.isPrimary 
-            ? {
-                userManagement: 'write-upload' as const,
-                formEditor: 'write' as const,
-                resources: 'write' as const,
-                companySettings: 'write' as const,
-            }
-            : manager.permissions;
-
-        const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
+        const newAuth = { ...auth, companyName: newCompanyName, permissions: undefined }; // Permissions will be set by useUserData
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
     }
@@ -208,9 +165,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthState(newAuth);
     }
   }, [auth]);
+
+  const setPermissions = useCallback((permissions: HrPermissions) => {
+    setAuthState(prev => {
+        if (!prev) return null;
+        const newAuth = { ...prev, permissions };
+        // Save the updated auth state with new permissions to localStorage
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        return newAuth;
+    });
+  }, []);
   
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail, setPermissions }}>
       {children}
     </AuthContext.Provider>
   );
