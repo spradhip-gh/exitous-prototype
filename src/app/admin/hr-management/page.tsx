@@ -4,6 +4,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useUserData, CompanyAssignment, HrManager, HrPermissions } from "@/hooks/use-user-data";
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -244,15 +245,30 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
 }
 
 export default function HrManagementPage() {
+    const { auth } = useAuth();
     const { companyAssignments, saveCompanyAssignments } = useUserData();
     const { toast } = useToast();
 
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
     const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
 
-    const allHrManagers = useMemo(() => {
+    const { allHrManagers, allCompanyNames } = useMemo(() => {
         const managers = new Map<string, { email: string, companies: string[] }>();
-        companyAssignments.forEach(assignment => {
+        const companies = new Set<string>();
+
+        let companiesToScan = companyAssignments;
+        // If the user is an HR manager, scope the view to only the companies they are primary for.
+        if (auth?.role === 'hr') {
+            const primaryForCompanies = new Set(
+                companyAssignments
+                    .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
+                    .map(a => a.companyName)
+            );
+            companiesToScan = companyAssignments.filter(a => primaryForCompanies.has(a.companyName));
+        }
+
+        companiesToScan.forEach(assignment => {
+            companies.add(assignment.companyName);
             assignment.hrManagers.forEach(hr => {
                 if (!managers.has(hr.email)) {
                     managers.set(hr.email, { email: hr.email, companies: [] });
@@ -260,11 +276,13 @@ export default function HrManagementPage() {
                 managers.get(hr.email)!.companies.push(assignment.companyName);
             });
         });
-        return Array.from(managers.values());
-    }, [companyAssignments]);
-    
-    const allCompanyNames = useMemo(() => companyAssignments.map(a => a.companyName), [companyAssignments]);
 
+        return {
+            allHrManagers: Array.from(managers.values()),
+            allCompanyNames: Array.from(companies)
+        };
+    }, [companyAssignments, auth]);
+    
     const handleManageClick = (email: string) => {
         setSelectedManager(email);
         setIsManageAccessOpen(true);
@@ -281,14 +299,17 @@ export default function HrManagementPage() {
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">HR Management</h1>
                     <p className="text-muted-foreground">
-                        View all HR Managers and manage their company assignments and permissions.
+                        {auth?.role === 'admin'
+                            ? "View all HR Managers and manage their company assignments and permissions."
+                            : "Manage the HR teams for the companies where you are the Primary Manager."
+                        }
                     </p>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>All HR Managers</CardTitle>
-                        <CardDescription>A list of all unique HR managers across the platform.</CardDescription>
+                        <CardDescription>A list of all unique HR managers within your scope.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>

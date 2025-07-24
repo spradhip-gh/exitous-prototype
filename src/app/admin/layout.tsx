@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -21,9 +21,11 @@ import { Separator } from '@/components/ui/separator';
 
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
-  const isFormEditorDisabled = role === 'hr' && version === 'basic';
-  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
   const { auth } = useAuth();
+  const { companyAssignments } = useUserData();
+  
+  const isFormEditorDisabled = role === 'hr' && version === 'basic';
+  const isManagementOpen = pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management');
   
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
@@ -38,6 +40,11 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
       }
   }
 
+  const isHrPrimaryOfAnyCompany = useMemo(() => {
+    if (role !== 'hr' || !auth?.email) return false;
+    return companyAssignments.some(c => c.hrManagers.some(hr => hr.email === auth.email && hr.isPrimary));
+  }, [role, auth?.email, companyAssignments]);
+
   return (
     <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
@@ -48,7 +55,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               Master Form Editor
             </Button>
           </Link>
-           <Collapsible open={isManagementOpen} onOpenChange={setIsManagementOpen} className="w-full">
+           <Collapsible open={isManagementOpen} onOpenChange={() => {}}>
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start">
                     <Building className="mr-2" />
@@ -120,6 +127,14 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   User Management
                 </Button>
               </Link>
+               {isHrPrimaryOfAnyCompany && (
+                 <Link href="/admin/hr-management">
+                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
+                        <Users2 className="mr-2" />
+                        HR Team Management
+                    </Button>
+                </Link>
+              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
