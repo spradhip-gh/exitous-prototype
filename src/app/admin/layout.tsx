@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -22,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
-  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
+  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management'));
   const { auth } = useAuth();
   
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
@@ -60,6 +60,11 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   <Link href="/admin/companies">
                     <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
                         Company Management
+                    </Button>
+                  </Link>
+                  <Link href="/admin/hr-management">
+                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start text-sm font-normal">
+                        HR Management
                     </Button>
                   </Link>
                   <Link href="/admin/users">
