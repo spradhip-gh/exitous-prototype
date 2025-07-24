@@ -82,7 +82,7 @@ const initializeDb = (): DemoDatabase => {
                 companyName: 'Globex Corp', 
                 hrManagers: [
                     { email: 'hr@globex.com', isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } },
-                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'write-upload', formEditor: 'read', resources: 'read', companySettings: 'read' }}
+                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'invite-only', formEditor: 'read', resources: 'read', companySettings: 'read' }}
                 ], 
                 version: 'pro', 
                 maxUsers: 50,
@@ -105,7 +105,7 @@ const initializeDb = (): DemoDatabase => {
                 companyName: 'Globex Software', 
                 hrManagers: [
                     { email: 'hr@globex.com', isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } },
-                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'write', formEditor: 'write', resources: 'read', companySettings: 'read' }}
+                    { email: 'testnewhr@globex.com', isPrimary: false, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' }}
                 ],
                 version: 'pro', 
                 maxUsers: 25,
