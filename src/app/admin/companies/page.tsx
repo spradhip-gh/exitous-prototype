@@ -295,7 +295,7 @@ export default function CompanyManagementPage() {
                                     <CommandList>
                                         <CommandEmpty>No existing emails found. Type to add new.</CommandEmpty>
                                         <CommandGroup>
-                                            {existingHrEmails.filter(email => email.toLowerCase().includes(newHrEmail.toLowerCase())).map((email) => (
+                                            {existingHrEmails.filter(email => email && email.toLowerCase().includes(newHrEmail.toLowerCase())).map((email) => (
                                                 <CommandItem
                                                     key={email}
                                                     value={email}
@@ -502,6 +502,7 @@ export default function CompanyManagementPage() {
                         <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
                         <CardContent>
                              <Table>
+                               <TableBody>
                                 {editingCompany?.hrManagers.map(hr => (
                                     <TableRow key={hr.email}>
                                         <TableCell>
@@ -522,6 +523,7 @@ export default function CompanyManagementPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                </TableBody>
                             </Table>
                             <Separator className="my-4"/>
                             <div className="flex items-center gap-2">
