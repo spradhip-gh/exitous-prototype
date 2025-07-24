@@ -1,9 +1,9 @@
 # Product Requirements Document: ExitBetter Platform
 
 **Author:** App Prototyper AI
-**Version:** 0.1-20250721
+**Version:** 0.2-20250722
 **Status:** In Development
-**Date:** July 21, 2025
+**Date:** July 22, 2025
 
 ---
 

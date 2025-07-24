@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -19,15 +20,15 @@ export default function Home() {
           router.push('/dashboard');
           break;
         case 'admin':
-          router.push('/admin/forms');
-          break;
         case 'hr':
-          router.push('/admin/forms');
+          // Redirect both admin and HR to the user management page by default
+          router.push('/admin/users');
           break;
         case 'consultant':
           router.push('/admin/review');
           break;
         default:
+          // Remain on the login page if the role is not recognized
           break;
       }
     }

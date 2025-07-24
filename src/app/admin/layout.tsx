@@ -52,38 +52,24 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
     <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
         <>
+          <Link href="/admin/users">
+            <Button variant={getVariant('/admin/users')} className="w-full justify-start">
+                <Users className="mr-2" />
+                User Management
+            </Button>
+          </Link>
+          <Link href="/admin/companies">
+            <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
+                <Building className="mr-2" />
+                Company Management
+            </Button>
+          </Link>
           <Link href="/admin/forms">
             <Button variant={getVariant('/admin/forms')} className="w-full justify-start">
               <Wrench className="mr-2" />
               Master Form Editor
             </Button>
           </Link>
-           <Collapsible open={isManagementOpen} onOpenChange={setIsManagementOpen}>
-              <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-start">
-                    <Building className="mr-2" />
-                    Customers
-                    <ChevronRight className={cn("ml-auto h-4 w-4 transition-transform", isManagementOpen && 'rotate-90')} />
-                  </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1 py-1 pl-7">
-                  <Link href="/admin/companies">
-                    <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
-                        Company Management
-                    </Button>
-                  </Link>
-                  <Link href="/admin/hr-management">
-                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start text-sm font-normal">
-                        HR Management
-                    </Button>
-                  </Link>
-                  <Link href="/admin/users">
-                    <Button variant={getVariant('/admin/users')} className="w-full justify-start text-sm font-normal">
-                        User Management
-                    </Button>
-                  </Link>
-              </CollapsibleContent>
-            </Collapsible>
           <Link href="/admin/external-resources">
             <Button variant={getVariant('/admin/external-resources')} className="w-full justify-start">
               <Handshake className="mr-2" />

@@ -67,7 +67,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
 
   const handleStopUserView = () => {
     stopUserView();
-    router.push('/admin/forms');
+    router.push('/admin/users');
   };
 
   const handleCompanySwitch = (companyName: string) => {
@@ -154,6 +154,10 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                              <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Resources:</span>
                                 <Badge variant="secondary" className="font-normal">{permissionLabels[auth.permissions.resources] || 'N/A'}</Badge>
+                            </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Company Settings:</span>
+                                <Badge variant="secondary" className="font-normal">{permissionLabels[auth.permissions.companySettings] || 'N/A'}</Badge>
                             </div>
                         </div>
                         <DropdownMenuSeparator />
