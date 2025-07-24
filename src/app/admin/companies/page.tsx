@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,7 @@ import Papa from 'papaparse';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const defaultPermissions = {
     userManagement: 'write-upload' as const,
@@ -66,6 +67,7 @@ export default function CompanyManagementPage() {
   const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
   const [editedPreEndDateContact, setEditedPreEndDateContact] = useState('');
   const [editedPostEndDateContact, setEditedPostEndDateContact] = useState('');
+  const [addHrEmail, setAddHrEmail] = useState('');
 
   const existingHrEmails = useMemo(() => {
     return [...new Set(companyAssignments.flatMap(a => a.hrManagers.map(hr => hr.email)))];
@@ -88,7 +90,7 @@ export default function CompanyManagementPage() {
     
     addCompanyAssignment({ 
         companyName: newCompanyName, 
-        hrManagerEmail: newHrEmail,
+        hrManagers: [{email: newHrEmail, isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' }}],
         version: newCompanyVersion,
         maxUsers: maxUsersNum,
         severanceDeadlineTime: newDeadlineTime,
@@ -146,8 +148,6 @@ export default function CompanyManagementPage() {
   const handleUpgrade = (companyName: string) => {
     updateCompanyAssignment(companyName, { version: 'pro' });
     toast({ title: "Company Upgraded", description: `${companyName} is now on the Pro version.` });
-    setIsEditDialogOpen(false);
-    setEditingCompany(null);
   }
 
   const allConfigs = getAllCompanyConfigs();
@@ -199,6 +199,59 @@ export default function CompanyManagementPage() {
     link.click();
     document.body.removeChild(link);
   };
+  
+    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+        const currentAssignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!currentAssignment) return;
+
+        const updatedManagers = currentAssignment.hrManagers.map(hr => ({
+            ...hr,
+            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase()
+        }));
+
+        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
+        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        toast({ title: "Primary Manager Updated", description: `${newPrimaryEmail} is now the primary manager for ${companyName}.` });
+    };
+
+    const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
+        const currentAssignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!currentAssignment || currentAssignment.hrManagers.length <= 1) {
+            toast({ title: "Cannot Remove Last Manager", description: "A company must have at least one HR manager.", variant: "destructive" });
+            return;
+        }
+
+        const updatedManagers = currentAssignment.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
+        
+        // If the primary was removed, make the first remaining manager primary
+        if (!updatedManagers.some(hr => hr.isPrimary)) {
+            updatedManagers[0].isPrimary = true;
+        }
+        
+        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
+        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        toast({ title: "HR Manager Removed", description: `${emailToRemove} has been removed from ${companyName}.` });
+    };
+
+    const handleAddHrToCompany = () => {
+        if (!editingCompany || !addHrEmail) return;
+
+        const currentAssignment = companyAssignments.find(a => a.companyName === editingCompany.companyName);
+        if (!currentAssignment) return;
+        
+        if (currentAssignment.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
+            toast({ title: "Manager Already Assigned", description: `${addHrEmail} is already assigned to this company.`, variant: "destructive" });
+            return;
+        }
+
+        const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: { userManagement: 'read', formEditor: 'read', resources: 'read', companySettings: 'read' }};
+        const updatedManagers = [...currentAssignment.hrManagers, newHr];
+        
+        updateCompanyAssignment(editingCompany.companyName, { hrManagers: updatedManagers });
+        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        setAddHrEmail('');
+        toast({ title: "HR Manager Added", description: `${addHrEmail} has been added to ${editingCompany.companyName}.` });
+    };
 
 
   return (
@@ -394,51 +447,90 @@ export default function CompanyManagementPage() {
       </div>
 
        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Edit {editingCompany?.companyName}</DialogTitle>
                     <DialogDescription>
-                        Update company settings. Changes will be applied immediately.
+                        Update company settings, manage HR team, and upgrade plan.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="max-users">Max Users</Label>
-                            <Input 
-                                id="max-users" 
-                                type="number" 
-                                value={editedMaxUsers} 
-                                onChange={(e) => setEditedMaxUsers(e.target.value)} 
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="deadline-time">Deadline Time</Label>
-                            <Input 
-                                id="deadline-time" 
-                                type="time" 
-                                value={editedDeadlineTime} 
-                                onChange={(e) => setEditedDeadlineTime(e.target.value)} 
-                            />
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
-                        <Select value={editedDeadlineTimezone} onValueChange={setEditedDeadlineTimezone}>
-                            <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
-                        <Input id="edit-pre-contact" value={editedPreEndDateContact} onChange={e => setEditedPreEndDateContact(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
-                        <Input id="edit-post-contact" value={editedPostEndDateContact} onChange={e => setEditedPostEndDateContact(e.target.value)} />
-                    </div>
+                <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">Company Settings</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="max-users">Max Users</Label>
+                                    <Input 
+                                        id="max-users" 
+                                        type="number" 
+                                        value={editedMaxUsers} 
+                                        onChange={(e) => setEditedMaxUsers(e.target.value)} 
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="deadline-time">Deadline Time</Label>
+                                    <Input 
+                                        id="deadline-time" 
+                                        type="time" 
+                                        value={editedDeadlineTime} 
+                                        onChange={(e) => setEditedDeadlineTime(e.target.value)} 
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
+                                <Select value={editedDeadlineTimezone} onValueChange={setEditedDeadlineTimezone}>
+                                    <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
+                                <Input id="edit-pre-contact" value={editedPreEndDateContact} onChange={e => setEditedPreEndDateContact(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
+                                <Input id="edit-post-contact" value={editedPostEndDateContact} onChange={e => setEditedPostEndDateContact(e.target.value)} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
+                        <CardContent>
+                             <Table>
+                                {editingCompany?.hrManagers.map(hr => (
+                                    <TableRow key={hr.email}>
+                                        <TableCell>
+                                            <div className="font-medium">{hr.email}</div>
+                                            {hr.isPrimary && <div className="text-xs text-amber-600">Primary Manager</div>}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {!hr.isPrimary && (
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)}>
+                                                        <Crown className="mr-2 h-4 w-4"/> Make Primary
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)}>
+                                                        <Trash2 className="mr-2 h-4 w-4"/> Remove
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </Table>
+                            <Separator className="my-4"/>
+                            <div className="flex items-center gap-2">
+                                <Input placeholder="new.manager@email.com" value={addHrEmail} onChange={e => setAddHrEmail(e.target.value)} />
+                                <Button onClick={handleAddHrToCompany}><UserPlus className="mr-2"/>Add HR</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {(editingCompany?.version || 'basic') === 'basic' && (
                          <Card className="bg-muted/50">
                             <CardHeader>
@@ -462,3 +554,4 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
+

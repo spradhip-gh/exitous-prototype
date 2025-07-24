@@ -520,13 +520,11 @@ export function useUserData() {
   }, [companyAssignments]);
   
 
-  const addCompanyAssignment = useCallback((assignment: Partial<CompanyAssignment> & { hrManagerEmail: string; companyName: string }) => {
-    const { hrManagerEmail, ...rest } = assignment;
+  const addCompanyAssignment = useCallback((assignment: Partial<CompanyAssignment> & { companyName: string; hrManagers: HrManager[] }) => {
     const newAssignment: CompanyAssignment = {
-        hrManagers: [{ email: hrManagerEmail, isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } }],
         version: 'basic',
         maxUsers: 10,
-        ...rest
+        ...assignment
     };
 
     const newAssignments = [...companyAssignments, newAssignment];
@@ -821,3 +819,4 @@ export function useUserData() {
 }
 
     
+
