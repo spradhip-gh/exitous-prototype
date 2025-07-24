@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -43,14 +44,13 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
-function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave, onMakePrimary }: {
+function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave }: {
     managerEmail: string | null;
     assignments: CompanyAssignment[];
     managedCompanies: string[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
-    onMakePrimary: (companyName: string, newPrimaryManagerEmail: string) => void;
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -70,6 +70,30 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
         const isAlreadyAssigned = managerAssignments.some(ma => ma.companyName === c.companyName);
         return isManagedByLoggedInUser && !isAlreadyAssigned;
     }).map(c => c.companyName);
+    
+    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+        setLocalAssignments(prev => {
+            const updated = prev.map(a => {
+                if (a.companyName === companyName) {
+                    const newManagers = a.hrManagers.map(hr => {
+                        const isNewPrimary = hr.email.toLowerCase() === newPrimaryEmail.toLowerCase();
+                        return {
+                            ...hr,
+                            isPrimary: isNewPrimary,
+                            // Grant full permissions to new primary, demote old primary's company settings
+                            permissions: isNewPrimary
+                                ? fullPermissions
+                                : { ...hr.permissions, companySettings: 'read' as const }
+                        };
+                    });
+                    return { ...a, hrManagers: newManagers };
+                }
+                return a;
+            });
+            return updated;
+        });
+        toast({ title: 'Primary Role Staged', description: `${newPrimaryEmail} will become the new primary. Save all changes to confirm.` });
+    };
 
     const handleRemoveAccess = (companyName: string) => {
         const companyAssignment = localAssignments.find(a => a.companyName === companyName);
@@ -152,16 +176,18 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                  <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <span tabIndex={!canEditThisCompany || isLastManager ? 0 : -1}>
-                                                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!canEditThisCompany || isLastManager}>
+                                                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!canEditThisCompany || isLastManager || manager.isPrimary}>
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </span>
                                                     </TooltipTrigger>
-                                                    {isLastManager && canEditThisCompany && (
-                                                        <TooltipContent>
-                                                          <p>Cannot remove the last manager of a company.</p>
-                                                        </TooltipContent>
-                                                    )}
+                                                    <TooltipContent>
+                                                          <p>
+                                                            {isLastManager ? "Cannot remove the last manager of a company." :
+                                                             manager.isPrimary ? "Cannot remove a Primary Manager. Assign a new primary first." : 
+                                                             "Remove access"}
+                                                          </p>
+                                                    </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </CardHeader>
@@ -194,7 +220,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => onMakePrimary(assignment.companyName, manager.email)}>Confirm & Transfer</AlertDialogAction>
+                                                                <AlertDialogAction onClick={() => handleMakePrimary(assignment.companyName, manager.email)}>Confirm & Transfer</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
@@ -500,7 +526,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
 
 export default function HrManagementPage() {
     const { auth } = useAuth();
-    const { companyAssignments, saveCompanyAssignments, updateCompanyAssignment } = useUserData();
+    const { companyAssignments, saveCompanyAssignments } = useUserData();
     const { toast } = useToast();
 
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
@@ -511,26 +537,6 @@ export default function HrManagementPage() {
     useEffect(() => {
         setLocalAssignments(companyAssignments);
     }, [companyAssignments]);
-
-    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
-        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
-        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager for ${companyName}.`});
-        
-        // Refresh local state to reflect the change immediately in the dialog
-        const updatedAssignments = localAssignments.map(a => {
-            if (a.companyName === companyName) {
-                return {
-                    ...a,
-                    hrManagers: a.hrManagers.map(hr => ({
-                        ...hr,
-                        isPrimary: hr.email.toLowerCase() === newPrimaryManagerEmail.toLowerCase()
-                    }))
-                };
-            }
-            return a;
-        });
-        setLocalAssignments(updatedAssignments);
-    };
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
         let companiesWherePrimary: string[] = [];
@@ -636,7 +642,6 @@ export default function HrManagementPage() {
                 open={isManageAccessOpen}
                 onOpenChange={setIsManageAccessOpen}
                 onSave={handleSaveAssignments}
-                onMakePrimary={handleMakePrimary}
             />
 
             <AddHrManagerDialog
