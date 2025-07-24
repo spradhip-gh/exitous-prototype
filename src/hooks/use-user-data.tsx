@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -33,6 +32,10 @@ const RECOMMENDATIONS_KEY = 'exitbetter-recommendations';
 const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
+export interface HrManager {
+    email: string;
+    isPrimary: boolean;
+}
 export interface CompanyUser {
   email: string;
   companyId: string;
@@ -104,7 +107,7 @@ export interface CompanyConfig {
 
 export interface CompanyAssignment {
     companyName: string;
-    hrManagerEmail: string;
+    hrManagers: HrManager[];
     version: 'basic' | 'pro';
     maxUsers: number;
     severanceDeadlineTime?: string; // e.g. "23:59"
@@ -115,7 +118,7 @@ export interface CompanyAssignment {
 
 export interface PlatformUser {
     email: string;
-    role: 'admin' | 'consultant' | 'hr';
+    role: 'admin' | 'consultant';
 }
 
 // --- HELPER FUNCTIONS ---
@@ -335,7 +338,16 @@ export function useUserData() {
       setRecommendations(recommendationsJson ? JSON.parse(recommendationsJson) : null);
       
       const timezoneJson = localStorage.getItem(timezoneKey);
-      setUserTimezone(timezoneJson ? JSON.parse(timezoneJson) : null);
+      if (timezoneJson) {
+        try {
+          setUserTimezone(JSON.parse(timezoneJson));
+        } catch {
+          // If it's not valid JSON, it's probably a raw string
+          setUserTimezone(timezoneJson);
+        }
+      } else {
+        setUserTimezone(null);
+      }
       
     } catch (error) {
       console.error('Failed to load user data', error);
@@ -490,10 +502,8 @@ export function useUserData() {
   }, []);
 
   const getCompaniesForHr = useCallback((hrEmail: string): CompanyAssignment[] => {
-    const user = platformUsers.find(u => u.role === 'hr' && u.email.toLowerCase() === hrEmail.toLowerCase());
-    if (!user) return [];
-    return companyAssignments.filter(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
-  }, [platformUsers, companyAssignments]);
+    return companyAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === hrEmail.toLowerCase()));
+  }, [companyAssignments]);
   
 
   const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
@@ -535,7 +545,7 @@ export function useUserData() {
     setPlatformUsersState(newUsers);
   }, [platformUsers]);
 
-  const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | 'hr' | null => {
+  const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | null => {
     const user = platformUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
     return user ? user.role : null;
   }, [platformUsers]);
