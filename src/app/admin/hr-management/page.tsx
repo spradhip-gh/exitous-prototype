@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Crown, Shield, UserPlus, Info } from "lucide-react";
+import { PlusCircle, Trash2, Crown, Shield, UserPlus, Info, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -44,84 +44,6 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
-function PermissionsDialog({ open, onOpenChange, onSave, permissions }: {
-    open: boolean,
-    onOpenChange: (open: boolean) => void,
-    onSave: (permissions: HrPermissions) => void,
-    permissions: HrPermissions
-}) {
-    const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(permissions);
-
-    useEffect(() => {
-        if (open) {
-            setEditedPermissions(permissions);
-        }
-    }, [open, permissions]);
-
-    const handleSave = () => {
-        onSave(editedPermissions);
-        onOpenChange(false);
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Edit Permissions</DialogTitle>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label>User Management</Label>
-                        <Select value={editedPermissions.userManagement} onValueChange={(v) => setEditedPermissions(p => ({...p, userManagement: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="invite-only">Invite Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                                <SelectItem value="write-upload">Write & Upload</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Form Editor</Label>
-                        <Select value={editedPermissions.formEditor} onValueChange={(v) => setEditedPermissions(p => ({...p, formEditor: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Resources</Label>
-                        <Select value={editedPermissions.resources} onValueChange={(v) => setEditedPermissions(p => ({...p, resources: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Company Settings</Label>
-                        <Select value={editedPermissions.companySettings} onValueChange={(v) => setEditedPermissions(p => ({...p, companySettings: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Permissions</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave }: {
     managerEmail: string | null;
     assignments: CompanyAssignment[];
@@ -131,9 +53,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
 }) {
     const { toast } = useToast();
-    const { updateCompanyAssignment } = useUserData();
     const [localAssignments, setLocalAssignments] = useState<CompanyAssignment[]>([]);
-    const [editingPermissions, setEditingPermissions] = useState<{ companyName: string, permissions: HrPermissions } | null>(null);
 
     useEffect(() => {
         if (open) {
@@ -144,8 +64,6 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
     if (!managerEmail) return null;
 
     const managerAssignments = localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
-    
-    // Admins can add to any company, HRs can only add to companies they are primary for
     const addableCompanies = assignments.filter(c => {
         const isManagedByLoggedInUser = managedCompanies.includes(c.companyName);
         const isAlreadyAssigned = managerAssignments.some(ma => ma.companyName === c.companyName);
@@ -181,37 +99,33 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
         }));
     };
     
-    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
-        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
-        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager for ${companyName}.`});
-        
-        // Refresh local state to reflect the change immediately in the dialog
-        const updatedLocalAssignments = localAssignments.map(a => {
-            if (a.companyName === companyName) {
-                return {
-                    ...a,
-                    hrManagers: a.hrManagers.map(hr => ({
-                        ...hr,
-                        isPrimary: hr.email.toLowerCase() === newPrimaryManagerEmail.toLowerCase()
-                    }))
-                };
-            }
-            return a;
-        });
-        setLocalAssignments(updatedLocalAssignments);
-    };
-
-    const handleSavePermissions = (companyName: string, permissions: HrPermissions) => {
+    const handleMakePrimary = (companyName: string) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
-                return {
-                    ...a,
-                    hrManagers: a.hrManagers.map(hr => hr.email.toLowerCase() === managerEmail.toLowerCase() ? { ...hr, permissions } : hr)
-                };
+                const updatedManagers = a.hrManagers.map(hr => ({
+                    ...hr,
+                    isPrimary: hr.email.toLowerCase() === managerEmail.toLowerCase(),
+                    permissions: hr.email.toLowerCase() === managerEmail.toLowerCase() ? fullPermissions : { ...hr.permissions, companySettings: 'read' as const },
+                }));
+                return { ...a, hrManagers: updatedManagers };
             }
             return a;
         }));
-        setEditingPermissions(null);
+    };
+
+    const handlePermissionChange = (companyName: string, key: keyof HrPermissions, value: string) => {
+        setLocalAssignments(prev => prev.map(a => {
+            if (a.companyName === companyName) {
+                const updatedManagers = a.hrManagers.map(hr => {
+                    if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
+                        return { ...hr, permissions: { ...hr.permissions, [key]: value } };
+                    }
+                    return hr;
+                });
+                return { ...a, hrManagers: updatedManagers };
+            }
+            return a;
+        }));
     };
 
     const handleSave = () => {
@@ -226,73 +140,105 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                     <DialogTitle>Manage Access for {managerEmail}</DialogTitle>
                     <DialogDescription>Add, remove, or edit company access and permissions for this HR Manager.</DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto">
+                <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
                     <Card>
                         <CardHeader><CardTitle className="text-base">Assigned Companies</CardTitle></CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow><TableHead>Company</TableHead><TableHead>Role</TableHead><TableHead className="text-right">Actions</TableHead></TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {managerAssignments.map(assignment => {
-                                        const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
-                                        if (!manager) return null;
-                                        
-                                        const canEditThisCompany = managedCompanies.includes(assignment.companyName);
-                                        const isPrimaryInThisCompany = manager.isPrimary;
-                                        const isLastManager = assignment.hrManagers.length <= 1;
+                        <CardContent className="space-y-4">
+                            {managerAssignments.length > 0 ? managerAssignments.map(assignment => {
+                                const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
+                                if (!manager) return null;
+                                
+                                const canEditThisCompany = managedCompanies.includes(assignment.companyName);
+                                const isPrimaryInThisCompany = manager.isPrimary;
+                                const isLastManager = assignment.hrManagers.length <= 1;
+                                const isDeleteDisabled = !canEditThisCompany || isPrimaryInThisCompany || isLastManager;
 
-                                        const isDeleteDisabled = !canEditThisCompany || isPrimaryInThisCompany || isLastManager;
-
-                                        return (
-                                            <TableRow key={assignment.companyName}>
-                                                <TableCell className="font-medium">{assignment.companyName}</TableCell>
-                                                <TableCell>
-                                                    {isPrimaryInThisCompany ? (
-                                                        <Badge><Crown className="mr-2" />Primary</Badge>
-                                                    ) : (
-                                                         <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="secondary" size="sm" disabled={!canEditThisCompany}>Manager</Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Make {managerEmail} Primary?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        This will demote the current primary manager and promote this user. Are you sure?
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleMakePrimary(assignment.companyName, managerEmail)}>Confirm</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
+                                return (
+                                    <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
+                                        <CardHeader className="flex flex-row items-center justify-between p-4">
+                                            <Label htmlFor={`assign-${assignment.companyName}`} className="text-base font-semibold">{assignment.companyName}</Label>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span tabIndex={isDeleteDisabled ? 0 : -1}>
+                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={isDeleteDisabled}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                     {isDeleteDisabled && (
+                                                        <TooltipContent>
+                                                          <p>
+                                                            {isPrimaryInThisCompany 
+                                                              ? "Cannot remove a Primary Manager. Promote another user first." 
+                                                              : "Cannot remove the last manager of a company."
+                                                            }
+                                                          </p>
+                                                        </TooltipContent>
                                                     )}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEditThisCompany || isPrimaryInThisCompany}><Shield className="h-4 w-4" /></Button>
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span tabIndex={isDeleteDisabled ? 0 : -1}>
-                                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={isDeleteDisabled}>
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>You cannot delete a primary user. Assign a new primary for the company first.</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </CardHeader>
+                                        <CardContent className="p-4 pt-0 space-y-4">
+                                            <Separator />
+                                            <div className="pt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label>Make Primary Manager</Label>
+                                                    <Switch checked={isPrimaryInThisCompany} onCheckedChange={() => handleMakePrimary(assignment.companyName)} disabled={!canEditThisCompany || isPrimaryInThisCompany} />
+                                                </div>
+                                            </div>
+                                            {!isPrimaryInThisCompany && (
+                                                <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
+                                                     <div>
+                                                        <Label>User Management</Label>
+                                                        <Select value={manager.permissions.userManagement} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'userManagement', v)}>
+                                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="read">Read Only</SelectItem>
+                                                                <SelectItem value="invite-only">Invite Only</SelectItem>
+                                                                <SelectItem value="write">Write</SelectItem>
+                                                                <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                     <div>
+                                                        <Label>Form Editor</Label>
+                                                        <Select value={manager.permissions.formEditor} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'formEditor', v)}>
+                                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="read">Read Only</SelectItem>
+                                                                <SelectItem value="write">Write</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                     <div>
+                                                        <Label>Resources</Label>
+                                                        <Select value={manager.permissions.resources} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'resources', v)}>
+                                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="read">Read Only</SelectItem>
+                                                                <SelectItem value="write">Write</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <Label>Company Settings</Label>
+                                                        <Select value={manager.permissions.companySettings} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'companySettings', v)}>
+                                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="read">Read Only</SelectItem>
+                                                                <SelectItem value="write">Write</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </fieldset>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            }) : (
+                                <p className="text-sm text-center text-muted-foreground py-4">This manager is not assigned to any companies you manage.</p>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -318,14 +264,6 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSave}>Save All Changes</Button>
                 </DialogFooter>
-                {editingPermissions && (
-                    <PermissionsDialog
-                        open={!!editingPermissions}
-                        onOpenChange={() => setEditingPermissions(null)}
-                        permissions={editingPermissions.permissions}
-                        onSave={(perms) => handleSavePermissions(editingPermissions.companyName, perms)}
-                    />
-                )}
             </DialogContent>
         </Dialog>
     );
@@ -624,8 +562,8 @@ export default function HrManagementPage() {
                                         <TableCell className="font-medium">{manager.email}</TableCell>
                                         <TableCell>{manager.companies.length}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="outline" size="sm" onClick={() => handleManageClick(manager.email)}>
-                                                Manage Access
+                                             <Button variant="ghost" size="icon" onClick={() => handleManageClick(manager.email)}>
+                                                <Pencil className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>

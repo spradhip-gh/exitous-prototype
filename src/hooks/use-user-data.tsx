@@ -113,7 +113,7 @@ export interface CompanyConfig {
     guidance?: GuidanceRule[];
 }
 
-export type UpdateCompanyAssignmentPayload = Partial<CompanyAssignment> & {
+export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
     newPrimaryManagerEmail?: string;
     hrManagerToRemove?: string;
     hrManagerToAdd?: HrManager;
@@ -622,11 +622,8 @@ export function useUserData() {
           );
       }
       
-      const finalAssignment = { ...originalAssignment, ...payload };
-      delete finalAssignment.newPrimaryManagerEmail;
-      delete finalAssignment.hrManagerToRemove;
-      delete finalAssignment.hrManagerToAdd;
-      delete finalAssignment.hrManagerToUpdate;
+      const { newPrimaryManagerEmail, hrManagerToRemove, hrManagerToAdd, hrManagerToUpdate, ...restOfPayload } = payload;
+      const finalAssignment = { ...originalAssignment, ...restOfPayload };
 
       newAssignments[assignmentIndex] = finalAssignment;
       saveCompanyAssignmentsToDb(newAssignments);
@@ -908,3 +905,4 @@ export function useUserData() {
     saveExternalResources,
   };
 }
+
