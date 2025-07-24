@@ -74,7 +74,7 @@ const initializeDb = (): DemoDatabase => {
         companyAssignments: [
             { 
                 companyName: 'Globex Corp', 
-                hrManagerEmail: 'hr@globex.com', 
+                hrManagers: [{ email: 'hr@globex.com', isPrimary: true }], 
                 version: 'pro', 
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
@@ -84,7 +84,7 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Initech', 
-                hrManagerEmail: 'hr@initech.com', 
+                hrManagers: [{ email: 'hr@initech.com', isPrimary: true }],
                 version: 'basic', 
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
@@ -94,7 +94,7 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Globex Software', 
-                hrManagerEmail: 'hr@globex.com', 
+                hrManagers: [{ email: 'hr@globex.com', isPrimary: true }],
                 version: 'pro', 
                 maxUsers: 25,
                 severanceDeadlineTime: '17:00',
@@ -369,8 +369,6 @@ This checklist is designed to help you manage key tasks during your employment t
         platformUsers: [
             { email: 'admin@exitous.co', role: 'admin' },
             { email: 'consultant@exitous.co', role: 'consultant' },
-            { email: 'hr@globex.com', role: 'hr' },
-            { email: 'hr@initech.com', role: 'hr' },
         ],
         masterQuestions: initializeQuestions(getDefaultQuestions),
         masterProfileQuestions: initializeQuestions(getDefaultProfileQuestions),

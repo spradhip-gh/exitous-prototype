@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -505,8 +506,15 @@ export function useUserData() {
   }, [companyAssignments]);
   
 
-  const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
-    const newAssignments = [...companyAssignments, assignment];
+  const addCompanyAssignment = useCallback((assignment: Partial<CompanyAssignment> & { companyName: string }) => {
+    const newAssignment: CompanyAssignment = {
+        hrManagers: assignment.hrManagers || [],
+        version: assignment.version || 'basic',
+        maxUsers: assignment.maxUsers || 10,
+        ...assignment
+    };
+
+    const newAssignments = [...companyAssignments, newAssignment];
     saveCompanyAssignmentsToDb(newAssignments);
     setCompanyAssignmentsState(newAssignments);
 
