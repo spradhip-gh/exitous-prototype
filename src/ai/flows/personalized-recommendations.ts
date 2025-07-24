@@ -121,7 +121,7 @@ const prompt = ai.definePrompt({
   },
   prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
 
-Your task is to generate a comprehensive list of actionable recommendations based on the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
+Your task is to generate a comprehensive list of actionable recommendations based on ALL of the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
 
 **CRITICAL INSTRUCTIONS:**
 1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Do not guess or provide unverified guidance. Your recommendations should be based only on the data provided.
@@ -135,23 +135,51 @@ Your task is to generate a comprehensive list of actionable recommendations base
     *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
 8.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
 
-**User Profile:**
+**FULL USER PROFILE:**
 - Birth Year: {{{profileData.birthYear}}}
 - Gender: {{{profileData.gender}}}
 - State of Residence: {{{profileData.state}}}
 - Marital Status: {{{profileData.maritalStatus}}}
-- Dependents: {{#if profileData.hasChildrenUnder13}}Has children under 13{{/if}}
-- Citizenship/Visa Status: {{{profileData.citizenshipStatus}}} / {{{layoffDetails.workVisa}}}
-- Employment Start Date: {{{layoffDetails.startDate}}}
+- Has Children Under 13: {{#if profileData.hasChildrenUnder13}}Yes{{else}}No{{/if}}
+- Has Children Ages 18-26: {{#if profileData.hasChildrenAges18To26}}Yes{{else}}No{{/if}}
+- Has Expected Children: {{#if profileData.hasExpectedChildren}}Yes{{else}}No{{/if}}
+- Number of people impacted by income loss: {{{profileData.impactedPeopleCount}}}
+- Living Status: {{{profileData.livingStatus}}}
+- Citizenship/Visa Status: {{{profileData.citizenshipStatus}}}
+- Recent Life Events: {{#each profileData.pastLifeEvents}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-**Key Dates & Details:**
+**FULL EXIT DETAILS:**
+- Employment Start Date: {{{layoffDetails.startDate}}}
+- Work Status: {{{layoffDetails.workStatus}}}
+- Notification Date: {{{layoffDetails.notificationDate}}}
 - Final Day of Employment: {{{layoffDetails.finalDate}}}
-- Severance Deadline: {{{layoffDetails.severanceAgreementDeadline}}}
-- Lost Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}} (Coverage ends: {{{layoffDetails.medicalCoverageEndDate}}})
-- Lost Dental Insurance: {{{layoffDetails.hadDentalInsurance}}} (Coverage ends: {{{layoffDetails.dentalCoverageEndDate}}})
-- Lost Vision Insurance: {{{layoffDetails.hadVisionInsurance}}} (Coverage ends: {{{layoffDetails.visionCoverageEndDate}}})
+- Severance Agreement Deadline: {{{layoffDetails.severanceAgreementDeadline}}}
+- Work State: {{{layoffDetails.workState}}}
+- Relocation Paid: {{{layoffDetails.relocationPaid}}}
+- Relocation Date: {{{layoffDetails.relocationDate}}}
 - Union Member: {{{layoffDetails.unionMember}}}
-- On Leave: {{{layoffDetails.onLeave}}}
+- Work Arrangement: {{{layoffDetails.workArrangement}}}
+- Other Arrangement Details: {{{layoffDetails.workArrangementOther}}}
+- Work Visa: {{{layoffDetails.workVisa}}}
+- On Leave: {{#each layoffDetails.onLeave}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+- Used Leave Management System: {{{layoffDetails.usedLeaveManagement}}}
+- Systems Still Accessible: {{#each layoffDetails.accessSystems}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
+  - Messaging Access Ends: {{{layoffDetails.internalMessagingAccessEndDate}}}
+  - Email Access Ends: {{{layoffDetails.emailAccessEndDate}}}
+  - Drive Access Ends: {{{layoffDetails.networkDriveAccessEndDate}}}
+  - Portal Access Ends: {{{layoffDetails.layoffPortalAccessEndDate}}}
+  - HR/Payroll Access Ends: {{{layoffDetails.hrPayrollSystemAccessEndDate}}}
+- Had Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}}
+  - Medical Coverage: {{{layoffDetails.medicalCoverage}}}
+  - Medical Coverage End Date: {{{layoffDetails.medicalCoverageEndDate}}}
+- Had Dental Insurance: {{{layoffDetails.hadDentalInsurance}}}
+  - Dental Coverage: {{{layoffDetails.dentalCoverage}}}
+  - Dental Coverage End Date: {{{layoffDetails.dentalCoverageEndDate}}}
+- Had Vision Insurance: {{{layoffDetails.hadVisionInsurance}}}
+  - Vision Coverage: {{{layoffDetails.visionCoverage}}}
+  - Vision Coverage End Date: {{{layoffDetails.visionCoverageEndDate}}}
+- Had EAP: {{{layoffDetails.hadEAP}}}
+  - EAP Coverage End Date: {{{layoffDetails.eapCoverageEndDate}}}
 
 **Context Data:**
 - State Unemployment Links: {{stateUnemploymentLinks}}
@@ -202,6 +230,9 @@ const personalizedRecommendationsFlow = ai.defineFlow(
   }
 );
 
+
+
+    
 
 
     
