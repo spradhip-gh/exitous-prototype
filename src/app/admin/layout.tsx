@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Users2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -23,6 +23,14 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
+  const { auth } = useAuth();
+  const { companyAssignments } = useUserData();
+  
+  const isPrimaryHr = useMemo(() => {
+    if (!auth || auth.role !== 'hr' || !auth.companyName) return false;
+    const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
+    return assignment?.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary);
+  }, [auth, companyAssignments]);
 
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
@@ -128,6 +136,14 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
               )}
             </Tooltip>
           </TooltipProvider>
+           {isPrimaryHr && (
+            <Link href="/admin/hr-management">
+              <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
+                <Users2 className="mr-2" />
+                HR Management
+              </Button>
+            </Link>
+          )}
           <Link href="/admin/analytics">
             <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
               <BarChart className="mr-2" />
