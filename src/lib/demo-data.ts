@@ -117,92 +117,6 @@ const initializeDb = (): DemoDatabase => {
         ],
         companyConfigs: {
             'Globex Corp': {
-                guidance: [
-                    {
-                        id: 'tenure-rule-very-short-career',
-                        name: 'Guidance for < 30 Days Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'lt', value: [0.082], label: '< 30 Days' }],
-                        guidanceText: 'Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-short',
-                        name: 'Guidance for 30 days - 1 Year Tenure',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [0.082, 1], label: '30 days - 1 Year' }],
-                        guidanceText: 'Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-medium-financial',
-                        name: 'Guidance for 1-5 Year Tenure (Financial)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
-                        category: 'Finances'
-                    },
-                    {
-                        id: 'tenure-rule-medium-career',
-                        name: 'Guidance for 1-5 Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [1, 6], label: '1 - 5 Years' }],
-                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
-                        category: 'Career'
-                    },
-                     {
-                        id: 'tenure-rule-long-financial',
-                        name: 'Guidance for 6-10 Year Tenure (Financial)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
-                        category: 'Finances'
-                    },
-                    {
-                        id: 'tenure-rule-long-career',
-                        name: 'Guidance for 6-10 Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-long-career1',
-                        name: 'Guidance for 6-10 Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'After a long tenure, your identity may be closely tied to your previous job, but  you can continue to define and evolve your professional self independent of past roles and associations.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-long-career2',
-                        name: 'Guidance for 6-10 Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte_lt', value: [6, 11], label: '6 - 10 Years' }],
-                        guidanceText: 'After a long tenure, a refreshed professional image can energize and inspire new considerations, such as conferences, courses or certifications for staying competitive in today’s job market.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-very-long-financial',
-                        name: 'Guidance for 10+ Year Tenure (Financial)',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'Your unemployment eligibility is based on the last four calendar quarters before you file your claim. [STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]',
-                        category: 'Finances'
-                    },
-                    {
-                        id: 'tenure-rule-very-long-career',
-                        name: 'Guidance for 10+ Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'Taking courses or earning certifications in role-adjacent skills can diversify and strengthen your resume and help you stay competitive.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-very-long-career1',
-                        name: 'Guidance for 10+ Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'After a long tenure, your identity may be closely tied to your previous job, but  you can continue to define and evolve your professional self independent of past roles and associations.',
-                        category: 'Career'
-                    },
-                    {
-                        id: 'tenure-rule-very-long-career2',
-                        name: 'Guidance for 10+ Year Tenure (Career)',
-                        conditions: [{ type: 'tenure', operator: 'gte', value: [11], label: '10+ Years' }],
-                        guidanceText: 'After a long tenure, a refreshed professional image can energize and inspire new considerations, such as conferences, courses or certifications for staying competitive in today’s job market.',
-                        category: 'Career'
-                    },
-                ],
                 questions: {},
                 users: [
                     { email: 'employee1@globex.com', companyId: 'G123', notificationDate: getPastDate(5), notified: true },
@@ -405,7 +319,6 @@ This checklist is designed to help you manage key tasks during your employment t
                     layoffDetails: {
                         workVisa: 'H-1B'
                     },
-                    adminGuidance: [],
                 },
                 output: {
                     recommendations: [
@@ -431,7 +344,6 @@ This checklist is designed to help you manage key tasks during your employment t
                         medicalCoverage: 'Me and family',
                         medicalCoverageEndDate: getFutureDate(30),
                     },
-                    adminGuidance: [],
                 },
                 output: {
                     recommendations: [
