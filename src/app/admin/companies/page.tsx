@@ -264,11 +264,18 @@ export default function CompanyManagementPage() {
   };
   
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
-        updateCompanyAssignment(companyName, { newPrimaryManagerEmail: newPrimaryEmail });
+        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
         toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager.`});
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
+        const companyToUpdate = companyAssignments.find(a => a.companyName === companyName);
+        const managerToRemove = companyToUpdate?.hrManagers.find(hr => hr.email === emailToRemove);
+
+        if (managerToRemove?.isPrimary) {
+            toast({ title: "Action Prohibited", description: "You cannot remove a Primary Manager. Assign a new primary manager first.", variant: "destructive" });
+            return;
+        }
         updateCompanyAssignment(companyName, { hrManagerToRemove: emailToRemove });
     };
 
@@ -585,15 +592,6 @@ export default function CompanyManagementPage() {
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <Switch
-                                                        id={`primary-switch-${hr.email}`}
-                                                        checked={hr.isPrimary}
-                                                        onCheckedChange={() => handleMakePrimary(editingCompany.companyName, hr.email)}
-                                                        disabled={hr.isPrimary}
-                                                    />
-                                                    <Label htmlFor={`primary-switch-${hr.email}`} className="text-xs text-muted-foreground">Primary</Label>
-                                                </div>
                                                 <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
                                                     <Shield className="h-4 w-4" />
                                                 </Button>

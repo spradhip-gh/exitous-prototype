@@ -130,6 +130,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
 }) {
     const { toast } = useToast();
+    const { updateCompanyAssignment } = useUserData();
     const [localAssignments, setLocalAssignments] = useState<CompanyAssignment[]>([]);
     const [editingPermissions, setEditingPermissions] = useState<{ companyName: string, permissions: HrPermissions } | null>(null);
 
@@ -179,6 +180,26 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
         }));
     };
     
+    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager for ${companyName}.`});
+        
+        // Refresh local state to reflect the change immediately in the dialog
+        const updatedLocalAssignments = localAssignments.map(a => {
+            if (a.companyName === companyName) {
+                return {
+                    ...a,
+                    hrManagers: a.hrManagers.map(hr => ({
+                        ...hr,
+                        isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase()
+                    }))
+                };
+            }
+            return a;
+        });
+        setLocalAssignments(updatedLocalAssignments);
+    };
+
     const handleSavePermissions = (companyName: string, permissions: HrPermissions) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
@@ -226,7 +247,17 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                         return (
                                             <TableRow key={assignment.companyName}>
                                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
-                                                <TableCell>{manager.isPrimary ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        {isPrimaryInThisCompany ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}
+                                                        <Switch
+                                                            id={`primary-switch-${assignment.companyName}`}
+                                                            checked={isPrimaryInThisCompany}
+                                                            onCheckedChange={() => handleMakePrimary(assignment.companyName, managerEmail)}
+                                                            disabled={!canEditThisCompany || isPrimaryInThisCompany}
+                                                        />
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEditThisCompany || isPrimaryInThisCompany}><Shield className="h-4 w-4" /></Button>
                                                     <TooltipProvider>
@@ -238,11 +269,9 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                                     </Button>
                                                                 </span>
                                                             </TooltipTrigger>
-                                                            {isDeleteDisabled && isPrimaryInThisCompany && (
-                                                                <TooltipContent>
-                                                                    <p>You cannot delete a primary user. Please assign a new primary for the company first.</p>
-                                                                </TooltipContent>
-                                                            )}
+                                                            <TooltipContent>
+                                                                <p>You cannot delete a primary user. Please assign a new primary for the company first.</p>
+                                                            </TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
                                                 </TableCell>
@@ -421,7 +450,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                     />
                                                 </div>
                                                 {isPrimary && (
-                                                    <Alert variant="destructive" className="mt-2 bg-amber-50 border-amber-200 text-amber-800">
+                                                     <Alert variant="destructive" className="mt-2 bg-amber-50 border-amber-200 text-amber-800">
                                                       <Info className="h-4 w-4 !text-amber-600" />
                                                       <AlertTitle>Warning</AlertTitle>
                                                       <AlertDescription>This will demote the current primary (you), you will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
@@ -492,7 +521,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
 
 export default function HrManagementPage() {
     const { auth } = useAuth();
-    const { companyAssignments, saveCompanyAssignments } = useUserData();
+    const { companyAssignments, saveCompanyAssignments, updateCompanyAssignment } = useUserData();
     const { toast } = useToast();
 
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
