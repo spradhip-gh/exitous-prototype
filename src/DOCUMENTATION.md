@@ -1,3 +1,4 @@
+
 # Building Exitbetter: A Step-by-Step Guide
 
 This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
@@ -11,7 +12,7 @@ We've significantly enhanced the AI-driven guidance engine to provide more accur
 *   **Analytics Dashboard:** A new **Analytics** page is available for both Admins and HR Managers. It tracks the questions that employees most frequently answer with "Unsure," providing valuable insights into areas of confusion. This data helps identify which questions need clarification or where new company resources might be beneficial.
 *   **External Resources Management:** Admins can now build and manage a complete directory of **External Resources** (e.g., financial planners, lawyers, career coaches). This includes adding new partners, editing their details, marking them as "Verified," and specifying special offers for users.
 *   **Tabbed Form Editor:** The Admin's **Master Form Editor** is now organized into "Profile" and "Assessment" tabs, making it easier to manage both sets of questions. Admins can also add descriptive tooltips to any question.
-*   **Consultant Review Queue:** A new workflow has been added for the **Consultant** role. They can now review AI-generated recommendations from real user data in a dedicated queue, and either approve/reject them or convert them into reusable guidance rules.
+*   **Consultant Review Queue:** A new workflow has been added for the **Consultant** role. They can now review AI-generated recommendations from real user data in a dedicated queue, and either approve/reject them or convert them into reusable guidance rules. (*Note: This feature is currently deactivated in the main prototype for stability and is undergoing separate testing.*)
 *   **Advanced HR Permissions:** The HR role has been enhanced with a permission system. A **Primary HR Manager** can now manage their own team, assigning other HR managers to the companies they oversee with granular permissions for each part of the application (e.g., 'Read Only' vs. 'Write & Upload' for User Management).
 *   **Multi-Company Management:** HR Managers assigned to multiple companies can now easily switch between them using a dropdown in the main header.
 
