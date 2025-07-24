@@ -13,7 +13,7 @@ import {
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { ChevronsUpDown, Trash2, Eye, ShieldCheck, Key } from 'lucide-react';
+import { ChevronsUpDown, Trash2, Eye, ShieldCheck, Key, Crown } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { useRouter } from 'next/navigation';
@@ -78,6 +78,9 @@ export default function Header({ children }: { children?: React.ReactNode }) {
   }
 
   const companyAssignment = auth?.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
+  const primaryAssignments = auth?.email ? companyAssignments
+    .filter(c => c.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
+    .map(c => c.companyName) : [];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -118,9 +121,20 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                   <>
                     <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
                     <DropdownMenuRadioGroup value={auth.companyName} onValueChange={handleCompanySwitch}>
-                      {auth.assignedCompanyNames.map(name => (
-                        <DropdownMenuRadioItem key={name} value={name}>{name}</DropdownMenuRadioItem>
-                      ))}
+                      {auth.assignedCompanyNames.map(name => {
+                        const isPrimary = primaryAssignments.includes(name);
+                        return (
+                            <DropdownMenuRadioItem key={name} value={name} className="flex justify-between">
+                                <span>{name}</span>
+                                {isPrimary && (
+                                    <div className="flex items-center gap-1 text-xs text-amber-600">
+                                        <Crown className="h-3 w-3" />
+                                        <span>Primary</span>
+                                    </div>
+                                )}
+                            </DropdownMenuRadioItem>
+                        )
+                      })}
                     </DropdownMenuRadioGroup>
                     <DropdownMenuSeparator />
                   </>
