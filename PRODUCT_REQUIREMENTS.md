@@ -21,10 +21,10 @@ The platform is designed to serve four distinct user roles:
 
 | Role             | Description                                                                                             | Key Goals                                                                                                                              |
 | ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **End-User**     | An employee who has been notified of their exit from a company.                                         | - Understand critical deadlines (severance, benefits).<br>- Receive a personalized, step-by-step action plan.<br>- Securely manage personal and exit-related data. |
-| **HR Manager**   | A human resources professional at a client company.                                                     | - Manage the list of exiting employees for their company.<br>- Customize the assessment questionnaire.<br>- Upload company-specific resources.<br>- Preview the end-user experience. |
-| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions.<br>- Oversee all platform users and data. |
-| **Consultant**   | An external or internal expert tasked with quality control.                                             | - Review and approve AI-generated content and recommendations to ensure quality, accuracy, and empathy.                                |
+| **End-User**     | An employee who has been notified of their exit from a company.                                         | - Understand critical deadlines (severance, benefits).<br>- Receive a personalized, step-by-step action plan.<br>- Connect with vetted professional resources.<br>- Securely manage personal and exit-related data. |
+| **HR Manager**   | A human resources professional at a client company.                                                     | - Manage the list of exiting employees for their company.<br>- Customize the assessment questionnaire.<br>- Upload company-specific resources.<br>- Analyze assessment data to identify areas of confusion.<br>- Preview the end-user experience. |
+| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions.<br>- Curate the directory of external professional resources.<br>- Oversee all platform users and data. |
+| **Consultant**   | An external or internal expert tasked with quality control.                                             | - Review and approve AI-generated content and recommendations to ensure quality, accuracy, and empathy.<br>- Convert high-quality recommendations into reusable guidance rules. |
 
 ## 3. Key Features & Functionality
 
@@ -36,10 +36,12 @@ The platform is designed to serve four distinct user roles:
     - **Timeline View:** An interactive, AI-generated timeline that visualizes all critical deadlines and recommended actions based on the user's profile and assessment data.
     - **Categorized Recommendations:** Tasks are categorized (e.g., Healthcare, Finances, Legal, Job Search) and sorted by urgency.
     - **Task Management:** Users can mark tasks as complete, and the UI dynamically updates to reflect their progress.
-- **Resource Center:** Access to company-specific documents (e.g., benefits guides, policies) uploaded by their HR manager.
+- **Resource Center:**
+    - **Company Resources:** View and download company-specific documents (e.g., benefits guides, policies) uploaded by their HR manager.
+    - **External Resources:** Browse a directory of vetted professional services (e.g., financial planners, lawyers), view AI-powered "Top Matches," and connect with experts.
 
 ### 3.2. HR Manager Flow
-- **Secure Login:** HR Managers log in with their company email.
+- **Secure Login & Company Switching:** HR Managers log in with their company email and can switch between multiple assigned companies.
 - **User Management:**
     - Add, remove, and manage the list of end-users for their company.
     - Bulk upload users via a CSV file, with support for pre-filling key assessment data to streamline the user's experience.
@@ -50,25 +52,33 @@ The platform is designed to serve four distinct user roles:
     - Add new, company-specific custom questions to the assessment.
     - Receive notifications for when a master question has been updated by a Platform Admin.
 - **Resource Management:** Upload and manage documents and resources for their employees.
-- **User Preview Mode:** The ability to enter a "preview" mode to see the platform exactly as an end-user would, ensuring the experience is correct and helpful.
+- **Analytics Dashboard:** View analytics on the most common "Unsure" answers from employees, providing insight into areas of confusion.
+- **HR Team Management (Primary HR Only):** A Primary HR Manager can add other HR managers to the companies they oversee and assign granular permissions for each module.
+- **User Preview Mode:** The ability to enter a "preview" mode to see the platform exactly as an end-user would.
 - **Company Settings:** Configure default settings like the timezone for severance deadlines.
 
 ### 3.3. Platform Admin Flow
 - **Secure Login:** Admins log in with their platform email.
 - **Company Management:**
-    - Create new company accounts.
-    - Assign HR Managers to companies.
+    - Create new company accounts and assign HR Managers.
     - Set user limits and subscription tiers (e.g., Basic vs. Pro) for each company.
 - **Master Form Editor:**
-    - Create, edit, and delete questions in the master (default) assessment template.
+    - Create, edit, and delete questions in the master (default) assessment template, organized into "Profile" and "Assessment" tabs.
+    - Add descriptive tooltips to questions for user clarity.
     - Reorder questions via drag-and-drop.
-    - These changes propagate to all companies, who can then choose to adopt or override them.
+- **External Resources Management:** Build and manage the full directory of external resources, including adding partners, editing details, and marking them as "Verified."
+- **Platform-wide Analytics:** View aggregated analytics on "Unsure" answers across all companies.
 - **Platform User Management:** Grant or revoke Admin and Consultant access to the platform.
 - **Data Export:** View and export a comprehensive list of all users across the entire platform.
 
-### 3.4. AI & Technology
+### 3.4. Consultant Flow
+- **Review Queue:** Review AI-generated recommendations from real user data in a dedicated queue.
+- **Guidance Editor:** Approve, reject, or convert high-quality recommendations into reusable, rule-based guidance to improve the system over time.
+- *Note: This feature is currently deactivated in the main prototype and is undergoing separate testing.*
+
+### 3.5. AI & Technology
 - **Genkit Integration:** The platform uses Google's Genkit framework for all AI functionality.
-- **Personalized Recommendations:** A core AI flow analyzes a user's profile and assessment data to generate a structured, personalized list of action items. The prompt is engineered to have the AI act as an expert career and legal counselor, providing empathetic and actionable advice.
+- **Personalized Recommendations:** A core AI flow analyzes a user's profile and assessment data to generate a structured, personalized list of action items. The prompt is engineered to have the AI act as a panel of experts, providing empathetic and actionable advice.
 - **Data Schema:** The AI uses strongly-typed Zod schemas for both input and output, ensuring the generated data is structured, predictable, and can be reliably rendered in the UI.
 
 ## 4. Technical Architecture
@@ -90,7 +100,6 @@ Stores information about each client company.
 | --------------------------- | ------------- | ----------------------------------------------------- |
 | `id`                        | `UUID`        | Primary Key                                           |
 | `name`                      | `TEXT`        | The unique name of the company (e.g., "Globex Corp"). |
-| `hr_manager_email`          | `TEXT`        | The email of the assigned HR manager.                 |
 | `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
 | `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
 | `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
@@ -103,6 +112,15 @@ Stores users with platform-wide access roles.
 | `id`        | `UUID`    | Primary Key                           |
 | `email`     | `TEXT`    | User's unique email address.          |
 | `role`      | `TEXT`    | Role ('admin' or 'consultant').       |
+
+### `company_hr_assignments`
+Maps HR Managers to the companies they manage and defines their permissions.
+| Column        | Type    | Description                                                               |
+| ------------- | ------- | ------------------------------------------------------------------------- |
+| `company_id`  | `UUID`  | **Composite PK** and **Foreign Key** to `companies.id`.                   |
+| `hr_email`    | `TEXT`  | **Composite PK**. The email of the assigned HR manager.                   |
+| `is_primary`  | `BOOLEAN`| `true` if this is the primary manager for the company.                      |
+| `permissions` | `JSONB` | A JSON object defining granular permissions (e.g., `{"userManagement": "write"}`). |
 
 ### `company_users`
 Stores end-users associated with a specific company.
@@ -163,3 +181,16 @@ Stores documents and links uploaded by an HR Manager.
 | `category`    | `TEXT`    | Resource category (e.g., 'Benefits').     |
 | `storage_path`| `TEXT`    | Path to the file in a storage service.    |
 | `summary`     | `TEXT`    | AI-generated summary of the document.     |
+
+### `external_resources`
+Stores the curated directory of professional services and partners.
+| Column              | Type    | Description                                            |
+| ------------------- | ------- | ------------------------------------------------------ |
+| `id`                | `UUID`  | **Primary Key**.                                       |
+| `name`              | `TEXT`  | The name of the resource (e.g., "Momentum Financial"). |
+| `description`       | `TEXT`  | A brief description of the service.                    |
+| `category`          | `TEXT`  | e.g., 'Finances', 'Legal', 'Career', 'Well-being'.     |
+| `website`           | `TEXT`  | The URL to the resource's website.                     |
+| `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
+| `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
+

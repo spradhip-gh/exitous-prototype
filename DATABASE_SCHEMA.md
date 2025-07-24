@@ -8,12 +8,16 @@ This document outlines the proposed database schema for the ExitBetter applicati
 
 1.  [Companies](#companies)
 2.  [Platform Users](#platform_users)
-3.  [Company Users](#company_users)
-4.  [User Profiles](#user_profiles)
-5.  [User Assessments](#user_assessments)
-6.  [Master Questions](#master_questions)
-7.  [Company Question Configs](#company_question_configs)
-8.  [Company Resources](#company_resources)
+3.  [Company HR Assignments](#company_hr_assignments)
+4.  [Company Users](#company_users)
+5.  [User Profiles](#user_profiles)
+6.  [User Assessments](#user_assessments)
+7.  [Master Questions](#master_questions)
+8.  [Company Question Configs](#company_question_configs)
+9.  [Company Resources](#company_resources)
+10. [External Resources](#external_resources)
+11. [Guidance Rules](#guidance_rules)
+12. [Review Queue](#review_queue)
 
 ---
 
@@ -25,7 +29,6 @@ Stores information about each client company, their assigned HR manager, and def
 | --------------------------- | ------------- | ----------------------------------------------------- |
 | `id`                        | `UUID`        | **Primary Key**. A unique identifier for the company. |
 | `name`                      | `TEXT`        | The unique name of the company (e.g., "Globex Corp"). |
-| `hr_manager_email`          | `TEXT`        | The email of the assigned HR manager. Unique constraint. |
 | `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
 | `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
 | `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
@@ -45,6 +48,19 @@ Stores users with platform-wide access roles, like administrators and consultant
 | `email`     | `TEXT`    | User's unique email address. Unique.  |
 | `role`      | `TEXT`    | Role ('admin' or 'consultant').       |
 | `created_at`| `TIMESTAMPTZ` | Timestamp of when the user was created. |
+
+### `company_hr_assignments`
+
+Maps HR Managers to the companies they manage and defines their specific permissions for that company.
+
+| Column        | Type      | Description                                                               |
+| ------------- | --------- | ------------------------------------------------------------------------- |
+| `company_id`  | `UUID`    | **Composite PK** and **Foreign Key** to `companies.id`.                   |
+| `hr_email`    | `TEXT`    | **Composite PK**. The email of the assigned HR manager.                   |
+| `is_primary`  | `BOOLEAN` | `true` if this is the primary manager for the company. Default: `false`.  |
+| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write", "formEditor": "read"}`). |
+| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the assignment was created.                            |
+| `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.                                            |
 
 ### `company_users`
 
@@ -94,7 +110,7 @@ Stores the master list of all possible assessment questions, acting as the globa
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
-| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, etc.). |
+| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
@@ -109,6 +125,7 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
 | `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
 | `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
+| `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
 | `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
 
 ### `company_resources`
@@ -123,6 +140,58 @@ Stores documents and links uploaded by an HR Manager for their employees.
 | `description` | `TEXT`    | A brief description.                      |
 | `file_name`   | `TEXT`    | The original name of the uploaded file.   |
 | `category`    | `TEXT`    | Resource category (e.g., 'Benefits').     |
-| `storage_path`| `TEXT`    | Path to the file in a storage service (e.g., S3, GCS). |
-| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
+| `content`     | `TEXT`    | The text content of the uploaded file.    |
 | `summary`     | `TEXT`    | Optional AI-generated summary of the document. |
+| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
+
+### `external_resources`
+
+Stores the curated directory of professional services and partners that can be recommended to users.
+
+| Column              | Type    | Description                                            |
+| ------------------- | ------- | ------------------------------------------------------ |
+| `id`                | `UUID`  | **Primary Key**.                                       |
+| `name`              | `TEXT`  | The name of the resource (e.g., "Momentum Financial"). |
+| `description`       | `TEXT`  | A brief description of the service.                    |
+| `category`          | `TEXT`  | e.g., 'Finances', 'Legal', 'Career', 'Well-being'.     |
+| `website`           | `TEXT`  | The URL to the resource's website.                     |
+| `image_url`         | `TEXT`  | A URL for a representative image.                      |
+| `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
+| `availability`      | `JSONB` | Array of tiers this is available to (e.g., `["basic", "pro"]`). |
+| `basic_offer`       | `TEXT`  | Description of a special offer for basic users.        |
+| `pro_offer`         | `TEXT`  | Description of a special offer for pro users.          |
+| `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
+| `keywords`          | `JSONB` | An array of keywords for searching.                    |
+| `created_at`        | `TIMESTAMPTZ`| Timestamp of creation.                                 |
+| `updated_at`        | `TIMESTAMPTZ`| Timestamp of the last update.                          |
+
+### `guidance_rules`
+
+Stores consultant-created rules to provide deterministic, high-quality guidance when specific conditions are met.
+
+| Column          | Type      | Description                                       |
+| --------------- | --------- | ------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                  |
+| `company_id`    | `UUID`    | **Foreign Key** to `companies.id`.                |
+| `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
+| `conditions`    | `JSONB`   | An array of condition objects that must all be true. |
+| `guidance_text` | `TEXT`    | The Markdown-formatted guidance to display.       |
+| `category`      | `TEXT`    | The category of the guidance (e.g., "Healthcare"). |
+| `linked_resource_id` | `UUID` | Optional **Foreign Key** to `external_resources.id`. |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of creation.                            |
+| `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
+
+### `review_queue`
+
+A log of AI-generated recommendations for consultants to review, approve, or convert into guidance rules.
+
+| Column        | Type      | Description                                       |
+| ------------- | --------- | ------------------------------------------------- |
+| `id`          | `UUID`    | **Primary Key**.                                  |
+| `user_id`     | `UUID`    | **Foreign Key** to `company_users.id`.            |
+| `input_data`  | `JSONB`   | The user profile/assessment data sent to the AI.  |
+| `output_data` | `JSONB`   | The recommendation list received from the AI.     |
+| `status`      | `TEXT`    | 'pending', 'approved', or 'rejected'.             |
+| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
+| `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
+| `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
