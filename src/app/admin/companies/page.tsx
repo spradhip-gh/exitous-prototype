@@ -313,17 +313,18 @@ export default function CompanyManagementPage() {
         const currentAssignment = editingCompany;
         if (!currentAssignment || currentAssignment.companyName !== companyName) return;
 
+        const managerToRemove = currentAssignment.hrManagers.find(hr => hr.email.toLowerCase() === emailToRemove.toLowerCase());
+        if (managerToRemove?.isPrimary) {
+            toast({ title: "Cannot Remove Primary", description: "Please assign a new Primary Manager before removing the current one.", variant: "destructive" });
+            return;
+        }
+
         if (currentAssignment.hrManagers.length <= 1) {
             toast({ title: "Cannot Remove Last Manager", description: "A company must have at least one HR manager.", variant: "destructive" });
             return;
         }
 
         const updatedManagers = currentAssignment.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
-        
-        if (!updatedManagers.some(hr => hr.isPrimary)) {
-            updatedManagers[0].isPrimary = true;
-            updatedManagers[0].permissions = fullPermissions;
-        }
         
         setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
     };
@@ -678,3 +679,4 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
+
