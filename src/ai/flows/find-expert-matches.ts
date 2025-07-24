@@ -60,7 +60,7 @@ const MatchSchema = z.object({
 });
 
 const ExpertMatchOutputSchema = z.object({
-    matches: z.array(MatchSchema).describe('A list of the top 3-4 most relevant external resources for the user.'),
+    matches: z.array(MatchSchema).describe('A list of the most relevant external resources for the user.'),
 });
 export type ExpertMatchOutput = z.infer<typeof ExpertMatchOutputSchema>;
 
@@ -83,7 +83,7 @@ const findExpertMatchesFlow = ai.defineFlow(
 
 Analyze the user's data to understand their key challenges. Are they on a work visa? Did they lose health insurance? Are they struggling with the emotional impact? Do they need to review a legal document?
 
-Based on your analysis, select the top 3-4 most critical resources from the list below that would provide the most immediate help to this user. For each match, provide the resource's ID and a short, empathetic reason for the recommendation.
+Based on your analysis, select all resources from the list below that would provide the most immediate and relevant help to this user. For each match, provide the resource's ID and a short, empathetic reason for the recommendation. Be comprehensive in your matching.
 
 USER PROFILE:
 - State of Residence: {{{profileData.state}}}
