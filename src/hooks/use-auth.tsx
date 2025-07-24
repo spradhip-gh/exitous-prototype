@@ -51,16 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedAuth = localStorage.getItem(AUTH_KEY);
       if (storedAuth) {
         let authData = JSON.parse(storedAuth);
-         // Re-hydrate permissions on load to ensure they are in sync with the current company context
-        if (authData.role === 'hr' && authData.email && authData.companyName) {
-            const assignments = getCompanyAssignmentsFromDb();
-            authData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
-        }
         setAuthState(authData);
       }
     } catch (error) {
       console.error('Failed to load auth state from local storage', error);
-      // If parsing fails, clear the broken key
       localStorage.removeItem(AUTH_KEY);
     } finally {
       setLoading(false);
