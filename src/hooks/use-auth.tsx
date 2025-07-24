@@ -152,10 +152,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchCompany = useCallback((newCompanyName: string) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
         const assignments = getCompanyAssignmentsFromDb();
-        const newPermissions = getPermissionsForHr(auth.email, newCompanyName, assignments);
-        const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-        setAuthState(newAuth);
+        const companyAssignment = assignments.find(a => a.companyName === newCompanyName);
+        const managerInfo = companyAssignment?.hrManagers.find(m => m.email.toLowerCase() === auth.email!.toLowerCase());
+        
+        if (managerInfo) {
+            const newPermissions = managerInfo.isPrimary 
+                ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
+                : managerInfo.permissions;
+
+            const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
+            localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+            setAuthState(newAuth);
+        }
     }
   }, [auth]);
 
