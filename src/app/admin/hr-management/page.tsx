@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -220,13 +221,30 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                         const isPrimaryInThisCompany = manager.isPrimary;
                                         const isLastManager = assignment.hrManagers.length <= 1;
 
+                                        const isDeleteDisabled = !canEditThisCompany || isPrimaryInThisCompany || isLastManager;
+
                                         return (
                                             <TableRow key={assignment.companyName}>
                                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
                                                 <TableCell>{manager.isPrimary ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEditThisCompany || isPrimaryInThisCompany}><Shield className="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!canEditThisCompany || isPrimaryInThisCompany || isLastManager}><Trash2 className="h-4 w-4" /></Button>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span tabIndex={isDeleteDisabled ? 0 : -1}>
+                                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={isDeleteDisabled}>
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            {isDeleteDisabled && isPrimaryInThisCompany && (
+                                                                <TooltipContent>
+                                                                    <p>You cannot delete a primary user. Please assign a new primary for the company first.</p>
+                                                                </TooltipContent>
+                                                            )}
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                 </TableCell>
                                             </TableRow>
                                         );
