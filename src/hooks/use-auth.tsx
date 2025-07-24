@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -128,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const newAuth = { ...auth, companyName: newCompanyName };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
+        window.location.reload(); // Force a reload to ensure all components get the new company context
     }
   }, [auth]);
 

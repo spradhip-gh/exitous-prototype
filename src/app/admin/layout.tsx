@@ -19,7 +19,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
-function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
+function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
@@ -46,7 +46,7 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
   }
 
   return (
-    <nav className="grid items-start gap-2 text-sm font-medium">
+    <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
         <>
           <Link href="/admin/forms">
@@ -111,65 +111,79 @@ function AdminNav({ role, version, companySettingsComplete }: { role: 'hr' | 'co
       )}
       {role === 'hr' && (
         <>
-          <Link href="/admin/users">
-            <Button variant={getVariant('/admin/users')} className="w-full justify-start">
-              <Users className="mr-2" />
-              User Management
-            </Button>
-          </Link>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="w-full">
-                  <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className={cn(isFormEditorDisabled && 'pointer-events-none')}>
-                    <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
-                      <FileText className="mr-2" />
-                      Form Editor
+          <div className="px-3 py-2">
+            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+              {companyName}
+            </h2>
+            <div className="space-y-1">
+              <Link href="/admin/users">
+                <Button variant={getVariant('/admin/users')} className="w-full justify-start">
+                  <Users className="mr-2" />
+                  User Management
+                </Button>
+              </Link>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="w-full">
+                      <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className={cn(isFormEditorDisabled && 'pointer-events-none')}>
+                        <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
+                          <FileText className="mr-2" />
+                          Form Editor
+                        </Button>
+                      </Link>
+                    </div>
+                  </TooltipTrigger>
+                  {isFormEditorDisabled && (
+                    <TooltipContent>
+                      <p>Upgrade to Pro to edit assessment questions.</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+              <Link href="/admin/analytics">
+                <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
+                  <BarChart className="mr-2" />
+                  Analytics
+                </Button>
+              </Link>
+              <Link href="/admin/resources">
+                <Button variant={getVariant('/admin/resources')} className="w-full justify-start">
+                  <Library className="mr-2" />
+                  Resources
+                </Button>
+              </Link>
+              <Link href="/admin/settings">
+                <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
+                  <Settings className="mr-2" />
+                  Company Settings
+                  {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <Separator />
+           <div className="px-3 py-2">
+              <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+                Global
+              </h2>
+              <div className="space-y-1">
+                {isPrimaryHr && (
+                  <Link href="/admin/hr-management">
+                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
+                      <Users2 className="mr-2" />
+                      HR Management
                     </Button>
                   </Link>
-                </div>
-              </TooltipTrigger>
-              {isFormEditorDisabled && (
-                <TooltipContent>
-                  <p>Upgrade to Pro to edit assessment questions.</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-           {isPrimaryHr && (
-            <Link href="/admin/hr-management">
-              <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
-                <Users2 className="mr-2" />
-                HR Management
-              </Button>
-            </Link>
-          )}
-          <Link href="/admin/analytics">
-            <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
-              <BarChart className="mr-2" />
-              Analytics
-            </Button>
-          </Link>
-          <Link href="/admin/resources">
-            <Button variant={getVariant('/admin/resources')} className="w-full justify-start">
-              <Library className="mr-2" />
-              Resources
-            </Button>
-          </Link>
-          <Link href="/admin/settings">
-            <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
-              <Settings className="mr-2" />
-              Company Settings
-              {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
-            </Button>
-          </Link>
-          <Separator className="my-2" />
-           <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
-            <Button variant='ghost' className="w-full justify-start">
-                <HelpCircle className="mr-2" />
-                Help & Guide
-            </Button>
-           </Link>
+                )}
+                <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
+                  <Button variant='ghost' className="w-full justify-start">
+                      <HelpCircle className="mr-2" />
+                      Help & Guide
+                  </Button>
+                </Link>
+              </div>
+           </div>
         </>
       )}
       {role === 'consultant' && (
@@ -221,7 +235,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const companyAssignment = auth.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
   const companySettingsComplete = !!(companyAssignment?.preEndDateContactAlias && companyAssignment?.postEndDateContactAlias);
   
-  const navContent = <AdminNav role={auth.role} version={companyAssignment?.version} companySettingsComplete={companySettingsComplete} />;
+  const navContent = <AdminNav role={auth.role} companyName={auth.companyName} version={companyAssignment?.version} companySettingsComplete={companySettingsComplete} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -234,14 +248,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="sr-only">Toggle Navigation</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-4 pt-12">
+            <SheetContent side="left" className="p-0">
               {navContent}
             </SheetContent>
           </Sheet>
         </div>
       </Header>
       <div className="flex flex-1">
-        <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
+        <aside className="hidden w-64 flex-col border-r bg-background md:flex">
           {navContent}
         </aside>
         <main className="flex-1">
