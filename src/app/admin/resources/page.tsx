@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Trash2, UploadCloud, File, Download } from 'lucide-react';
+import { PlusCircle, Trash2, UploadCloud, File as FileIcon, Eye } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function ResourceManagementPage() {
   const { toast } = useToast();
@@ -39,6 +41,7 @@ export default function ResourceManagementPage() {
   const [newFileName, setNewFileName] = useState('');
   const [newFileContent, setNewFileContent] = useState(''); // Store as raw text
   const [fileInputKey, setFileInputKey] = useState(Date.now()); // to reset file input
+  const [viewingResource, setViewingResource] = useState<Resource | null>(null);
 
   const handleAddResource = () => {
     if (!newTitle || !newDescription || !newFileName || !newFileContent) {
@@ -94,6 +97,10 @@ export default function ResourceManagementPage() {
     saveCompanyResources(companyName, updatedResources);
     toast({ title: "Resource Removed", description: "The resource has been deleted." });
   };
+  
+  const handleViewResource = (resource: Resource) => {
+    setViewingResource(resource);
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -140,7 +147,7 @@ export default function ResourceManagementPage() {
                 <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
                     <UploadCloud className="mr-2"/> Choose File
                 </Button>
-                {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><File className="h-4 w-4"/><span>{newFileName}</span></div>}
+                {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileIcon className="h-4 w-4"/><span>{newFileName}</span></div>}
               </div>
             </div>
             <Button onClick={handleAddResource}>
@@ -171,6 +178,10 @@ export default function ResourceManagementPage() {
                     <TableCell>{resource.category}</TableCell>
                     <TableCell>{resource.fileName}</TableCell>
                     <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleViewResource(resource)}>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View</span>
+                      </Button>
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -205,6 +216,20 @@ export default function ResourceManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!viewingResource} onOpenChange={(isOpen) => !isOpen && setViewingResource(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{viewingResource?.title}</DialogTitle>
+            <DialogDescription>{viewingResource?.fileName}</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] mt-4">
+            <pre className="text-sm p-4 bg-muted rounded-md whitespace-pre-wrap font-sans">
+              {viewingResource?.content || 'No content available.'}
+            </pre>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
