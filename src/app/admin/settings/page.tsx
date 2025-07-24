@@ -117,6 +117,16 @@ export default function CompanySettingsPage() {
                 </AlertDescription>
             </Alert>
         )}
+        
+        {!canWrite && (
+            <Alert variant="default" className="border-orange-300 bg-orange-50">
+                <Info className="h-4 w-4 !text-orange-600"/>
+                <AlertTitle className="text-orange-900">Read-Only Access</AlertTitle>
+                <AlertDescription className="text-orange-800">
+                  These settings are universal for the company and can only be changed by the Primary HR Manager.
+                </AlertDescription>
+            </Alert>
+        )}
 
         <Card>
             <CardHeader>

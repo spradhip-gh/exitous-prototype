@@ -140,7 +140,6 @@ export default function CompanyManagementPage() {
   const { 
     companyAssignments, 
     addCompanyAssignment, 
-    deleteCompanyAssignment,
     updateCompanyAssignment,
     getAllCompanyConfigs,
     assessmentCompletions 
@@ -158,7 +157,6 @@ export default function CompanyManagementPage() {
   const [isHrComboboxOpen, setIsHrComboboxOpen] = useState(false);
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
   const [editingManager, setEditingManager] = useState<HrManager | null>(null);
   const [addHrEmail, setAddHrEmail] = useState('');
@@ -203,18 +201,10 @@ export default function CompanyManagementPage() {
     setNewPostEndDateContact('');
   };
 
-  const handleDeleteCompany = (companyName: string) => {
-    deleteCompanyAssignment(companyName);
-    toast({ title: "Company Removed", description: `${companyName} and its assignment have been removed.` });
-  };
   
   const handleEditClick = (company: CompanyAssignment) => {
     setEditingCompany(company);
     setIsEditDialogOpen(true);
-  }
-
-  const handleSaveChanges = (companyName: string, updates: Partial<CompanyAssignment>) => {
-    updateCompanyAssignment(companyName, updates);
   }
 
   const handleUpgrade = (companyName: string) => {
@@ -276,27 +266,22 @@ export default function CompanyManagementPage() {
         const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
         if (!companyToUpdate) return;
         
-        const updatedManagers = companyToUpdate.hrManagers.map(hr => ({
-            ...hr,
-            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
-            permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
-        }));
+        const updatedManagers = companyToUpdate.hrManagers.map(hr => {
+            const isNewPrimary = hr.email.toLowerCase() === newPrimaryEmail.toLowerCase();
+            return {
+                ...hr,
+                isPrimary: isNewPrimary,
+                permissions: isNewPrimary 
+                    ? fullPermissions 
+                    : { ...hr.permissions, companySettings: 'read' }
+            };
+        });
 
-        handleSaveChanges(companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
-        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
-        if (!companyToUpdate) return;
-
-        const manager = companyToUpdate.hrManagers.find(hr => hr.email.toLowerCase() === emailToRemove.toLowerCase());
-        if (manager?.isPrimary) {
-            toast({ title: "Cannot Remove Primary Manager", description: "Please assign a new primary manager first.", variant: "destructive" });
-            return;
-        }
-
-        const updatedManagers = companyToUpdate.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
-        handleSaveChanges(companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(companyName, { hrManagers: emailToRemove });
     };
 
     const handleAddHrToCompany = (companyName: string) => {
@@ -312,13 +297,13 @@ export default function CompanyManagementPage() {
 
         const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
         const updatedManagers = [...companyToUpdate.hrManagers, newHr];
-        handleSaveChanges(companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
         setAddHrEmail('');
     };
 
     const handlePermissionsEdit = (manager: HrManager) => {
         setEditingManager(manager);
-        setIsPermissionsDialogOpen(true);
+        setIsEditDialogOpen(true);
     };
     
     const handleSavePermissions = (email: string, permissions: HrPermissions) => {
@@ -327,7 +312,7 @@ export default function CompanyManagementPage() {
         const updatedManagers = editingCompany.hrManagers.map(hr => 
             hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
         );
-        handleSaveChanges(editingCompany.companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(editingCompany.companyName, { hrManagers: updatedManagers });
         toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
 
@@ -517,7 +502,7 @@ export default function CompanyManagementPage() {
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteCompany(assignment.companyName)}>
+                                                        <AlertDialogAction onClick={() => updateCompanyAssignment(assignment.companyName)}>
                                                             Yes, Delete
                                                         </AlertDialogAction>
                                                     </AlertDialogFooter>
@@ -562,7 +547,7 @@ export default function CompanyManagementPage() {
                                             id="max-users" 
                                             type="number" 
                                             defaultValue={editingCompany.maxUsers?.toString() ?? ''} 
-                                            onBlur={(e) => handleSaveChanges(editingCompany.companyName, { maxUsers: parseInt(e.target.value, 10) })}
+                                            onBlur={(e) => updateCompanyAssignment(editingCompany.companyName, { maxUsers: parseInt(e.target.value, 10) })}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -571,13 +556,13 @@ export default function CompanyManagementPage() {
                                             id="deadline-time" 
                                             type="time" 
                                             defaultValue={editingCompany.severanceDeadlineTime || '17:00'} 
-                                            onBlur={(e) => handleSaveChanges(editingCompany.companyName, { severanceDeadlineTime: e.target.value })}
+                                            onBlur={(e) => updateCompanyAssignment(editingCompany.companyName, { severanceDeadlineTime: e.target.value })}
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
-                                    <Select defaultValue={editingCompany.severanceDeadlineTimezone || 'America/Los_Angeles'} onValueChange={(v) => handleSaveChanges(editingCompany.companyName, {severanceDeadlineTimezone: v})}>
+                                    <Select defaultValue={editingCompany.severanceDeadlineTimezone || 'America/Los_Angeles'} onValueChange={(v) => updateCompanyAssignment(editingCompany.companyName, {severanceDeadlineTimezone: v})}>
                                         <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
@@ -586,11 +571,11 @@ export default function CompanyManagementPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
-                                    <Input id="edit-pre-contact" defaultValue={editingCompany.preEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges(editingCompany.companyName, {preEndDateContactAlias: e.target.value})} />
+                                    <Input id="edit-pre-contact" defaultValue={editingCompany.preEndDateContactAlias || ''} onBlur={(e) => updateCompanyAssignment(editingCompany.companyName, {preEndDateContactAlias: e.target.value})} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
-                                    <Input id="edit-post-contact" defaultValue={editingCompany.postEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges(editingCompany.companyName, {postEndDateContactAlias: e.target.value})} />
+                                    <Input id="edit-post-contact" defaultValue={editingCompany.postEndDateContactAlias || ''} onBlur={(e) => updateCompanyAssignment(editingCompany.companyName, {postEndDateContactAlias: e.target.value})} />
                                 </div>
                             </CardContent>
                         </Card>
@@ -662,11 +647,11 @@ export default function CompanyManagementPage() {
 
         {editingManager && editingCompany && (
             <PermissionsDialog 
-                open={isPermissionsDialogOpen}
-                onOpenChange={setIsPermissionsDialogOpen}
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
                 manager={editingManager}
                 companyName={editingCompany.companyName}
-                onSave={(email, permissions) => handleSaveChanges(editingCompany.companyName, {
+                onSave={(email, permissions) => updateCompanyAssignment(editingCompany.companyName, {
                     hrManagers: editingCompany.hrManagers.map(hr => 
                         hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
                     )
