@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useUserData, CompanyAssignment, HrManager, HrPermissions } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -43,7 +43,7 @@ const fullPermissions: HrPermissions = {
     userManagement: 'write-upload',
     formEditor: 'write',
     resources: 'write',
-    companySettings: 'read', // Only Primary can edit settings
+    companySettings: 'write',
 };
 
 const permissionLabels: Record<string, string> = {
@@ -61,6 +61,14 @@ function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }:
     onSave: (email: string, permissions: HrPermissions) => void,
 }) {
     const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(manager.permissions);
+
+    useEffect(() => {
+        // This effect ensures that if the manager prop changes (i.e., opening the dialog
+        // for a different person), the internal state resets to that new manager's permissions.
+        if (manager) {
+            setEditedPermissions(manager.permissions);
+        }
+    }, [manager]);
 
     const handleSave = () => {
         onSave(manager.email, editedPermissions);
@@ -289,11 +297,16 @@ export default function CompanyManagementPage() {
         const currentAssignment = editingCompany;
         if (!currentAssignment || currentAssignment.companyName !== companyName) return;
 
-        const updatedManagers = currentAssignment.hrManagers.map(hr => ({
-            ...hr,
-            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
-            permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
-        }));
+        const updatedManagers = currentAssignment.hrManagers.map(hr => {
+            const isNewPrimary = hr.email.toLowerCase() === newPrimaryEmail.toLowerCase();
+            return {
+                ...hr,
+                isPrimary: isNewPrimary,
+                // Automatically grant full permissions to the new primary
+                // and preserve the old primary's permissions for later adjustment.
+                permissions: isNewPrimary ? fullPermissions : hr.permissions
+            }
+        });
 
         setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
     };
