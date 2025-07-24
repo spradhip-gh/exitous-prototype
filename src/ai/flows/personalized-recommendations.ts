@@ -136,6 +136,8 @@ Your task is to generate a comprehensive list of actionable recommendations base
 8.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
 
 **User Profile:**
+- Birth Year: {{{profileData.birthYear}}}
+- Gender: {{{profileData.gender}}}
 - State of Residence: {{{profileData.state}}}
 - Marital Status: {{{profileData.maritalStatus}}}
 - Dependents: {{#if profileData.hasChildrenUnder13}}Has children under 13{{/if}}
