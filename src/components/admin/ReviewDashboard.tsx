@@ -7,7 +7,7 @@ import { useUserData, GuidanceRule, Question, Condition, ExternalResource } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays, Bold, Italic, List, ListOrdered, Search } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Pencil, PlusCircle, Trash2, Wand2, Link as LinkIcon, CalendarCheck2, Clock, CalendarDays, Bold, Italic, List, ListOrdered, Search, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '../ui/textarea';
@@ -353,6 +353,14 @@ export default function GuidanceEditor() {
             Create and manage rules to provide specific, targeted advice to users based on their answers.
         </p>
       </div>
+
+      <Alert variant="default" className="mb-6 border-blue-300 bg-blue-50">
+        <Info className="h-4 w-4 !text-blue-600" />
+        <AlertTitle className="text-blue-900">Feature Note</AlertTitle>
+        <AlertDescription className="text-blue-800">
+            This guidance editor is for mock-up and demonstration purposes only. The rules configured here are not currently being used to generate the live AI recommendations for end-users.
+        </AlertDescription>
+      </Alert>
       
        <Card>
             <CardHeader>
@@ -451,3 +459,4 @@ export default function GuidanceEditor() {
 }
 
     
+
