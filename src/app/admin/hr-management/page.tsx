@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
@@ -23,9 +24,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const defaultPermissions: HrPermissions = {
@@ -41,8 +42,7 @@ export default function HrManagementPage() {
   const { companyAssignments, updateCompanyAssignment } = useUserData();
 
   const [newUserEmail, setNewUserEmail] = useState('');
-  const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
-  const [newPermissions, setNewPermissions] = useState<HrPermissions>(defaultPermissions);
+  const [companyPermissions, setCompanyPermissions] = useState<Record<string, HrPermissions>>({});
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingManager, setEditingManager] = useState<{manager: HrManager, companyName: string} | null>(null);
@@ -55,18 +55,25 @@ export default function HrManagementPage() {
     );
   }, [auth, companyAssignments]);
 
-  const allHrEmails = useMemo(() => {
-    const emails = new Set<string>();
-    companyAssignments.forEach(ca => {
-      ca.hrManagers.forEach(hr => emails.add(hr.email));
-    });
-    return Array.from(emails);
-  }, [companyAssignments]);
+  const handlePermissionChange = (companyName: string, area: keyof HrPermissions, value: string) => {
+    setCompanyPermissions(prev => ({
+        ...prev,
+        [companyName]: {
+            ...(prev[companyName] || defaultPermissions),
+            [area]: value
+        }
+    }));
+  };
 
   const handleAddHrManager = useCallback(() => {
-    if (!newUserEmail || selectedCompanies.size === 0) {
-      toast({ title: 'Missing Information', description: 'Please provide an email and select at least one company.', variant: 'destructive' });
+    if (!newUserEmail) {
+      toast({ title: 'Email Required', description: 'Please provide an email for the new HR manager.', variant: 'destructive' });
       return;
+    }
+    const companiesToUpdate = Object.keys(companyPermissions);
+    if (companiesToUpdate.length === 0) {
+        toast({ title: 'No Companies Selected', description: 'Please assign the new manager to at least one company.', variant: 'destructive' });
+        return;
     }
 
     if (!/\S+@\S+\.\S+/.test(newUserEmail)) {
@@ -74,19 +81,18 @@ export default function HrManagementPage() {
         return;
     }
     
-    selectedCompanies.forEach(companyName => {
+    companiesToUpdate.forEach(companyName => {
         const assignment = companyAssignments.find(a => a.companyName === companyName);
         if (assignment && !assignment.hrManagers.some(hr => hr.email.toLowerCase() === newUserEmail.toLowerCase())) {
-            const newHr: HrManager = { email: newUserEmail, isPrimary: false, permissions: newPermissions };
+            const newHr: HrManager = { email: newUserEmail, isPrimary: false, permissions: companyPermissions[companyName] };
             updateCompanyAssignment(companyName, { hrManagers: [...assignment.hrManagers, newHr] });
         }
     });
 
     toast({ title: 'HR Manager Added', description: `${newUserEmail} has been added to the selected companies.` });
     setNewUserEmail('');
-    setSelectedCompanies(new Set());
-    setNewPermissions(defaultPermissions);
-  }, [newUserEmail, selectedCompanies, newPermissions, companyAssignments, updateCompanyAssignment, toast]);
+    setCompanyPermissions({});
+  }, [newUserEmail, companyPermissions, companyAssignments, updateCompanyAssignment, toast]);
   
   const handleEditClick = (manager: HrManager, companyName: string) => {
     setEditingManager({ manager, companyName });
@@ -151,7 +157,7 @@ export default function HrManagementPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Add New HR Manager</CardTitle>
-                <CardDescription>Grant another user HR Manager access to one or more of your companies.</CardDescription>
+                <CardDescription>Grant another user HR Manager access. Select companies and set permissions for each.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <div className="space-y-2">
@@ -159,65 +165,65 @@ export default function HrManagementPage() {
                     <Input id="newUserEmail" placeholder="manager@example.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                    <Label>Assign to Companies</Label>
-                    <div className="space-y-2 rounded-md border p-4">
-                        {managedAssignments.map(ca => (
-                            <div key={ca.companyName} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`company-${ca.companyName}`}
-                                    checked={selectedCompanies.has(ca.companyName)}
-                                    onCheckedChange={(checked) => {
-                                        setSelectedCompanies(prev => {
-                                            const next = new Set(prev);
-                                            if (checked) next.add(ca.companyName);
-                                            else next.delete(ca.companyName);
-                                            return next;
-                                        });
-                                    }}
-                                />
-                                <Label htmlFor={`company-${ca.companyName}`} className="font-normal">{ca.companyName}</Label>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                 <div className="space-y-2">
-                    <Label>Set Permissions</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
-                        <div className="space-y-1">
-                            <Label className="text-xs">User Management</Label>
-                            <Select value={newPermissions.userManagement} onValueChange={(v) => setNewPermissions(p => ({...p, userManagement: v as any}))}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="read">Read Only</SelectItem>
-                                    <SelectItem value="write">Write</SelectItem>
-                                    <SelectItem value="write-upload">Write & Upload</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-xs">Form Editor</Label>
-                             <Select value={newPermissions.formEditor} onValueChange={(v) => setNewPermissions(p => ({...p, formEditor: v as any}))}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="read">Read Only</SelectItem>
-                                    <SelectItem value="write">Write</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-xs">Resources</Label>
-                            <Select value={newPermissions.resources} onValueChange={(v) => setNewPermissions(p => ({...p, resources: v as any}))}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="read">Read Only</SelectItem>
-                                    <SelectItem value="write">Write</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-xs">Company Settings</Label>
-                            <Input value="Read Only" disabled />
-                        </div>
+                    <Label>Assign to Companies & Set Permissions</Label>
+                    <div className="space-y-4 rounded-md border p-4">
+                        {managedAssignments.map(ca => {
+                            const isAssigned = !!companyPermissions[ca.companyName];
+                            return (
+                                <div key={ca.companyName} className="space-y-3 rounded-md border p-3">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`company-${ca.companyName}`}
+                                            checked={isAssigned}
+                                            onCheckedChange={(checked) => {
+                                                setCompanyPermissions(prev => {
+                                                    const next = { ...prev };
+                                                    if (checked) next[ca.companyName] = defaultPermissions;
+                                                    else delete next[ca.companyName];
+                                                    return next;
+                                                });
+                                            }}
+                                        />
+                                        <Label htmlFor={`company-${ca.companyName}`} className="font-semibold text-base">{ca.companyName}</Label>
+                                    </div>
+                                    {isAssigned && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 pl-6">
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">User Management</Label>
+                                                <Select value={companyPermissions[ca.companyName].userManagement} onValueChange={(v) => handlePermissionChange(ca.companyName, 'userManagement', v as any)}>
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="read">Read Only</SelectItem>
+                                                        <SelectItem value="write">Write</SelectItem>
+                                                        <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Form Editor</Label>
+                                                <Select value={companyPermissions[ca.companyName].formEditor} onValueChange={(v) => handlePermissionChange(ca.companyName, 'formEditor', v as any)}>
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="read">Read Only</SelectItem>
+                                                        <SelectItem value="write">Write</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Resources</Label>
+                                                <Select value={companyPermissions[ca.companyName].resources} onValueChange={(v) => handlePermissionChange(ca.companyName, 'resources', v as any)}>
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="read">Read Only</SelectItem>
+                                                        <SelectItem value="write">Write</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
             </CardContent>

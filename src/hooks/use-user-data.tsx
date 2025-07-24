@@ -36,7 +36,7 @@ export interface HrPermissions {
     userManagement: 'read' | 'write' | 'write-upload';
     formEditor: 'read' | 'write';
     resources: 'read' | 'write';
-    companySettings: 'read' | 'write';
+    companySettings: 'read';
 }
 
 export interface HrManager {
@@ -348,9 +348,15 @@ export function useUserData() {
       const timezoneJson = localStorage.getItem(timezoneKey);
       if (timezoneJson) {
         try {
-          setUserTimezone(JSON.parse(timezoneJson));
+          // Check if it's JSON before parsing
+          if (timezoneJson.startsWith('"') && timezoneJson.endsWith('"')) {
+            setUserTimezone(JSON.parse(timezoneJson));
+          } else {
+            // It's a raw string
+            setUserTimezone(timezoneJson);
+          }
         } catch {
-          // If it's not valid JSON, it's probably a raw string
+          // Fallback for any other malformed data
           setUserTimezone(timezoneJson);
         }
       } else {
@@ -514,12 +520,13 @@ export function useUserData() {
   }, [companyAssignments]);
   
 
-  const addCompanyAssignment = useCallback((assignment: Partial<CompanyAssignment> & { companyName: string }) => {
+  const addCompanyAssignment = useCallback((assignment: Partial<CompanyAssignment> & { hrManagerEmail: string; companyName: string }) => {
+    const { hrManagerEmail, ...rest } = assignment;
     const newAssignment: CompanyAssignment = {
-        hrManagers: assignment.hrManagers || [],
-        version: assignment.version || 'basic',
-        maxUsers: assignment.maxUsers || 10,
-        ...assignment
+        hrManagers: [{ email: hrManagerEmail, isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' } }],
+        version: 'basic',
+        maxUsers: 10,
+        ...rest
     };
 
     const newAssignments = [...companyAssignments, newAssignment];
