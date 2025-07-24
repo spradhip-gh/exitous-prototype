@@ -152,9 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const switchCompany = useCallback((companyName: string) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(companyName)) {
-        // Create a new auth object, but crucially remove the permissions.
-        // The useUserData hook will see the new companyName and re-evaluate/re-set the correct permissions.
-        // This forces a re-render of components that depend on those permissions, like the Header.
+        // This function now just changes the company name in the auth state.
+        // The permission re-evaluation is handled by the useEffect in `useUserData`.
         const newAuth = { ...auth, companyName, permissions: undefined };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
