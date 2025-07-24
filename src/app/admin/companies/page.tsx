@@ -115,6 +115,16 @@ function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }:
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="space-y-2">
+                        <Label>Company Settings</Label>
+                        <Select value={editedPermissions.companySettings} onValueChange={(v) => setEditedPermissions(p => ({...p, companySettings: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -203,19 +213,8 @@ export default function CompanyManagementPage() {
     setIsEditDialogOpen(true);
   }
 
-  const handleSaveChanges = (updates: Partial<CompanyAssignment>) => {
-    if (!editingCompany) return;
-    
-    if (updates.maxUsers) {
-        const maxUsersNum = Number(updates.maxUsers);
-         if (isNaN(maxUsersNum) || maxUsersNum <= 0) {
-          toast({ title: "Invalid User Limit", description: "Maximum users must be a positive number.", variant: "destructive" });
-          return;
-        }
-        updates.maxUsers = maxUsersNum;
-    }
-
-    updateCompanyAssignment(editingCompany.companyName, updates);
+  const handleSaveChanges = (companyName: string, updates: Partial<CompanyAssignment>) => {
+    updateCompanyAssignment(companyName, updates);
   }
 
   const handleUpgrade = (companyName: string) => {
@@ -273,36 +272,47 @@ export default function CompanyManagementPage() {
     document.body.removeChild(link);
   };
   
-    const handleMakePrimary = (newPrimaryEmail: string) => {
-        if (!editingCompany) return;
-
-        const updatedManagers = editingCompany.hrManagers.map(hr => ({
+    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
+        if (!companyToUpdate) return;
+        
+        const updatedManagers = companyToUpdate.hrManagers.map(hr => ({
             ...hr,
             isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
             permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
         }));
 
-        handleSaveChanges({ hrManagers: updatedManagers });
+        handleSaveChanges(companyName, { hrManagers: updatedManagers });
     };
 
-    const handleRemoveHrFromCompany = (emailToRemove: string) => {
-        if (!editingCompany) return;
+    const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
+        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
+        if (!companyToUpdate) return;
 
-        const updatedManagers = editingCompany.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
-        handleSaveChanges({ hrManagers: updatedManagers });
+        const manager = companyToUpdate.hrManagers.find(hr => hr.email.toLowerCase() === emailToRemove.toLowerCase());
+        if (manager?.isPrimary) {
+            toast({ title: "Cannot Remove Primary Manager", description: "Please assign a new primary manager first.", variant: "destructive" });
+            return;
+        }
+
+        const updatedManagers = companyToUpdate.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
+        handleSaveChanges(companyName, { hrManagers: updatedManagers });
     };
 
-    const handleAddHrToCompany = () => {
-        if (!editingCompany || !addHrEmail) return;
+    const handleAddHrToCompany = (companyName: string) => {
+        if (!companyName || !addHrEmail) return;
         
-        if (editingCompany.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
+        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
+        if (!companyToUpdate) return;
+
+        if (companyToUpdate.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
             toast({ title: "Manager Already Assigned", description: `${addHrEmail} is already assigned to this company.`, variant: "destructive" });
             return;
         }
 
         const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
-        const updatedManagers = [...editingCompany.hrManagers, newHr];
-        handleSaveChanges({ hrManagers: updatedManagers });
+        const updatedManagers = [...companyToUpdate.hrManagers, newHr];
+        handleSaveChanges(companyName, { hrManagers: updatedManagers });
         setAddHrEmail('');
     };
 
@@ -313,13 +323,28 @@ export default function CompanyManagementPage() {
     
     const handleSavePermissions = (email: string, permissions: HrPermissions) => {
         if (!editingCompany) return;
-
+        
         const updatedManagers = editingCompany.hrManagers.map(hr => 
             hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
         );
-        handleSaveChanges({ hrManagers: updatedManagers });
+        handleSaveChanges(editingCompany.companyName, { hrManagers: updatedManagers });
         toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
+
+    // This effect is needed to refresh the dialog's view of the company data
+    // when changes are made to the underlying global state.
+    useEffect(() => {
+        if(isEditDialogOpen && editingCompany) {
+            const freshCompanyData = companyAssignments.find(c => c.companyName === editingCompany.companyName);
+            if (freshCompanyData) {
+                setEditingCompany(freshCompanyData);
+            } else {
+                // The company was deleted, so close the dialog.
+                setIsEditDialogOpen(false);
+                setEditingCompany(null);
+            }
+        }
+    }, [companyAssignments, editingCompany, isEditDialogOpen]);
 
   return (
     <div className="p-4 md:p-8">
@@ -525,103 +550,108 @@ export default function CompanyManagementPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Company Settings</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="max-users">Max Users</Label>
-                                    <Input 
-                                        id="max-users" 
-                                        type="number" 
-                                        defaultValue={editingCompany?.maxUsers?.toString() ?? ''} 
-                                        onBlur={(e) => handleSaveChanges({ maxUsers: parseInt(e.target.value, 10) })}
-                                    />
+                    {editingCompany && (
+                        <>
+                        <Card>
+                            <CardHeader><CardTitle className="text-base">Company Settings</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="max-users">Max Users</Label>
+                                        <Input 
+                                            id="max-users" 
+                                            type="number" 
+                                            defaultValue={editingCompany.maxUsers?.toString() ?? ''} 
+                                            onBlur={(e) => handleSaveChanges(editingCompany.companyName, { maxUsers: parseInt(e.target.value, 10) })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="deadline-time">Deadline Time</Label>
+                                        <Input 
+                                            id="deadline-time" 
+                                            type="time" 
+                                            defaultValue={editingCompany.severanceDeadlineTime || '17:00'} 
+                                            onBlur={(e) => handleSaveChanges(editingCompany.companyName, { severanceDeadlineTime: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="deadline-time">Deadline Time</Label>
-                                    <Input 
-                                        id="deadline-time" 
-                                        type="time" 
-                                        defaultValue={editingCompany?.severanceDeadlineTime || '17:00'} 
-                                        onBlur={(e) => handleSaveChanges({ severanceDeadlineTime: e.target.value })}
-                                    />
+                                    <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
+                                    <Select defaultValue={editingCompany.severanceDeadlineTimezone || 'America/Los_Angeles'} onValueChange={(v) => handleSaveChanges(editingCompany.companyName, {severanceDeadlineTimezone: v})}>
+                                        <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
-                                <Select defaultValue={editingCompany?.severanceDeadlineTimezone || 'America/Los_Angeles'} onValueChange={(v) => handleSaveChanges({severanceDeadlineTimezone: v})}>
-                                    <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
-                                <Input id="edit-pre-contact" defaultValue={editingCompany?.preEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges({preEndDateContactAlias: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
-                                <Input id="edit-post-contact" defaultValue={editingCompany?.postEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges({postEndDateContactAlias: e.target.value})} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
-                        <CardContent>
-                             <Table>
-                               <TableBody>
-                                {editingCompany?.hrManagers.map(hr => (
-                                    <TableRow key={hr.email}>
-                                        <TableCell>
-                                            <div className="font-medium">{hr.email}</div>
-                                            {hr.isPrimary ? <div className="text-xs text-amber-600 flex items-center gap-1"><Crown className="h-3 w-3" /> Primary Manager</div> : (
-                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                    <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
-                                                    <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
-                                                    <Badge variant="outline" className="text-xs">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex gap-1 justify-end">
-                                                 <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
-                                                    <Shield className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleMakePrimary(hr.email)} disabled={hr.isPrimary}>
-                                                    <Crown className="mr-2 h-4 w-4"/> Make Primary
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(hr.email)}>
-                                                    <Trash2 className="h-4 w-4 text-destructive"/>
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                </TableBody>
-                            </Table>
-                            <Separator className="my-4"/>
-                            <div className="flex items-center gap-2">
-                                <Input placeholder="new.manager@email.com" value={addHrEmail} onChange={e => setAddHrEmail(e.target.value)} />
-                                <Button onClick={handleAddHrToCompany}><UserPlus className="mr-2"/>Add HR</Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {(editingCompany?.version || 'basic') === 'basic' && (
-                         <Card className="bg-muted/50">
-                            <CardHeader>
-                                <CardTitle className="text-base">Upgrade to Pro</CardTitle>
-                                <CardDescription className="text-xs">
-                                    Unlock form editing capabilities for the HR Manager. This action cannot be undone.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardFooter>
-                                <Button size="sm" onClick={() => handleUpgrade(editingCompany!.companyName)}>Upgrade to Pro</Button>
-                            </CardFooter>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
+                                    <Input id="edit-pre-contact" defaultValue={editingCompany.preEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges(editingCompany.companyName, {preEndDateContactAlias: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
+                                    <Input id="edit-post-contact" defaultValue={editingCompany.postEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges(editingCompany.companyName, {postEndDateContactAlias: e.target.value})} />
+                                </div>
+                            </CardContent>
                         </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                <TableBody>
+                                    {editingCompany.hrManagers.map(hr => (
+                                        <TableRow key={hr.email}>
+                                            <TableCell>
+                                                <div className="font-medium">{hr.email}</div>
+                                                {hr.isPrimary ? <div className="text-xs text-amber-600 flex items-center gap-1"><Crown className="h-3 w-3" /> Primary Manager</div> : (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
+                                                        <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
+                                                        <Badge variant="outline" className="text-xs">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
+                                                        <Badge variant="outline" className="text-xs">Settings: {permissionLabels[hr.permissions.companySettings]}</Badge>
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex gap-1 justify-end">
+                                                    <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
+                                                        <Shield className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                        <Crown className="mr-2 h-4 w-4"/> Make Primary
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                        <Trash2 className="h-4 w-4 text-destructive"/>
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    </TableBody>
+                                </Table>
+                                <Separator className="my-4"/>
+                                <div className="flex items-center gap-2">
+                                    <Input placeholder="new.manager@email.com" value={addHrEmail} onChange={e => setAddHrEmail(e.target.value)} />
+                                    <Button onClick={() => handleAddHrToCompany(editingCompany.companyName)}><UserPlus className="mr-2"/>Add HR</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {(editingCompany.version || 'basic') === 'basic' && (
+                            <Card className="bg-muted/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Upgrade to Pro</CardTitle>
+                                    <CardDescription className="text-xs">
+                                        Unlock form editing capabilities for the HR Manager. This action cannot be undone.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardFooter>
+                                    <Button size="sm" onClick={() => handleUpgrade(editingCompany.companyName)}>Upgrade to Pro</Button>
+                                </CardFooter>
+                            </Card>
+                        )}
+                        </>
                     )}
                 </div>
                 <DialogFooter>
@@ -636,10 +666,13 @@ export default function CompanyManagementPage() {
                 onOpenChange={setIsPermissionsDialogOpen}
                 manager={editingManager}
                 companyName={editingCompany.companyName}
-                onSave={handleSavePermissions}
+                onSave={(email, permissions) => handleSaveChanges(editingCompany.companyName, {
+                    hrManagers: editingCompany.hrManagers.map(hr => 
+                        hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
+                    )
+                })}
             />
         )}
     </div>
   );
 }
-

@@ -89,6 +89,16 @@ function PermissionsDialog({ open, onOpenChange, onSave, permissions }: {
                             </SelectContent>
                         </Select>
                     </div>
+                     <div className="space-y-2">
+                        <Label>Company Settings</Label>
+                        <Select value={editedPermissions.companySettings} onValueChange={(v) => setEditedPermissions(p => ({...p, companySettings: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -119,22 +129,29 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
 
     if (!managerEmail) return null;
 
-    const managerAssignments = localAssignments.filter(a => managedCompanies.includes(a.companyName) && a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
-    const unassignedCompanies = managedCompanies.filter(c => !managerAssignments.some(a => a.companyName === c));
+    const managerAssignments = localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
+    
+    // Admins can add to any company, HRs can only add to companies they are primary for
+    const addableCompanies = assignments.filter(c => {
+        const isManagedByLoggedInUser = managedCompanies.includes(c.companyName);
+        const isAlreadyAssigned = managerAssignments.some(ma => ma.companyName === c.companyName);
+        return isManagedByLoggedInUser && !isAlreadyAssigned;
+    }).map(c => c.companyName);
 
     const handleRemoveAccess = (companyName: string) => {
         const companyAssignment = localAssignments.find(a => a.companyName === companyName);
-        if (companyAssignment && companyAssignment.hrManagers.length <= 1) {
-            toast({ title: "Cannot Remove Last Manager", description: `A company must have at least one HR manager. Assign another manager to ${companyName} first.`, variant: "destructive" });
+        if (!companyAssignment || !managerEmail) return;
+
+        const managerInQuestion = companyAssignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
+        
+        if (managerInQuestion?.isPrimary) {
+            toast({ title: "Cannot Remove Primary Manager", description: `You must first assign a different manager as primary for ${companyName} before removing this one.`, variant: "destructive" });
             return;
         }
 
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
                 const updatedManagers = a.hrManagers.filter(hr => hr.email.toLowerCase() !== managerEmail.toLowerCase());
-                if (!updatedManagers.some(hr => hr.isPrimary) && updatedManagers.length > 0) {
-                    updatedManagers[0].isPrimary = true;
-                }
                 return { ...a, hrManagers: updatedManagers };
             }
             return a;
@@ -187,15 +204,19 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                     {managerAssignments.map(assignment => {
                                         const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
                                         if (!manager) return null;
-                                        const canEdit = managedCompanies.includes(assignment.companyName) && !manager.isPrimary;
+                                        
+                                        // Only admins or primary managers of that *specific* company can edit it
+                                        const canEditThisCompany = managedCompanies.includes(assignment.companyName);
+                                        const isPrimaryInThisCompany = manager.isPrimary;
+                                        const isLastManager = assignment.hrManagers.length <= 1;
 
                                         return (
                                             <TableRow key={assignment.companyName}>
                                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
                                                 <TableCell>{manager.isPrimary ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEdit}><Shield className="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!managedCompanies.includes(assignment.companyName)}><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEditThisCompany || isPrimaryInThisCompany}><Shield className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!canEditThisCompany || isPrimaryInThisCompany || isLastManager}><Trash2 className="h-4 w-4" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -205,13 +226,13 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                         </CardContent>
                     </Card>
 
-                    {unassignedCompanies.length > 0 && (
+                    {addableCompanies.length > 0 && (
                         <Card>
                             <CardHeader><CardTitle className="text-base">Add Access to Your Companies</CardTitle></CardHeader>
                             <CardContent>
                                 <Table>
                                      <TableBody>
-                                        {unassignedCompanies.map(companyName => (
+                                        {addableCompanies.map(companyName => (
                                             <TableRow key={companyName}>
                                                 <TableCell className="font-medium">{companyName}</TableCell>
                                                 <TableCell className="text-right"><Button size="sm" onClick={() => handleAddAccess(companyName)}><PlusCircle className="mr-2" />Add</Button></TableCell>
@@ -328,20 +349,17 @@ export default function HrManagementPage() {
     const [isAddHrOpen, setIsAddHrOpen] = useState(false);
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
-        let companiesToScan: CompanyAssignment[];
-        let primaryForCompanies: string[] = [];
+        let companiesWherePrimary: string[] = [];
 
         if (auth?.role === 'admin') {
-            companiesToScan = companyAssignments;
-            primaryForCompanies = companyAssignments.map(a => a.companyName);
+            companiesWherePrimary = companyAssignments.map(a => a.companyName);
         } else if (auth?.role === 'hr' && auth.email) {
-            primaryForCompanies = companyAssignments
+            companiesWherePrimary = companyAssignments
                 .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
                 .map(a => a.companyName);
-            companiesToScan = companyAssignments.filter(a => primaryForCompanies.includes(a.companyName));
-        } else {
-            companiesToScan = [];
         }
+        
+        const companiesToScan = companyAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
         
         const managers = new Map<string, { email: string, companies: string[] }>();
         companiesToScan.forEach(assignment => {
@@ -358,7 +376,7 @@ export default function HrManagementPage() {
 
         return {
             manageableHrs: Array.from(managers.values()),
-            managedCompanies: primaryForCompanies,
+            managedCompanies: companiesWherePrimary,
         };
     }, [companyAssignments, auth]);
     
