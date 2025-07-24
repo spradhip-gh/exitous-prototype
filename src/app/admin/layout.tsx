@@ -130,14 +130,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   User Management
                 </Button>
               </Link>
-               {isHrPrimaryOfAnyCompany && (
-                 <Link href="/admin/hr-management">
-                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
-                        <Users2 className="mr-2" />
-                        HR Team Management
-                    </Button>
-                </Link>
-              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -184,6 +176,14 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                 Global
               </h2>
               <div className="space-y-1">
+                {isHrPrimaryOfAnyCompany && (
+                 <Link href="/admin/hr-management">
+                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
+                        <Users2 className="mr-2" />
+                        HR Team Management
+                    </Button>
+                </Link>
+                )}
                 <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
                   <Button variant='ghost' className="w-full justify-start">
                       <HelpCircle className="mr-2" />
