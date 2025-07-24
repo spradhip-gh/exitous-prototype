@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -32,6 +33,13 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 const defaultPermissions = {
+    userManagement: 'read' as const,
+    formEditor: 'read' as const,
+    resources: 'read' as const,
+    companySettings: 'read' as const,
+};
+
+const fullPermissions = {
     userManagement: 'write-upload' as const,
     formEditor: 'write' as const,
     resources: 'write' as const,
@@ -90,7 +98,7 @@ export default function CompanyManagementPage() {
     
     addCompanyAssignment({ 
         companyName: newCompanyName, 
-        hrManagers: [{email: newHrEmail, isPrimary: true, permissions: { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'read' }}],
+        hrManagers: [{email: newHrEmail, isPrimary: true, permissions: fullPermissions }],
         version: newCompanyVersion,
         maxUsers: maxUsersNum,
         severanceDeadlineTime: newDeadlineTime,
@@ -206,7 +214,9 @@ export default function CompanyManagementPage() {
 
         const updatedManagers = currentAssignment.hrManagers.map(hr => ({
             ...hr,
-            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase()
+            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
+            // When making a user primary, grant them full permissions.
+            permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
         }));
 
         updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
@@ -226,6 +236,8 @@ export default function CompanyManagementPage() {
         // If the primary was removed, make the first remaining manager primary
         if (!updatedManagers.some(hr => hr.isPrimary)) {
             updatedManagers[0].isPrimary = true;
+            // Also give them full permissions
+            updatedManagers[0].permissions = fullPermissions;
         }
         
         updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
@@ -244,7 +256,7 @@ export default function CompanyManagementPage() {
             return;
         }
 
-        const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: { userManagement: 'read', formEditor: 'read', resources: 'read', companySettings: 'read' }};
+        const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
         const updatedManagers = [...currentAssignment.hrManagers, newHr];
         
         updateCompanyAssignment(editingCompany.companyName, { hrManagers: updatedManagers });
@@ -556,4 +568,3 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
-
