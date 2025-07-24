@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info, Switch } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from '@/components/ui/switch';
 
 const defaultPermissions: HrPermissions = {
     userManagement: 'read',
@@ -263,9 +264,9 @@ export default function CompanyManagementPage() {
     document.body.removeChild(link);
   };
   
-    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
+    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
         updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
-        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager.`});
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager.`});
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
@@ -593,7 +594,7 @@ export default function CompanyManagementPage() {
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex items-center space-x-2 p-3">
                                                     <Label htmlFor={`primary-switch-${hr.email}`} className="text-xs text-muted-foreground">Primary</Label>
                                                     <Switch
                                                         id={`primary-switch-${hr.email}`}
