@@ -204,6 +204,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                         <AlertDialogTrigger asChild>
                                                             <Switch
                                                                 checked={isPrimaryInThisCompany}
+                                                                onCheckedChange={() => {}}
                                                                 disabled={!canEditThisCompany || isPrimaryInThisCompany}
                                                             />
                                                         </AlertDialogTrigger>
@@ -563,7 +564,7 @@ export default function HrManagementPage() {
             companiesWherePrimary = localAssignments.map(a => a.companyName);
         } else if (auth?.role === 'hr' && auth.email) {
             companiesWherePrimary = localAssignments
-                .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
+                .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
                 .map(a => a.companyName);
         }
         
