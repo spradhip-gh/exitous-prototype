@@ -39,6 +39,15 @@ const getPermissionsForHr = (email: string, companyName: string, assignments: Co
     const assignment = assignments.find(a => a.companyName === companyName);
     if (!assignment || !assignment.hrManagers) return undefined;
     const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === email.toLowerCase());
+    
+    if (manager?.isPrimary) {
+        return {
+            userManagement: 'write-upload',
+            formEditor: 'write',
+            resources: 'write',
+            companySettings: 'write'
+        };
+    }
     return manager?.permissions;
 }
 

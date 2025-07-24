@@ -36,7 +36,7 @@ export interface HrPermissions {
     userManagement: 'read' | 'write' | 'write-upload' | 'invite-only';
     formEditor: 'read' | 'write';
     resources: 'read' | 'write';
-    companySettings: 'read';
+    companySettings: 'read' | 'write';
 }
 
 export interface HrManager {
@@ -819,4 +819,3 @@ export function useUserData() {
 }
 
     
-
