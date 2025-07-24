@@ -51,6 +51,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedAuth = localStorage.getItem(AUTH_KEY);
       if (storedAuth) {
         let authData = JSON.parse(storedAuth);
+         // Re-hydrate permissions on load to ensure they are in sync with the current company context
+        if (authData.role === 'hr' && authData.email && authData.companyName) {
+            const assignments = getCompanyAssignmentsFromDb();
+            authData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
+        }
         setAuthState(authData);
       }
     } catch (error) {
@@ -148,7 +153,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
-        window.location.reload(); // Force a reload to ensure all components get the new company context
     }
   }, [auth]);
 
