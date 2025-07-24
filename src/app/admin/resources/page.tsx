@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -34,6 +35,7 @@ export default function ResourceManagementPage() {
   const companyName = auth?.companyName || '';
   const companyConfig = getAllCompanyConfigs()[companyName];
   const resources = companyConfig?.resources || [];
+  const canWrite = auth?.permissions?.resources === 'write';
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -112,49 +114,51 @@ export default function ResourceManagementPage() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Add New Resource</CardTitle>
-            <CardDescription>Upload a new document to be shared with your employees.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="title">Resource Title</Label>
-                <Input id="title" placeholder="e.g., 2024 Benefits Guide" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={newCategory} onValueChange={(v) => setNewCategory(v as any)}>
-                  <SelectTrigger id="category"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Benefits">Benefits</SelectItem>
-                    <SelectItem value="Policies">Policies</SelectItem>
-                    <SelectItem value="Career">Career</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" placeholder="A brief summary of what this document contains." value={newDescription} onChange={e => setNewDescription(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="file-upload">File</Label>
-              <div className="flex items-center gap-4">
-                <Input id="file-upload" type="file" key={fileInputKey} onChange={handleFileChange} className="hidden" />
-                <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
-                    <UploadCloud className="mr-2"/> Choose File
+        <fieldset disabled={!canWrite}>
+            <Card>
+            <CardHeader>
+                <CardTitle>Add New Resource</CardTitle>
+                <CardDescription>Upload a new document to be shared with your employees.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                    <Label htmlFor="title">Resource Title</Label>
+                    <Input id="title" placeholder="e.g., 2024 Benefits Guide" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select value={newCategory} onValueChange={(v) => setNewCategory(v as any)}>
+                    <SelectTrigger id="category"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Benefits">Benefits</SelectItem>
+                        <SelectItem value="Policies">Policies</SelectItem>
+                        <SelectItem value="Career">Career</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                    </Select>
+                </div>
+                </div>
+                <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" placeholder="A brief summary of what this document contains." value={newDescription} onChange={e => setNewDescription(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                <Label htmlFor="file-upload">File</Label>
+                <div className="flex items-center gap-4">
+                    <Input id="file-upload" type="file" key={fileInputKey} onChange={handleFileChange} className="hidden" />
+                    <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
+                        <UploadCloud className="mr-2"/> Choose File
+                    </Button>
+                    {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileIcon className="h-4 w-4"/><span>{newFileName}</span></div>}
+                </div>
+                </div>
+                <Button onClick={handleAddResource}>
+                <PlusCircle className="mr-2" /> Add Resource
                 </Button>
-                {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileIcon className="h-4 w-4"/><span>{newFileName}</span></div>}
-              </div>
-            </div>
-            <Button onClick={handleAddResource}>
-              <PlusCircle className="mr-2" /> Add Resource
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+            </Card>
+        </fieldset>
 
         <Card>
           <CardHeader>
@@ -184,7 +188,7 @@ export default function ResourceManagementPage() {
                       </Button>
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" disabled={!canWrite}>
                                   <Trash2 className="h-4 w-4" />
                                   <span className="sr-only">Delete</span>
                               </Button>

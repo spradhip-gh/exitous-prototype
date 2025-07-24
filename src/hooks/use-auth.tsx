@@ -3,7 +3,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { HrPermissions } from './use-user-data';
+import type { HrPermissions, CompanyAssignment } from './use-user-data';
+import { getCompanyAssignments as getCompanyAssignmentsFromDb } from '@/lib/demo-data';
+
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
@@ -33,6 +35,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getPermissionsForHr = (email: string, companyName: string, assignments: CompanyAssignment[]): HrPermissions | undefined => {
+    const assignment = assignments.find(a => a.companyName === companyName);
+    if (!assignment || !assignment.hrManagers) return undefined;
+    const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === email.toLowerCase());
+    return manager?.permissions;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuthState] = useState<AuthState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const storedAuth = localStorage.getItem(AUTH_KEY);
       if (storedAuth) {
-        setAuthState(JSON.parse(storedAuth));
+        let authData = JSON.parse(storedAuth);
+        // If HR user, ensure permissions are loaded on initial load
+        if(authData.role === 'hr' && authData.email && authData.companyName) {
+            const assignments = getCompanyAssignmentsFromDb();
+            authData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
+        }
+        setAuthState(authData);
       }
     } catch (error) {
       console.error('Failed to load auth state from local storage', error);
@@ -54,8 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const login = useCallback((authData: AuthState) => {
     try {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
-      setAuthState(authData);
+      let finalAuthData = { ...authData };
+      if (authData.role === 'hr' && authData.email && authData.companyName) {
+        const assignments = getCompanyAssignmentsFromDb();
+        finalAuthData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
+      }
+      localStorage.setItem(AUTH_KEY, JSON.stringify(finalAuthData));
+      setAuthState(finalAuthData);
       localStorage.removeItem(ORIGINAL_AUTH_KEY);
     } catch (error) {
       console.error('Failed to save auth state to local storage', error);
@@ -127,8 +147,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout]);
   
   const switchCompany = useCallback((newCompanyName: string) => {
-    if (auth?.role === 'hr' && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        const newAuth = { ...auth, companyName: newCompanyName };
+    if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
+        const assignments = getCompanyAssignmentsFromDb();
+        const newPermissions = getPermissionsForHr(auth.email, newCompanyName, assignments);
+        const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
         window.location.reload(); // Force a reload to ensure all components get the new company context

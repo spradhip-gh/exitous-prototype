@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,6 +31,8 @@ export default function CompanySettingsPage() {
   const [deadlineTimezone, setDeadlineTimezone] = useState('');
   const [preEndDateContact, setPreEndDateContact] = useState('');
   const [postEndDateContact, setPostEndDateContact] = useState('');
+  
+  const canWrite = auth?.permissions?.companySettings === 'write';
 
   const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null;
   const userCount = companyConfig?.users?.length ?? 0;
@@ -144,59 +147,61 @@ export default function CompanySettingsPage() {
             </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact & Deadline Defaults</CardTitle>
-            <CardDescription>
-              Set default contact aliases and severance deadline times for all users in your company. These can be overridden for individual users via CSV upload.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <fieldset disabled={!canWrite}>
+            <Card>
+            <CardHeader>
+                <CardTitle>Contact & Deadline Defaults</CardTitle>
+                <CardDescription>
+                Set default contact aliases and severance deadline times for all users in your company. These can be overridden for individual users via CSV upload.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                    <Label htmlFor="pre-end-date-contact">Pre-End Date Contact Alias</Label>
+                    <Input 
+                        id="pre-end-date-contact" 
+                        placeholder="e.g., Your HR Business Partner" 
+                        value={preEndDateContact} 
+                        onChange={(e) => setPreEndDateContact(e.target.value)} 
+                    />
+                    </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="post-end-date-contact">Post-End Date Contact Alias</Label>
+                    <Input 
+                        id="post-end-date-contact" 
+                        placeholder="e.g., alumni-support@email.com" 
+                        value={postEndDateContact} 
+                        onChange={(e) => setPostEndDateContact(e.target.value)} 
+                    />
+                    </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pre-end-date-contact">Pre-End Date Contact Alias</Label>
-                  <Input 
-                    id="pre-end-date-contact" 
-                    placeholder="e.g., Your HR Business Partner" 
-                    value={preEndDateContact} 
-                    onChange={(e) => setPreEndDateContact(e.target.value)} 
-                  />
+                    <Label htmlFor="deadline-time">Default Deadline Time</Label>
+                    <Input 
+                    id="deadline-time" 
+                    type="time" 
+                    value={deadlineTime} 
+                    onChange={(e) => setDeadlineTime(e.target.value)} 
+                    />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="post-end-date-contact">Post-End Date Contact Alias</Label>
-                  <Input 
-                    id="post-end-date-contact" 
-                    placeholder="e.g., alumni-support@email.com" 
-                    value={postEndDateContact} 
-                    onChange={(e) => setPostEndDateContact(e.target.value)} 
-                  />
+                    <Label htmlFor="deadline-timezone">Default Timezone</Label>
+                    <Select value={deadlineTimezone} onValueChange={setDeadlineTimezone}>
+                    <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
                 </div>
-              <div className="space-y-2">
-                <Label htmlFor="deadline-time">Default Deadline Time</Label>
-                <Input 
-                  id="deadline-time" 
-                  type="time" 
-                  value={deadlineTime} 
-                  onChange={(e) => setDeadlineTime(e.target.value)} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deadline-timezone">Default Timezone</Label>
-                <Select value={deadlineTimezone} onValueChange={setDeadlineTimezone}>
-                  <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="border-t bg-muted/50 px-6 py-3">
-              <div className="flex w-full justify-end">
-                <Button onClick={handleSaveChanges}>Save Changes</Button>
-              </div>
-          </CardFooter>
-        </Card>
+                </div>
+            </CardContent>
+            <CardFooter className="border-t bg-muted/50 px-6 py-3">
+                <div className="flex w-full justify-end">
+                    <Button onClick={handleSaveChanges}>Save Changes</Button>
+                </div>
+            </CardFooter>
+            </Card>
+        </fieldset>
       </div>
     </div>
   );

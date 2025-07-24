@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,25 +9,25 @@ import { Question } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
 import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot } from "lucide-react";
 
-function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void }) {
+function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
         <div className="space-y-2">
             <div className={cn("flex items-center space-x-2 group p-2 rounded-md", question.isCustom ? "bg-primary/5" : "bg-muted/50")} style={{ marginLeft: `${level * 1.5}rem`}}>
                 <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id, parentId)} />
+                <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id, parentId)} disabled={!canWrite} />
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
                 {question.triggerValue && <Badge variant="outline" className="text-xs">On: {question.triggerValue}</Badge>}
                 <div className="flex items-center">
                     {canHaveSubquestions && (
-                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
+                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" disabled={!canWrite}><Trash2 className="h-4 w-4" /></Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -54,6 +55,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddSub={onAddSub}
+                            canWrite={canWrite}
                         />
                     ))}
                 </div>
@@ -62,7 +64,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean }) {
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
@@ -71,10 +73,10 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                  <div className="flex flex-col w-5">
                     {question.isCustom && (
                         <>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst || !canWrite}>
                                 <ArrowUp className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast || !canWrite}>
                                 <ArrowDown className="h-4 w-4" />
                             </Button>
                         </>
@@ -84,17 +86,17 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
                     {question.isCustom && <Star className="h-4 w-4 text-amber-500 flex-shrink-0" />}
                 </div>
-                <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} />
+                <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} disabled={!canWrite} />
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
                 <div className="flex items-center">
                     {canHaveSubquestions && (
-                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
+                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" disabled={!canWrite}><Trash2 className="h-4 w-4" /></Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -122,6 +124,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddSub={onAddSub}
+                            canWrite={canWrite}
                          />
                     ))}
                 </div>

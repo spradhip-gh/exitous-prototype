@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -44,6 +45,8 @@ export default function HrFormEditor() {
     } = useUserData();
     
     const companyName = auth?.companyName;
+    const canWrite = auth?.permissions?.formEditor === 'write';
+    
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
     
     const [isEditing, setIsEditing] = useState(false);
@@ -350,41 +353,44 @@ export default function HrFormEditor() {
                     <h1 className="font-headline text-3xl font-bold">Assessment Question Editor</h1>
                     <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
-                <Card>
-                    <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
-                    <CardContent className="space-y-6">
-                        {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
-                            <div key={section}>
-                                <h3 className="font-semibold mb-4 text-lg">{section}</h3>
-                                <div className="space-y-2">
-                                    {sectionQuestions.map((question, index) => {
-                                        const masterQ = masterQuestions[question.id];
-                                        const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
-                                        
-                                        return (
-                                            <HrQuestionItem
-                                                key={question.id}
-                                                question={question}
-                                                onToggleActive={handleToggleQuestion}
-                                                onEdit={handleEditClick}
-                                                onDelete={handleDeleteCustom}
-                                                onAddSub={handleAddNewCustomClick}
-                                                hasBeenUpdated={hasBeenUpdated}
-                                                onMove={handleMoveQuestion}
-                                                isFirst={index === 0 || !question.isCustom}
-                                                isLast={index === sectionQuestions.length - 1 || !question.isCustom}
-                                            />
-                                        )
-                                    })}
+                <fieldset disabled={!canWrite}>
+                    <Card>
+                        <CardHeader><CardTitle>Manage Questions</CardTitle><CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500"/> are custom to your company.</CardDescription></CardHeader>
+                        <CardContent className="space-y-6">
+                            {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
+                                <div key={section}>
+                                    <h3 className="font-semibold mb-4 text-lg">{section}</h3>
+                                    <div className="space-y-2">
+                                        {sectionQuestions.map((question, index) => {
+                                            const masterQ = masterQuestions[question.id];
+                                            const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
+                                            
+                                            return (
+                                                <HrQuestionItem
+                                                    key={question.id}
+                                                    question={question}
+                                                    onToggleActive={handleToggleQuestion}
+                                                    onEdit={handleEditClick}
+                                                    onDelete={handleDeleteCustom}
+                                                    onAddSub={handleAddNewCustomClick}
+                                                    hasBeenUpdated={hasBeenUpdated}
+                                                    onMove={handleMoveQuestion}
+                                                    isFirst={index === 0 || !question.isCustom}
+                                                    isLast={index === sectionQuestions.length - 1 || !question.isCustom}
+                                                    canWrite={canWrite}
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                    <Separator className="my-6" />
                                 </div>
-                                <Separator className="my-6" />
-                            </div>
-                        ))}
-                    </CardContent>
-                    <CardFooter className="border-t pt-6">
-                        <Button variant="outline" onClick={() => handleAddNewCustomClick()}><PlusCircle className="mr-2" /> Add Custom Question</Button>
-                    </CardFooter>
-                </Card>
+                            ))}
+                        </CardContent>
+                        <CardFooter className="border-t pt-6">
+                            <Button variant="outline" onClick={() => handleAddNewCustomClick()}><PlusCircle className="mr-2" /> Add Custom Question</Button>
+                        </CardFooter>
+                    </Card>
+                </fieldset>
             </div>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <EditQuestionDialog

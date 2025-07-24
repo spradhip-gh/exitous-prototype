@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -54,6 +55,10 @@ export default function HrUserManagement() {
     const { getAllCompanyConfigs, saveCompanyUsers, companyAssignmentForHr, profileCompletions, assessmentCompletions } = useUserData();
     
     const companyName = auth?.companyName;
+    const permissions = auth?.permissions;
+    const canWrite = permissions?.userManagement === 'write' || permissions?.userManagement === 'write-upload';
+    const canUpload = permissions?.userManagement === 'write-upload';
+    
     const [users, setUsers] = useState<CompanyUser[]>([]);
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -410,59 +415,63 @@ export default function HrUserManagement() {
                 </p>
             </div>
             <Card>
-                <CardHeader>
-                    <CardTitle>Add New User</CardTitle>
-                    <CardDescription>
-                        Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.
-                        You have added {users.length} of {companyAssignmentForHr?.maxUsers ?? 'N/A'} users.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div className="space-y-2">
-                            <Label htmlFor="newUserEmail">Work Email Address*</Label>
-                            <Input id="newUserEmail" placeholder="employee@work.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
+                <fieldset disabled={!canWrite}>
+                    <CardHeader>
+                        <CardTitle>Add New User</CardTitle>
+                        <CardDescription>
+                            Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.
+                            You have added {users.length} of {companyAssignmentForHr?.maxUsers ?? 'N/A'} users.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                            <div className="space-y-2">
+                                <Label htmlFor="newUserEmail">Work Email Address*</Label>
+                                <Input id="newUserEmail" placeholder="employee@work.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="newCompanyId">Company ID*</Label>
+                                <Input id="newCompanyId" placeholder="123456" value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="newNotificationDate">Notification Date*</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newNotificationDate && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {newNotificationDate ? format(newNotificationDate, "PPP") : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newNotificationDate} onSelect={setNewNotificationDate} initialFocus /></PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="newPersonalEmail">Personal Email</Label>
+                                <Input id="newPersonalEmail" placeholder="user@personal.com" value={newPersonalEmail} onChange={e => setNewPersonalEmail(e.target.value)} />
+                            </div>
+                            <Button onClick={handleAddUser} className="lg:col-start-4">
+                                <PlusCircle className="mr-2" /> Add User
+                            </Button>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="newCompanyId">Company ID*</Label>
-                            <Input id="newCompanyId" placeholder="123456" value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="newNotificationDate">Notification Date*</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newNotificationDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {newNotificationDate ? format(newNotificationDate, "PPP") : <span>Pick a date</span>}
+                    </CardContent>
+                    <CardFooter className="border-t pt-6">
+                         <fieldset disabled={!canUpload}>
+                            <div className="space-y-2">
+                                <Label>Bulk Upload User Data</Label>
+                                <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
+                                <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                                    <Upload className="mr-2"/> Upload CSV
                                     </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newNotificationDate} onSelect={setNewNotificationDate} initialFocus /></PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="newPersonalEmail">Personal Email</Label>
-                            <Input id="newPersonalEmail" placeholder="user@personal.com" value={newPersonalEmail} onChange={e => setNewPersonalEmail(e.target.value)} />
-                        </div>
-                        <Button onClick={handleAddUser} className="lg:col-start-4">
-                            <PlusCircle className="mr-2" /> Add User
-                        </Button>
-                     </div>
-                </CardContent>
-                <CardFooter className="border-t pt-6">
-                    <div className="space-y-2">
-                        <Label>Bulk Upload User Data</Label>
-                        <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
-                         <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                         <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                               <Upload className="mr-2"/> Upload CSV
-                            </Button>
-                             <Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground">
-                                <Download className="mr-2" /> Download Template
-                            </Button>
-                         </div>
-                    </div>
-                </CardFooter>
+                                    <Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground">
+                                        <Download className="mr-2" /> Download Template
+                                    </Button>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </CardFooter>
+                </fieldset>
             </Card>
 
             <Card>
