@@ -12,7 +12,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { addReviewQueueItem, getCompanyConfig } from '@/lib/demo-data';
+import { addReviewQueueItem, getCompanyConfigs } from '@/lib/demo-data';
 import { stateUnemploymentLinks } from '@/lib/state-resources';
 import { differenceInYears, parseISO } from 'date-fns';
 import { tenureOptions } from '@/lib/guidance-helpers';
@@ -82,7 +82,6 @@ const PersonalizedRecommendationsInputSchema = z.object({
   companyName: z.string().optional(),
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
-  adminGuidance: z.array(AdminGuidanceSchema).optional().describe("A list of pre-defined guidance items to be included and enriched."),
 });
 
 
@@ -117,33 +116,7 @@ export type PersonalizedRecommendationsOutput = z.infer<
 export async function getPersonalizedRecommendations(
   input: PersonalizedRecommendationsInput
 ): Promise<PersonalizedRecommendationsOutput> {
-  // Logic to determine which admin guidance rules apply
-  const allGuidance = input.companyName ? getCompanyConfig(input.companyName, true).guidance || [] : [];
-  
-  const tenure = input.layoffDetails.startDate ? differenceInYears(new Date(), parseISO(input.layoffDetails.startDate)) : null;
-
-  const checkCondition = (condition: any) => {
-    if (condition.type === 'tenure' && tenure !== null) {
-        if (condition.operator === 'lt') return tenure < condition.value[0];
-        if (condition.operator === 'gte') return tenure >= condition.value[0];
-        if (condition.operator === 'gte_lt') return tenure >= condition.value[0] && tenure < condition.value[1];
-    }
-    // Add other condition types (question, date_offset) here if needed in the future
-    return false;
-  };
-
-  const triggeredGuidance = allGuidance.filter(rule => 
-      rule.conditions.every(checkCondition)
-  ).map(rule => ({
-      id: rule.id,
-      guidanceText: rule.guidanceText,
-      category: rule.category,
-      linkedResourceId: rule.linkedResourceId,
-  }));
-
-  const flowInput = { ...input, adminGuidance: triggeredGuidance };
-
-  return personalizedRecommendationsFlow(flowInput);
+  return personalizedRecommendationsFlow(input);
 }
 
 const prompt = ai.definePrompt({
@@ -155,26 +128,13 @@ const prompt = ai.definePrompt({
   },
   prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Your primary goal is to provide a structured list of actionable and personalized recommendations.
 
-You have two sources of information:
-1.  **User Data**: The user's profile and specific layoff details.
-2.  **Admin Guidance**: A list of pre-approved, vetted recommendations from HR professionals.
-
-**Your Tasks:**
-
-1.  **Enrich Admin Guidance**: For every item provided in the \`adminGuidance\` array, you MUST include it in your response. Your role is to enrich this guidance, not replace it.
-    *   **Create a \`taskId\`**: This is critical. For each admin guidance item, create a unique taskId by using the provided guidance \`id\` as a prefix. For example, if the guidance id is \`rule-123\`, the taskId should be \`guidance-rule-123\`.
-    *   **Personalize the \`details\`**: Take the provided \`guidanceText\` and make it more specific to the user. For instance, if the text mentions unemployment, replace placeholders like \`[STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]\` with the actual link for the user's state from the context provided.
-    *   **Use the correct \`category\`**: Use the category provided in the admin guidance item.
-    *   **Generate a \`task\` title**: Create a short, actionable title based on the guidance text.
-    *   **Determine \`timeline\` and \`isGoal\`**: Based on the urgency, set an appropriate timeline (e.g., "Within 1 week") and set \`isGoal\` to true.
-
-2.  **Generate AI-specific Recommendations**: Based on the user's full profile and layoff details, identify any gaps not covered by the admin guidance and generate 3-5 additional, critical recommendations.
+Your task is to generate a list of 3-5 critical recommendations based on the user's profile and layoff details.
     *   **Create a truly unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
     *   **Analyze User Data**: Pay close attention to critical dates (final day, severance deadline), insurance status, and visa status.
     *   **Set \`timeline\` and \`isGoal\`**:
         *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated with the user-provided date.
         *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
-    *   **Sort by Urgency**: The final list of all recommendations (both enriched admin guidance and your generated ones) must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
+    *   **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
 
 **User Profile:**
 - State of Residence: {{{profileData.state}}}
@@ -187,16 +147,6 @@ You have two sources of information:
 - Lost Medical Insurance: {{{layoffDetails.hadMedicalInsurance}}} (Coverage ends: {{{layoffDetails.medicalCoverageEndDate}}})
 - Union Member: {{{layoffDetails.unionMember}}}
 - On Leave: {{{layoffDetails.onLeave}}}
-
-**Admin Guidance to Include:**
----
-{{#each adminGuidance}}
-- **ID**: {{{this.id}}}
-- **Guidance Text**: {{{this.guidanceText}}}
-- **Category**: {{{this.category}}}
-- **Linked Resource ID**: {{{this.linkedResourceId}}}
----
-{{/each}}
 
 **Context Data:**
 - State Unemployment Links: {{jsonStringify stateUnemploymentLinks}}
@@ -221,7 +171,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             addReviewQueueItem({
                 id: `review-${input.userEmail}-${Date.now()}`,
                 userEmail: input.userEmail,
-                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName, adminGuidance: input.adminGuidance },
+                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName },
                 output: output,
                 status: 'pending',
                 createdAt: new Date().toISOString(),
