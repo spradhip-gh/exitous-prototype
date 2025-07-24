@@ -119,12 +119,12 @@ const prompt = ai.definePrompt({
   context: {
     stateUnemploymentLinks: stateUnemploymentLinks
   },
-  prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
+  prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
 
 Your task is to generate a comprehensive list of actionable recommendations based on the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Empathy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time.
+1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Do not guess or provide unverified guidance. Your recommendations should be based only on the data provided.
 2.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
 3.  **Use ALL Key Dates:** For EVERY date provided in the user's exit details (e.g., \`finalDate\`, \`medicalCoverageEndDate\`, \`severanceAgreementDeadline\`), you MUST create a corresponding, relevant recommendation. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
 4.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline MUST be for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
@@ -202,3 +202,4 @@ const personalizedRecommendationsFlow = ai.defineFlow(
 
 
 
+    
