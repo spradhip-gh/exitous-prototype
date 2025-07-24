@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, Crown, Shield, UserPlus } from "lucide-react";
+import { PlusCircle, Trash2, Crown, Shield, UserPlus, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -376,8 +377,10 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                         <Label>Assign to Companies</Label>
                         {managedCompanies.map(company => {
                             const isAssigned = !!assignments[company];
+                            const isPrimary = isAssigned && assignments[company].isPrimary;
+
                             return (
-                                <Card key={company} className={cn("transition-all", isAssigned ? "bg-muted/50" : "bg-background")}>
+                                <Card key={company} className={cn("transition-all", isAssigned ? "bg-muted/50" : "bg-background", isPrimary && "border-primary")}>
                                     <CardHeader className="flex flex-row items-center justify-between p-4">
                                         <Label htmlFor={`assign-${company}`} className="text-base font-semibold">{company}</Label>
                                         <Checkbox
@@ -389,17 +392,25 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                     {isAssigned && (
                                         <CardContent className="p-4 pt-0 space-y-4">
                                             <Separator />
-                                            <div className="flex items-center justify-between">
-                                                <div className="space-y-1">
-                                                     <Label>Make Primary Manager</Label>
-                                                     <p className="text-xs text-muted-foreground">Warning: This will demote the current primary (you) and while you will retain all permissions except managing HR Managers.</p>
+                                            <div className="pt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-1">
+                                                         <Label>Make Primary Manager</Label>
+                                                    </div>
+                                                    <Switch 
+                                                        checked={isPrimary}
+                                                        onCheckedChange={(checked) => handlePrimaryChange(company, checked)}
+                                                    />
                                                 </div>
-                                                <Switch 
-                                                    checked={assignments[company]?.isPrimary}
-                                                    onCheckedChange={(checked) => handlePrimaryChange(company, checked)}
-                                                />
+                                                {isPrimary && (
+                                                    <Alert variant="destructive" className="mt-2 bg-amber-50 border-amber-200 text-amber-800">
+                                                      <Info className="h-4 w-4 !text-amber-600" />
+                                                      <AlertTitle>Warning</AlertTitle>
+                                                      <AlertDescription>This will demote the current primary (you), you will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
+                                                    </Alert>
+                                                )}
                                             </div>
-                                            {!assignments[company]?.isPrimary && (
+                                            {!isPrimary && (
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
                                                         <Label>User Management</Label>
