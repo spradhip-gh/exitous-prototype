@@ -38,7 +38,7 @@ const roleNames = {
 
 export default function Header({ children }: { children?: React.ReactNode }) {
   const { auth, logout, startUserView, stopUserView, switchCompany } = useAuth();
-  const { clearData } = useUserData();
+  const { clearData, companyAssignments } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -69,7 +69,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
     }
   }
 
-  const companyAssignment = auth?.companyName ? useUserData().companyAssignments.find(a => a.companyName === auth.companyName) : null;
+  const companyAssignment = auth?.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
