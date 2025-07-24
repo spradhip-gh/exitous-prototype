@@ -10,11 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, Crown, Shield } from "lucide-react";
+import { PlusCircle, Trash2, Crown, Shield, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -28,13 +29,6 @@ const defaultPermissions: HrPermissions = {
     formEditor: 'read',
     resources: 'read',
     companySettings: 'read',
-};
-
-const fullPermissions: HrPermissions = {
-    userManagement: 'write-upload',
-    formEditor: 'write',
-    resources: 'write',
-    companySettings: 'write',
 };
 
 function PermissionsDialog({ open, onOpenChange, onSave, permissions }: {
@@ -105,10 +99,10 @@ function PermissionsDialog({ open, onOpenChange, onSave, permissions }: {
     );
 }
 
-function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onOpenChange, onSave }: {
+function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave }: {
     managerEmail: string | null;
     assignments: CompanyAssignment[];
-    allCompanies: string[];
+    managedCompanies: string[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
@@ -126,7 +120,7 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
     if (!managerEmail) return null;
 
     const managerAssignments = localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
-    const unassignedCompanies = allCompanies.filter(c => !managerAssignments.some(a => a.companyName === c));
+    const unassignedCompanies = managedCompanies.filter(c => !managerAssignments.some(a => a.companyName === c));
 
     const handleRemoveAccess = (companyName: string) => {
         const companyAssignment = localAssignments.find(a => a.companyName === companyName);
@@ -155,7 +149,7 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
             return a;
         }));
     };
-
+    
     const handleSavePermissions = (companyName: string, permissions: HrPermissions) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
@@ -193,13 +187,15 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
                                     {managerAssignments.map(assignment => {
                                         const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
                                         if (!manager) return null;
+                                        const canEdit = managedCompanies.includes(assignment.companyName) && !manager.isPrimary;
+
                                         return (
                                             <TableRow key={assignment.companyName}>
                                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
                                                 <TableCell>{manager.isPrimary ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={manager.isPrimary}><Shield className="h-4 w-4" /></Button>
-                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)}><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEdit}><Shield className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!managedCompanies.includes(assignment.companyName)}><Trash2 className="h-4 w-4" /></Button>
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -211,7 +207,7 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
 
                     {unassignedCompanies.length > 0 && (
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Add Access to Company</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">Add Access to Your Companies</CardTitle></CardHeader>
                             <CardContent>
                                 <Table>
                                      <TableBody>
@@ -244,6 +240,84 @@ function ManageAccessDialog({ managerEmail, assignments, allCompanies, open, onO
     );
 }
 
+function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allAssignments }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    managedCompanies: string[];
+    onSave: (updatedAssignments: CompanyAssignment[]) => void;
+    allAssignments: CompanyAssignment[];
+}) {
+    const { toast } = useToast();
+    const [email, setEmail] = useState('');
+    const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
+    
+    const handleSave = () => {
+        if (!email || selectedCompanies.size === 0) {
+            toast({ title: 'Missing Information', description: 'Please provide an email and select at least one company.', variant: 'destructive' });
+            return;
+        }
+
+        const updatedAssignments = [...allAssignments];
+        selectedCompanies.forEach(companyName => {
+            const assignmentIndex = updatedAssignments.findIndex(a => a.companyName === companyName);
+            if (assignmentIndex > -1) {
+                const assignment = updatedAssignments[assignmentIndex];
+                if (!assignment.hrManagers.some(hr => hr.email.toLowerCase() === email.toLowerCase())) {
+                    assignment.hrManagers.push({ email, isPrimary: false, permissions: defaultPermissions });
+                }
+            }
+        });
+        
+        onSave(updatedAssignments);
+        setEmail('');
+        setSelectedCompanies(new Set());
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New HR Manager</DialogTitle>
+                    <DialogDescription>Add a new HR manager and assign them to the companies you manage.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="hr-email">HR Manager Email</Label>
+                        <Input id="hr-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new.manager@email.com" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Assign to Companies</Label>
+                        <div className="space-y-2 p-3 border rounded-md max-h-48 overflow-y-auto">
+                            {managedCompanies.map(company => (
+                                <div key={company} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`company-${company}`}
+                                        checked={selectedCompanies.has(company)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedCompanies(prev => {
+                                                const newSet = new Set(prev);
+                                                if (checked) newSet.add(company);
+                                                else newSet.delete(company);
+                                                return newSet;
+                                            });
+                                        }}
+                                    />
+                                    <Label htmlFor={`company-${company}`} className="font-normal">{company}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave}>Add Manager</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function HrManagementPage() {
     const { auth } = useAuth();
     const { companyAssignments, saveCompanyAssignments } = useUserData();
@@ -251,35 +325,40 @@ export default function HrManagementPage() {
 
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
     const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
+    const [isAddHrOpen, setIsAddHrOpen] = useState(false);
 
-    const { allHrManagers, allCompanyNames } = useMemo(() => {
+    const { manageableHrs, managedCompanies } = useMemo(() => {
         const managers = new Map<string, { email: string, companies: string[] }>();
-        const companies = new Set<string>();
+        let companiesToScan: CompanyAssignment[];
+        let primaryForCompanies: string[] = [];
 
-        let companiesToScan = companyAssignments;
-        // If the user is an HR manager, scope the view to only the companies they are primary for.
-        if (auth?.role === 'hr') {
-            const primaryForCompanies = new Set(
-                companyAssignments
-                    .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
-                    .map(a => a.companyName)
-            );
-            companiesToScan = companyAssignments.filter(a => primaryForCompanies.has(a.companyName));
+        if (auth?.role === 'admin') {
+            companiesToScan = companyAssignments;
+            primaryForCompanies = companyAssignments.map(a => a.companyName);
+        } else if (auth?.role === 'hr' && auth.email) {
+            primaryForCompanies = companyAssignments
+                .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
+                .map(a => a.companyName);
+            companiesToScan = companyAssignments.filter(a => primaryForCompanies.includes(a.companyName));
+        } else {
+            companiesToScan = [];
         }
-
+        
         companiesToScan.forEach(assignment => {
-            companies.add(assignment.companyName);
             assignment.hrManagers.forEach(hr => {
                 if (!managers.has(hr.email)) {
                     managers.set(hr.email, { email: hr.email, companies: [] });
                 }
-                managers.get(hr.email)!.companies.push(assignment.companyName);
+                const managerData = managers.get(hr.email)!;
+                if (!managerData.companies.includes(assignment.companyName)) {
+                     managerData.companies.push(assignment.companyName);
+                }
             });
         });
 
         return {
-            allHrManagers: Array.from(managers.values()),
-            allCompanyNames: Array.from(companies)
+            manageableHrs: Array.from(managers.values()),
+            managedCompanies: primaryForCompanies,
         };
     }, [companyAssignments, auth]);
     
@@ -291,6 +370,11 @@ export default function HrManagementPage() {
     const handleSaveAssignments = (email: string, updatedAssignments: CompanyAssignment[]) => {
         saveCompanyAssignments(updatedAssignments);
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
+    };
+    
+    const handleAddHrSave = (updatedAssignments: CompanyAssignment[]) => {
+        saveCompanyAssignments(updatedAssignments);
+        toast({ title: "HR Manager Added", description: `The new manager has been assigned to the selected companies.`});
     };
 
     return (
@@ -307,9 +391,12 @@ export default function HrManagementPage() {
                 </div>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>All HR Managers</CardTitle>
-                        <CardDescription>A list of all unique HR managers within your scope.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>HR Managers in Your Scope</CardTitle>
+                            <CardDescription>A list of HR managers within the companies you manage.</CardDescription>
+                        </div>
+                        <Button onClick={() => setIsAddHrOpen(true)}><UserPlus className="mr-2"/> Add New HR Manager</Button>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -321,7 +408,7 @@ export default function HrManagementPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {allHrManagers.map(manager => (
+                                {manageableHrs.map(manager => (
                                     <TableRow key={manager.email}>
                                         <TableCell className="font-medium">{manager.email}</TableCell>
                                         <TableCell>{manager.companies.length}</TableCell>
@@ -341,10 +428,18 @@ export default function HrManagementPage() {
             <ManageAccessDialog 
                 managerEmail={selectedManager}
                 assignments={companyAssignments}
-                allCompanies={allCompanyNames}
+                managedCompanies={managedCompanies}
                 open={isManageAccessOpen}
                 onOpenChange={setIsManageAccessOpen}
                 onSave={handleSaveAssignments}
+            />
+
+            <AddHrManagerDialog
+                open={isAddHrOpen}
+                onOpenChange={setIsAddHrOpen}
+                managedCompanies={managedCompanies}
+                onSave={handleAddHrSave}
+                allAssignments={companyAssignments}
             />
         </div>
     );
