@@ -63,8 +63,6 @@ function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }:
     const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(manager.permissions);
 
     useEffect(() => {
-        // This effect ensures that if the manager prop changes (i.e., opening the dialog
-        // for a different person), the internal state resets to that new manager's permissions.
         if (manager) {
             setEditedPermissions(manager.permissions);
         }

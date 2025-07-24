@@ -119,7 +119,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
 
     if (!managerEmail) return null;
 
-    const managerAssignments = localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
+    const managerAssignments = localAssignments.filter(a => managedCompanies.includes(a.companyName) && a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
     const unassignedCompanies = managedCompanies.filter(c => !managerAssignments.some(a => a.companyName === c));
 
     const handleRemoveAccess = (companyName: string) => {
@@ -328,7 +328,6 @@ export default function HrManagementPage() {
     const [isAddHrOpen, setIsAddHrOpen] = useState(false);
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
-        const managers = new Map<string, { email: string, companies: string[] }>();
         let companiesToScan: CompanyAssignment[];
         let primaryForCompanies: string[] = [];
 
@@ -344,6 +343,7 @@ export default function HrManagementPage() {
             companiesToScan = [];
         }
         
+        const managers = new Map<string, { email: string, companies: string[] }>();
         companiesToScan.forEach(assignment => {
             assignment.hrManagers.forEach(hr => {
                 if (!managers.has(hr.email)) {
