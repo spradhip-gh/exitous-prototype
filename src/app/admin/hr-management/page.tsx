@@ -180,9 +180,9 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
         }));
     };
     
-    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
         updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
-        toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager for ${companyName}.`});
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager for ${companyName}.`});
         
         // Refresh local state to reflect the change immediately in the dialog
         const updatedLocalAssignments = localAssignments.map(a => {
@@ -191,7 +191,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                     ...a,
                     hrManagers: a.hrManagers.map(hr => ({
                         ...hr,
-                        isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase()
+                        isPrimary: hr.email.toLowerCase() === newPrimaryManagerEmail.toLowerCase()
                     }))
                 };
             }
@@ -453,7 +453,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                      <Alert variant="destructive" className="mt-2 bg-amber-50 border-amber-200 text-amber-800">
                                                       <Info className="h-4 w-4 !text-amber-600" />
                                                       <AlertTitle>Warning</AlertTitle>
-                                                      <AlertDescription>This will demote the current primary (you), you will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
+                                                      <AlertDescription>Warning: This will demote the current primary (you), you will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
                                                     </Alert>
                                                 )}
                                             </div>
