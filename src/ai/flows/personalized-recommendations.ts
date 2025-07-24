@@ -121,17 +121,18 @@ const prompt = ai.definePrompt({
   },
   prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Your primary goal is to provide a structured list of actionable and personalized recommendations.
 
-Your task is to generate a list of 3-5 critical recommendations based on the user's profile and layoff details.
+Your task is to generate a comprehensive list of actionable recommendations based on the user's profile and layoff details. This should include not only time-sensitive legal and healthcare tasks, but also important financial, career, and well-being steps.
 
 **CRITICAL INSTRUCTIONS:**
 1.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details should mention the importance of legal review before signing.
 2.  **Use ALL Key Dates:** For every date provided in the user's exit details (e.g., \`finalDate\`, \`medicalCoverageEndDate\`, \`severanceAgreementDeadline\`), create a corresponding, relevant recommendation. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
-3.  **Create a unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
-4.  **Analyze User Data**: Pay close attention to all critical dates, insurance status, and visa status.
-5.  **Set \`timeline\` and \`isGoal\`**:
+3.  **Comprehensive Categories:** Provide recommendations across multiple categories where relevant: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, or applying for unemployment.
+4.  **Create a unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
+5.  **Analyze User Data**: Pay close attention to all critical dates, insurance status, and visa status.
+6.  **Set \`timeline\` and \`isGoal\`**:
     *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated.
     *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
-6.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
+7.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
 
 **User Profile:**
 - State of Residence: {{{profileData.state}}}
@@ -197,3 +198,4 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
