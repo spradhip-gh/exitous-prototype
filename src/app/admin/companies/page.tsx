@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useUserData, CompanyAssignment, HrManager, HrPermissions } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { timezones } from '@/lib/timezones';
@@ -43,8 +43,81 @@ const fullPermissions: HrPermissions = {
     userManagement: 'write-upload',
     formEditor: 'write',
     resources: 'write',
-    companySettings: 'read',
+    companySettings: 'read', // Only Primary can edit settings
 };
+
+const permissionLabels: Record<string, string> = {
+    'read': 'Read',
+    'write': 'Write',
+    'write-upload': 'Write & Upload',
+    'invite-only': 'Invite Only',
+};
+
+function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }: {
+    manager: HrManager,
+    companyName: string,
+    open: boolean,
+    onOpenChange: (open: boolean) => void,
+    onSave: (email: string, permissions: HrPermissions) => void,
+}) {
+    const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(manager.permissions);
+
+    const handleSave = () => {
+        onSave(manager.email, editedPermissions);
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+             <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Permissions for {manager.email}</DialogTitle>
+                    <DialogDescription>
+                        You are changing permissions for {companyName}.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>User Management</Label>
+                        <Select value={editedPermissions.userManagement} onValueChange={(v) => setEditedPermissions(p => ({...p, userManagement: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="invite-only">Invite Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                                <SelectItem value="write-upload">Write & Upload</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Form Editor</Label>
+                        <Select value={editedPermissions.formEditor} onValueChange={(v) => setEditedPermissions(p => ({...p, formEditor: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Resources</Label>
+                        <Select value={editedPermissions.resources} onValueChange={(v) => setEditedPermissions(p => ({...p, resources: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave}>Save Permissions</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
@@ -69,7 +142,10 @@ export default function CompanyManagementPage() {
   const [isHrComboboxOpen, setIsHrComboboxOpen] = useState(false);
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
+  const [editingManager, setEditingManager] = useState<HrManager | null>(null);
+
   const [editedMaxUsers, setEditedMaxUsers] = useState('');
   const [editedDeadlineTime, setEditedDeadlineTime] = useState('');
   const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
@@ -142,6 +218,7 @@ export default function CompanyManagementPage() {
     }
 
     updateCompanyAssignment(editingCompany.companyName, { 
+        ...editingCompany, // pass the full object to preserve HR manager changes
         maxUsers: maxUsersNum,
         severanceDeadlineTime: editedDeadlineTime,
         severanceDeadlineTimezone: editedDeadlineTimezone,
@@ -209,60 +286,65 @@ export default function CompanyManagementPage() {
   };
   
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
-        const currentAssignment = companyAssignments.find(a => a.companyName === companyName);
-        if (!currentAssignment) return;
+        const currentAssignment = editingCompany;
+        if (!currentAssignment || currentAssignment.companyName !== companyName) return;
 
         const updatedManagers = currentAssignment.hrManagers.map(hr => ({
             ...hr,
             isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
-            // When making a user primary, grant them full permissions.
             permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
         }));
 
-        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
         setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
-        toast({ title: "Primary Manager Updated", description: `${newPrimaryEmail} is now the primary manager for ${companyName}.` });
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
-        const currentAssignment = companyAssignments.find(a => a.companyName === companyName);
-        if (!currentAssignment || currentAssignment.hrManagers.length <= 1) {
+        const currentAssignment = editingCompany;
+        if (!currentAssignment || currentAssignment.companyName !== companyName) return;
+
+        if (currentAssignment.hrManagers.length <= 1) {
             toast({ title: "Cannot Remove Last Manager", description: "A company must have at least one HR manager.", variant: "destructive" });
             return;
         }
 
         const updatedManagers = currentAssignment.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
         
-        // If the primary was removed, make the first remaining manager primary
         if (!updatedManagers.some(hr => hr.isPrimary)) {
             updatedManagers[0].isPrimary = true;
-            // Also give them full permissions
             updatedManagers[0].permissions = fullPermissions;
         }
         
-        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
         setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
-        toast({ title: "HR Manager Removed", description: `${emailToRemove} has been removed from ${companyName}.` });
     };
 
     const handleAddHrToCompany = () => {
         if (!editingCompany || !addHrEmail) return;
-
-        const currentAssignment = companyAssignments.find(a => a.companyName === editingCompany.companyName);
-        if (!currentAssignment) return;
         
-        if (currentAssignment.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
+        if (editingCompany.hrManagers.some(hr => hr.email.toLowerCase() === addHrEmail.toLowerCase())) {
             toast({ title: "Manager Already Assigned", description: `${addHrEmail} is already assigned to this company.`, variant: "destructive" });
             return;
         }
 
         const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
-        const updatedManagers = [...currentAssignment.hrManagers, newHr];
+        const updatedManagers = [...editingCompany.hrManagers, newHr];
         
-        updateCompanyAssignment(editingCompany.companyName, { hrManagers: updatedManagers });
         setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
         setAddHrEmail('');
-        toast({ title: "HR Manager Added", description: `${addHrEmail} has been added to ${editingCompany.companyName}.` });
+    };
+
+    const handlePermissionsEdit = (manager: HrManager) => {
+        setEditingManager(manager);
+        setIsPermissionsDialogOpen(true);
+    };
+    
+    const handleSavePermissions = (email: string, permissions: HrPermissions) => {
+        if (!editingCompany) return;
+
+        const updatedManagers = editingCompany.hrManagers.map(hr => 
+            hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
+        );
+        setEditingCompany(prev => prev ? { ...prev, hrManagers: updatedManagers } : null);
+        toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
 
 
@@ -519,19 +601,26 @@ export default function CompanyManagementPage() {
                                     <TableRow key={hr.email}>
                                         <TableCell>
                                             <div className="font-medium">{hr.email}</div>
-                                            {hr.isPrimary && <div className="text-xs text-amber-600">Primary Manager</div>}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {!hr.isPrimary && (
-                                                <div className="flex gap-2 justify-end">
-                                                    <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)}>
-                                                        <Crown className="mr-2 h-4 w-4"/> Make Primary
-                                                    </Button>
-                                                    <Button variant="ghost" size="sm" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)}>
-                                                        <Trash2 className="mr-2 h-4 w-4"/> Remove
-                                                    </Button>
+                                            {hr.isPrimary ? <div className="text-xs text-amber-600 flex items-center gap-1"><Crown className="h-3 w-3" /> Primary Manager</div> : (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
+                                                    <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
+                                                    <Badge variant="outline" className="text-xs">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
                                                 </div>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex gap-1 justify-end">
+                                                 <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
+                                                    <Shield className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                    <Crown className="mr-2 h-4 w-4"/> Make Primary
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                    <Trash2 className="h-4 w-4 text-destructive"/>
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -565,6 +654,16 @@ export default function CompanyManagementPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {editingManager && editingCompany && (
+            <PermissionsDialog 
+                open={isPermissionsDialogOpen}
+                onOpenChange={setIsPermissionsDialogOpen}
+                manager={editingManager}
+                companyName={editingCompany.companyName}
+                onSave={handleSavePermissions}
+            />
+        )}
     </div>
   );
 }

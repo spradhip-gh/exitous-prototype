@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Users2 } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -22,16 +22,9 @@ import { Separator } from '@/components/ui/separator';
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
-  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management'));
+  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
   const { auth } = useAuth();
-  const { companyAssignments } = useUserData();
   
-  const isPrimaryHr = useMemo(() => {
-    if (!auth || auth.role !== 'hr' || !auth.companyName) return false;
-    const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
-    return assignment?.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary);
-  }, [auth, companyAssignments]);
-
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
   const getHelpLink = () => {
@@ -72,11 +65,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   <Link href="/admin/users">
                     <Button variant={getVariant('/admin/users')} className="w-full justify-start text-sm font-normal">
                         User Management
-                    </Button>
-                  </Link>
-                  <Link href="/admin/hr-management">
-                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start text-sm font-normal">
-                        HR Management
                     </Button>
                   </Link>
               </CollapsibleContent>
@@ -173,14 +161,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                 Global
               </h2>
               <div className="space-y-1">
-                {isPrimaryHr && (
-                  <Link href="/admin/hr-management">
-                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start">
-                      <Users2 className="mr-2" />
-                      HR Management
-                    </Button>
-                  </Link>
-                )}
                 <Link href={getHelpLink()} target="_blank" rel="noopener noreferrer">
                   <Button variant='ghost' className="w-full justify-start">
                       <HelpCircle className="mr-2" />
