@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info, Switch } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,7 +31,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const defaultPermissions: HrPermissions = {
@@ -263,9 +263,9 @@ export default function CompanyManagementPage() {
     document.body.removeChild(link);
   };
   
-    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
+    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
         updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
-        toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager.`});
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager.`});
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
@@ -579,9 +579,10 @@ export default function CompanyManagementPage() {
                                             <div>
                                                 <p className="font-medium">{hr.email}</p>
                                                 <div className="flex flex-wrap gap-1 mt-1">
-                                                    {hr.isPrimary ? (
-                                                        <Badge><Crown className="mr-2"/>Primary</Badge>
-                                                    ) : (
+                                                     <Badge variant={hr.isPrimary ? 'default' : 'outline'}>
+                                                        {hr.isPrimary ? <><Crown className="mr-2"/>Primary</> : 'Manager'}
+                                                    </Badge>
+                                                    {!hr.isPrimary && (
                                                         <>
                                                             <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
                                                             <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
@@ -592,6 +593,16 @@ export default function CompanyManagementPage() {
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <Label htmlFor={`primary-switch-${hr.email}`} className="text-xs text-muted-foreground">Primary</Label>
+                                                    <Switch
+                                                        id={`primary-switch-${hr.email}`}
+                                                        checked={hr.isPrimary}
+                                                        onCheckedChange={(checked) => checked && handleMakePrimary(editingCompany.companyName, hr.email)}
+                                                        disabled={hr.isPrimary}
+                                                    />
+                                                </div>
+                                                <Separator orientation="vertical" className="h-6" />
                                                 <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
                                                     <Shield className="h-4 w-4" />
                                                 </Button>
