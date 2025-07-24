@@ -44,10 +44,9 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
-function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave }: {
+function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onSave }: {
     managerEmail: string | null;
     assignments: CompanyAssignment[];
-    managedCompanies: string[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
@@ -64,10 +63,14 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
 
     if (!managerEmail) return null;
 
-    const managerAssignments = localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
-    
-    const addableCompanies = managedCompanies
-        .filter(managedCompanyName => !managerAssignments.some(ma => ma.companyName === managedCompanyName));
+    const managerAssignments = useMemo(() => {
+        return localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
+    }, [localAssignments, managerEmail]);
+
+    const addableCompanies = useMemo(() => {
+        const assignedCompanyNames = new Set(managerAssignments.map(ma => ma.companyName));
+        return localAssignments.filter(a => !assignedCompanyNames.has(a.companyName)).map(a => a.companyName);
+    }, [localAssignments, managerAssignments]);
 
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
         setLocalAssignments(prev => {
@@ -162,7 +165,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                 const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === managerEmail.toLowerCase());
                                 if (!manager) return null;
                                 
-                                const canEditThisCompany = managedCompanies.includes(assignment.companyName);
+                                const canEditThisCompany = assignments.some(a => a.companyName === assignment.companyName);
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
@@ -209,7 +212,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
-                                                                <AlertDialogDescription>
+                                                                <AlertDialogDescription asChild>
                                                                     <div>
                                                                         Are you sure you want to make <span className="font-bold">{manager.email}</span> the new Primary Manager for <span className="font-bold">{assignment.companyName}</span>?
                                                                         <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
@@ -460,7 +463,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                          <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
-                                                                <AlertDialogDescription>
+                                                                <AlertDialogDescription asChild>
                                                                     <div>
                                                                         Are you sure you want to make <span className="font-bold">{email}</span> the new Primary Manager for <span className="font-bold">{company}</span>?
                                                                         <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
@@ -588,7 +591,16 @@ export default function HrManagementPage() {
     };
     
     const handleSaveAssignments = (email: string, updatedAssignments: CompanyAssignment[]) => {
-        saveCompanyAssignments(updatedAssignments);
+        const fullAssignmentList = [...companyAssignments];
+
+        updatedAssignments.forEach(updatedAssignment => {
+            const index = fullAssignmentList.findIndex(a => a.companyName === updatedAssignment.companyName);
+            if(index !== -1) {
+                fullAssignmentList[index] = updatedAssignment;
+            }
+        });
+
+        saveCompanyAssignments(fullAssignmentList);
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
 
         // If the current user's primary status for the current company has changed, refresh auth.
@@ -664,7 +676,6 @@ export default function HrManagementPage() {
             <ManageAccessDialog 
                 managerEmail={selectedManager}
                 assignments={assignmentsForDialog}
-                managedCompanies={managedCompanies}
                 open={isManageAccessOpen}
                 onOpenChange={setIsManageAccessOpen}
                 onSave={handleSaveAssignments}
