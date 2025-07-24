@@ -392,7 +392,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                             <div className="flex items-center justify-between">
                                                 <div className="space-y-1">
                                                      <Label>Make Primary Manager</Label>
-                                                     <p className="text-xs text-muted-foreground">This will demote the current primary and grant full permissions.</p>
+                                                     <p className="text-xs text-muted-foreground">Warning: This will demote the current primary (you) and while you will retain all permissions except managing HR Managers.</p>
                                                 </div>
                                                 <Switch 
                                                     checked={assignments[company]?.isPrimary}
