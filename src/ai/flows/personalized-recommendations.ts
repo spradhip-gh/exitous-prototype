@@ -126,9 +126,9 @@ Your task is to generate a comprehensive list of actionable recommendations base
 **CRITICAL INSTRUCTIONS:**
 1.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details should mention the importance of legal review before signing.
 2.  **Use ALL Key Dates:** For every date provided in the user's exit details (e.g., \`finalDate\`, \`medicalCoverageEndDate\`, \`severanceAgreementDeadline\`), create a corresponding, relevant recommendation. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
-3.  **Comprehensive Categories:** Provide recommendations across multiple categories where relevant: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, or applying for unemployment.
-4.  **Create a unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
-5.  **Analyze User Data**: Pay close attention to all critical dates, insurance status, and visa status.
+3.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline should be set for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
+4.  **Comprehensive Categories:** Provide recommendations across multiple categories where relevant: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, or applying for unemployment.
+5.  **Create a unique \`taskId\`**: For each new recommendation you generate, create a unique, descriptive, kebab-case taskId (e.g., \`review-severance-agreement\`, \`explore-health-insurance-options\`).
 6.  **Set \`timeline\` and \`isGoal\`**:
     *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated.
     *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
@@ -198,4 +198,5 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
 
