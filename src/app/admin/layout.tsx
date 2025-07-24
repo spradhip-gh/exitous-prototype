@@ -14,7 +14,7 @@ import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Me
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
@@ -257,6 +257,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Admin Menu</SheetTitle>
+              </SheetHeader>
               {navContent}
             </SheetContent>
           </Sheet>
