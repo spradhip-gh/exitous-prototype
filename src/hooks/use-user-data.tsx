@@ -502,7 +502,7 @@ export function useUserData() {
   }, []);
 
   const getCompaniesForHr = useCallback((hrEmail: string): CompanyAssignment[] => {
-    return companyAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === hrEmail.toLowerCase()));
+    return companyAssignments.filter(a => a.hrManagers?.some(hr => hr.email.toLowerCase() === hrEmail.toLowerCase()));
   }, [companyAssignments]);
   
 
