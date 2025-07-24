@@ -3,6 +3,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { HrPermissions } from './use-user-data';
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
@@ -16,6 +17,7 @@ export interface AuthState {
   companyName?: string;
   isPreview?: boolean;
   assignedCompanyNames?: string[];
+  permissions?: HrPermissions;
 }
 
 interface AuthContextType {

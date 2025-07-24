@@ -32,9 +32,17 @@ const RECOMMENDATIONS_KEY = 'exitbetter-recommendations';
 const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
+export interface HrPermissions {
+    userManagement: 'read' | 'write' | 'write-upload';
+    formEditor: 'read' | 'write';
+    resources: 'read' | 'write';
+    companySettings: 'read' | 'write';
+}
+
 export interface HrManager {
     email: string;
     isPrimary: boolean;
+    permissions: HrPermissions;
 }
 export interface CompanyUser {
   email: string;
