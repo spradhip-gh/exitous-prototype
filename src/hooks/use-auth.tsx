@@ -31,6 +31,7 @@ interface AuthContextType {
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
+  updatePermissions: (permissions: HrPermissions) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -151,19 +152,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const switchCompany = useCallback((newCompanyName: string) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        const assignments = getCompanyAssignmentsFromDb();
-        const companyAssignment = assignments.find(a => a.companyName === newCompanyName);
-        const managerInfo = companyAssignment?.hrManagers.find(m => m.email.toLowerCase() === auth.email!.toLowerCase());
-        
-        if (managerInfo) {
-            const newPermissions = managerInfo.isPrimary 
-                ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
-                : managerInfo.permissions;
-
-            const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
-            localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-            setAuthState(newAuth);
-        }
+        // The responsibility of updating permissions is now moved to a useEffect
+        // in useUserData, which has access to the most current data state.
+        const newAuth = { ...auth, companyName: newCompanyName };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        setAuthState(newAuth);
     }
   }, [auth]);
 
@@ -174,9 +167,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthState(newAuth);
     }
   }, [auth]);
+  
+  const updatePermissions = useCallback((permissions: HrPermissions) => {
+    setAuthState(prev => {
+        if (!prev) return null;
+        const newAuth = { ...prev, permissions };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        return newAuth;
+    });
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail, updatePermissions }}>
       {children}
     </AuthContext.Provider>
   );

@@ -222,7 +222,7 @@ export const convertDatesToStrings = (obj: any): any => {
 
 
 export function useUserData() {
-  const { auth } = useAuth();
+  const { auth, updatePermissions } = useAuth();
   
   // User-specific data remains in localStorage for a personalized demo flow.
   const profileKey = auth?.isPreview ? `${PROFILE_KEY}${PREVIEW_SUFFIX}` : PROFILE_KEY;
@@ -371,7 +371,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, timezoneKey]);
+  }, [auth?.email, auth?.companyName, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, timezoneKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -380,7 +380,28 @@ export function useUserData() {
     } else if (!auth || auth.role !== 'hr') {
         setCompanyAssignmentForHr(null);
     }
-  }, [auth, isLoading, companyAssignments]);
+  }, [auth?.role, auth?.companyName, isLoading, companyAssignments]);
+
+  // This effect is responsible for keeping the HR permissions in the auth object up-to-date.
+  useEffect(() => {
+    if (auth?.role === 'hr' && auth.email && auth.companyName && companyAssignments.length > 0) {
+        const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
+        if (assignment) {
+            const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === auth.email!.toLowerCase());
+            if (manager) {
+                const currentPermissions = manager.isPrimary 
+                    ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
+                    : manager.permissions;
+                
+                // Only update if permissions have actually changed to prevent loops
+                if (JSON.stringify(currentPermissions) !== JSON.stringify(auth.permissions)) {
+                    updatePermissions(currentPermissions);
+                }
+            }
+        }
+    }
+  }, [auth?.email, auth?.companyName, auth?.permissions, companyAssignments, updatePermissions, auth?.role]);
+
 
   const clearRecommendations = useCallback(() => {
     setRecommendations(null);
