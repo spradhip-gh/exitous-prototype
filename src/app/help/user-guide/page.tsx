@@ -49,7 +49,7 @@ export default function UserGuidePage() {
                     </p>
                     <h3>Company Resources</h3>
                     <p>
-                        This page contains documents and links uploaded specifically by your HR manager. It's a great place to find things like official benefits summaries, company policies, or specific contact information. It also shows you who your primary contact at the company is.
+                        This page contains documents and links uploaded specifically by your HR manager. You can view the content directly in the app or download the files. It's a great place to find things like official benefits summaries, company policies, or specific contact information. It also shows you who your primary contact at the company is.
                     </p>
                     <h3>External Resources</h3>
                     <p>
@@ -61,9 +61,9 @@ export default function UserGuidePage() {
                         <li><strong>Browse & Filter:</strong> You can also search the entire directory and filter by category (e.g., Finances, Legal) to find the help you need.</li>
                     </ul>
 
-                    <h2>4. Starting Over</h2>
+                    <h2>4. Account Settings & Starting Over</h2>
                     <p>
-                        If you make a mistake or simply want to start fresh, you can click on your email in the top-right corner and select "Start Over." This will clear all the data you've entered and allow you to begin the process again.
+                        From the sidebar navigation, you can go to **Account Settings** to update your primary email address and timezone preference. If you need to clear all your entered data and start the process again, you can click on your email in the top-right corner of the page and select **Start Over**.
                     </p>
 
                 </article>

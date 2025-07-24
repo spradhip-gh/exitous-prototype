@@ -15,10 +15,11 @@ export default function AdminGuidePage() {
 
                     <h2>1. Master Form Editor</h2>
                     <p>
-                        This is the heart of the platform's assessment tool. As an Admin, you control the "source of truth" for all questions that can be presented to an end-user.
+                        This is the heart of the platform's assessment tool. As an Admin, you control the "source of truth" for all questions that can be presented to an end-user. The editor is now tabbed for easier navigation between "Profile" and "Assessment" questions.
                     </p>
                     <ul>
                         <li><strong>Editing Questions:</strong> You can modify the text, type, and options of any question in the master list. Be aware that these changes will be flagged to HR Managers who may have overridden that question, prompting them to review and accept the update.</li>
+                        <li><strong>Adding Tooltips:</strong> You can add a helpful description (tooltip) to any question to provide context or clarification for the user.</li>
                         <li><strong>Adding Questions:</strong> New questions added here will become available to all companies. They can then choose to enable or disable them in their own form editor.</li>
                         <li><strong>Reordering Questions:</strong> You can drag and drop questions to change their default display order within a section.</li>
                         <li><strong>Deleting Questions:</strong> Deleting a master question will remove it from the platform entirely. It will no longer be available for any company. This action cannot be undone.</li>
@@ -31,7 +32,8 @@ export default function AdminGuidePage() {
                     <h3>Company Management</h3>
                     <ul>
                         <li><strong>Adding Companies:</strong> You can onboard a new company by providing its name, assigning an HR Manager's email, setting a user limit, and choosing a subscription tier (Basic or Pro).</li>
-                        <li><strong>Editing Companies:</strong> You can adjust a company's user limit and other settings after it has been created.</li>
+                        <li><strong>Editing Company Details:</strong> From the company list, you can click the "Edit" pencil icon to open a dialog where you can manage that company's settings, HR team, and plan.</li>
+                        <li><strong>Managing HR Teams:</strong> Within the edit dialog, you can add new HR managers to a company, remove existing ones, and set a "Primary Manager". The Primary Manager has full permissions for that company.</li>
                         <li><strong>Upgrading to Pro:</strong> You can upgrade a company from Basic to Pro at any time, which unlocks the Form Editor feature for their HR Manager.</li>
                         <li><strong>Exporting Data:</strong> A CSV export of all companies and their key statistics (user counts, version, etc.) is available.</li>
                     </ul>

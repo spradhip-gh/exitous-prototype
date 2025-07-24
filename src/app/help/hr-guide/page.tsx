@@ -68,9 +68,15 @@ export default function HrManagerGuidePage() {
                                         <li><code>Write</code>: Can upload and delete resources.</li>
                                      </ul>
                                 </li>
+                                 <li><strong>Company Settings:</strong>
+                                     <ul>
+                                        <li><code>Read Only</code>: Can view the company settings.</li>
+                                        <li><code>Write</code>: Can edit the company settings.</li>
+                                     </ul>
+                                </li>
                             </ul>
                         </li>
-                        <li><strong>Editing Permissions:</strong> You can edit a non-primary HR manager's permissions at any time by clicking the pencil icon next to their name in the company's team list.</li>
+                        <li><strong>Editing Permissions:</strong> You can edit a non-primary HR manager's permissions at any time by clicking the pencil icon next to their name in the HR Team Management page.</li>
                     </ul>
 
                     <h2><Key className="inline-block -mt-1 mr-2" />Managing Companies & Permissions</h2>
@@ -101,7 +107,7 @@ export default function HrManagerGuidePage() {
                     <h2>Resources & Support</h2>
                     <h3>Company Resources</h3>
                     <p>
-                        Here you can upload and manage documents that will be available to all of your exiting employees in their dashboard's "Resources" section. <em>(Requires Write permission to upload/delete).</em>
+                        Here you can upload and manage documents that will be available to all of your exiting employees in their dashboard's "Resources" section. <em>(Requires Write permission to upload/delete).</em> You and your users can view the content of these documents directly in the application.
                     </p>
                     <ul>
                         <li>Benefits continuation guides (COBRA, etc.)</li>
