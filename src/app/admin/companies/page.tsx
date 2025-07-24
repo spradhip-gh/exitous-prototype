@@ -151,12 +151,6 @@ export default function CompanyManagementPage() {
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
   const [editingManager, setEditingManager] = useState<HrManager | null>(null);
-
-  const [editedMaxUsers, setEditedMaxUsers] = useState('');
-  const [editedDeadlineTime, setEditedDeadlineTime] = useState('');
-  const [editedDeadlineTimezone, setEditedDeadlineTimezone] = useState('');
-  const [editedPreEndDateContact, setEditedPreEndDateContact] = useState('');
-  const [editedPostEndDateContact, setEditedPostEndDateContact] = useState('');
   const [addHrEmail, setAddHrEmail] = useState('');
 
   const existingHrEmails = useMemo(() => {
@@ -206,34 +200,22 @@ export default function CompanyManagementPage() {
   
   const handleEditClick = (company: CompanyAssignment) => {
     setEditingCompany(company);
-    setEditedMaxUsers(company.maxUsers?.toString() ?? '');
-    setEditedDeadlineTime(company.severanceDeadlineTime || '17:00');
-    setEditedDeadlineTimezone(company.severanceDeadlineTimezone || 'America/Los_Angeles');
-    setEditedPreEndDateContact(company.preEndDateContactAlias || '');
-    setEditedPostEndDateContact(company.postEndDateContactAlias || '');
     setIsEditDialogOpen(true);
   }
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = (updates: Partial<CompanyAssignment>) => {
     if (!editingCompany) return;
     
-    const maxUsersNum = parseInt(editedMaxUsers, 10);
-     if (isNaN(maxUsersNum) || maxUsersNum <= 0) {
-      toast({ title: "Invalid User Limit", description: "Maximum users must be a positive number.", variant: "destructive" });
-      return;
+    if (updates.maxUsers) {
+        const maxUsersNum = Number(updates.maxUsers);
+         if (isNaN(maxUsersNum) || maxUsersNum <= 0) {
+          toast({ title: "Invalid User Limit", description: "Maximum users must be a positive number.", variant: "destructive" });
+          return;
+        }
+        updates.maxUsers = maxUsersNum;
     }
 
-    updateCompanyAssignment(editingCompany.companyName, { 
-        ...editingCompany, // pass the full object to preserve HR manager changes
-        maxUsers: maxUsersNum,
-        severanceDeadlineTime: editedDeadlineTime,
-        severanceDeadlineTimezone: editedDeadlineTimezone,
-        preEndDateContactAlias: editedPreEndDateContact,
-        postEndDateContactAlias: editedPostEndDateContact,
-    });
-    toast({ title: "Company Updated", description: "Changes have been saved." });
-    setIsEditDialogOpen(false);
-    setEditingCompany(null);
+    updateCompanyAssignment(editingCompany.companyName, updates);
   }
 
   const handleUpgrade = (companyName: string) => {
@@ -291,42 +273,23 @@ export default function CompanyManagementPage() {
     document.body.removeChild(link);
   };
   
-    const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
-        const currentAssignment = editingCompany;
-        if (!currentAssignment || currentAssignment.companyName !== companyName) return;
+    const handleMakePrimary = (newPrimaryEmail: string) => {
+        if (!editingCompany) return;
 
-        const updatedManagers = currentAssignment.hrManagers.map(hr => {
-            const isNewPrimary = hr.email.toLowerCase() === newPrimaryEmail.toLowerCase();
-            return {
-                ...hr,
-                isPrimary: isNewPrimary,
-                // Automatically grant full permissions to the new primary
-                // and preserve the old primary's permissions for later adjustment.
-                permissions: isNewPrimary ? fullPermissions : hr.permissions
-            }
-        });
+        const updatedManagers = editingCompany.hrManagers.map(hr => ({
+            ...hr,
+            isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
+            permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase() ? fullPermissions : hr.permissions
+        }));
 
-        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        handleSaveChanges({ hrManagers: updatedManagers });
     };
 
-    const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
-        const currentAssignment = editingCompany;
-        if (!currentAssignment || currentAssignment.companyName !== companyName) return;
+    const handleRemoveHrFromCompany = (emailToRemove: string) => {
+        if (!editingCompany) return;
 
-        const managerToRemove = currentAssignment.hrManagers.find(hr => hr.email.toLowerCase() === emailToRemove.toLowerCase());
-        if (managerToRemove?.isPrimary) {
-            toast({ title: "Cannot Remove Primary", description: "Please assign a new Primary Manager before removing the current one.", variant: "destructive" });
-            return;
-        }
-
-        if (currentAssignment.hrManagers.length <= 1) {
-            toast({ title: "Cannot Remove Last Manager", description: "A company must have at least one HR manager.", variant: "destructive" });
-            return;
-        }
-
-        const updatedManagers = currentAssignment.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
-        
-        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        const updatedManagers = editingCompany.hrManagers.filter(hr => hr.email.toLowerCase() !== emailToRemove.toLowerCase());
+        handleSaveChanges({ hrManagers: updatedManagers });
     };
 
     const handleAddHrToCompany = () => {
@@ -339,8 +302,7 @@ export default function CompanyManagementPage() {
 
         const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
         const updatedManagers = [...editingCompany.hrManagers, newHr];
-        
-        setEditingCompany(prev => prev ? {...prev, hrManagers: updatedManagers} : null);
+        handleSaveChanges({ hrManagers: updatedManagers });
         setAddHrEmail('');
     };
 
@@ -355,10 +317,9 @@ export default function CompanyManagementPage() {
         const updatedManagers = editingCompany.hrManagers.map(hr => 
             hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
         );
-        setEditingCompany(prev => prev ? { ...prev, hrManagers: updatedManagers } : null);
+        handleSaveChanges({ hrManagers: updatedManagers });
         toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
-
 
   return (
     <div className="p-4 md:p-8">
@@ -552,7 +513,10 @@ export default function CompanyManagementPage() {
         </Card>
       </div>
 
-       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+           if (!open) setEditingCompany(null);
+           setIsEditDialogOpen(open);
+       }}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Edit {editingCompany?.companyName}</DialogTitle>
@@ -570,8 +534,8 @@ export default function CompanyManagementPage() {
                                     <Input 
                                         id="max-users" 
                                         type="number" 
-                                        value={editedMaxUsers} 
-                                        onChange={(e) => setEditedMaxUsers(e.target.value)} 
+                                        defaultValue={editingCompany?.maxUsers?.toString() ?? ''} 
+                                        onBlur={(e) => handleSaveChanges({ maxUsers: parseInt(e.target.value, 10) })}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -579,14 +543,14 @@ export default function CompanyManagementPage() {
                                     <Input 
                                         id="deadline-time" 
                                         type="time" 
-                                        value={editedDeadlineTime} 
-                                        onChange={(e) => setEditedDeadlineTime(e.target.value)} 
+                                        defaultValue={editingCompany?.severanceDeadlineTime || '17:00'} 
+                                        onBlur={(e) => handleSaveChanges({ severanceDeadlineTime: e.target.value })}
                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="deadline-timezone">Deadline Timezone</Label>
-                                <Select value={editedDeadlineTimezone} onValueChange={setEditedDeadlineTimezone}>
+                                <Select defaultValue={editingCompany?.severanceDeadlineTimezone || 'America/Los_Angeles'} onValueChange={(v) => handleSaveChanges({severanceDeadlineTimezone: v})}>
                                     <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
@@ -595,11 +559,11 @@ export default function CompanyManagementPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-pre-contact">Pre-End Date Contact Alias</Label>
-                                <Input id="edit-pre-contact" value={editedPreEndDateContact} onChange={e => setEditedPreEndDateContact(e.target.value)} />
+                                <Input id="edit-pre-contact" defaultValue={editingCompany?.preEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges({preEndDateContactAlias: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-post-contact">Post-End Date Contact Alias</Label>
-                                <Input id="edit-post-contact" value={editedPostEndDateContact} onChange={e => setEditedPostEndDateContact(e.target.value)} />
+                                <Input id="edit-post-contact" defaultValue={editingCompany?.postEndDateContactAlias || ''} onBlur={(e) => handleSaveChanges({postEndDateContactAlias: e.target.value})} />
                             </div>
                         </CardContent>
                     </Card>
@@ -626,10 +590,10 @@ export default function CompanyManagementPage() {
                                                  <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
                                                     <Shield className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                <Button variant="outline" size="sm" onClick={() => handleMakePrimary(hr.email)} disabled={hr.isPrimary}>
                                                     <Crown className="mr-2 h-4 w-4"/> Make Primary
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(hr.email)}>
                                                     <Trash2 className="h-4 w-4 text-destructive"/>
                                                 </Button>
                                             </div>
@@ -661,8 +625,7 @@ export default function CompanyManagementPage() {
                     )}
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveChanges}>Save Changes</Button>
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Close</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

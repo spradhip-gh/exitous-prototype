@@ -21,6 +21,7 @@ import {
   addReviewQueueItem as addReviewQueueItemToDb,
 } from '@/lib/demo-data';
 import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
+import { useToast } from './use-toast';
 
 
 const PROFILE_KEY = 'exitbetter-profile';
@@ -223,6 +224,7 @@ export const convertDatesToStrings = (obj: any): any => {
 
 export function useUserData() {
   const { auth, setPermissions } = useAuth();
+  const { toast } = useToast();
   
   // User-specific data remains in localStorage for a personalized demo flow.
   const profileKey = auth?.isPreview ? `${PROFILE_KEY}${PREVIEW_SUFFIX}` : PROFILE_KEY;
@@ -567,10 +569,27 @@ export function useUserData() {
   }, [companyAssignments, companyConfigs]);
 
   const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
-    const newAssignments = companyAssignments.map(a => a.companyName === companyName ? { ...a, ...updates } : a);
+    const assignmentIndex = companyAssignments.findIndex(a => a.companyName === companyName);
+    if (assignmentIndex === -1) return;
+
+    const originalAssignment = companyAssignments[assignmentIndex];
+    
+    // Specifically handle hrManagers update logic
+    if (updates.hrManagers) {
+      const primaryCount = updates.hrManagers.filter(hr => hr.isPrimary).length;
+      if (primaryCount === 0 && updates.hrManagers.length > 0) {
+        toast({ title: "Action Prohibited", description: "A company must always have at least one Primary Manager.", variant: "destructive" });
+        return; // Abort update
+      }
+    }
+
+    const newAssignments = [...companyAssignments];
+    newAssignments[assignmentIndex] = { ...originalAssignment, ...updates };
+
     saveCompanyAssignmentsToDb(newAssignments);
     setCompanyAssignmentsState(newAssignments);
-  }, [companyAssignments]);
+  }, [companyAssignments, toast]);
+
 
   const saveCompanyAssignments = useCallback((assignments: CompanyAssignment[]) => {
     saveCompanyAssignmentsToDb(assignments);
