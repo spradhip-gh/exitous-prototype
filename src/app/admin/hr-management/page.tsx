@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Crown, Shield, UserPlus, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -248,15 +249,27 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                             <TableRow key={assignment.companyName}>
                                                 <TableCell className="font-medium">{assignment.companyName}</TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        {isPrimaryInThisCompany ? <Badge><Crown className="mr-2" />Primary</Badge> : <Badge variant="secondary">Manager</Badge>}
-                                                        <Switch
-                                                            id={`primary-switch-${assignment.companyName}`}
-                                                            checked={isPrimaryInThisCompany}
-                                                            onCheckedChange={() => handleMakePrimary(assignment.companyName, managerEmail)}
-                                                            disabled={!canEditThisCompany || isPrimaryInThisCompany}
-                                                        />
-                                                    </div>
+                                                    {isPrimaryInThisCompany ? (
+                                                        <Badge><Crown className="mr-2" />Primary</Badge>
+                                                    ) : (
+                                                         <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="secondary" size="sm" disabled={!canEditThisCompany}>Manager</Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Make {managerEmail} Primary?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        This will demote the current primary manager and promote this user. Are you sure?
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleMakePrimary(assignment.companyName, managerEmail)}>Confirm</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="icon" onClick={() => setEditingPermissions({ companyName: assignment.companyName, permissions: manager.permissions })} disabled={!canEditThisCompany || isPrimaryInThisCompany}><Shield className="h-4 w-4" /></Button>
@@ -270,7 +283,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                                 </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                <p>You cannot delete a primary user. Please assign a new primary for the company first.</p>
+                                                                <p>You cannot delete a primary user. Assign a new primary for the company first.</p>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
@@ -642,3 +655,6 @@ export default function HrManagementPage() {
         </div>
     );
 }
+
+
+    
