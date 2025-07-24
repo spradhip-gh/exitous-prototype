@@ -68,17 +68,10 @@ const LayoffDetailsSchema = z.object({
   eapCoverageEndDate: z.string().optional().describe('End date for EAP access (ISO string).'),
 });
 
-const AdminGuidanceSchema = z.object({
-  text: z.string().describe('The pre-written guidance text from an admin or consultant.'),
-  category: z.string().describe('The category of the guidance.'),
-  linkedResourceId: z.string().optional().describe("An ID of an external resource that is linked to this guidance."),
-});
-
 const PersonalizedRecommendationsInputSchema = z.object({
   userEmail: z.string().email(),
   profileData: ProfileDataSchema.describe('The user profile data.'),
   layoffDetails: LayoffDetailsSchema.describe("Details about the user's exit."),
-  adminGuidance: z.array(AdminGuidanceSchema).optional().describe('Pre-defined guidance from an admin based on user answers. This should be prioritized.'),
 });
 
 
@@ -124,25 +117,6 @@ const prompt = ai.definePrompt({
   },
   prompt: `You are an expert career counselor and legal advisor specializing in employment exits. Based on the user's profile and detailed exit circumstances, provide a structured list of actionable and personalized recommendations. These should be formatted as a timeline of next steps.
 
-{{#if adminGuidance}}
-**IMPORTANT: Start with the Admin-Provided Guidance.** A human expert has provided the following critical advice. This guidance takes precedence.
-Your task is to:
-1.  Use the provided guidance text and category to create a recommendation. Generate a clear, actionable 'task' for it (e.g., "Review your unemployment eligibility").
-2.  If you have relevant state-specific information (e.g., the name of the state's unemployment office like the "EDD" for California), **merge it into the details of the existing admin guidance**.
-3.  **If the guidance text includes the phrase "[STATE_UNEMPLOYMENT_LINK_PLACEHOLDER]", you must replace it with a markdown link to the appropriate state unemployment website from the provided 'stateUnemploymentLinks' context data.**
-4.  **DO NOT** create a separate, duplicate recommendation on the same topic. For example, if admin guidance about unemployment is provided, do not create a second task about unemployment. Enhance the existing one.
----
-{{#each adminGuidance}}
-Expert Guidance: {{{this.text}}}
-Category: {{{this.category}}}
-{{#if this.linkedResourceId}}
-Linked Resource ID: {{{this.linkedResourceId}}}
-Task ID to generate: consultant-guidance-{{{this.linkedResourceId}}}
-{{/if}}
----
-{{/each}}
-{{/if}}
-
 Focus on critical deadlines, financial advice, healthcare options, and job search strategies tailored to their specific situation.
 
 Here is the user's profile data:
@@ -185,10 +159,10 @@ Here are the user's exit details:
 {{#if layoffDetails.eapCoverageEndDate}}- EAP Coverage Ends: {{{layoffDetails.eapCoverageEndDate}}}{{/if}}
 
 Based on all this information, generate a structured list of critical, time-sensitive recommendations. The list must be sorted chronologically, with the most urgent and time-sensitive tasks appearing first. For each recommendation, provide:
-1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details'). For admin guidance with a linked resource, use the specific task ID format 'consultant-guidance-[resourceId]'.
+1.  A unique 'taskId' in kebab-case (e.g., 'apply-for-unemployment', 'confirm-cobra-details'). 
 2.  A specific 'task' for the user to complete.
 3.  A 'category' (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").
-4.  A suggested 'timeline' for action (e.g., "Immediately", "Within 1 week").
+4.  A 'timeline' for action (e.g., "Immediately", "Within 1 week").
 5.  Important 'details' or context, formatted in Markdown.
 6.  If the task has a specific, hard deadline based on the user's input (like an insurance coverage end date or final day of employment), extract that date and place it in the 'endDate' field in 'YYYY-MM-DD' format. **For any task related to unemployment benefits, if the user's finalDate is available, the endDate MUST be set to the day *after* their finalDate of employment.** Otherwise, leave 'endDate' empty.
 7.  **IMPORTANT**: If the user is on a work visa (the 'workVisa' field is not "None of the above"), you MUST create a recommendation with the 'taskId' 'handle-work-visa-implications' to advise them to consult an immigration attorney.
@@ -213,7 +187,7 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             addReviewQueueItem({
                 id: `review-${input.userEmail}-${Date.now()}`,
                 userEmail: input.userEmail,
-                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, adminGuidance: input.adminGuidance },
+                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails },
                 output: output,
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -238,3 +212,4 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+

@@ -127,59 +127,6 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const isProfileComplete = !!profileData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
-  const adminGuidance = useMemo(() => {
-    const configs = getAllCompanyConfigs();
-    const firstCompanyKey = Object.keys(configs)[0];
-    const guidanceRules = firstCompanyKey ? configs[firstCompanyKey].guidance || [] : [];
-    
-    const triggeredGuidance: { text: string; category: string, linkedResourceId?: string }[] = [];
-    
-    if (!profileData || !assessmentData) {
-      return triggeredGuidance;
-    }
-    
-    const allAnswers = { ...profileData, ...assessmentData };
-
-    guidanceRules.forEach((rule: GuidanceRule) => {
-        const allConditionsMet = rule.conditions.every(condition => {
-            if (condition.type === 'question') {
-                const userAnswer = (allAnswers as any)[condition.questionId];
-                return userAnswer === condition.answer;
-            }
-            if (condition.type === 'tenure') {
-                const startDate = assessmentData.startDate;
-                const finalDate = assessmentData.finalDate;
-                if (!startDate || !finalDate) return false;
-
-                const tenureInYears = differenceInYears(finalDate, startDate);
-                const [val1, val2] = condition.value;
-
-                if (condition.operator === 'lt') return tenureInYears < val1;
-                if (condition.operator === 'gte') return tenureInYears >= val1;
-                if (condition.operator === 'gte_lt' && val2) return tenureInYears >= val1 && tenureInYears < val2;
-            }
-            if (condition.type === 'date_offset') {
-                const dateValue = (allAnswers as any)[condition.dateQuestionId];
-                if (!dateValue || !(dateValue instanceof Date)) return false;
-
-                const today = startOfToday();
-                const diff = differenceInDays(dateValue, today);
-                if (condition.operator === 'gt') return diff > condition.value;
-                if (condition.operator === 'lt') return diff < condition.value;
-            }
-            return false;
-        });
-      
-      if (allConditionsMet) {
-        triggeredGuidance.push({ text: rule.guidanceText, category: rule.category, linkedResourceId: rule.linkedResourceId });
-      }
-    });
-
-    return triggeredGuidance;
-  }, [profileData, assessmentData, getAllCompanyConfigs]);
-  
-  const stableAdminGuidance = useMemo(() => JSON.stringify(adminGuidance), [adminGuidance]);
-
   useEffect(() => {
     const fetchRecommendations = async () => {
       if (!isFullyComplete || !auth?.email) {
@@ -245,7 +192,6 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           userEmail: auth.email,
           profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
-          adminGuidance: JSON.parse(stableAdminGuidance),
         });
         saveRecommendations(result);
       } catch (e) {
@@ -257,7 +203,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     };
 
     fetchRecommendations();
-  }, [profileData, assessmentData, isPreview, isFullyComplete, stableAdminGuidance, auth, recommendations, saveRecommendations]);
+  }, [profileData, assessmentData, isPreview, isFullyComplete, auth, recommendations, saveRecommendations]);
 
   const sortedRecommendations = useMemo(() => {
     if (!recommendations?.recommendations) {
@@ -708,3 +654,4 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
         </Card>
     );
 }
+
