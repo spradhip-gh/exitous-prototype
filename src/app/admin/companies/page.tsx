@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useUserData, CompanyAssignment } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, HrManager } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,13 @@ import Papa from 'papaparse';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+
+const defaultPermissions = {
+    userManagement: 'write-upload' as const,
+    formEditor: 'write' as const,
+    resources: 'write' as const,
+    companySettings: 'read' as const,
+};
 
 export default function CompanyManagementPage() {
   const { toast } = useToast();
@@ -61,7 +68,7 @@ export default function CompanyManagementPage() {
   const [editedPostEndDateContact, setEditedPostEndDateContact] = useState('');
 
   const existingHrEmails = useMemo(() => {
-    return [...new Set(companyAssignments.map(a => a.hrManagerEmail))];
+    return [...new Set(companyAssignments.flatMap(a => a.hrManagers.map(hr => hr.email)))];
   }, [companyAssignments]);
 
   const handleAddCompany = () => {
@@ -79,9 +86,6 @@ export default function CompanyManagementPage() {
         return;
     }
     
-    // An existing HR manager can be assigned to multiple companies. A new HR manager can be added.
-    // The check for an HR manager being already assigned is no longer needed.
-
     addCompanyAssignment({ 
         companyName: newCompanyName, 
         hrManagerEmail: newHrEmail,
@@ -173,7 +177,7 @@ export default function CompanyManagementPage() {
     
     const dataToExport = companyDataWithStats.map(c => ({
         "Company Name": c.companyName,
-        "HR Manager": c.hrManagerEmail,
+        "HR Manager": c.hrManagers.find(hr => hr.isPrimary)?.email || c.hrManagers[0]?.email || 'N/A',
         "Version": c.version,
         "Max Users": c.maxUsers,
         "Users Added": c.usersAdded,
@@ -219,7 +223,7 @@ export default function CompanyManagementPage() {
                         <Input id="newCompanyName" placeholder="e.g., Globex Corp" value={newCompanyName} onChange={e => setNewCompanyName(e.target.value)} />
                     </div>
                      <div className="space-y-2 lg:col-span-2">
-                        <Label>HR Manager Email</Label>
+                        <Label>Primary HR Manager Email</Label>
                         <Popover open={isHrComboboxOpen} onOpenChange={setIsHrComboboxOpen}>
                             <PopoverTrigger asChild>
                                 <Button
@@ -316,7 +320,7 @@ export default function CompanyManagementPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Company</TableHead>
-                            <TableHead>HR Manager</TableHead>
+                            <TableHead>HR Managers</TableHead>
                             <TableHead>Version</TableHead>
                             <TableHead>Users Added/Invited</TableHead>
                             <TableHead>Max Users</TableHead>
@@ -328,10 +332,15 @@ export default function CompanyManagementPage() {
                     <TableBody>
                         {companyDataWithStats.length > 0 ? companyDataWithStats.map(assignment => {
                             const version = assignment.version || 'basic';
+                            const primaryHr = assignment.hrManagers.find(hr => hr.isPrimary);
+                            const otherHrs = assignment.hrManagers.filter(hr => !hr.isPrimary);
                             return (
                                 <TableRow key={assignment.companyName}>
                                     <TableCell className="font-medium">{assignment.companyName}</TableCell>
-                                    <TableCell>{assignment.hrManagerEmail}</TableCell>
+                                    <TableCell>
+                                        {primaryHr && <div className="flex items-center gap-1 font-semibold"><Crown className="text-amber-500 h-4 w-4"/>{primaryHr.email}</div>}
+                                        {otherHrs.map(hr => <div key={hr.email} className="text-xs text-muted-foreground pl-5">{hr.email}</div>)}
+                                    </TableCell>
                                     <TableCell>
                                         <Badge variant={version === 'pro' ? 'default' : 'secondary'} className={version === 'pro' ? 'bg-green-600' : ''}>
                                             {version.charAt(0).toUpperCase() + version.slice(1)}
