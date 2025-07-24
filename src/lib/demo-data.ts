@@ -74,7 +74,7 @@ const initializeDb = (): DemoDatabase => {
         companyAssignments: [
             { 
                 companyName: 'Globex Corp', 
-                hrManagerEmail: 'hr@exitous.co', 
+                hrManagerEmail: 'hr@globex.com', 
                 version: 'pro', 
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
@@ -84,13 +84,23 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Initech', 
-                hrManagerEmail: 'hr@exitous.co', 
+                hrManagerEmail: 'hr@initech.com', 
                 version: 'basic', 
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
                 severanceDeadlineTimezone: 'America/Chicago',
                 preEndDateContactAlias: 'hr@initech.com',
                 postEndDateContactAlias: 'alumni-support@initech.com',
+            },
+            { 
+                companyName: 'Globex Software', 
+                hrManagerEmail: 'hr@globex.com', 
+                version: 'pro', 
+                maxUsers: 25,
+                severanceDeadlineTime: '17:00',
+                severanceDeadlineTimezone: 'America/New_York',
+                preEndDateContactAlias: 'hr.software@globex.com',
+                postEndDateContactAlias: 'alumni-support.software@globex.com',
             }
         ],
         companyConfigs: {
@@ -344,12 +354,23 @@ This checklist is designed to help you manage key tasks during your employment t
                 customQuestions: {},
                 questionOrderBySection: {},
                 resources: [],
+            },
+            'Globex Software': {
+                questions: {},
+                users: [
+                     { email: 'dev1@globex.software', companyId: 'GS-01', notificationDate: getPastDate(1), notified: true },
+                     { email: 'dev2@globex.software', companyId: 'GS-02', notificationDate: getFutureDate(30), notified: false },
+                ],
+                customQuestions: {},
+                questionOrderBySection: {},
+                resources: [],
             }
         },
         platformUsers: [
             { email: 'admin@exitous.co', role: 'admin' },
             { email: 'consultant@exitous.co', role: 'consultant' },
-            { email: 'hr@exitous.co', role: 'hr' },
+            { email: 'hr@globex.com', role: 'hr' },
+            { email: 'hr@initech.com', role: 'hr' },
         ],
         masterQuestions: initializeQuestions(getDefaultQuestions),
         masterProfileQuestions: initializeQuestions(getDefaultProfileQuestions),

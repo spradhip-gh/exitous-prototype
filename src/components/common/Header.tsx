@@ -106,7 +106,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                 </DropdownMenuLabel>
                  <DropdownMenuSeparator />
 
-                 {auth.role === 'hr' && auth.assignedCompanyNames && auth.assignedCompanyNames.length > 1 && (
+                 {auth.role === 'hr' && !auth.isPreview && auth.assignedCompanyNames && auth.assignedCompanyNames.length > 1 && (
                   <>
                     <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
                     <DropdownMenuRadioGroup value={auth.companyName} onValueChange={handleCompanySwitch}>

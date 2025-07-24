@@ -25,6 +25,7 @@ interface AuthContextType {
   startUserView: () => void;
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
+  updateEmail: (newEmail: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,11 +68,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('exitbetter-assessment');
       localStorage.removeItem('exitbetter-completed-tasks');
       localStorage.removeItem('exitbetter-task-date-overrides');
+      localStorage.removeItem('exitbetter-custom-deadlines');
+      localStorage.removeItem('exitbetter-recommendations');
       // and preview data
       localStorage.removeItem('exitbetter-profile-hr-preview');
       localStorage.removeItem('exitbetter-assessment-hr-preview');
       localStorage.removeItem('exitbetter-completed-tasks-hr-preview');
       localStorage.removeItem('exitbetter-task-date-overrides-hr-preview');
+      localStorage.removeItem('exitbetter-custom-deadlines-hr-preview');
+      localStorage.removeItem('exitbetter-recommendations-hr-preview');
+
 
       setAuthState(null);
     } catch (error) {
@@ -125,9 +131,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth]);
 
+  const updateEmail = useCallback((newEmail: string) => {
+    if (auth) {
+        const newAuth = { ...auth, email: newEmail };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        setAuthState(newAuth);
+    }
+  }, [auth]);
 
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail }}>
       {children}
     </AuthContext.Provider>
   );

@@ -30,6 +30,7 @@ const COMPLETED_TASKS_KEY = 'exitbetter-completed-tasks';
 const TASK_DATE_OVERRIDES_KEY = 'exitbetter-task-date-overrides';
 const CUSTOM_DEADLINES_KEY = 'exitbetter-custom-deadlines';
 const RECOMMENDATIONS_KEY = 'exitbetter-recommendations';
+const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
 export interface CompanyUser {
@@ -219,6 +220,7 @@ export function useUserData() {
   const taskDateOverridesKey = auth?.isPreview ? `${TASK_DATE_OVERRIDES_KEY}${PREVIEW_SUFFIX}` : TASK_DATE_OVERRIDES_KEY;
   const customDeadlinesKey = auth?.isPreview ? `${CUSTOM_DEADLINES_KEY}${PREVIEW_SUFFIX}` : CUSTOM_DEADLINES_KEY;
   const recommendationsKey = auth?.isPreview ? `${RECOMMENDATIONS_KEY}${PREVIEW_SUFFIX}` : RECOMMENDATIONS_KEY;
+  const timezoneKey = auth?.isPreview ? `${USER_TIMEZONE_KEY}${PREVIEW_SUFFIX}` : USER_TIMEZONE_KEY;
 
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -227,6 +229,7 @@ export function useUserData() {
   const [taskDateOverrides, setTaskDateOverrides] = useState<Record<string, string>>({});
   const [customDeadlines, setCustomDeadlines] = useState<Record<string, { label: string; date: string }>>({});
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
+  const [userTimezone, setUserTimezone] = useState<string | null>(null);
 
   // Shared data state now acts as a reactive layer over the in-memory store.
   const [companyConfigs, setCompanyConfigsState] = useState<Record<string, CompanyConfig>>({});
@@ -246,10 +249,11 @@ export function useUserData() {
   const isAssessmentComplete = !!assessmentData?.workStatus;
 
   const getTargetTimezone = useCallback(() => {
+    if (userTimezone) return userTimezone;
     const companyName = auth?.companyName;
     const assignment = companyAssignments.find(a => a.companyName === companyName);
     return assignment?.severanceDeadlineTimezone || 'UTC';
-  }, [auth?.companyName, companyAssignments]);
+  }, [auth?.companyName, companyAssignments, userTimezone]);
 
   const getCompanyUser = useCallback((email: string): { user: CompanyUser, companyName: string } | null => {
       if (!email || Object.keys(companyConfigs).length === 0) return null;
@@ -330,6 +334,9 @@ export function useUserData() {
       const recommendationsJson = localStorage.getItem(recommendationsKey);
       setRecommendations(recommendationsJson ? JSON.parse(recommendationsJson) : null);
       
+      const timezoneJson = localStorage.getItem(timezoneKey);
+      setUserTimezone(timezoneJson ? JSON.parse(timezoneJson) : null);
+      
     } catch (error) {
       console.error('Failed to load user data', error);
       [PROFILE_KEY, ASSESSMENT_KEY, COMPLETED_TASKS_KEY, TASK_DATE_OVERRIDES_KEY, CUSTOM_DEADLINES_KEY, RECOMMENDATIONS_KEY,
@@ -338,7 +345,7 @@ export function useUserData() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey]);
+  }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, timezoneKey]);
   
   useEffect(() => {
     if (auth?.role === 'hr' && auth.companyName && !isLoading) {
@@ -423,6 +430,11 @@ export function useUserData() {
       return newDeadlines;
     });
   }, [customDeadlinesKey]);
+
+  const saveUserTimezone = useCallback((tz: string) => {
+    setUserTimezone(tz);
+    localStorage.setItem(timezoneKey, JSON.stringify(tz));
+  }, [timezoneKey]);
   
   const saveMasterQuestions = useCallback((questions: Record<string, Question>) => {
     const questionsWithTimestamps = { ...questions };
@@ -724,6 +736,8 @@ export function useUserData() {
     isAssessmentComplete,
     recommendations,
     saveRecommendations,
+    userTimezone,
+    saveUserTimezone,
     getProfileCompletion,
     getAssessmentCompletion,
     completedTasks,
