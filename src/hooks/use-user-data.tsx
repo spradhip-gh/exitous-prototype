@@ -859,6 +859,7 @@ export function useUserData() {
     isAssessmentComplete,
     recommendations,
     saveRecommendations,
+    clearRecommendations,
     userTimezone,
     saveUserTimezone,
     getProfileCompletion,
@@ -905,4 +906,5 @@ export function useUserData() {
     saveExternalResources,
   };
 }
+
 

@@ -11,7 +11,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -99,6 +99,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     externalResources,
     recommendations,
     saveRecommendations,
+    clearRecommendations,
   } = useUserData();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -285,6 +286,11 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         router.push('/dashboard/external-resources');
     }
   };
+  
+  const handleRefresh = () => {
+    clearRecommendations();
+    toast({ title: "Refreshing...", description: "Generating new recommendations."});
+  }
 
   if (isLoading) {
     return (
@@ -321,39 +327,51 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                         A tailored list of actions to guide you through your exit.
                     </CardDescription>
                   </div>
-                   <Dialog open={isAddDateOpen} onOpenChange={setIsAddDateOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline"><PlusCircle className="mr-2"/> Add Custom Date</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add a Custom Date</DialogTitle>
-                        <DialogDescription>Add a personal event or deadline to your timeline.</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="date-label">Event Label</Label>
-                          <Input id="date-label" value={newDateLabel} onChange={(e) => setNewDateLabel(e.target.value)} placeholder="e.g., Follow up with recruiter" />
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={handleRefresh}><RefreshCw className="h-4 w-4" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Refresh Recommendations</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Dialog open={isAddDateOpen} onOpenChange={setIsAddDateOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline"><PlusCircle className="mr-2"/> Add Custom Date</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add a Custom Date</DialogTitle>
+                          <DialogDescription>Add a personal event or deadline to your timeline.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="date-label">Event Label</Label>
+                            <Input id="date-label" value={newDateLabel} onChange={(e) => setNewDateLabel(e.target.value)} placeholder="e.g., Follow up with recruiter" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={newDate} onSelect={setNewDate} initialFocus /></PopoverContent>
+                            </Popover>
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label>Date</Label>
-                           <Popover>
-                              <PopoverTrigger asChild>
-                                  <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
-                                      <Calendar className="mr-2 h-4 w-4" />
-                                      {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
-                                  </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={newDate} onSelect={setNewDate} initialFocus /></PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddDateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAddDate}>Add to Timeline</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setIsAddDateOpen(false)}>Cancel</Button>
+                          <Button onClick={handleAddDate}>Add to Timeline</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
                   <div className="flex flex-wrap items-center gap-2 pt-4">
                       <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>
@@ -654,4 +672,3 @@ function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompl
         </Card>
     );
 }
-
