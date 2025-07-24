@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -44,13 +43,14 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
-function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave }: {
+function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open, onOpenChange, onSave, onMakePrimary }: {
     managerEmail: string | null;
     assignments: CompanyAssignment[];
     managedCompanies: string[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (email: string, updatedAssignments: CompanyAssignment[]) => void;
+    onMakePrimary: (companyName: string, newPrimaryManagerEmail: string) => void;
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -81,6 +81,11 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
             toast({ title: "Action Prohibited", description: `You cannot remove a Primary Manager. Please assign a new primary for ${companyName} first.`, variant: "destructive" });
             return;
         }
+        
+         if (companyAssignment.hrManagers.length <= 1) {
+            toast({ title: "Action Prohibited", description: `Cannot remove the last manager of a company.`, variant: "destructive" });
+            return;
+        }
 
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
@@ -95,28 +100,6 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
                 return { ...a, hrManagers: [...a.hrManagers, { email: managerEmail, isPrimary: false, permissions: defaultPermissions }] };
-            }
-            return a;
-        }));
-    };
-    
-    const handleMakePrimary = (companyName: string) => {
-        setLocalAssignments(prev => prev.map(a => {
-            if (a.companyName === companyName) {
-                const currentPrimary = a.hrManagers.find(hr => hr.isPrimary);
-                const updatedManagers = a.hrManagers.map(hr => {
-                    const isNewPrimary = hr.email.toLowerCase() === managerEmail.toLowerCase();
-                    const wasOldPrimary = currentPrimary?.email.toLowerCase() === hr.email.toLowerCase();
-
-                    if (isNewPrimary) {
-                        return { ...hr, isPrimary: true, permissions: fullPermissions };
-                    }
-                    if (wasOldPrimary) {
-                        return { ...hr, isPrimary: false, permissions: { ...hr.permissions, companySettings: 'read' as const } };
-                    }
-                    return hr;
-                });
-                return { ...a, hrManagers: updatedManagers };
             }
             return a;
         }));
@@ -160,29 +143,23 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                 const canEditThisCompany = managedCompanies.includes(assignment.companyName);
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
-                                const isDeleteDisabled = !canEditThisCompany || isPrimaryInThisCompany || isLastManager;
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
                                         <CardHeader className="flex flex-row items-center justify-between p-4">
                                             <Label htmlFor={`assign-${assignment.companyName}`} className="text-base font-semibold">{assignment.companyName}</Label>
                                             <TooltipProvider>
-                                                <Tooltip>
+                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <span tabIndex={isDeleteDisabled ? 0 : -1}>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={isDeleteDisabled}>
+                                                        <span tabIndex={!canEditThisCompany || isLastManager ? 0 : -1}>
+                                                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveAccess(assignment.companyName)} disabled={!canEditThisCompany || isLastManager}>
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </span>
                                                     </TooltipTrigger>
-                                                     {isDeleteDisabled && (
+                                                    {isLastManager && canEditThisCompany && (
                                                         <TooltipContent>
-                                                          <p>
-                                                            {isPrimaryInThisCompany 
-                                                              ? "Cannot remove a Primary Manager. Promote another user first." 
-                                                              : "Cannot remove the last manager of a company."
-                                                            }
-                                                          </p>
+                                                          <p>Cannot remove the last manager of a company.</p>
                                                         </TooltipContent>
                                                     )}
                                                 </Tooltip>
@@ -191,27 +168,33 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                         <CardContent className="p-4 pt-0 space-y-4">
                                             <Separator />
                                             <div className="pt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <Label>Primary Manager</Label>
+                                                 <div className="flex items-center justify-between rounded-lg border p-3">
+                                                    <div>
+                                                        <Label>Primary Manager</Label>
+                                                        <p className="text-xs text-muted-foreground">Grants full permissions and demotes the current primary.</p>
+                                                    </div>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Switch checked={isPrimaryInThisCompany} disabled={!canEditThisCompany || isPrimaryInThisCompany} />
+                                                            <Switch
+                                                                checked={isPrimaryInThisCompany}
+                                                                disabled={!canEditThisCompany || isPrimaryInThisCompany}
+                                                            />
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
                                                                 <AlertDialogDescription>
                                                                     Are you sure you want to make <span className="font-bold">{manager.email}</span> the new Primary Manager for <span className="font-bold">{assignment.companyName}</span>?
-                                                                    <Alert variant="destructive" className="mt-4">
-                                                                        <Info className="h-4 w-4" />
+                                                                    <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
+                                                                        <Info className="h-4 w-4 !text-amber-600" />
                                                                         <AlertTitle>Warning</AlertTitle>
-                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except for managing HR and company settings for this company.</AlertDescription>
+                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
                                                                     </Alert>
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleMakePrimary(assignment.companyName)}>Confirm & Transfer</AlertDialogAction>
+                                                                <AlertDialogAction onClick={() => onMakePrimary(assignment.companyName, manager.email)}>Confirm & Transfer</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
@@ -422,8 +405,8 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                         <CardContent className="p-4 pt-0 space-y-4">
                                             <Separator />
                                             <div className="pt-2">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="space-y-1">
+                                                <div className="flex items-center justify-between rounded-lg border p-3">
+                                                    <div>
                                                          <Label>Make Primary Manager</Label>
                                                     </div>
                                                     <AlertDialog>
@@ -441,7 +424,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                                      <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
                                                                         <Info className="h-4 w-4 !text-amber-600" />
                                                                         <AlertTitle>Warning</AlertTitle>
-                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except for managing HR and company settings for this company.</AlertDescription>
+                                                                        <AlertDescription>This will demote the current primary ({auth?.email}). You will retain all permissions except managing HR Managers and Company Settings.</AlertDescription>
                                                                     </Alert>
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
@@ -523,19 +506,44 @@ export default function HrManagementPage() {
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
     const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
     const [isAddHrOpen, setIsAddHrOpen] = useState(false);
+    const [localAssignments, setLocalAssignments] = useState<CompanyAssignment[]>(companyAssignments);
+
+    useEffect(() => {
+        setLocalAssignments(companyAssignments);
+    }, [companyAssignments]);
+
+    const handleMakePrimary = (companyName: string, newPrimaryManagerEmail: string) => {
+        updateCompanyAssignment(companyName, { newPrimaryManagerEmail });
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryManagerEmail} is now the primary manager for ${companyName}.`});
+        
+        // Refresh local state to reflect the change immediately in the dialog
+        const updatedAssignments = localAssignments.map(a => {
+            if (a.companyName === companyName) {
+                return {
+                    ...a,
+                    hrManagers: a.hrManagers.map(hr => ({
+                        ...hr,
+                        isPrimary: hr.email.toLowerCase() === newPrimaryManagerEmail.toLowerCase()
+                    }))
+                };
+            }
+            return a;
+        });
+        setLocalAssignments(updatedAssignments);
+    };
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
         let companiesWherePrimary: string[] = [];
 
         if (auth?.role === 'admin') {
-            companiesWherePrimary = companyAssignments.map(a => a.companyName);
+            companiesWherePrimary = localAssignments.map(a => a.companyName);
         } else if (auth?.role === 'hr' && auth.email) {
-            companiesWherePrimary = companyAssignments
+            companiesWherePrimary = localAssignments
                 .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary))
                 .map(a => a.companyName);
         }
         
-        const companiesToScan = companyAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
+        const companiesToScan = localAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
         
         const managers = new Map<string, { email: string, companies: string[] }>();
         companiesToScan.forEach(assignment => {
@@ -554,7 +562,7 @@ export default function HrManagementPage() {
             manageableHrs: Array.from(managers.values()),
             managedCompanies: companiesWherePrimary,
         };
-    }, [companyAssignments, auth]);
+    }, [localAssignments, auth]);
     
     const handleManageClick = (email: string) => {
         setSelectedManager(email);
@@ -563,11 +571,13 @@ export default function HrManagementPage() {
     
     const handleSaveAssignments = (email: string, updatedAssignments: CompanyAssignment[]) => {
         saveCompanyAssignments(updatedAssignments);
+        setLocalAssignments(updatedAssignments); // sync local state after save
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
     };
     
     const handleAddHrSave = (updatedAssignments: CompanyAssignment[]) => {
         saveCompanyAssignments(updatedAssignments);
+        setLocalAssignments(updatedAssignments);
         toast({ title: "HR Manager Added", description: `The new manager has been assigned to the selected companies.`});
     };
 
@@ -621,11 +631,12 @@ export default function HrManagementPage() {
             
             <ManageAccessDialog 
                 managerEmail={selectedManager}
-                assignments={companyAssignments}
+                assignments={localAssignments}
                 managedCompanies={managedCompanies}
                 open={isManageAccessOpen}
                 onOpenChange={setIsManageAccessOpen}
                 onSave={handleSaveAssignments}
+                onMakePrimary={handleMakePrimary}
             />
 
             <AddHrManagerDialog
@@ -633,11 +644,10 @@ export default function HrManagementPage() {
                 onOpenChange={setIsAddHrOpen}
                 managedCompanies={managedCompanies}
                 onSave={handleAddHrSave}
-                allAssignments={companyAssignments}
+                allAssignments={localAssignments}
             />
         </div>
     );
 }
-
 
     
