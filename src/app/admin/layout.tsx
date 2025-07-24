@@ -22,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
-  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users'));
+  const [isManagementOpen, setIsManagementOpen] = useState(pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management'));
   const { auth } = useAuth();
   const { companyAssignments } = useUserData();
   
@@ -72,6 +72,11 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   <Link href="/admin/users">
                     <Button variant={getVariant('/admin/users')} className="w-full justify-start text-sm font-normal">
                         User Management
+                    </Button>
+                  </Link>
+                  <Link href="/admin/hr-management">
+                    <Button variant={getVariant('/admin/hr-management')} className="w-full justify-start text-sm font-normal">
+                        HR Management
                     </Button>
                   </Link>
               </CollapsibleContent>

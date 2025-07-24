@@ -48,19 +48,26 @@ export default function HrManagementPage() {
   const { auth } = useAuth();
   const { companyAssignments, updateCompanyAssignment, saveCompanyAssignments } = useUserData();
 
+  const [selectedCompany, setSelectedCompany] = useState("");
   const [newUserEmail, setNewUserEmail] = useState('');
   const [companyPermissions, setCompanyPermissions] = useState<Record<string, HrPermissions>>({});
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingManager, setEditingManager] = useState<{manager: HrManager, companyName: string} | null>(null);
   const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(defaultPermissions);
+
+  const isAdmin = auth?.role === 'admin';
   
   const managedAssignments = useMemo(() => {
-    if (!auth || auth.role !== 'hr') return [];
+    if (!auth) return [];
+    if (isAdmin) {
+      return selectedCompany ? companyAssignments.filter(ca => ca.companyName === selectedCompany) : [];
+    }
+    // For HR roles
     return companyAssignments.filter(ca => 
       ca.hrManagers.some(hr => hr.email.toLowerCase() === auth.email?.toLowerCase() && hr.isPrimary)
     );
-  }, [auth, companyAssignments]);
+  }, [auth, companyAssignments, isAdmin, selectedCompany]);
 
   const handlePermissionChange = (companyName: string, area: keyof HrPermissions, value: string) => {
     setCompanyPermissions(prev => ({
@@ -137,7 +144,7 @@ export default function HrManagementPage() {
 
   const handleRemoveHrManager = useCallback((email: string, companyName: string) => {
     if (auth?.email && email.toLowerCase() === auth.email.toLowerCase()) {
-        toast({ title: "Cannot Remove Self", description: "You cannot remove your own primary HR access.", variant: "destructive" });
+        toast({ title: "Action Not Allowed", description: "You cannot remove your own access.", variant: "destructive" });
         return;
     }
     const assignment = companyAssignments.find(a => a.companyName === companyName);
@@ -147,8 +154,10 @@ export default function HrManagementPage() {
         toast({ title: 'HR Manager Removed', description: `${email} has been removed from ${companyName}.` });
     }
   }, [auth, companyAssignments, updateCompanyAssignment, toast]);
+  
+  const companiesAvailableToAdd = isAdmin ? companyAssignments : managedAssignments;
 
-  if (managedAssignments.length === 0) {
+  if (auth?.role === 'hr' && managedAssignments.length === 0) {
     return (
       <div className="p-4 md:p-8">
         <Card>
@@ -167,162 +176,187 @@ export default function HrManagementPage() {
         <div className="space-y-2">
             <h1 className="font-headline text-3xl font-bold">HR Team Management</h1>
             <p className="text-muted-foreground">
-                As a Primary HR Manager, you can add or remove other HR managers for the companies you oversee and set their permissions.
+                {isAdmin
+                    ? 'Select a company to add or manage HR managers and their specific permissions.'
+                    : 'As a Primary HR Manager, you can add or remove other HR managers for the companies you oversee and set their permissions.'
+                }
             </p>
         </div>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Add New HR Manager</CardTitle>
-                <CardDescription>Grant another user HR Manager access. Select companies and set permissions for each.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <div className="space-y-2">
-                    <Label htmlFor="newUserEmail">New HR Manager's Email</Label>
-                    <Input id="newUserEmail" placeholder="manager@example.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label>Assign to Companies & Set Permissions</Label>
-                    <div className="space-y-4 rounded-md border p-4">
-                        {managedAssignments.map(ca => {
-                            const isAssigned = !!companyPermissions[ca.companyName];
-                            return (
-                                <div key={ca.companyName} className="space-y-3 rounded-md border p-3">
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`company-${ca.companyName}`}
-                                            checked={isAssigned}
-                                            onCheckedChange={(checked) => {
-                                                setCompanyPermissions(prev => {
-                                                    const next = { ...prev };
-                                                    if (checked) next[ca.companyName] = defaultPermissions;
-                                                    else delete next[ca.companyName];
-                                                    return next;
-                                                });
-                                            }}
-                                        />
-                                        <Label htmlFor={`company-${ca.companyName}`} className="font-semibold text-base">{ca.companyName}</Label>
-                                    </div>
-                                    {isAssigned && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 pl-6">
-                                            <div className="space-y-1">
-                                                <Label className="text-xs">User Management</Label>
-                                                <Select value={companyPermissions[ca.companyName].userManagement} onValueChange={(v) => handlePermissionChange(ca.companyName, 'userManagement', v as any)}>
-                                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="read">Read Only</SelectItem>
-                                                        <SelectItem value="invite-only">Invite Only</SelectItem>
-                                                        <SelectItem value="write">Write</SelectItem>
-                                                        <SelectItem value="write-upload">Write & Upload</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs">Form Editor</Label>
-                                                <Select value={companyPermissions[ca.companyName].formEditor} onValueChange={(v) => handlePermissionChange(ca.companyName, 'formEditor', v as any)}>
-                                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="read">Read Only</SelectItem>
-                                                        <SelectItem value="write">Write</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs">Resources</Label>
-                                                <Select value={companyPermissions[ca.companyName].resources} onValueChange={(v) => handlePermissionChange(ca.companyName, 'resources', v as any)}>
-                                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="read">Read Only</SelectItem>
-                                                        <SelectItem value="write">Write</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter>
-                 <Button onClick={handleAddHrManager}>
-                    <PlusCircle className="mr-2" /> Add HR Manager
-                </Button>
-            </CardFooter>
-        </Card>
-
-        {managedAssignments.map(assignment => (
-             <Card key={assignment.companyName}>
-                <CardHeader>
-                    <CardTitle>{assignment.companyName} HR Team</CardTitle>
-                    <CardDescription>List of all HR managers with access to this company.</CardDescription>
-                </CardHeader>
+        
+        {isAdmin && (
+            <Card>
+                <CardHeader><CardTitle>Select Company</CardTitle></CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Permissions</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {assignment.hrManagers.map(hr => (
-                                <TableRow key={hr.email}>
-                                    <TableCell className="font-medium">{hr.email}</TableCell>
-                                    <TableCell>
-                                        {hr.isPrimary ? (
-                                            <span className="flex items-center text-amber-600 font-semibold text-sm gap-2"><Crown className="h-4 w-4"/> Primary</span>
-                                        ) : (
-                                            <span className="flex items-center text-muted-foreground text-sm gap-2"><Shield className="h-4 w-4"/> Manager</span>
-                                        )}
-                                    </TableCell>
-                                     <TableCell>
-                                        {!hr.isPrimary && (
-                                            <div className="flex flex-wrap gap-1">
-                                                <Badge variant="outline">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
-                                                <Badge variant="outline">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
-                                                <Badge variant="outline">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                         {!hr.isPrimary && (
-                                            <div className="flex gap-1 justify-end">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(hr, assignment.companyName)}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This will revoke HR access for {hr.email} from {assignment.companyName}.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleRemoveHrManager(hr.email, assignment.companyName)}>
-                                                                Yes, Revoke Access
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                         )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                     <Select onValueChange={setSelectedCompany} value={selectedCompany}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a company to manage..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {companyAssignments.length > 0 ? companyAssignments.map(c => (
+                                <SelectItem key={c.companyName} value={c.companyName}>{c.companyName}</SelectItem>
+                            )) : <SelectItem value="none" disabled>No companies available</SelectItem>}
+                        </SelectContent>
+                    </Select>
                 </CardContent>
             </Card>
-        ))}
+        )}
+
+        {(!isAdmin || selectedCompany) && (
+            <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Add New HR Manager</CardTitle>
+                    <CardDescription>Grant another user HR Manager access. Select companies and set permissions for each.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="newUserEmail">New HR Manager's Email</Label>
+                        <Input id="newUserEmail" placeholder="manager@example.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Assign to Companies & Set Permissions</Label>
+                        <div className="space-y-4 rounded-md border p-4">
+                            {companiesAvailableToAdd.map(ca => {
+                                const isAssigned = !!companyPermissions[ca.companyName];
+                                return (
+                                    <div key={ca.companyName} className="space-y-3 rounded-md border p-3">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`company-${ca.companyName}`}
+                                                checked={isAssigned}
+                                                onCheckedChange={(checked) => {
+                                                    setCompanyPermissions(prev => {
+                                                        const next = { ...prev };
+                                                        if (checked) next[ca.companyName] = defaultPermissions;
+                                                        else delete next[ca.companyName];
+                                                        return next;
+                                                    });
+                                                }}
+                                            />
+                                            <Label htmlFor={`company-${ca.companyName}`} className="font-semibold text-base">{ca.companyName}</Label>
+                                        </div>
+                                        {isAssigned && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 pl-6">
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">User Management</Label>
+                                                    <Select value={companyPermissions[ca.companyName].userManagement} onValueChange={(v) => handlePermissionChange(ca.companyName, 'userManagement', v as any)}>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="read">Read Only</SelectItem>
+                                                            <SelectItem value="invite-only">Invite Only</SelectItem>
+                                                            <SelectItem value="write">Write</SelectItem>
+                                                            <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Form Editor</Label>
+                                                    <Select value={companyPermissions[ca.companyName].formEditor} onValueChange={(v) => handlePermissionChange(ca.companyName, 'formEditor', v as any)}>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="read">Read Only</SelectItem>
+                                                            <SelectItem value="write">Write</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Resources</Label>
+                                                    <Select value={companyPermissions[ca.companyName].resources} onValueChange={(v) => handlePermissionChange(ca.companyName, 'resources', v as any)}>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="read">Read Only</SelectItem>
+                                                            <SelectItem value="write">Write</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleAddHrManager}>
+                        <PlusCircle className="mr-2" /> Add HR Manager
+                    </Button>
+                </CardFooter>
+            </Card>
+
+            {managedAssignments.map(assignment => (
+                <Card key={assignment.companyName}>
+                    <CardHeader>
+                        <CardTitle>{assignment.companyName} HR Team</CardTitle>
+                        <CardDescription>List of all HR managers with access to this company.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Permissions</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {assignment.hrManagers.map(hr => (
+                                    <TableRow key={hr.email}>
+                                        <TableCell className="font-medium">{hr.email}</TableCell>
+                                        <TableCell>
+                                            {hr.isPrimary ? (
+                                                <span className="flex items-center text-amber-600 font-semibold text-sm gap-2"><Crown className="h-4 w-4"/> Primary</span>
+                                            ) : (
+                                                <span className="flex items-center text-muted-foreground text-sm gap-2"><Shield className="h-4 w-4"/> Manager</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {!hr.isPrimary && (
+                                                <div className="flex flex-wrap gap-1">
+                                                    <Badge variant="outline">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
+                                                    <Badge variant="outline">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
+                                                    <Badge variant="outline">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {!hr.isPrimary && (
+                                                <div className="flex gap-1 justify-end">
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(hr, assignment.companyName)}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This will revoke HR access for {hr.email} from {assignment.companyName}.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleRemoveHrManager(hr.email, assignment.companyName)}>
+                                                                    Yes, Revoke Access
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            ))}
+            </>
+        )}
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent>

@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useUserData, CompanyAssignment, HrManager } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, HrManager, HrPermissions } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,18 +32,18 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
-const defaultPermissions = {
-    userManagement: 'read' as const,
-    formEditor: 'read' as const,
-    resources: 'read' as const,
-    companySettings: 'read' as const,
+const defaultPermissions: HrPermissions = {
+    userManagement: 'read',
+    formEditor: 'read',
+    resources: 'read',
+    companySettings: 'read',
 };
 
-const fullPermissions = {
-    userManagement: 'write-upload' as const,
-    formEditor: 'write' as const,
-    resources: 'write' as const,
-    companySettings: 'read' as const,
+const fullPermissions: HrPermissions = {
+    userManagement: 'write-upload',
+    formEditor: 'write',
+    resources: 'write',
+    companySettings: 'read',
 };
 
 export default function CompanyManagementPage() {
