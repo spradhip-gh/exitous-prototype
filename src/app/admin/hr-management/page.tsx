@@ -61,16 +61,18 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
         }
     }, [open, assignments]);
 
-    if (!managerEmail) return null;
-
     const managerAssignments = useMemo(() => {
+        if (!managerEmail) return [];
         return localAssignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === managerEmail.toLowerCase()));
     }, [localAssignments, managerEmail]);
 
     const addableCompanies = useMemo(() => {
+        if (!managerEmail) return [];
         const assignedCompanyNames = new Set(managerAssignments.map(ma => ma.companyName));
-        return localAssignments.filter(a => !assignedCompanyNames.has(a.companyName)).map(a => a.companyName);
-    }, [localAssignments, managerAssignments]);
+        return assignments.filter(a => !assignedCompanyNames.has(a.companyName)).map(a => a.companyName);
+    }, [assignments, managerAssignments, managerEmail]);
+
+    if (!managerEmail) return null;
 
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
         setLocalAssignments(prev => {
