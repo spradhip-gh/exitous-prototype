@@ -202,7 +202,7 @@ function ManageAccessDialog({ managerEmail, assignments, managedCompanies, open,
                                                         <AlertDialogTrigger asChild>
                                                             <Switch
                                                                 checked={isPrimaryInThisCompany}
-                                                                onCheckedChange={() => {}}
+                                                                onCheckedChange={() => {}} // dummy to allow trigger
                                                                 disabled={!canEditThisCompany || isPrimaryInThisCompany}
                                                             />
                                                         </AlertDialogTrigger>
@@ -549,24 +549,19 @@ export default function HrManagementPage() {
     const [selectedManager, setSelectedManager] = useState<string | null>(null);
     const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
     const [isAddHrOpen, setIsAddHrOpen] = useState(false);
-    const [localAssignments, setLocalAssignments] = useState<CompanyAssignment[]>(companyAssignments);
-
-    useEffect(() => {
-        setLocalAssignments(companyAssignments);
-    }, [companyAssignments]);
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
         let companiesWherePrimary: string[] = [];
 
         if (auth?.role === 'admin') {
-            companiesWherePrimary = localAssignments.map(a => a.companyName);
+            companiesWherePrimary = companyAssignments.map(a => a.companyName);
         } else if (auth?.role === 'hr' && auth.email) {
-            companiesWherePrimary = localAssignments
+            companiesWherePrimary = companyAssignments
                 .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
                 .map(a => a.companyName);
         }
         
-        const companiesToScan = localAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
+        const companiesToScan = companyAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
         
         const managers = new Map<string, { email: string, companies: string[] }>();
         companiesToScan.forEach(assignment => {
@@ -585,7 +580,7 @@ export default function HrManagementPage() {
             manageableHrs: Array.from(managers.values()),
             managedCompanies: companiesWherePrimary,
         };
-    }, [localAssignments, auth]);
+    }, [companyAssignments, auth]);
     
     const handleManageClick = (email: string) => {
         setSelectedManager(email);
@@ -594,7 +589,6 @@ export default function HrManagementPage() {
     
     const handleSaveAssignments = (email: string, updatedAssignments: CompanyAssignment[]) => {
         saveCompanyAssignments(updatedAssignments);
-        setLocalAssignments(updatedAssignments); // sync local state after save
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
 
         // If the current user's primary status for the current company has changed, refresh auth.
@@ -612,9 +606,12 @@ export default function HrManagementPage() {
     
     const handleAddHrSave = (updatedAssignments: CompanyAssignment[]) => {
         saveCompanyAssignments(updatedAssignments);
-        setLocalAssignments(updatedAssignments);
         toast({ title: "HR Manager Added", description: `The new manager has been assigned to the selected companies.`});
     };
+
+    const assignmentsForDialog = useMemo(() => {
+        return companyAssignments.filter(a => managedCompanies.includes(a.companyName));
+    }, [companyAssignments, managedCompanies]);
 
     return (
         <div className="p-4 md:p-8">
@@ -666,7 +663,7 @@ export default function HrManagementPage() {
             
             <ManageAccessDialog 
                 managerEmail={selectedManager}
-                assignments={localAssignments}
+                assignments={assignmentsForDialog}
                 managedCompanies={managedCompanies}
                 open={isManageAccessOpen}
                 onOpenChange={setIsManageAccessOpen}
@@ -678,7 +675,7 @@ export default function HrManagementPage() {
                 onOpenChange={setIsAddHrOpen}
                 managedCompanies={managedCompanies}
                 onSave={handleAddHrSave}
-                allAssignments={localAssignments}
+                allAssignments={companyAssignments}
             />
         </div>
     );
