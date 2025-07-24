@@ -25,7 +25,7 @@ export interface AuthState {
 interface AuthContextType {
   auth: AuthState | null;
   loading: boolean;
-  login: (authData: AuthState) => void;
+  login: (authData: Pick<AuthState, 'role'|'email'|'companyId'>, assignments: CompanyAssignment[]) => void;
   logout: () => void;
   startUserView: () => void;
   stopUserView: () => void;
@@ -70,13 +70,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
   
-  const login = useCallback((authData: AuthState) => {
+  const login = useCallback((authData: Pick<AuthState, 'role'|'email'|'companyId'>, assignments: CompanyAssignment[]) => {
     try {
-      let finalAuthData = { ...authData };
-      if (authData.role === 'hr' && authData.email && authData.companyName) {
-        const assignments = getCompanyAssignmentsFromDb();
-        finalAuthData.permissions = getPermissionsForHr(authData.email, authData.companyName, assignments);
+      let finalAuthData: AuthState = { ...authData, role: authData.role };
+
+      if (authData.role === 'hr' && authData.email) {
+        const assignedCompanies = assignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase()));
+        if (assignedCompanies.length === 0) {
+            // This case should be handled by the login form, but as a fallback.
+            return;
+        }
+
+        const primaryAssignments = assignedCompanies.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase() && hr.isPrimary));
+        
+        let defaultCompany: CompanyAssignment;
+        if (primaryAssignments.length === 1) {
+            // If they are primary for exactly one company, default to that one.
+            defaultCompany = primaryAssignments[0];
+        } else {
+            // Otherwise, default to the first one they are assigned to.
+            defaultCompany = assignedCompanies[0];
+        }
+
+        finalAuthData.companyName = defaultCompany.companyName;
+        finalAuthData.assignedCompanyNames = assignedCompanies.map(c => c.companyName);
+        finalAuthData.permissions = getPermissionsForHr(authData.email, defaultCompany.companyName, assignments);
+
+      } else if (authData.role === 'end-user') {
+          const assignment = assignments.find(a => a.companyConfigs[authData.companyId!] !== undefined);
+          if (assignment) {
+            finalAuthData.companyName = assignment.companyName;
+          }
       }
+
       localStorage.setItem(AUTH_KEY, JSON.stringify(finalAuthData));
       setAuthState(finalAuthData);
       localStorage.removeItem(ORIGINAL_AUTH_KEY);
@@ -149,9 +175,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
   
-  const switchCompany = useCallback((newCompanyName: string, currentAssignments: CompanyAssignment[]) => {
+ const switchCompany = useCallback((newCompanyName: string, currentAssignments: CompanyAssignment[]) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        const newPermissions = getPermissionsForHr(auth.email, newCompanyName, currentAssignments);
+        // Find the specific assignment for the new company from the up-to-date list
+        const newAssignment = currentAssignments.find(a => a.companyName === newCompanyName);
+        if (!newAssignment) return;
+
+        // Find the specific manager object within that assignment to get their current permissions
+        const manager = newAssignment.hrManagers.find(hr => hr.email.toLowerCase() === auth.email!.toLowerCase());
+        if (!manager) return;
+        
+        // Determine permissions. If primary, grant full access. Otherwise, use stored permissions.
+        const newPermissions = manager.isPrimary 
+            ? {
+                userManagement: 'write-upload' as const,
+                formEditor: 'write' as const,
+                resources: 'write' as const,
+                companySettings: 'write' as const,
+            }
+            : manager.permissions;
+
         const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);

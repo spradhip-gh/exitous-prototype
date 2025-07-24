@@ -10,12 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useUserData, CompanyUser } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data';
 import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
-  const { getAllCompanyConfigs, getCompaniesForHr, getPlatformUserRole } = useUserData();
+  const { getAllCompanyConfigs, getCompaniesForHr, getPlatformUserRole, companyAssignments } = useUserData();
   const { toast } = useToast();
   
   const [endUserEmail, setEndUserEmail] = useState('');
@@ -29,7 +29,6 @@ export default function Login() {
     setIsLoading(true);
 
     const allConfigs = getAllCompanyConfigs();
-    let foundUser: CompanyUser | null = null;
     let companyNameForUser = '';
 
     for (const companyName in allConfigs) {
@@ -38,8 +37,7 @@ export default function Login() {
             const user = company.users.find(
                 u => u.email.toLowerCase() === endUserEmail.toLowerCase() && u.companyId === companyId
             );
-            if (user) {
-                foundUser = user;
+            if (user && user.notified) {
                 companyNameForUser = companyName;
                 break;
             }
@@ -48,12 +46,12 @@ export default function Login() {
 
     setTimeout(() => {
         setIsLoading(false);
-        if (foundUser && foundUser.notified) {
-            login({ role: 'end-user', email: endUserEmail, companyId, companyName: companyNameForUser });
+        if (companyNameForUser) {
+            login({ role: 'end-user', email: endUserEmail, companyId: companyId }, [{ companyName: companyNameForUser, companyConfigs: { [companyNameForUser]: allConfigs[companyNameForUser] } }] as any);
         } else {
             toast({
                 title: "Login Failed",
-                description: "Invalid email or Company ID. Please check your credentials.",
+                description: "Invalid email, Company ID, or you have not been invited yet.",
                 variant: "destructive"
             });
         }
@@ -69,12 +67,7 @@ export default function Login() {
     setTimeout(() => {
         setIsLoading(false);
         if (assignedCompanies.length > 0) {
-            login({ 
-                role: 'hr', 
-                email: hrEmail, 
-                companyName: assignedCompanies[0].companyName, // Default to the first company
-                assignedCompanyNames: assignedCompanies.map(c => c.companyName) // Store all assigned companies
-            });
+            login({ role: 'hr', email: hrEmail }, companyAssignments);
         } else {
             toast({
                 title: "Login Failed",
@@ -94,7 +87,7 @@ export default function Login() {
     setTimeout(() => {
         setIsLoading(false);
         if (validatedRole === role) {
-            login({ role: validatedRole, email: platformUserEmail });
+            login({ role: validatedRole, email: platformUserEmail }, []);
         } else {
             toast({
                 title: "Login Failed",
