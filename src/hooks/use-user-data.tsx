@@ -222,7 +222,7 @@ export const convertDatesToStrings = (obj: any): any => {
 
 
 export function useUserData() {
-  const { auth, updatePermissions } = useAuth();
+  const { auth } = useAuth();
   
   // User-specific data remains in localStorage for a personalized demo flow.
   const profileKey = auth?.isPreview ? `${PROFILE_KEY}${PREVIEW_SUFFIX}` : PROFILE_KEY;
@@ -382,27 +382,6 @@ export function useUserData() {
     }
   }, [auth?.role, auth?.companyName, isLoading, companyAssignments]);
 
-  // This effect is responsible for keeping the HR permissions in the auth object up-to-date.
-  useEffect(() => {
-    if (auth?.role === 'hr' && auth.email && auth.companyName && companyAssignments.length > 0) {
-        const assignment = companyAssignments.find(a => a.companyName === auth.companyName);
-        if (assignment) {
-            const manager = assignment.hrManagers.find(hr => hr.email.toLowerCase() === auth.email!.toLowerCase());
-            if (manager) {
-                const currentPermissions = manager.isPrimary 
-                    ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
-                    : manager.permissions;
-                
-                // Only update if permissions have actually changed to prevent loops
-                if (JSON.stringify(currentPermissions) !== JSON.stringify(auth.permissions)) {
-                    updatePermissions(currentPermissions);
-                }
-            }
-        }
-    }
-  }, [auth?.email, auth?.companyName, auth?.permissions, companyAssignments, updatePermissions, auth?.role]);
-
-
   const clearRecommendations = useCallback(() => {
     setRecommendations(null);
     localStorage.removeItem(recommendationsKey);
@@ -532,8 +511,15 @@ export function useUserData() {
   }, []);
   
   const addReviewQueueItem = useCallback((item: ReviewQueueItem) => {
-    addReviewQueueItemToDb(item);
-    setReviewQueueState(getReviewQueueFromDb());
+    // Ensure the queue exists before trying to access it.
+    if (!db.reviewQueue) {
+        db.reviewQueue = [];
+    }
+    // Prevent duplicates for the same user
+    const existingIndex = db.reviewQueue.findIndex(i => i.userEmail === item.userEmail);
+    if (existingIndex === -1) {
+        db.reviewQueue.unshift(item); // Add to the top of the queue
+    }
   }, []);
 
   const getCompaniesForHr = useCallback((hrEmail: string): CompanyAssignment[] => {

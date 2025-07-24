@@ -29,9 +29,8 @@ interface AuthContextType {
   logout: () => void;
   startUserView: () => void;
   stopUserView: () => void;
-  switchCompany: (newCompanyName: string) => void;
+  switchCompany: (newCompanyName: string, currentAssignments: CompanyAssignment[]) => void;
   updateEmail: (newEmail: string) => void;
-  updatePermissions: (permissions: HrPermissions) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -150,11 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
   
-  const switchCompany = useCallback((newCompanyName: string) => {
+  const switchCompany = useCallback((newCompanyName: string, currentAssignments: CompanyAssignment[]) => {
     if (auth?.role === 'hr' && auth.email && auth.assignedCompanyNames?.includes(newCompanyName)) {
-        // The responsibility of updating permissions is now moved to a useEffect
-        // in useUserData, which has access to the most current data state.
-        const newAuth = { ...auth, companyName: newCompanyName };
+        const newPermissions = getPermissionsForHr(auth.email, newCompanyName, currentAssignments);
+        const newAuth = { ...auth, companyName: newCompanyName, permissions: newPermissions };
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         setAuthState(newAuth);
     }
@@ -168,17 +166,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth]);
   
-  const updatePermissions = useCallback((permissions: HrPermissions) => {
-    setAuthState(prev => {
-        if (!prev) return null;
-        const newAuth = { ...prev, permissions };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-        return newAuth;
-    });
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail, updatePermissions }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail }}>
       {children}
     </AuthContext.Provider>
   );

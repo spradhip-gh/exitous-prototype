@@ -1,4 +1,5 @@
 
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -71,7 +72,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
 
   const handleCompanySwitch = (companyName: string) => {
     if (auth?.companyName !== companyName) {
-      switchCompany(companyName);
+      switchCompany(companyName, companyAssignments);
       // Optional: redirect to a default page after switch, or just refresh
       window.location.reload();
     }
