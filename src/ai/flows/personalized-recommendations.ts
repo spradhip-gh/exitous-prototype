@@ -142,7 +142,7 @@ Your task is to generate a list of 3-5 critical recommendations based on the use
 - On Leave: {{{layoffDetails.onLeave}}}
 
 **Context Data:**
-- State Unemployment Links: {{jsonStringify stateUnemploymentLinks}}
+- State Unemployment Links: {{stateUnemploymentLinks}}
 `,
 });
 
@@ -189,5 +189,3 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
-
-    
