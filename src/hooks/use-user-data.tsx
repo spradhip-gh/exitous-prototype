@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -113,7 +114,7 @@ export interface CompanyAssignment {
 
 export interface PlatformUser {
     email: string;
-    role: 'admin' | 'consultant';
+    role: 'admin' | 'consultant' | 'hr';
 }
 
 // --- HELPER FUNCTIONS ---
@@ -476,9 +477,11 @@ export function useUserData() {
     setReviewQueueState(getReviewQueueFromDb());
   }, []);
 
-  const getCompanyForHr = useCallback((hrEmail: string): CompanyAssignment | undefined => {
-    return companyAssignments.find(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
-  }, [companyAssignments]);
+  const getCompaniesForHr = useCallback((hrEmail: string): CompanyAssignment[] => {
+    const user = platformUsers.find(u => u.role === 'hr' && u.email.toLowerCase() === hrEmail.toLowerCase());
+    if (!user) return [];
+    return companyAssignments.filter(a => a.hrManagerEmail.toLowerCase() === hrEmail.toLowerCase());
+  }, [platformUsers, companyAssignments]);
   
 
   const addCompanyAssignment = useCallback((assignment: CompanyAssignment) => {
@@ -520,7 +523,7 @@ export function useUserData() {
     setPlatformUsersState(newUsers);
   }, [platformUsers]);
 
-  const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | null => {
+  const getPlatformUserRole = useCallback((email: string): 'admin' | 'consultant' | 'hr' | null => {
     const user = platformUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
     return user ? user.role : null;
   }, [platformUsers]);
@@ -746,7 +749,7 @@ export function useUserData() {
     addCompanyAssignment,
     deleteCompanyAssignment,
     updateCompanyAssignment,
-    getCompanyForHr,
+    getCompaniesForHr,
     saveProfileData,
     saveAssessmentData,
     toggleTaskCompletion,

@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,6 +9,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChevronsUpDown, Trash2, Eye, ShieldCheck } from 'lucide-react';
@@ -34,8 +37,8 @@ const roleNames = {
 };
 
 export default function Header({ children }: { children?: React.ReactNode }) {
-  const { auth, logout, startUserView, stopUserView } = useAuth();
-  const { clearData, companyAssignmentForHr } = useUserData();
+  const { auth, logout, startUserView, stopUserView, switchCompany } = useAuth();
+  const { clearData } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -58,6 +61,16 @@ export default function Header({ children }: { children?: React.ReactNode }) {
     router.push('/admin/forms');
   };
 
+  const handleCompanySwitch = (companyName: string) => {
+    if (auth?.companyName !== companyName) {
+      switchCompany(companyName);
+      // Optional: redirect to a default page after switch, or just refresh
+      window.location.reload();
+    }
+  }
+
+  const companyAssignment = auth?.companyName ? useUserData().companyAssignments.find(a => a.companyName === auth.companyName) : null;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
@@ -77,7 +90,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
         {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">
-                    {auth.isPreview ? 'User Preview' : (auth.role === 'end-user' ? auth.email : roleNames[auth.role as keyof typeof roleNames])}
+                    {auth.isPreview ? 'User Preview' : (auth.role === 'hr' ? auth.companyName : (auth.role === 'end-user' ? auth.email : roleNames[auth.role]))}
                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
@@ -87,11 +100,23 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                     <p className="text-sm font-medium leading-none truncate">{auth.email}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       { auth.isPreview ? 'Previewing as End User' : roleNames[auth.role as keyof typeof roleNames] }
-                      {auth.role === 'hr' && !auth.isPreview && companyAssignmentForHr && ` (${(companyAssignmentForHr.version || 'basic').charAt(0).toUpperCase() + (companyAssignmentForHr.version || 'basic').slice(1)})`}
+                      {auth.role === 'hr' && !auth.isPreview && companyAssignment && ` (${(companyAssignment.version || 'basic').charAt(0).toUpperCase() + (companyAssignment.version || 'basic').slice(1)})`}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                  <DropdownMenuSeparator />
+
+                 {auth.role === 'hr' && auth.assignedCompanyNames && auth.assignedCompanyNames.length > 1 && (
+                  <>
+                    <DropdownMenuLabel>Switch Company</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup value={auth.companyName} onValueChange={handleCompanySwitch}>
+                      {auth.assignedCompanyNames.map(name => (
+                        <DropdownMenuRadioItem key={name} value={name}>{name}</DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                  </>
+                 )}
                  
                  {auth.role === 'end-user' && (
                     <>

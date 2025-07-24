@@ -74,7 +74,7 @@ const initializeDb = (): DemoDatabase => {
         companyAssignments: [
             { 
                 companyName: 'Globex Corp', 
-                hrManagerEmail: 'hr@globex.com', 
+                hrManagerEmail: 'hr@exitous.co', 
                 version: 'pro', 
                 maxUsers: 50,
                 severanceDeadlineTime: '23:59',
@@ -84,7 +84,7 @@ const initializeDb = (): DemoDatabase => {
             },
             { 
                 companyName: 'Initech', 
-                hrManagerEmail: 'hr@initech.com', 
+                hrManagerEmail: 'hr@exitous.co', 
                 version: 'basic', 
                 maxUsers: 10,
                 severanceDeadlineTime: '17:00',
@@ -348,7 +348,8 @@ This checklist is designed to help you manage key tasks during your employment t
         },
         platformUsers: [
             { email: 'admin@exitous.co', role: 'admin' },
-            { email: 'consultant@exitous.co', role: 'consultant' }
+            { email: 'consultant@exitous.co', role: 'consultant' },
+            { email: 'hr@exitous.co', role: 'hr' },
         ],
         masterQuestions: initializeQuestions(getDefaultQuestions),
         masterProfileQuestions: initializeQuestions(getDefaultProfileQuestions),
@@ -636,16 +637,5 @@ export const getSeededDataForUser = (email: string) => db.seededData[email];
 
 export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
-
-    
-
-
-
-
-
-
-
-
-
 
     

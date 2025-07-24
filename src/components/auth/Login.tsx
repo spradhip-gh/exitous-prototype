@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
-  const { getAllCompanyConfigs, getCompanyForHr, getPlatformUserRole } = useUserData();
+  const { getAllCompanyConfigs, getCompaniesForHr, getPlatformUserRole } = useUserData();
   const { toast } = useToast();
   
   const [endUserEmail, setEndUserEmail] = useState('');
@@ -63,12 +64,17 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    const companyAssignment = getCompanyForHr(hrEmail);
+    const assignedCompanies = getCompaniesForHr(hrEmail);
 
     setTimeout(() => {
         setIsLoading(false);
-        if (companyAssignment) {
-            login({ role: 'hr', email: hrEmail, companyName: companyAssignment.companyName });
+        if (assignedCompanies.length > 0) {
+            login({ 
+                role: 'hr', 
+                email: hrEmail, 
+                companyName: assignedCompanies[0].companyName, // Default to the first company
+                assignedCompanyNames: assignedCompanies.map(c => c.companyName) // Store all assigned companies
+            });
         } else {
             toast({
                 title: "Login Failed",

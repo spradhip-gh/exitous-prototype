@@ -14,6 +14,7 @@ export interface AuthState {
   companyId?: string;
   companyName?: string;
   isPreview?: boolean;
+  assignedCompanyNames?: string[];
 }
 
 interface AuthContextType {
@@ -23,6 +24,7 @@ interface AuthContextType {
   logout: () => void;
   startUserView: () => void;
   stopUserView: () => void;
+  switchCompany: (newCompanyName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,10 +116,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout();
     }
   }, [logout]);
+  
+  const switchCompany = useCallback((newCompanyName: string) => {
+    if (auth?.role === 'hr' && auth.assignedCompanyNames?.includes(newCompanyName)) {
+        const newAuth = { ...auth, companyName: newCompanyName };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        setAuthState(newAuth);
+    }
+  }, [auth]);
 
 
   return (
-    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView }}>
+    <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany }}>
       {children}
     </AuthContext.Provider>
   );
