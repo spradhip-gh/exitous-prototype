@@ -3,14 +3,14 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData, CompanyAssignment, HrManager } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, HrManager, HrPermissions } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Crown, Shield } from 'lucide-react';
+import { PlusCircle, Trash2, Crown, Shield, Pencil } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+
+
+const defaultPermissions: HrPermissions = {
+    userManagement: 'read',
+    formEditor: 'read',
+    resources: 'read',
+    companySettings: 'read',
+};
 
 export default function HrManagementPage() {
   const { toast } = useToast();
@@ -31,6 +42,11 @@ export default function HrManagementPage() {
 
   const [newUserEmail, setNewUserEmail] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<Set<string>>(new Set());
+  const [newPermissions, setNewPermissions] = useState<HrPermissions>(defaultPermissions);
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingManager, setEditingManager] = useState<{manager: HrManager, companyName: string} | null>(null);
+  const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(defaultPermissions);
   
   const managedAssignments = useMemo(() => {
     if (!auth || auth.role !== 'hr') return [];
@@ -61,7 +77,7 @@ export default function HrManagementPage() {
     selectedCompanies.forEach(companyName => {
         const assignment = companyAssignments.find(a => a.companyName === companyName);
         if (assignment && !assignment.hrManagers.some(hr => hr.email.toLowerCase() === newUserEmail.toLowerCase())) {
-            const newHr: HrManager = { email: newUserEmail, isPrimary: false };
+            const newHr: HrManager = { email: newUserEmail, isPrimary: false, permissions: newPermissions };
             updateCompanyAssignment(companyName, { hrManagers: [...assignment.hrManagers, newHr] });
         }
     });
@@ -69,7 +85,32 @@ export default function HrManagementPage() {
     toast({ title: 'HR Manager Added', description: `${newUserEmail} has been added to the selected companies.` });
     setNewUserEmail('');
     setSelectedCompanies(new Set());
-  }, [newUserEmail, selectedCompanies, companyAssignments, updateCompanyAssignment, toast]);
+    setNewPermissions(defaultPermissions);
+  }, [newUserEmail, selectedCompanies, newPermissions, companyAssignments, updateCompanyAssignment, toast]);
+  
+  const handleEditClick = (manager: HrManager, companyName: string) => {
+    setEditingManager({ manager, companyName });
+    setEditedPermissions(manager.permissions);
+    setIsEditDialogOpen(true);
+  }
+
+  const handleSavePermissions = () => {
+    if (!editingManager) return;
+    
+    const { manager, companyName } = editingManager;
+    const assignment = companyAssignments.find(a => a.companyName === companyName);
+    if (assignment) {
+        const updatedManagers = assignment.hrManagers.map(hr => 
+            hr.email.toLowerCase() === manager.email.toLowerCase()
+                ? { ...hr, permissions: editedPermissions }
+                : hr
+        );
+        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
+        toast({ title: 'Permissions Updated', description: `Permissions for ${manager.email} have been updated.` });
+        setIsEditDialogOpen(false);
+        setEditingManager(null);
+    }
+  };
 
   const handleRemoveHrManager = useCallback((email: string, companyName: string) => {
     if (auth?.email && email.toLowerCase() === auth.email.toLowerCase()) {
@@ -103,7 +144,7 @@ export default function HrManagementPage() {
         <div className="space-y-2">
             <h1 className="font-headline text-3xl font-bold">HR Team Management</h1>
             <p className="text-muted-foreground">
-                As a Primary HR Manager, you can add or remove other HR managers for the companies you oversee.
+                As a Primary HR Manager, you can add or remove other HR managers for the companies you oversee and set their permissions.
             </p>
         </div>
 
@@ -139,6 +180,46 @@ export default function HrManagementPage() {
                         ))}
                     </div>
                 </div>
+                 <div className="space-y-2">
+                    <Label>Set Permissions</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
+                        <div className="space-y-1">
+                            <Label className="text-xs">User Management</Label>
+                            <Select value={newPermissions.userManagement} onValueChange={(v) => setNewPermissions(p => ({...p, userManagement: v as any}))}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="read">Read Only</SelectItem>
+                                    <SelectItem value="write">Write</SelectItem>
+                                    <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Form Editor</Label>
+                             <Select value={newPermissions.formEditor} onValueChange={(v) => setNewPermissions(p => ({...p, formEditor: v as any}))}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="read">Read Only</SelectItem>
+                                    <SelectItem value="write">Write</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Resources</Label>
+                            <Select value={newPermissions.resources} onValueChange={(v) => setNewPermissions(p => ({...p, resources: v as any}))}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="read">Read Only</SelectItem>
+                                    <SelectItem value="write">Write</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Company Settings</Label>
+                            <Input value="Read Only" disabled />
+                        </div>
+                    </div>
+                </div>
             </CardContent>
             <CardFooter>
                  <Button onClick={handleAddHrManager}>
@@ -159,6 +240,7 @@ export default function HrManagementPage() {
                             <TableRow>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Role</TableHead>
+                                <TableHead>Permissions</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -173,27 +255,41 @@ export default function HrManagementPage() {
                                             <span className="flex items-center text-muted-foreground text-sm gap-2"><Shield className="h-4 w-4"/> Manager</span>
                                         )}
                                     </TableCell>
+                                     <TableCell>
+                                        {!hr.isPrimary && (
+                                            <div className="flex flex-wrap gap-1">
+                                                <Badge variant="outline">Users: {hr.permissions.userManagement}</Badge>
+                                                <Badge variant="outline">Forms: {hr.permissions.formEditor}</Badge>
+                                                <Badge variant="outline">Resources: {hr.permissions.resources}</Badge>
+                                            </div>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                          {!hr.isPrimary && (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will revoke HR access for {hr.email} from {assignment.companyName}.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleRemoveHrManager(hr.email, assignment.companyName)}>
-                                                            Yes, Revoke Access
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            <div className="flex gap-1 justify-end">
+                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(hr, assignment.companyName)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will revoke HR access for {hr.email} from {assignment.companyName}.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleRemoveHrManager(hr.email, assignment.companyName)}>
+                                                                Yes, Revoke Access
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
                                          )}
                                     </TableCell>
                                 </TableRow>
@@ -203,6 +299,55 @@ export default function HrManagementPage() {
                 </CardContent>
             </Card>
         ))}
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Permissions for {editingManager?.manager.email}</DialogTitle>
+                    <DialogDescription>
+                        You are changing permissions for {editingManager?.companyName}.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>User Management</Label>
+                        <Select value={editedPermissions.userManagement} onValueChange={(v) => setEditedPermissions(p => ({...p, userManagement: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                                <SelectItem value="write-upload">Write & Upload</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Form Editor</Label>
+                        <Select value={editedPermissions.formEditor} onValueChange={(v) => setEditedPermissions(p => ({...p, formEditor: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Resources</Label>
+                        <Select value={editedPermissions.resources} onValueChange={(v) => setEditedPermissions(p => ({...p, resources: v as any}))}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="read">Read Only</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSavePermissions}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
       </div>
     </div>
   );
