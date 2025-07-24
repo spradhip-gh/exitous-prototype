@@ -486,6 +486,7 @@ export default function HrUserManagement() {
                         setUsers={setUsers}
                         setSelectedUsers={setSelectedUsers}
                         onExport={handleExportUsers}
+                        canWrite={canWrite}
                     />
                 </CardHeader>
                 <CardContent>
@@ -496,6 +497,7 @@ export default function HrUserManagement() {
                      setSelectedUsers={setSelectedUsers}
                      sortConfig={sortConfig}
                      requestSort={requestSort}
+                     canWrite={canWrite}
                    />
                 </CardContent>
             </Card>

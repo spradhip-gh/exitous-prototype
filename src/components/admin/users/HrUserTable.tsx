@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,7 +13,7 @@ import { useUserData, CompanyUser } from '@/hooks/use-user-data';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parse, isToday, isPast } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 import { Send, CheckCircle, Pencil, Trash2, CalendarIcon, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,13 +54,14 @@ const SortableHeader = ({
 };
 
 
-export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers, sortConfig, requestSort }: {
+export default function HrUserTable({ users, setUsers, selectedUsers, setSelectedUsers, sortConfig, requestSort, canWrite }: {
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
     selectedUsers: Set<string>;
     setSelectedUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
     sortConfig: SortConfig;
     requestSort: (key: SortConfig['key']) => void;
+    canWrite: boolean;
 }) {
     const { auth } = useAuth();
     const { toast } = useToast();
@@ -76,7 +78,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     const isNotifyDisabled = (user: CompanyUser): boolean => {
-        if (user.notified) return true;
+        if (user.notified || !canWrite) return true;
         if (!user.notificationDate) return true;
         const notificationDate = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
         return !(isToday(notificationDate) || isPast(notificationDate));
@@ -162,6 +164,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                 onCheckedChange={(checked) => handleSelectAll(!!checked)}
                                 aria-label="Select all"
                                 data-state={isSomeSelected ? 'indeterminate' : (isAllSelected ? 'checked' : 'unchecked')}
+                                disabled={!canWrite}
                             />
                         </TableHead>
                         <SortableHeader sortKey="email" sortConfig={sortConfig} requestSort={requestSort}>Work Email</SortableHeader>
@@ -175,9 +178,9 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                 <TableBody>
                     {users.length > 0 ? users.map(user => {
                         const notifyDisabled = isNotifyDisabled(user);
-                        const isSelectionDisabled = user.notified;
+                        const isSelectionDisabled = user.notified || !canWrite;
                         return (
-                            <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(isSelectionDisabled && "bg-muted/50 text-muted-foreground")}>
+                            <TableRow key={user.email} data-selected={selectedUsers.has(user.email)} className={cn(user.notified && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell>
                                     <Checkbox
                                         checked={selectedUsers.has(user.email)}
@@ -236,13 +239,13 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                             </TooltipTrigger>
                                             {notifyDisabled && !user.notified && (
                                                 <TooltipContent>
-                                                    <p>Only available on or after the notification date.</p>
+                                                    <p>{!canWrite ? 'You do not have permission to invite users.' : 'Only available on or after the notification date.'}</p>
                                                 </TooltipContent>
                                             )}
                                         </Tooltip>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" disabled={!canWrite}><Trash2 className="h-4 w-4" /></Button>
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
@@ -255,7 +258,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)} disabled={!canWrite}>
                                             <Pencil className="h-4 w-4" />
                                             <span className="sr-only">Edit</span>
                                         </Button>

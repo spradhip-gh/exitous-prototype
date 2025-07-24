@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,12 +11,13 @@ import { useUserData, CompanyUser } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
-export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport }: {
+export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport, canWrite }: {
     selectedUsers: Set<string>;
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
     setSelectedUsers: React.Dispatch<React.SetStateAction<Set<string>>>;
     onExport: () => void;
+    canWrite: boolean;
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -43,7 +45,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         return { eligibleCount: eligible, pastDateCount: past };
     }, [selectedUsers, users]);
 
-    const isBulkNotifyDisabled = eligibleCount === 0;
+    const isBulkNotifyDisabled = eligibleCount === 0 || !canWrite;
 
     const handleBulkDateChange = () => {
         if (!newBulkNotificationDate || selectedUsers.size === 0 || !companyName) {
@@ -90,7 +92,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
             <Button onClick={onExport} disabled={users.length === 0} variant="secondary">
                 <Download className="mr-2" /> Export List
             </Button>
-            <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0} variant="outline">
+            <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0 || !canWrite} variant="outline">
                 <PencilRuler className="mr-2" /> Change Dates ({selectedUsers.size})
             </Button>
             <AlertDialog>
