@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +30,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const defaultPermissions: HrPermissions = {
     userManagement: 'read',
@@ -263,25 +264,12 @@ export default function CompanyManagementPage() {
   };
   
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
-        const companyToUpdate = companyAssignments.find(c => c.companyName === companyName);
-        if (!companyToUpdate) return;
-        
-        const updatedManagers = companyToUpdate.hrManagers.map(hr => {
-            const isNewPrimary = hr.email.toLowerCase() === newPrimaryEmail.toLowerCase();
-            return {
-                ...hr,
-                isPrimary: isNewPrimary,
-                permissions: isNewPrimary 
-                    ? fullPermissions 
-                    : { ...hr.permissions, companySettings: 'read' }
-            };
-        });
-
-        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(companyName, { newPrimaryManagerEmail: newPrimaryEmail });
+        toast({ title: 'Primary Manager Updated', description: `${newPrimaryEmail} is now the primary manager.`});
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
-        updateCompanyAssignment(companyName, { hrManagers: emailToRemove });
+        updateCompanyAssignment(companyName, { hrManagerToRemove: emailToRemove });
     };
 
     const handleAddHrToCompany = (companyName: string) => {
@@ -296,8 +284,7 @@ export default function CompanyManagementPage() {
         }
 
         const newHr: HrManager = { email: addHrEmail, isPrimary: false, permissions: defaultPermissions };
-        const updatedManagers = [...companyToUpdate.hrManagers, newHr];
-        updateCompanyAssignment(companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(companyName, { hrManagerToAdd: newHr });
         setAddHrEmail('');
     };
 
@@ -308,11 +295,7 @@ export default function CompanyManagementPage() {
     
     const handleSavePermissions = (email: string, permissions: HrPermissions) => {
         if (!editingCompany) return;
-        
-        const updatedManagers = editingCompany.hrManagers.map(hr => 
-            hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
-        );
-        updateCompanyAssignment(editingCompany.companyName, { hrManagers: updatedManagers });
+        updateCompanyAssignment(editingCompany.companyName, { hrManagerToUpdate: { email, permissions } });
         toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
 
@@ -502,7 +485,7 @@ export default function CompanyManagementPage() {
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => updateCompanyAssignment(assignment.companyName)}>
+                                                        <AlertDialogAction onClick={() => updateCompanyAssignment(assignment.companyName, { delete: true })}>
                                                             Yes, Delete
                                                         </AlertDialogAction>
                                                     </AlertDialogFooter>
@@ -583,38 +566,44 @@ export default function CompanyManagementPage() {
                         <Card>
                             <CardHeader><CardTitle className="text-base">HR Team Management</CardTitle></CardHeader>
                             <CardContent>
-                                <Table>
-                                <TableBody>
+                                <div className="space-y-4">
                                     {editingCompany.hrManagers.map(hr => (
-                                        <TableRow key={hr.email}>
-                                            <TableCell>
-                                                <div className="font-medium">{hr.email}</div>
-                                                {hr.isPrimary ? <div className="text-xs text-amber-600 flex items-center gap-1"><Crown className="h-3 w-3" /> Primary Manager</div> : (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
-                                                        <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
-                                                        <Badge variant="outline" className="text-xs">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
-                                                        <Badge variant="outline" className="text-xs">Settings: {permissionLabels[hr.permissions.companySettings]}</Badge>
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex gap-1 justify-end">
-                                                    <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
-                                                        <Shield className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" onClick={() => handleMakePrimary(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
-                                                        <Crown className="mr-2 h-4 w-4"/> Make Primary
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
-                                                        <Trash2 className="h-4 w-4 text-destructive"/>
-                                                    </Button>
+                                        <div key={hr.email} className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-medium">{hr.email}</p>
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {hr.isPrimary ? (
+                                                        <Badge><Crown className="mr-2"/>Primary</Badge>
+                                                    ) : (
+                                                        <>
+                                                            <Badge variant="outline" className="text-xs">Users: {permissionLabels[hr.permissions.userManagement]}</Badge>
+                                                            <Badge variant="outline" className="text-xs">Forms: {permissionLabels[hr.permissions.formEditor]}</Badge>
+                                                            <Badge variant="outline" className="text-xs">Resources: {permissionLabels[hr.permissions.resources]}</Badge>
+                                                            <Badge variant="outline" className="text-xs">Settings: {permissionLabels[hr.permissions.companySettings]}</Badge>
+                                                        </>
+                                                    )}
                                                 </div>
-                                            </TableCell>
-                                        </TableRow>
+                                            </div>
+                                             <div className="flex items-center gap-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <Switch
+                                                        id={`primary-switch-${hr.email}`}
+                                                        checked={hr.isPrimary}
+                                                        onCheckedChange={() => handleMakePrimary(editingCompany.companyName, hr.email)}
+                                                        disabled={hr.isPrimary}
+                                                    />
+                                                    <Label htmlFor={`primary-switch-${hr.email}`} className="text-xs text-muted-foreground">Primary</Label>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={() => handlePermissionsEdit(hr)} disabled={hr.isPrimary}>
+                                                    <Shield className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveHrFromCompany(editingCompany.companyName, hr.email)} disabled={hr.isPrimary}>
+                                                    <Trash2 className="h-4 w-4 text-destructive"/>
+                                                </Button>
+                                            </div>
+                                        </div>
                                     ))}
-                                    </TableBody>
-                                </Table>
+                                </div>
                                 <Separator className="my-4"/>
                                 <div className="flex items-center gap-2">
                                     <Input placeholder="new.manager@email.com" value={addHrEmail} onChange={e => setAddHrEmail(e.target.value)} />
@@ -651,11 +640,7 @@ export default function CompanyManagementPage() {
                 onOpenChange={setIsEditDialogOpen}
                 manager={editingManager}
                 companyName={editingCompany.companyName}
-                onSave={(email, permissions) => updateCompanyAssignment(editingCompany.companyName, {
-                    hrManagers: editingCompany.hrManagers.map(hr => 
-                        hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
-                    )
-                })}
+                onSave={handleSavePermissions}
             />
         )}
     </div>

@@ -113,6 +113,14 @@ export interface CompanyConfig {
     guidance?: GuidanceRule[];
 }
 
+export type UpdateCompanyAssignmentPayload = Partial<CompanyAssignment> & {
+    newPrimaryManagerEmail?: string;
+    hrManagerToRemove?: string;
+    hrManagerToAdd?: HrManager;
+    hrManagerToUpdate?: { email: string, permissions: HrPermissions };
+    delete?: boolean;
+};
+
 
 export interface CompanyAssignment {
     companyName: string;
@@ -568,26 +576,62 @@ export function useUserData() {
     }
   }, [companyAssignments, companyConfigs]);
 
-  const updateCompanyAssignment = useCallback((companyName: string, updates: Partial<CompanyAssignment>) => {
-    const assignmentIndex = companyAssignments.findIndex(a => a.companyName === companyName);
-    if (assignmentIndex === -1) return;
+  const updateCompanyAssignment = useCallback((companyName: string, payload: UpdateCompanyAssignmentPayload) => {
+      const newAssignments = [...companyAssignments];
+      const assignmentIndex = newAssignments.findIndex(a => a.companyName === companyName);
+      if (assignmentIndex === -1) return;
 
-    const originalAssignment = companyAssignments[assignmentIndex];
-    
-    // Specifically handle hrManagers update logic
-    if (updates.hrManagers) {
-      const primaryCount = updates.hrManagers.filter(hr => hr.isPrimary).length;
-      if (primaryCount === 0 && updates.hrManagers.length > 0) {
-        toast({ title: "Action Prohibited", description: "A company must always have at least one Primary Manager.", variant: "destructive" });
-        return; // Abort update
+      if (payload.delete) {
+          newAssignments.splice(assignmentIndex, 1);
+          saveCompanyAssignmentsToDb(newAssignments);
+          setCompanyAssignmentsState(newAssignments);
+          return;
       }
-    }
 
-    const newAssignments = [...companyAssignments];
-    newAssignments[assignmentIndex] = { ...originalAssignment, ...updates };
+      const originalAssignment = { ...newAssignments[assignmentIndex] };
 
-    saveCompanyAssignmentsToDb(newAssignments);
-    setCompanyAssignmentsState(newAssignments);
+      if (payload.newPrimaryManagerEmail) {
+          const newPrimaryEmail = payload.newPrimaryManagerEmail;
+          originalAssignment.hrManagers = originalAssignment.hrManagers.map(hr => ({
+              ...hr,
+              isPrimary: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase(),
+              // Give new primary full permissions, demote old primary's company settings to read
+              permissions: hr.email.toLowerCase() === newPrimaryEmail.toLowerCase()
+                  ? { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'write' }
+                  : { ...hr.permissions, companySettings: 'read' }
+          }));
+      }
+
+      if (payload.hrManagerToRemove) {
+          const managerToRemove = originalAssignment.hrManagers.find(hr => hr.email === payload.hrManagerToRemove);
+          if (managerToRemove?.isPrimary) {
+              toast({ title: "Action Prohibited", description: "You cannot remove a Primary Manager. Assign a new primary manager first.", variant: "destructive" });
+              return;
+          }
+          originalAssignment.hrManagers = originalAssignment.hrManagers.filter(hr => hr.email !== payload.hrManagerToRemove);
+      }
+
+      if (payload.hrManagerToAdd) {
+          originalAssignment.hrManagers.push(payload.hrManagerToAdd);
+      }
+
+      if (payload.hrManagerToUpdate) {
+          const { email, permissions } = payload.hrManagerToUpdate;
+          originalAssignment.hrManagers = originalAssignment.hrManagers.map(hr =>
+              hr.email.toLowerCase() === email.toLowerCase() ? { ...hr, permissions } : hr
+          );
+      }
+      
+      const finalAssignment = { ...originalAssignment, ...payload };
+      delete finalAssignment.newPrimaryManagerEmail;
+      delete finalAssignment.hrManagerToRemove;
+      delete finalAssignment.hrManagerToAdd;
+      delete finalAssignment.hrManagerToUpdate;
+
+      newAssignments[assignmentIndex] = finalAssignment;
+      saveCompanyAssignmentsToDb(newAssignments);
+      setCompanyAssignmentsState(newAssignments);
+
   }, [companyAssignments, toast]);
 
 
