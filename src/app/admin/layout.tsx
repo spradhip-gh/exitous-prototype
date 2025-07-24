@@ -25,7 +25,10 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
   const { companyAssignments } = useUserData();
   
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
-  const isManagementOpen = pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management');
+  
+  const [isManagementOpen, setIsManagementOpen] = useState(
+    pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management')
+  );
   
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
 
@@ -55,7 +58,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               Master Form Editor
             </Button>
           </Link>
-           <Collapsible open={isManagementOpen} onOpenChange={() => {}}>
+           <Collapsible open={isManagementOpen} onOpenChange={setIsManagementOpen}>
               <CollapsibleTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start">
                     <Building className="mr-2" />
