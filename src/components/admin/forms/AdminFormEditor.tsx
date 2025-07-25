@@ -144,10 +144,7 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={(e) => {
-                                                            handleTaskToggle(option, task.id);
-                                                            // This is the fix: prevent default to keep popover open
-                                                        }}
+                                                        onSelect={() => handleTaskToggle(option, task.id)}
                                                     >
                                                         <Check
                                                             className={cn(
