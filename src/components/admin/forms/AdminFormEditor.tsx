@@ -3,16 +3,22 @@
 'use client';
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, TaskMapping, MasterTask } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Link } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OrderedSection {
     id: string;
@@ -31,6 +37,144 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
     return null;
 }
 
+function ManageTaskMappingDialog({
+    isOpen,
+    onOpenChange,
+    question,
+    allTasks,
+    allMappings,
+    saveMappingsFn
+}: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    question: Question | null;
+    allTasks: MasterTask[];
+    allMappings: TaskMapping[];
+    saveMappingsFn: (mappings: TaskMapping[]) => void;
+}) {
+    const [selectedAnswer, setSelectedAnswer] = useState<string>('');
+    const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+    const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+
+    React.useEffect(() => {
+        if (!isOpen) {
+            setSelectedAnswer('');
+            setSelectedTasks(new Set());
+        }
+    }, [isOpen]);
+
+    React.useEffect(() => {
+        if (question && selectedAnswer) {
+            const tasksForAnswer = allMappings
+                .filter(m => m.questionId === question.id && m.answerValue === selectedAnswer)
+                .map(m => m.taskId);
+            setSelectedTasks(new Set(tasksForAnswer));
+        } else {
+            setSelectedTasks(new Set());
+        }
+    }, [question, selectedAnswer, allMappings]);
+
+    const handleSave = () => {
+        if (!question || !selectedAnswer) return;
+
+        // Remove old mappings for this question/answer pair
+        const otherMappings = allMappings.filter(m => !(m.questionId === question.id && m.answerValue === selectedAnswer));
+        
+        // Add new mappings
+        const newMappings: TaskMapping[] = Array.from(selectedTasks).map(taskId => ({
+            id: `${question.id}-${selectedAnswer}-${taskId}`, // A simple unique ID
+            questionId: question.id,
+            answerValue: selectedAnswer,
+            taskId: taskId
+        }));
+
+        saveMappingsFn([...otherMappings, ...newMappings]);
+        onOpenChange(false);
+    };
+
+    if (!question) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Manage Task Mappings for "{question.label}"</DialogTitle>
+                    <DialogDescription>
+                        Map specific tasks to be assigned when a user selects a particular answer.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>When the answer is...</Label>
+                        <Select onValueChange={setSelectedAnswer} value={selectedAnswer}>
+                            <SelectTrigger><SelectValue placeholder="Select an answer option..." /></SelectTrigger>
+                            <SelectContent>
+                                {question.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Assign these tasks...</Label>
+                        <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isComboboxOpen}
+                                    className="w-full justify-between"
+                                >
+                                    {selectedTasks.size > 0 ? `${selectedTasks.size} tasks selected` : "Select tasks..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search tasks..." />
+                                    <CommandEmpty>No tasks found.</CommandEmpty>
+                                    <CommandList>
+                                        <CommandGroup>
+                                            {allTasks.map((task) => (
+                                                <CommandItem
+                                                    key={task.id}
+                                                    value={task.name}
+                                                    onSelect={() => {
+                                                        setSelectedTasks(prev => {
+                                                            const newSet = new Set(prev);
+                                                            if (newSet.has(task.id)) {
+                                                                newSet.delete(task.id);
+                                                            } else {
+                                                                newSet.add(task.id);
+                                                            }
+                                                            return newSet;
+                                                        })
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            selectedTasks.has(task.id) ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {task.name}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={!selectedAnswer}>Save Mappings</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }: { 
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
@@ -38,11 +182,13 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
     defaultQuestionsFn: () => Question[];
 }) {
     const { toast } = useToast();
-    const { isLoading } = useUserData();
+    const { isLoading, masterTasks, taskMappings, saveTaskMappings } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [isMappingTasks, setIsMappingTasks] = useState(false);
+    const [mappingQuestion, setMappingQuestion] = useState<Question | null>(null);
 
     const orderedSections = useMemo(() => {
         if (isLoading || !questions || Object.keys(questions).length === 0) {
@@ -78,6 +224,11 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         setCurrentQuestion({ ...question });
         setIsNewQuestion(false);
         setIsEditing(true);
+    };
+
+    const handleMapTasksClick = (question: Question) => {
+        setMappingQuestion(question);
+        setIsMappingTasks(true);
     };
 
     const handleAddNewClick = (parentId?: string) => {
@@ -201,7 +352,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                         {questionType === 'profile' 
                             ? 'These questions appear in the initial "Create Your Profile" step.'
                             : 'These questions appear in the main "Exit Details" assessment.'
-                        } Use arrows to reorder.
+                        } Use arrows to reorder. Click <Link className="inline h-4 w-4 text-muted-foreground"/> to map tasks to answers.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -217,6 +368,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                                         onDelete={handleDeleteClick}
                                         onAddSubQuestion={handleAddNewClick}
                                         onMove={handleMoveQuestion}
+                                        onMapTasks={handleMapTasksClick}
                                         isFirst={index === 0}
                                         isLast={index === section.questions.length - 1}
                                     />
@@ -242,6 +394,14 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                     onClose={() => setIsEditing(false)}
                 />
             </Dialog>
+            <ManageTaskMappingDialog
+                isOpen={isMappingTasks}
+                onOpenChange={setIsMappingTasks}
+                question={mappingQuestion}
+                allTasks={masterTasks}
+                allMappings={taskMappings}
+                saveMappingsFn={saveTaskMappings}
+            />
         </>
     );
 }

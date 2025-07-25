@@ -1,6 +1,6 @@
 
 
-import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource, ReviewQueueItem } from '@/hooks/use-user-data';
+import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource, ReviewQueueItem, MasterTask, TaskMapping } from '@/hooks/use-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
 import type { ExternalResource } from './external-resources';
@@ -23,6 +23,8 @@ interface DemoDatabase {
     // --- Seeded localStorage data for specific demo users ---
     seededData: Record<string, { profile: ProfileData; assessment: Partial<AssessmentData> }>;
     externalResources: ExternalResource[];
+    masterTasks: MasterTask[];
+    taskMappings: TaskMapping[];
 }
 
 // Augment the global type to include our custom property
@@ -528,7 +530,16 @@ This checklist is designed to help you manage key tasks during your employment t
                 isVerified: true,
                 availability: ['basic', 'pro'],
             }
-        ]
+        ],
+        masterTasks: [
+            { id: 'apply-for-unemployment', type: 'layoff', name: 'Apply for Unemployment Benefits', category: 'Financial', detail: 'Visit your state\'s unemployment website and file a claim. You will need your employment history and other personal information.', deadlineType: 'termination_date', deadlineDays: 1 },
+            { id: 'review-severance-agreement', type: 'layoff', name: 'Review Severance Agreement', category: 'Health', detail: 'Carefully read your severance agreement. It is highly recommended to have an employment lawyer review it before signing.', deadlineType: 'notification_date', deadlineDays: 21 },
+            { id: 'create-budget', type: 'layoff', name: 'Create a Transition Budget', category: 'Financial', detail: 'Analyze your income and expenses to create a budget that will see you through your job search.', deadlineType: 'notification_date', deadlineDays: 7 },
+            { id: 'update-resume', type: 'layoff', name: 'Update Resume & LinkedIn', category: 'Career', detail: 'Update your resume and LinkedIn profile to reflect your latest accomplishments and skills.', deadlineType: 'notification_date' },
+        ],
+        taskMappings: [
+            { id: 'mapping-1', questionId: 'relocationPaid', answerValue: 'Yes', taskId: 'review-severance-agreement' }
+        ],
     }
 };
 
@@ -580,5 +591,11 @@ export const getSeededDataForUser = (email: string) => db.seededData[email];
 
 export const getExternalResources = () => db.externalResources;
 export const saveExternalResources = (data: ExternalResource[]) => { db.externalResources = data; };
+
+export const getMasterTasks = () => db.masterTasks;
+export const saveMasterTasks = (data: MasterTask[]) => { db.masterTasks = data; };
+
+export const getTaskMappings = () => db.taskMappings;
+export const saveTaskMappings = (data: TaskMapping[]) => { db.taskMappings = data; };
 
     

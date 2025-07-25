@@ -271,10 +271,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </AlertDescription>
             </Alert>
           </div>
-          {children}
-        </main>
-      </div>
-      <Footer />
-    </div>
-  );
-}
+          {

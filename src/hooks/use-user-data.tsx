@@ -19,6 +19,8 @@ import {
   getExternalResources as getExternalResourcesFromDb, saveExternalResources as saveExternalResourcesToDb,
   getReviewQueue as getReviewQueueFromDb, saveReviewQueue as saveReviewQueueToDb,
   addReviewQueueItem as addReviewQueueItemToDb,
+  getMasterTasks as getMasterTasksFromDb, saveMasterTasks as saveMasterTasksToDb,
+  getTaskMappings as getTaskMappingsFromDb, saveTaskMappings as saveTaskMappingsToDb
 } from '@/lib/demo-data';
 import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
 import { useToast } from './use-toast';
@@ -121,6 +123,22 @@ export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hr
     delete?: boolean;
 };
 
+export interface MasterTask {
+    id: string;
+    type: 'layoff' | 'anxious';
+    name: string;
+    category: 'Financial' | 'Career' | 'Health' | 'Basics';
+    detail: string;
+    deadlineType: 'notification_date' | 'termination_date';
+    deadlineDays?: number;
+}
+
+export interface TaskMapping {
+    id: string;
+    questionId: string;
+    answerValue: string;
+    taskId: string;
+}
 
 export interface CompanyAssignment {
     companyName: string;
@@ -262,6 +280,8 @@ export function useUserData() {
   const [assessmentCompletions, setAssessmentCompletionsState] = useState<Record<string, boolean>>({});
   const [externalResources, setExternalResourcesState] = useState<ExternalResource[]>([]);
   const [reviewQueue, setReviewQueueState] = useState<ReviewQueueItem[]>([]);
+  const [masterTasks, setMasterTasksState] = useState<MasterTask[]>([]);
+  const [taskMappings, setTaskMappingsState] = useState<TaskMapping[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -300,6 +320,8 @@ export function useUserData() {
       const loadedMasterProfileQuestions = getMasterProfileQuestionsFromDb();
       const loadedExternalResources = getExternalResourcesFromDb();
       const loadedReviewQueue = getReviewQueueFromDb();
+      const loadedMasterTasks = getMasterTasksFromDb();
+      const loadedTaskMappings = getTaskMappingsFromDb();
 
       setCompanyAssignmentsState(loadedCompanyAssignments);
       setCompanyConfigsState(loadedCompanyConfigs);
@@ -310,6 +332,8 @@ export function useUserData() {
       setMasterProfileQuestionsState(loadedMasterProfileQuestions);
       setExternalResourcesState(loadedExternalResources);
       setReviewQueueState(loadedReviewQueue);
+      setMasterTasksState(loadedMasterTasks);
+      setTaskMappingsState(loadedTaskMappings);
 
       // --- USER SPECIFIC DATA ---
       const profileJson = localStorage.getItem(profileKey);
@@ -852,6 +876,17 @@ export function useUserData() {
 
     } catch (error) { console.error('Failed to clear user data', error); }
   }, [auth, profileKey, assessmentKey, completedTasksKey, taskDateOverridesKey, customDeadlinesKey, recommendationsKey, profileCompletions, assessmentCompletions, getCompanyUser]);
+  
+  const saveMasterTasks = useCallback((tasks: MasterTask[]) => {
+      saveMasterTasksToDb(tasks);
+      setMasterTasksState(tasks);
+  }, []);
+
+  const saveTaskMappings = useCallback((mappings: TaskMapping[]) => {
+      saveTaskMappingsToDb(mappings);
+      setTaskMappingsState(mappings);
+  }, []);
+
 
   return {
     profileData,
@@ -883,6 +918,10 @@ export function useUserData() {
     reviewQueue,
     saveReviewQueue,
     addReviewQueueItem,
+    masterTasks,
+    saveMasterTasks,
+    taskMappings,
+    saveTaskMappings,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,
@@ -906,5 +945,3 @@ export function useUserData() {
     saveExternalResources,
   };
 }
-
-
