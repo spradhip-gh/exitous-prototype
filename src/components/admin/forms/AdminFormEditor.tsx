@@ -163,7 +163,7 @@ function ManageTaskMappingDialog({
             return `Select ${type}s...`;
         }
         
-        const itemNames = selectedItems.map(item => 'name' in item ? item.name : item.text.substring(0, 30) + '...');
+        const itemNames = selectedItems.map(item => 'name' in item ? item.name : item.text);
 
         if (selectedItems.length <= 2) {
             return itemNames.join(', ');
@@ -228,9 +228,8 @@ function ManageTaskMappingDialog({
                                                         checked={tipMappings[option]?.has(tip.id)}
                                                         onCheckedChange={() => handleTipToggle(option, tip.id)}
                                                         onSelect={(e) => e.preventDefault()}
-                                                        className="truncate"
                                                     >
-                                                        {tip.text}
+                                                        <span className="truncate">{tip.text}</span>
                                                     </DropdownMenuCheckboxItem>
                                                 </TooltipTrigger>
                                                 <TooltipContent className="max-w-xs">

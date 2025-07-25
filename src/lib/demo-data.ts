@@ -545,8 +545,8 @@ This checklist is designed to help you manage key tasks during your employment t
         ],
         guidanceRules: [],
         masterTips: [
-            { id: 'tip-cobra-1', type: 'layoff', priority: 'High', category: 'Health', text: 'Did you know? You generally have 60 days to elect COBRA coverage after your health plan ends.' },
-            { id: 'tip-401k-2', type: 'layoff', priority: 'Medium', category: 'Financial', text: 'Did you know? Rolling over your 401(k) to an IRA can often give you more investment options and lower fees.' }
+            { id: 'tip-cobra-1', type: 'layoff', priority: 'High', category: 'Health', text: 'You generally have 60 days to elect COBRA coverage after your health plan ends.' },
+            { id: 'tip-401k-2', type: 'layoff', priority: 'Medium', category: 'Financial', text: 'Rolling over your 401(k) to an IRA can often give you more investment options and lower fees.' }
         ],
         tipMappings: [],
     }

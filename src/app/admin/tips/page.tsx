@@ -74,7 +74,7 @@ function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="text">Tip Text</Label>
-                        <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='Did you know? ...'/>
+                        <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='You can rollover your 401k to an IRA...'/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
@@ -156,7 +156,7 @@ export default function TipsManagementPage() {
     
     const handleDownloadTemplate = useCallback(() => {
         const headers = ["id", "type", "priority", "category", "text"];
-        const sampleRow = ["sample-tip-1", "layoff", "Medium", "Financial", "Did you know? You can rollover your 401k to an IRA."];
+        const sampleRow = ["sample-tip-1", "layoff", "Medium", "Financial", "You can rollover your 401k to an IRA."];
         const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
