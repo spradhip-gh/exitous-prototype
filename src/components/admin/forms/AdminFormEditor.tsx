@@ -1,5 +1,4 @@
 
-
 'use client';
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
@@ -10,14 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Link } from "lucide-react";
+import { PlusCircle, Link, Check, ChevronsUpDown } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 interface OrderedSection {
@@ -53,7 +50,7 @@ function ManageTaskMappingDialog({
     saveMappingsFn: (mappings: TaskMapping[]) => void;
 }) {
     const [mappings, setMappings] = useState<Record<string, Set<string>>>({});
-    const [openPopover, setOpenPopover] = useState<string | null>(null);
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (question && isOpen) {
@@ -67,7 +64,7 @@ function ManageTaskMappingDialog({
             setMappings(initialMappings);
         } else if (!isOpen) {
             setMappings({});
-            setOpenPopover(null);
+            setOpenDropdown(null);
         }
     }, [isOpen, question, allMappings]);
 
@@ -139,50 +136,29 @@ function ManageTaskMappingDialog({
                     {question.options?.map(option => (
                         <div key={option} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-right">{option}</Label>
-                             <Popover open={openPopover === option} onOpenChange={(isOpen) => setOpenPopover(isOpen ? option : null)}>
-                                <PopoverTrigger asChild>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button
                                         variant="outline"
-                                        role="combobox"
-                                        className="w-full justify-between col-span-2"
+                                        className="w-full justify-between col-span-2 font-normal"
                                     >
                                        <span className="truncate">{getButtonLabel(option)}</span>
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[400px] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Search tasks..." />
-                                        <CommandList>
-                                            <CommandEmpty>No tasks found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {allTasks.map((task) => (
-                                                    <CommandItem
-                                                        key={task.id}
-                                                        value={task.name}
-                                                        onSelect={(e) => {
-                                                            e.preventDefault();
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="flex items-center w-full cursor-pointer"
-                                                            onClick={() => handleTaskToggle(option, task.id)}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    "mr-2 h-4 w-4",
-                                                                    mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
-                                                                )}
-                                                            />
-                                                            <span>{task.name}</span>
-                                                        </div>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-[400px]">
+                                     {allTasks.map((task) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={task.id}
+                                            checked={mappings[option]?.has(task.id)}
+                                            onCheckedChange={() => handleTaskToggle(option, task.id)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {task.name}
+                                        </DropdownMenuCheckboxItem>
+                                     ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     ))}
                 </div>
@@ -468,5 +444,3 @@ export default function AdminFormEditor() {
         </div>
     );
 }
-
-    
