@@ -141,27 +141,22 @@ function ManageTaskMappingDialog({
                                             <CommandEmpty>No tasks found.</CommandEmpty>
                                             <CommandGroup>
                                                 {allTasks.map((task) => (
-                                                    <CommandItem
+                                                    <div
                                                         key={task.id}
-                                                        value={task.name}
-                                                        onSelect={(e) => {
+                                                        className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded-md"
+                                                        onClick={(e) => {
                                                             e.preventDefault();
+                                                            handleTaskToggle(option, task.id);
                                                         }}
-                                                        className="cursor-pointer"
                                                     >
-                                                        <div
-                                                          className="flex items-center w-full"
-                                                          onClick={() => handleTaskToggle(option, task.id)}
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    "mr-2 h-4 w-4",
-                                                                    mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
-                                                                )}
-                                                            />
-                                                            <span>{task.name}</span>
-                                                        </div>
-                                                    </CommandItem>
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        <span>{task.name}</span>
+                                                    </div>
                                                 ))}
                                             </CommandGroup>
                                         </CommandList>
