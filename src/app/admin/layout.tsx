@@ -280,7 +280,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
               <AlertDescription className="text-orange-700">
                 Please Note: Data and changes made may refresh to default state at anytime.
-              </Description>
+              </AlertDescription>
             </Alert>
           </div>
           {children}
