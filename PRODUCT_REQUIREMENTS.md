@@ -31,7 +31,7 @@ The platform is designed to serve four distinct user roles:
 ### 3.1. End-User Flow
 - **Secure Login:** Users log in with a unique email and company ID provided by their HR manager.
 - **Profile Creation:** A guided form to collect personal and demographic information that helps tailor the AI recommendations (e.g., marital status, dependents, location).
-- **Assessment Form (Exit Details):** A dynamic form where users input details about their specific exit situation (e.g., final day, severance deadlines, benefits information). This form is populated with any data pre-filled by their HR manager.
+- **Assessment Form (Exit Details):** A dynamic form where users input details about their specific exit situation (e.g., final day, severance deadlines, benefits information). This form is populated with any data pre-filled by their HR manager. For date-related questions where the user may not know the answer (e.g., specific coverage end dates), they have the option to select "I'm not sure" to proceed.
 - **Personalized AI Dashboard:**
     - **Timeline View:** An interactive, AI-generated timeline that visualizes all critical deadlines and recommended actions based on the user's profile and assessment data.
     - **Categorized Recommendations:** Tasks are categorized (e.g., Healthcare, Finances, Legal, Job Search) and sorted by urgency.
@@ -193,4 +193,3 @@ Stores the curated directory of professional services and partners.
 | `website`           | `TEXT`  | The URL to the resource's website.                     |
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
-

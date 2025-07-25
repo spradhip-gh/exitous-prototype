@@ -10,6 +10,7 @@ As an **End-User**, my primary goal is to receive a personalized, actionable pla
 
 *   **As an** End-User, **I want to** log in securely using my company credentials **so that** I can access my private, personalized offboarding information.
 *   **As an** End-User, **I want to** complete a profile and an assessment about my exit details **so that** the platform can generate a tailored action plan specific to my circumstances.
+*   **As an** End-User, **I want to** be able to select "I'm not sure" for dates I don't know **so that** I can complete my assessment without getting stuck.
 *   **As an** End-User, **I want to** see a visual timeline of my key deadlines and recommended tasks **so that** I can easily understand what I need to do and prioritize my actions.
 *   **As an** End-User, **I want to** be able to mark tasks as complete **so that** I can track my progress through the offboarding process.
 *   **As an** End-User, **I want to** access company-specific documents and resources **so that** I have all the information I need in one central location.
@@ -55,4 +56,3 @@ As a **Consultant**, my role is focused on quality assurance for the AI-generate
 *   **As a** Consultant, **I want to** review a queue of AI-generated recommendations based on sample data **so that** I can approve, reject, or suggest edits to ensure the content is accurate, empathetic, and high-quality.
 *   **As a** Consultant, **I want to** convert high-quality, approved recommendations into reusable, rule-based guidance **so that** I can improve the system's accuracy over time.
 *   **Note:** This feature set is currently deactivated for separate testing.
-

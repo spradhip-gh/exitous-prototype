@@ -55,9 +55,9 @@ Ensure you include all sub-questions and their trigger logic. For example, the '
 **Your Prompt:**
 "Let's build the core data entry forms for the end-user.
 
-1.  **Schemas**: Create `src/lib/schemas.ts` to define the Zod validation schemas for the Profile and Assessment forms. The assessment schema builder should be dynamic, generating rules based on the active questions from `useUserData`.
+1.  **Schemas**: Create `src/lib/schemas.ts` to define the Zod validation schemas for the Profile and Assessment forms. The assessment schema builder should be dynamic, generating rules based on the active questions from `useUserData`. For date fields that might be unknown, the schema should allow either a valid date or the string "Unsure".
 2.  **Profile Form**: Create the `ProfileForm` component at `src/components/profile/ProfileForm.tsx`. Use `react-hook-form` and the Zod schema for validation. Group questions into logical `Card` components and handle conditional fields (like self-describing gender). Create the corresponding page at `src/app/dashboard/profile/page.tsx`.
-3.  **Assessment Form**: Create the `AssessmentForm` component at `src/components/assessment/AssessmentForm.tsx`. This form should be dynamically generated based on the questions provided by the `useUserData` hook, ensuring it reflects company-specific customizations. It should also pre-fill data provided by HR managers. Create the page at `src/app/dashboard/assessment/page.tsx`."
+3.  **Assessment Form**: Create the `AssessmentForm` component at `src/components/assessment/AssessmentForm.tsx`. This form should be dynamically generated based on the questions provided by the `useUserData` hook, ensuring it reflects company-specific customizations. It should also pre-fill data provided by HR managers. For date sub-questions, include an "I'm not sure" checkbox to allow users to proceed without a specific date. Create the page at `src/app/dashboard/assessment/page.tsx`."
 
 ---
 

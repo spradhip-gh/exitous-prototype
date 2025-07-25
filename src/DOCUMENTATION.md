@@ -137,6 +137,7 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Create an `AssessmentForm` component.
     -   Dynamically build the form and its validation schema using the questions provided by `useUserData.getCompanyConfig()`. This ensures company-specific customizations are applied.
     -   Implement conditional logic to show/hide sub-questions based on the parent question's answer (e.g., show "relocation date" only if "relocation paid" is "Yes").
+    -   For date fields within sub-questions, provide an "I'm not sure" checkbox that allows users to bypass date selection if they don't have the information.
     -   The form should automatically populate with any data pre-filled by an HR manager (e.g., final employment date).
 -   **Dashboard (`/dashboard`):**
     -   Create a `ProgressTracker` component to show before both the profile and assessment are complete. It should disable the "Exit Details" button until the profile is done.
