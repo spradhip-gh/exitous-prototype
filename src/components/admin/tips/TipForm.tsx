@@ -62,13 +62,13 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>{tip?.id ? 'Edit "Did you know..." Tip' : 'Add New "Did you know..." Tip'}</DialogTitle>
+                    <DialogTitle>{tip?.id ? 'Edit Tip' : 'Add New Tip'}</DialogTitle>
                     <DialogDescription>Create or edit a contextual tip that can be mapped to question answers.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="text">Tip Text</Label>
-                        <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='You can rollover your 401k to an IRA...'/>
+                        <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='e.g., You can rollover your 401k to an IRA...'/>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>

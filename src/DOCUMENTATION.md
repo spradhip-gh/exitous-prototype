@@ -5,34 +5,15 @@ This document provides a detailed, step-by-step guide to building the Exitbetter
 
 ## Recent Updates (Prototype 0.2-20250722)
 
-We've significantly enhanced the AI-driven guidance engine to provide more accurate, comprehensive, and empathetic support for users.
+We've significantly enhanced the AI-driven guidance engine and added powerful new administrative tools to provide more accurate, comprehensive, and empathetic support for users.
 
-### For HR Managers & Admins: Powerful New Tools
+### For Admins: Powerful New Content & Rule Management
 
-*   **Analytics Dashboard:** A new **Analytics** page is available for both Admins and HR Managers. It tracks the questions that employees most frequently answer with "Unsure," providing valuable insights into areas of confusion. This data helps identify which questions need clarification or where new company resources might be beneficial.
-*   **External Resources Management:** Admins can now build and manage a complete directory of **External Resources** (e.g., financial planners, lawyers, career coaches). This includes adding new partners, editing their details, marking them as "Verified," and specifying special offers for users.
-*   **Tabbed Form Editor:** The Admin's **Master Form Editor** is now organized into "Profile" and "Assessment" tabs, making it easier to manage both sets of questions. Admins can also add descriptive tooltips to any question.
-*   **Consultant Review Queue:** A new workflow has been added for the **Consultant** role. They can now review AI-generated recommendations from real user data in a dedicated queue, and either approve/reject them or convert them into reusable guidance rules. (*Note: This feature is currently deactivated in the main prototype for stability and is undergoing separate testing.*)
-*   **Advanced HR Permissions:** The HR role has been enhanced with a permission system. A **Primary HR Manager** can now manage their own team, assigning other HR managers to the companies they oversee with granular permissions for each part of the application (e.g., 'Read Only' vs. 'Write & Upload' for User Management).
-*   **Multi-Company Management:** HR Managers assigned to multiple companies can now easily switch between them using a dropdown in the main header.
-
-### For End-Users: An Improved & More Supportive Experience
-
-*   **Browse External Resources:** Users now have a dedicated **External Resources** page in their dashboard. They can see AI-powered "Top Matches" based on their profile or browse and filter the entire directory of professional services.
-*   **View Company Resources:** Users can now view the content of documents uploaded by their HR Manager directly within the application, in addition to downloading them.
-
-### AI & Guidance Enhancements
-
-*   **Expert Persona:** The AI now operates with the combined expertise of a seasoned HR Executive, a career coach, a lawyer, and a healthcare specialist. This results in higher-quality recommendations that are well-rounded and trustworthy.
-*   **Comprehensive Recommendations:** The previous limitation on the number of recommendations has been removed. The AI is now encouraged to be exhaustive, providing a full suite of tasks across all relevant categories (Legal, Healthcare, Finances, Career, Well-being).
-*   **Improved Accuracy:** We've added strict instructions for the AI to ensure the accuracy of its guidance. This includes:
-    *   **Date-Aware Tasks:** The AI now correctly schedules time-sensitive tasks. For example, it will now advise applying for unemployment *after* the user's final day of employment, not before.
-    *   **Mandatory Severance Task:** If a user provides a severance agreement deadline, the AI is now required to generate a high-priority task to review the agreement.
-    *   **No Guessing:** The AI is explicitly instructed to rely only on the data provided and to avoid making assumptions or providing unverified guidance.
-*   **Better Data Utilization:** The AI now uses all available user profile and assessment data—including age, gender, and tenure—to generate its recommendations, making them far more personalized and relevant.
-*   **Smarter Task Grouping:** To reduce clutter, similar healthcare-related tasks (medical, dental, vision) are now consolidated into a single, comprehensive recommendation that still highlights all individual coverage end dates.
-*   **More Reliable Professional Matching:** The system for connecting users with external resources has been overhauled. The AI is now given a list of available professional services and their corresponding `taskId`s. It is required to use these exact IDs when generating a relevant recommendation, ensuring the "Connect with a Professional" button appears reliably whenever a matching expert is available.
-*   **Refreshable Recommendations:** For prototyping and testing, a "Refresh" button has been added to the user's dashboard, allowing for the re-generation of AI recommendations on demand.
+*   **Content Management Section:** The Admin sidebar has been reorganized. "Task Management" and a new **"Tips Management"** page are now grouped under a "Content Management" section for a more intuitive workflow.
+*   **"Did You Know..." Tips:** Admins can now create and manage a master list of contextual tips. These tips can be mapped to specific question answers, providing users with helpful information alongside their actionable tasks.
+*   **Bulk CSV Management:** Both the Task and Tips management pages now support bulk operations. Admins can download a CSV template, add or edit multiple items in a spreadsheet, and upload the file to apply changes in bulk.
+*   **Advanced Guidance Rules:** The **Guidance & Review** page now includes a fully functional "Guidance Rules" tab. This powerful feature allows Admins to create deterministic rules with multiple, complex conditions (e.g., based on tenure, date ranges) to assign specific tasks, overriding the default AI recommendations when necessary.
+*   **Inline Content Creation:** The workflow for mapping content has been streamlined. From the "Map Tasks" dialog in the form editor, Admins can now create a new task or tip on the fly without navigating to a different page.
 
 ---
 

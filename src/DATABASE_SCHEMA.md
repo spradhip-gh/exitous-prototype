@@ -15,10 +15,13 @@ This document outlines the proposed database schema for the ExitBetter applicati
 7.  [Master Questions](#master_questions)
 8.  [Company Question Configs](#company_question_configs)
 9.  [Master Tasks](#master_tasks)
-10. [Company Resources](#company_resources)
-11. [External Resources](#external_resources)
-12. [Guidance Rules](#guidance_rules)
-13. [Review Queue](#review_queue)
+10. [Task Mappings](#task_mappings)
+11. [Master Tips](#master_tips)
+12. [Tip Mappings](#tip_mappings)
+13. [Company Resources](#company_resources)
+14. [External Resources](#external_resources)
+15. [Guidance Rules](#guidance_rules)
+16. [Review Queue](#review_queue)
 
 ---
 
@@ -145,6 +148,49 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `linked_resource_id`          | `UUID`    | Optional **Foreign Key** to `external_resources.id`.                      |
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
+
+### `task_mappings`
+
+Maps tasks from `master_tasks` to specific question answers. This creates the logic for task generation.
+
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the task (e.g., "Yes", "Onsite"). |
+| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
+
+*Composite unique key on (`question_id`, `answer_value`, `task_id`).*
+
+### `master_tips`
+
+Stores the master list of all "Did you know..." tips that can be mapped to answers.
+
+| Column          | Type      | Description                                                       |
+| --------------- | --------- | ----------------------------------------------------------------- |
+| `id`            | `TEXT`    | **Primary Key**. A unique, kebab-case identifier for the tip.       |
+| `type`          | `TEXT`    | The workflow type (e.g., 'layoff', 'anxious'). Default: 'layoff'. |
+| `priority`      | `TEXT`    | The display priority ('High', 'Medium', 'Low').                   |
+| `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
+| `text`          | `TEXT`    | The content of the tip.                                           |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
+| `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
+
+### `tip_mappings`
+
+Maps tips from `master_tips` to specific question answers.
+
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the tip.                         |
+| `tip_id`        | `TEXT`    | **Foreign Key** to `master_tips.id`.                                 |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
+
+*Composite unique key on (`question_id`, `answer_value`, `tip_id`).*
+
 
 ### `company_resources`
 
