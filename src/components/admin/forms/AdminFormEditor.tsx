@@ -144,16 +144,23 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={(e) => e.preventDefault()}
-                                                        onClick={() => handleTaskToggle(option, task.id)}
+                                                        onSelect={(e) => {
+                                                            e.preventDefault();
+                                                        }}
+                                                        className="cursor-pointer"
                                                     >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        {task.name}
+                                                        <div
+                                                          className="flex items-center w-full"
+                                                          onClick={() => handleTaskToggle(option, task.id)}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <span>{task.name}</span>
+                                                        </div>
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
