@@ -35,6 +35,27 @@ const RECOMMENDATIONS_KEY = 'exitbetter-recommendations';
 const USER_TIMEZONE_KEY = 'exitbetter-user-timezone';
 const PREVIEW_SUFFIX = '-hr-preview';
 
+export interface Condition {
+    type: 'question' | 'tenure' | 'date_offset';
+    // For question
+    questionId?: string;
+    answer?: string;
+    // For tenure
+    operator?: 'lt' | 'gt' | 'eq' | 'gte_lt';
+    value?: number[];
+    label?: string;
+    // For date_offset
+    dateQuestionId?: string;
+    unit?: 'days' | 'weeks' | 'months';
+    comparison?: 'from_today';
+}
+export interface GuidanceRule {
+    id: string;
+    name: string;
+    conditions: Condition[];
+    taskId: string;
+}
+
 export interface HrPermissions {
     userManagement: 'read' | 'write' | 'write-upload' | 'invite-only';
     formEditor: 'read' | 'write';
@@ -83,6 +104,7 @@ export interface CompanyConfig {
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
     resources?: Resource[];
+    guidance?: GuidanceRule[];
 }
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
@@ -537,15 +559,8 @@ export function useUserData() {
   }, []);
   
   const addReviewQueueItem = useCallback((item: ReviewQueueItem) => {
-    // Ensure the queue exists before trying to access it.
-    if (!db.reviewQueue) {
-        db.reviewQueue = [];
-    }
-    // Prevent duplicates for the same user
-    const existingIndex = db.reviewQueue.findIndex(i => i.userEmail === item.userEmail);
-    if (existingIndex === -1) {
-        db.reviewQueue.unshift(item); // Add to the top of the queue
-    }
+    addReviewQueueItemToDb(item);
+    setReviewQueueState(getReviewQueueFromDb());
   }, []);
 
   const getCompaniesForHr = useCallback((hrEmail: string): CompanyAssignment[] => {

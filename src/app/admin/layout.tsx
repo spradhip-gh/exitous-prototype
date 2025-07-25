@@ -85,7 +85,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
            <Link href="/admin/review-queue">
             <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
               <CheckSquare className="mr-2" />
-              Review Queue
+              Guidance & Review
             </Button>
           </Link>
           <Link href="/admin/analytics">
@@ -197,7 +197,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
         <Link href="/admin/review-queue">
           <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
             <CheckSquare className="mr-2" />
-            Review Queue
+            Guidance & Review
           </Button>
         </Link>
         </>
