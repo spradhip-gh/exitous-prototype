@@ -14,10 +14,12 @@ This document outlines the proposed database schema for the ExitBetter applicati
 6.  [User Assessments](#user_assessments)
 7.  [Master Questions](#master_questions)
 8.  [Company Question Configs](#company_question_configs)
-9.  [Company Resources](#company_resources)
-10. [External Resources](#external_resources)
-11. [Guidance Rules](#guidance_rules)
-12. [Review Queue](#review_queue)
+9.  [Master Tasks](#master_tasks)
+10. [Task Mappings](#task_mappings)
+11. [Company Resources](#company_resources)
+12. [External Resources](#external_resources)
+13. [Guidance Rules](#guidance_rules)
+14. [Review Queue](#review_queue)
 
 ---
 
@@ -127,6 +129,36 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
 | `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
 | `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
+
+### `master_tasks`
+
+Stores the master list of all possible tasks that can be assigned to users based on their answers.
+
+| Column                        | Type      | Description                                                               |
+| ----------------------------- | --------- | ------------------------------------------------------------------------- |
+| `id`                          | `TEXT`    | **Primary Key**. A unique, kebab-case identifier for the task.              |
+| `type`                        | `TEXT`    | The workflow type (e.g., 'layoff', 'anxious'). Default: 'layoff'.        |
+| `name`                        | `TEXT`    | The short, actionable name of the task (e.g., "Apply for Unemployment").  |
+| `category`                    | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health').         |
+| `detail`                      | `TEXT`    | A more detailed Markdown description of what the task involves.           |
+| `deadline_type`               | `TEXT`    | The event that triggers the deadline ('notification_date' or 'termination_date'). |
+| `deadline_days`               | `INTEGER` | The number of days from the `deadline_type` event that the task is due.   |
+| `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
+| `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
+
+### `task_mappings`
+
+Maps tasks from `master_tasks` to specific question answers. This creates the logic for task generation.
+
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the task (e.g., "Yes", "Onsite"). |
+| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
+
+*Composite unique key on (`question_id`, `answer_value`, `task_id`).*
 
 ### `company_resources`
 
