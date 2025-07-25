@@ -14,10 +14,9 @@ import { PlusCircle, Link } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +53,7 @@ function ManageTaskMappingDialog({
     saveMappingsFn: (mappings: TaskMapping[]) => void;
 }) {
     const [mappings, setMappings] = useState<Record<string, Set<string>>>({});
+    const [openPopover, setOpenPopover] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (question && isOpen) {
@@ -67,6 +67,7 @@ function ManageTaskMappingDialog({
             setMappings(initialMappings);
         } else if (!isOpen) {
             setMappings({});
+            setOpenPopover(null);
         }
     }, [isOpen, question, allMappings]);
 
@@ -122,7 +123,7 @@ function ManageTaskMappingDialog({
                     {question.options?.map(option => (
                         <div key={option} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-right">{option}</Label>
-                             <Popover>
+                             <Popover open={openPopover === option} onOpenChange={(isOpen) => setOpenPopover(isOpen ? option : null)}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
@@ -143,12 +144,9 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={(currentValue) => {
+                                                        onSelect={(e) => {
                                                             handleTaskToggle(option, task.id);
-                                                            // Prevent popover from closing
-                                                            const e = new Event('input', { bubbles: true });
-                                                            const input = document.querySelector(`[cmdk-input]`);
-                                                            input?.dispatchEvent(e);
+                                                            // This is the fix: prevent default to keep popover open
                                                         }}
                                                     >
                                                         <Check
