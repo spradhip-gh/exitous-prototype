@@ -108,6 +108,21 @@ function ManageTaskMappingDialog({
         onOpenChange(false);
     };
 
+    const getButtonLabel = (option: string) => {
+        const selectedIds = mappings[option];
+        if (!selectedIds || selectedIds.size === 0) {
+            return "Select tasks...";
+        }
+        const selectedTasks = allTasks.filter(task => selectedIds.has(task.id));
+        if (selectedTasks.length === 0) {
+            return "Select tasks...";
+        }
+        if (selectedTasks.length <= 2) {
+            return selectedTasks.map(t => t.name).join(', ');
+        }
+        return `${selectedTasks.slice(0, 2).map(t => t.name).join(', ')} +${selectedTasks.length - 2} more`;
+    };
+
     if (!question) return null;
 
     return (
@@ -130,7 +145,7 @@ function ManageTaskMappingDialog({
                                         role="combobox"
                                         className="w-full justify-between col-span-2"
                                     >
-                                        {mappings[option]?.size > 0 ? `${mappings[option].size} tasks selected` : "Select tasks..."}
+                                       <span className="truncate">{getButtonLabel(option)}</span>
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
@@ -141,11 +156,10 @@ function ManageTaskMappingDialog({
                                             <CommandEmpty>No tasks found.</CommandEmpty>
                                             <CommandGroup>
                                                 {allTasks.map((task) => (
-                                                    <div
+                                                    <CommandItem
                                                         key={task.id}
-                                                        className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded-md"
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
+                                                        value={task.name}
+                                                        onSelect={(currentValue) => {
                                                             handleTaskToggle(option, task.id);
                                                         }}
                                                     >
@@ -156,7 +170,7 @@ function ManageTaskMappingDialog({
                                                             )}
                                                         />
                                                         <span>{task.name}</span>
-                                                    </div>
+                                                    </CommandItem>
                                                 ))}
                                             </CommandGroup>
                                         </CommandList>
