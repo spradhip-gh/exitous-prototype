@@ -132,8 +132,8 @@ function ManageTaskMappingDialog({
                             <PopoverContent className="w-full p-0">
                                 <Command>
                                     <CommandInput placeholder="Search tasks..." />
-                                    <CommandEmpty>No tasks found.</CommandEmpty>
                                     <CommandList>
+                                        <CommandEmpty>No tasks found.</CommandEmpty>
                                         <CommandGroup>
                                             {allTasks.map((task) => (
                                                 <CommandItem

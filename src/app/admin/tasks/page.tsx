@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import * as React from 'react';
 import { useState, useMemo, useCallback } from 'react';
-import { useUserData, MasterTask } from '@/hooks/use-user-data';
+import { useUserData, MasterTask, TaskMapping } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Link as LinkIcon } from 'lucide-react';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -129,10 +130,24 @@ function TaskForm({ isOpen, onOpenChange, onSave, task }: {
 
 export default function TaskManagementPage() {
     const { toast } = useToast();
-    const { masterTasks, saveMasterTasks, isLoading } = useUserData();
+    const { masterTasks, saveMasterTasks, isLoading, taskMappings, masterQuestions, masterProfileQuestions } = useUserData();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
+    const [viewingMappings, setViewingMappings] = useState<TaskMapping[] | null>(null);
+    
+    const allQuestions = useMemo(() => {
+        return {...masterQuestions, ...masterProfileQuestions};
+    }, [masterQuestions, masterProfileQuestions]);
+
+    const taskMappingCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        taskMappings.forEach(mapping => {
+            counts[mapping.taskId] = (counts[mapping.taskId] || 0) + 1;
+        });
+        return counts;
+    }, [taskMappings]);
+
 
     const handleAddClick = () => {
         setEditingTask(null);
@@ -143,6 +158,11 @@ export default function TaskManagementPage() {
         setEditingTask(task);
         setIsFormOpen(true);
     };
+    
+    const handleViewMappings = (taskId: string) => {
+        const mappings = taskMappings.filter(m => m.taskId === taskId);
+        setViewingMappings(mappings);
+    }
 
     const handleDeleteClick = (taskId: string) => {
         const updatedTasks = masterTasks.filter(r => r.id !== taskId);
@@ -191,7 +211,7 @@ export default function TaskManagementPage() {
                                     <TableHead>ID</TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Category</TableHead>
-                                    <TableHead>Deadline Logic</TableHead>
+                                    <TableHead>Mappings</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -201,8 +221,10 @@ export default function TaskManagementPage() {
                                         <TableCell className="font-mono text-xs">{task.id}</TableCell>
                                         <TableCell className="font-medium">{task.name}</TableCell>
                                         <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {task.deadlineDays ? `${task.deadlineDays} days after ${task.deadlineType === 'notification_date' ? 'Notification' : 'Termination'}` : 'No deadline'}
+                                        <TableCell>
+                                            <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
+                                                {taskMappingCounts[task.id] || 0}
+                                            </Button>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end items-center gap-1">
@@ -240,6 +262,37 @@ export default function TaskManagementPage() {
                 onSave={handleSave}
                 task={editingTask}
             />
+
+            <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Task Mappings</DialogTitle>
+                        <DialogDescription>
+                            This task is triggered by the following question/answer pairs.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {viewingMappings && viewingMappings.length > 0 ? (
+                             <Table>
+                                 <TableHeader>
+                                     <TableRow>
+                                        <TableHead>Question</TableHead>
+                                        <TableHead>Answer</TableHead>
+                                    </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                    {viewingMappings.map(mapping => (
+                                        <TableRow key={mapping.id}>
+                                            <TableCell>{allQuestions[mapping.questionId]?.label || 'N/A'}</TableCell>
+                                            <TableCell><Badge variant="outline">{mapping.answerValue}</Badge></TableCell>
+                                        </TableRow>
+                                    ))}
+                                 </TableBody>
+                             </Table>
+                        ) : <p className="text-sm text-muted-foreground text-center">No mappings found for this task.</p>}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
