@@ -20,7 +20,8 @@ import {
   getReviewQueue as getReviewQueueFromDb, saveReviewQueue as saveReviewQueueToDb,
   addReviewQueueItem as addReviewQueueItemToDb,
   getMasterTasks as getMasterTasksFromDb, saveMasterTasks as saveMasterTasksToDb,
-  getTaskMappings as getTaskMappingsFromDb, saveTaskMappings as saveTaskMappingsToDb
+  getTaskMappings as getTaskMappingsFromDb, saveTaskMappings as saveTaskMappingsToDb,
+  getGuidanceRules as getGuidanceRulesFromDb, saveGuidanceRules as saveGuidanceRulesToDb
 } from '@/lib/demo-data';
 import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
 import { useToast } from './use-toast';
@@ -52,6 +53,7 @@ export interface Condition {
 export interface GuidanceRule {
     id: string;
     name: string;
+    companyId?: 'all'; // For now, all rules are global
     conditions: Condition[];
     taskId: string;
 }
@@ -104,7 +106,6 @@ export interface CompanyConfig {
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
     resources?: Resource[];
-    guidance?: GuidanceRule[];
 }
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
@@ -275,6 +276,7 @@ export function useUserData() {
   const [reviewQueue, setReviewQueueState] = useState<ReviewQueueItem[]>([]);
   const [masterTasks, setMasterTasksState] = useState<MasterTask[]>([]);
   const [taskMappings, setTaskMappingsState] = useState<TaskMapping[]>([]);
+  const [guidanceRules, setGuidanceRulesState] = useState<GuidanceRule[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -315,6 +317,7 @@ export function useUserData() {
       const loadedReviewQueue = getReviewQueueFromDb();
       const loadedMasterTasks = getMasterTasksFromDb();
       const loadedTaskMappings = getTaskMappingsFromDb();
+      const loadedGuidanceRules = getGuidanceRulesFromDb();
 
       setCompanyAssignmentsState(loadedCompanyAssignments);
       setCompanyConfigsState(loadedCompanyConfigs);
@@ -327,6 +330,7 @@ export function useUserData() {
       setReviewQueueState(loadedReviewQueue);
       setMasterTasksState(loadedMasterTasks);
       setTaskMappingsState(loadedTaskMappings);
+      setGuidanceRulesState(loadedGuidanceRules);
 
       // --- USER SPECIFIC DATA ---
       const profileJson = localStorage.getItem(profileKey);
@@ -873,6 +877,10 @@ export function useUserData() {
       setTaskMappingsState(mappings);
   }, []);
 
+  const saveGuidanceRules = useCallback((rules: GuidanceRule[]) => {
+    saveGuidanceRulesToDb(rules);
+    setGuidanceRulesState(rules);
+  }, []);
 
   return {
     profileData,
@@ -908,6 +916,8 @@ export function useUserData() {
     saveMasterTasks,
     taskMappings,
     saveTaskMappings,
+    guidanceRules,
+    saveGuidanceRules,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,

@@ -11,6 +11,28 @@ import { PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recom
 // in development, simulating a real database more closely. This ensures that
 // changes like adding custom questions are not lost on page refresh.
 
+export interface Condition {
+    type: 'question' | 'tenure' | 'date_offset';
+    // For question
+    questionId?: string;
+    answer?: string;
+    // For tenure
+    operator?: 'lt' | 'gt' | 'eq' | 'gte_lt';
+    value?: number[];
+    label?: string;
+    // For date_offset
+    dateQuestionId?: string;
+    unit?: 'days' | 'weeks' | 'months';
+    comparison?: 'from_today';
+}
+export interface GuidanceRule {
+    id: string;
+    name: string;
+    companyId?: 'all'; // For now, all rules are global
+    conditions: Condition[];
+    taskId: string;
+}
+
 interface DemoDatabase {
     companyAssignments: CompanyAssignment[];
     companyConfigs: Record<string, CompanyConfig>;
@@ -25,6 +47,7 @@ interface DemoDatabase {
     externalResources: ExternalResource[];
     masterTasks: MasterTask[];
     taskMappings: TaskMapping[];
+    guidanceRules: GuidanceRule[];
 }
 
 // Augment the global type to include our custom property
@@ -540,6 +563,7 @@ This checklist is designed to help you manage key tasks during your employment t
         taskMappings: [
             { id: 'relocationPaid-Yes-review-severance-agreement', questionId: 'relocationPaid', answerValue: 'Yes', taskId: 'review-severance-agreement' }
         ],
+        guidanceRules: [],
     }
 };
 
@@ -598,4 +622,6 @@ export const saveMasterTasks = (data: MasterTask[]) => { db.masterTasks = data; 
 export const getTaskMappings = () => db.taskMappings;
 export const saveTaskMappings = (data: TaskMapping[]) => { db.taskMappings = data; };
 
+export const getGuidanceRules = () => db.guidanceRules;
+export const saveGuidanceRules = (data: GuidanceRule[]) => { db.guidanceRules = data; };
     

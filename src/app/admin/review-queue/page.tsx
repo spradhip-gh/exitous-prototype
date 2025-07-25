@@ -1,23 +1,143 @@
 
-
 'use client';
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
-import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
+import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import GuidanceRuleForm from '@/components/admin/GuidanceRuleForm';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
+
+function GuidanceRulesTab() {
+    const { guidanceRules, saveGuidanceRules, masterQuestions, masterProfileQuestions, masterTasks } = useUserData();
+    const { toast } = useToast();
+    const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
+    const [editingRule, setEditingRule] = useState<Partial<GuidanceRule> | null>(null);
+
+    const allQuestions = useMemo(() => {
+        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
+        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
+        return [...profileQs, ...assessmentQs];
+    }, [masterProfileQuestions, masterQuestions]);
+    
+    const getConditionText = (condition: Condition) => {
+        if (condition.type === 'question' && condition.questionId) {
+            const q = allQuestions.find(q => q.id === condition.questionId) || masterQuestions[condition.questionId] || masterProfileQuestions[condition.questionId];
+            return `If "${q?.label || condition.questionId}" is "${condition.answer}"`;
+        }
+        if (condition.type === 'tenure') {
+            return `If tenure is ${condition.label}`;
+        }
+        if (condition.type === 'date_offset' && condition.dateQuestionId) {
+            const q = allQuestions.find(q => q.id === condition.dateQuestionId);
+            return `If "${q?.label}" is ${condition.operator === 'gt' ? '>' : '<'} ${condition.value} days from today`;
+        }
+        return 'Invalid condition';
+    };
+    
+    const handleSaveRule = (rule: GuidanceRule) => {
+        let updatedRules;
+        if (guidanceRules.some(r => r.id === rule.id)) {
+            updatedRules = guidanceRules.map(r => r.id === rule.id ? rule : r);
+            toast({ title: 'Rule Updated', description: `Rule "${rule.name}" has been updated.` });
+        } else {
+            updatedRules = [...guidanceRules, rule];
+            toast({ title: 'Rule Added', description: `Rule "${rule.name}" has been created.` });
+        }
+        saveGuidanceRules(updatedRules);
+        setIsRuleFormOpen(false);
+        setEditingRule(null);
+    };
+
+    const handleDeleteRule = (ruleId: string) => {
+        const updatedRules = guidanceRules.filter(r => r.id !== ruleId);
+        saveGuidanceRules(updatedRules);
+        toast({ title: 'Rule Deleted' });
+    };
+
+    const handleEditRule = (rule: GuidanceRule) => {
+        setEditingRule(rule);
+        setIsRuleFormOpen(true);
+    }
+    
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Guidance Rules</CardTitle>
+                    <CardDescription>Create and manage deterministic rules for assigning tasks.</CardDescription>
+                </div>
+                <Button onClick={() => { setEditingRule(null); setIsRuleFormOpen(true); }}><PlusCircle className="mr-2"/> Add New Rule</Button>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Rule Name</TableHead>
+                            <TableHead>Conditions</TableHead>
+                            <TableHead>Task Assigned</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {guidanceRules.length > 0 ? guidanceRules.map(rule => (
+                            <TableRow key={rule.id}>
+                                <TableCell className="font-medium">{rule.name}</TableCell>
+                                <TableCell>
+                                    <ul className="list-disc pl-4 text-xs space-y-1">
+                                        {rule.conditions.map((cond, i) => <li key={i}>{getConditionText(cond)}</li>)}
+                                    </ul>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline">{masterTasks.find(t => t.id === rule.taskId)?.name || rule.taskId}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                     <Button variant="ghost" size="icon" onClick={() => handleEditRule(rule)}><Pencil className="h-4 w-4" /></Button>
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete Rule?</AlertDialogTitle>
+                                                <AlertDialogDescription>Are you sure you want to delete the rule "{rule.name}"?</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteRule(rule.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No guidance rules have been created yet.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <GuidanceRuleForm
+                isOpen={isRuleFormOpen}
+                onOpenChange={setIsRuleFormOpen}
+                ruleToConvert={editingRule}
+                onSave={handleSaveRule}
+                questions={allQuestions}
+                masterTasks={masterTasks}
+            />
+        </Card>
+    );
+}
 
 export default function ReviewQueuePage() {
     const { toast } = useToast();
@@ -27,6 +147,8 @@ export default function ReviewQueuePage() {
         masterQuestions,
         masterProfileQuestions,
         masterTasks,
+        saveGuidanceRules,
+        guidanceRules,
     } = useUserData();
 
     const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
@@ -54,9 +176,7 @@ export default function ReviewQueuePage() {
     };
 
     const handleSaveRule = (rule: GuidanceRule) => {
-        // In a real app, this would save to a `guidanceRules` table.
-        // For now, we'll just log it and show a success message.
-        console.log("Saving new rule:", rule);
+        saveGuidanceRules([...guidanceRules, rule]);
         toast({ title: "Guidance Rule Saved", description: `Rule "${rule.name}" has been created.` });
         setIsRuleFormOpen(false);
     };
@@ -74,7 +194,7 @@ export default function ReviewQueuePage() {
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-7xl space-y-8">
                  <div className="space-y-2">
-                    <h1 className="font-headline text-3xl font-bold">Guidance & Review</h1>
+                    <h1 className="font-headline text-3xl font-bold">Guidance &amp; Review</h1>
                     <p className="text-muted-foreground">
                        Review AI-generated recommendations and create deterministic guidance rules.
                     </p>
@@ -137,21 +257,7 @@ export default function ReviewQueuePage() {
                         </Card>
                     </TabsContent>
                     <TabsContent value="guidance-rules" className="mt-6">
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>Guidance Rules</CardTitle>
-                                <CardDescription>This is where you would manage deterministic rules.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertTitle>Under Construction</AlertTitle>
-                                    <AlertDescription>
-                                        The full guidance rule editor is still being built. You can create rules from the review queue.
-                                    </AlertDescription>
-                                </Alert>
-                            </CardContent>
-                        </Card>
+                        <GuidanceRulesTab />
                     </TabsContent>
                  </Tabs>
             </div>
@@ -172,26 +278,26 @@ function ReviewItemCard({ item, onStatusChange, onCreateRule }: { item: ReviewQu
 
     return (
         <Card className="bg-muted/50">
-            <CardHeader className="flex flex-row justify-between items-start">
-                <div>
-                    <CardTitle className="text-base">{item.userEmail}</CardTitle>
-                    <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}</CardDescription>
-                </div>
-                <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
+             <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
+                <CardHeader className="flex flex-row justify-between items-start">
+                    <div>
+                        <CardTitle className="text-base">{item.userEmail}</CardTitle>
+                        <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}</CardDescription>
+                    </div>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                             View Input Data <ChevronsUpDown className="ml-2 h-4 w-4"/>
                         </Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <div className="px-6 pb-4">
-                            <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
-                                {JSON.stringify(item.inputData, null, 2)}
-                            </pre>
-                        </div>
-                    </CollapsibleContent>
-                </Collapsible>
-            </CardHeader>
+                </CardHeader>
+                <CollapsibleContent>
+                    <div className="px-6 pb-4">
+                        <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
+                            {JSON.stringify(item.inputData, null, 2)}
+                        </pre>
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
             <CardContent className="space-y-2">
                 {item.output.recommendations.map((rec, index) => (
                     <div key={index} className="p-3 border rounded-md bg-background">
