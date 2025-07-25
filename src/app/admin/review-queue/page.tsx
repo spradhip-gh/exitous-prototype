@@ -177,21 +177,21 @@ function ReviewItemCard({ item, onStatusChange, onCreateRule }: { item: ReviewQu
                     <CardTitle className="text-base">{item.userEmail}</CardTitle>
                     <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}</CardDescription>
                 </div>
-                 <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
+                <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                             View Input Data <ChevronsUpDown className="ml-2 h-4 w-4"/>
                         </Button>
                     </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <div className="px-6 pb-4">
+                            <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
+                                {JSON.stringify(item.inputData, null, 2)}
+                            </pre>
+                        </div>
+                    </CollapsibleContent>
                 </Collapsible>
             </CardHeader>
-            <CollapsibleContent>
-                <div className="px-6 pb-4">
-                    <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
-                        {JSON.stringify(item.inputData, null, 2)}
-                    </pre>
-                </div>
-            </CollapsibleContent>
             <CardContent className="space-y-2">
                 {item.output.recommendations.map((rec, index) => (
                     <div key={index} className="p-3 border rounded-md bg-background">
