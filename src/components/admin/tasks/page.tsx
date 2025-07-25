@@ -145,7 +145,9 @@ export default function TaskManagementPage() {
         masterTasks, 
         saveMasterTasks, 
         isLoading, 
-        getAllCompanyConfigs,
+        taskMappings, 
+        masterQuestions, 
+        masterProfileQuestions,
         externalResources, 
     } = useUserData();
 
@@ -153,18 +155,17 @@ export default function TaskManagementPage() {
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
     const [viewingMappings, setViewingMappings] = useState<any[] | null>(null);
     
-    const guidanceRules = useMemo(() => {
-        const allConfigs = getAllCompanyConfigs();
-        return Object.values(allConfigs).flatMap(c => c.guidance || []);
-    }, [getAllCompanyConfigs]);
+    const allQuestions = useMemo(() => {
+        return {...masterQuestions, ...masterProfileQuestions};
+    }, [masterQuestions, masterProfileQuestions]);
 
     const taskMappingCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        guidanceRules.forEach(rule => {
-            counts[rule.taskId] = (counts[rule.taskId] || 0) + 1;
+        taskMappings.forEach(mapping => {
+            counts[mapping.taskId] = (counts[mapping.taskId] || 0) + 1;
         });
         return counts;
-    }, [guidanceRules]);
+    }, [taskMappings]);
 
 
     const handleAddClick = () => {
@@ -178,7 +179,7 @@ export default function TaskManagementPage() {
     };
     
     const handleViewMappings = (taskId: string) => {
-        const mappings = guidanceRules.filter(m => m.taskId === taskId);
+        const mappings = taskMappings.filter(m => m.taskId === taskId);
         setViewingMappings(mappings);
     }
 
@@ -220,7 +221,7 @@ export default function TaskManagementPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Master Task List</CardTitle>
-                        <CardDescription>The full list of tasks that can be triggered by guidance rules.</CardDescription>
+                        <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -258,7 +259,7 @@ export default function TaskManagementPage() {
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete the task "{task.name}". This action cannot be undone and may affect existing guidance rules.</AlertDialogDescription>
+                                                            <AlertDialogDescription>This will permanently delete the task "{task.name}". This action cannot be undone and may affect existing mappings.</AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -287,9 +288,9 @@ export default function TaskManagementPage() {
             <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Guidance Rule Mappings</DialogTitle>
+                        <DialogTitle>Task Mappings</DialogTitle>
                         <DialogDescription>
-                            This task is triggered by the following guidance rules.
+                            This task is triggered by the following question/answer pairs.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
@@ -297,20 +298,20 @@ export default function TaskManagementPage() {
                              <Table>
                                  <TableHeader>
                                      <TableRow>
-                                        <TableHead>Rule Name</TableHead>
-                                        <TableHead>Conditions</TableHead>
+                                        <TableHead>Question</TableHead>
+                                        <TableHead>Answer</TableHead>
                                     </TableRow>
                                  </TableHeader>
                                  <TableBody>
                                     {viewingMappings.map(mapping => (
                                         <TableRow key={mapping.id}>
-                                            <TableCell>{mapping.name}</TableCell>
-                                            <TableCell><Badge variant="outline">{mapping.conditions.length}</Badge></TableCell>
+                                            <TableCell>{allQuestions[mapping.questionId]?.label || 'N/A'}</TableCell>
+                                            <TableCell><Badge variant="outline">{mapping.answerValue}</Badge></TableCell>
                                         </TableRow>
                                     ))}
                                  </TableBody>
                              </Table>
-                        ) : <p className="text-sm text-muted-foreground text-center">No guidance rules trigger this task.</p>}
+                        ) : <p className="text-sm text-muted-foreground text-center">No mappings found for this task.</p>}
                     </div>
                 </DialogContent>
             </Dialog>

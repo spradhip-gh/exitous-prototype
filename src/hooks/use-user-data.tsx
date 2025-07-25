@@ -68,33 +68,6 @@ export interface Resource {
   content?: string; // Can be text content or a data URI
 }
 
-export type Condition = {
-  type: 'question';
-  questionId: string;
-  answer: string;
-} | {
-  type: 'tenure';
-  operator: 'lt' | 'gte_lt' | 'gte'; // lt: < val1; gte_lt: >= val1 and < val2; gte: >= 5
-  value: [number, number?]; // e.g., [1] for < 1 year; [1, 5] for 1-5 years; [5] for >= 5 years
-  label: string; // User-facing label like "< 1 Year"
-} | {
-  type: 'date_offset';
-  dateQuestionId: string;
-  operator: 'gt' | 'lt'; // gt: > value; lt: < value
-  value: number; // The number of days
-  unit: 'days';
-  comparison: 'from_today';
-  label: string;
-};
-
-
-export interface GuidanceRule {
-    id: string;
-    name: string;
-    conditions: Condition[];
-    taskId: string;
-}
-
 export interface ReviewQueueItem {
     id: string;
     userEmail: string;
@@ -110,7 +83,6 @@ export interface CompanyConfig {
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
     resources?: Resource[];
-    guidance?: GuidanceRule[];
 }
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {

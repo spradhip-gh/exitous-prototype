@@ -533,12 +533,12 @@ This checklist is designed to help you manage key tasks during your employment t
         ],
         masterTasks: [
             { id: 'apply-for-unemployment', type: 'layoff', name: 'Apply for Unemployment Benefits', category: 'Financial', detail: 'Visit your state\'s unemployment website and file a claim. You will need your employment history and other personal information.', deadlineType: 'termination_date', deadlineDays: 1 },
-            { id: 'review-severance-agreement', type: 'layoff', name: 'Review Severance Agreement', category: 'Health', detail: 'Carefully read your severance agreement. It is highly recommended to have an employment lawyer review it before signing.', deadlineType: 'notification_date', deadlineDays: 21 },
+            { id: 'review-severance-agreement', type: 'layoff', name: 'Review Severance Agreement', category: 'Health', detail: 'Carefully read your severance agreement. It is highly recommended to have an employment lawyer review it before signing.', deadlineType: 'notification_date', deadlineDays: 21, linkedResourceId: 'legal-1' },
             { id: 'create-budget', type: 'layoff', name: 'Create a Transition Budget', category: 'Financial', detail: 'Analyze your income and expenses to create a budget that will see you through your job search.', deadlineType: 'notification_date', deadlineDays: 7 },
             { id: 'update-resume', type: 'layoff', name: 'Update Resume & LinkedIn', category: 'Career', detail: 'Update your resume and LinkedIn profile to reflect your latest accomplishments and skills.', deadlineType: 'notification_date' },
         ],
         taskMappings: [
-            { id: 'mapping-1', questionId: 'relocationPaid', answerValue: 'Yes', taskId: 'review-severance-agreement' }
+            { id: 'relocationPaid-Yes-review-severance-agreement', questionId: 'relocationPaid', answerValue: 'Yes', taskId: 'review-severance-agreement' }
         ],
     }
 };

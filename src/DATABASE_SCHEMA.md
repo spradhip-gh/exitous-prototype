@@ -15,7 +15,7 @@ This document outlines the proposed database schema for the ExitBetter applicati
 7.  [Master Questions](#master_questions)
 8.  [Company Question Configs](#company_question_configs)
 9.  [Master Tasks](#master_tasks)
-10. [Guidance Rules](#guidance_rules)
+10. [Task Mappings](#task_mappings)
 11. [Company Resources](#company_resources)
 12. [External Resources](#external_resources)
 13. [Review Queue](#review_queue)
@@ -126,7 +126,6 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
 | `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
 | `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
-| `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
 | `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
 
 ### `master_tasks`
@@ -146,19 +145,19 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
-### `guidance_rules`
+### `task_mappings`
 
-Stores consultant-created rules to provide deterministic, high-quality guidance when specific conditions are met.
+Maps tasks from `master_tasks` to specific question answers. This creates the logic for task generation.
 
-| Column          | Type      | Description                                       |
-| --------------- | --------- | ------------------------------------------------- |
-| `id`            | `UUID`    | **Primary Key**.                                  |
-| `company_id`    | `UUID`    | **Foreign Key** to `companies.id`.                |
-| `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
-| `conditions`    | `JSONB`   | An array of condition objects that must all be true. |
-| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.             |
-| `created_at`    | `TIMESTAMPTZ`| Timestamp of creation.                            |
-| `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the task (e.g., "Yes", "Onsite"). |
+| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
+
+*Composite unique key on (`question_id`, `answer_value`, `task_id`).*
 
 ### `company_resources`
 

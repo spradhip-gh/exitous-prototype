@@ -124,6 +124,7 @@ function ManageTaskMappingDialog({
                                     role="combobox"
                                     aria-expanded={isComboboxOpen}
                                     className="w-full justify-between"
+                                    disabled={!selectedAnswer}
                                 >
                                     {selectedTasks.size > 0 ? `${selectedTasks.size} tasks selected` : "Select tasks..."}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
