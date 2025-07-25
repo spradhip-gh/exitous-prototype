@@ -123,6 +123,7 @@ function ManageTaskMappingDialog({
         return `${selectedTasks.slice(0, 2).map(t => t.name).join(', ')} +${selectedTasks.length - 2} more`;
     };
 
+
     if (!question) return null;
 
     return (
@@ -159,17 +160,22 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={(currentValue) => {
-                                                            handleTaskToggle(option, task.id);
+                                                        onSelect={(e) => {
+                                                            e.preventDefault();
                                                         }}
                                                     >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        <span>{task.name}</span>
+                                                        <div
+                                                            className="flex items-center w-full cursor-pointer"
+                                                            onClick={() => handleTaskToggle(option, task.id)}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <span>{task.name}</span>
+                                                        </div>
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
@@ -462,3 +468,5 @@ export default function AdminFormEditor() {
         </div>
     );
 }
+
+    
