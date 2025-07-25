@@ -1,9 +1,10 @@
 
+
 'use client';
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, TaskMapping, MasterTask } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, TaskMapping, MasterTask, TipMapping, MasterTip } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,37 +40,53 @@ function ManageTaskMappingDialog({
     onOpenChange,
     question,
     allTasks,
-    allMappings,
-    saveMappingsFn
+    allTips,
+    allTaskMappings,
+    allTipMappings,
+    saveTaskMappingsFn,
+    saveTipMappingsFn
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     question: Question | null;
     allTasks: MasterTask[];
-    allMappings: TaskMapping[];
-    saveMappingsFn: (mappings: TaskMapping[]) => void;
+    allTips: MasterTip[];
+    allTaskMappings: TaskMapping[];
+    allTipMappings: TipMapping[];
+    saveTaskMappingsFn: (mappings: TaskMapping[]) => void;
+    saveTipMappingsFn: (mappings: TipMapping[]) => void;
 }) {
-    const [mappings, setMappings] = useState<Record<string, Set<string>>>({});
+    const [taskMappings, setTaskMappings] = useState<Record<string, Set<string>>>({});
+    const [tipMappings, setTipMappings] = useState<Record<string, Set<string>>>({});
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (question && isOpen) {
-            const initialMappings: Record<string, Set<string>> = {};
+            const initialTaskMappings: Record<string, Set<string>> = {};
+            const initialTipMappings: Record<string, Set<string>> = {};
+
             question.options?.forEach(opt => {
-                const tasksForAnswer = allMappings
+                const tasksForAnswer = allTaskMappings
                     .filter(m => m.questionId === question.id && m.answerValue === opt)
                     .map(m => m.taskId);
-                initialMappings[opt] = new Set(tasksForAnswer);
+                initialTaskMappings[opt] = new Set(tasksForAnswer);
+
+                const tipsForAnswer = allTipMappings
+                    .filter(m => m.questionId === question.id && m.answerValue === opt)
+                    .map(m => m.tipId);
+                initialTipMappings[opt] = new Set(tipsForAnswer);
             });
-            setMappings(initialMappings);
+            setTaskMappings(initialTaskMappings);
+            setTipMappings(initialTipMappings);
         } else if (!isOpen) {
-            setMappings({});
+            setTaskMappings({});
+            setTipMappings({});
             setOpenDropdown(null);
         }
-    }, [isOpen, question, allMappings]);
+    }, [isOpen, question, allTaskMappings, allTipMappings]);
 
     const handleTaskToggle = (answer: string, taskId: string) => {
-        setMappings(prev => {
+        setTaskMappings(prev => {
             const newMappings = { ...prev };
             const taskSet = new Set(newMappings[answer]);
             if (taskSet.has(taskId)) {
@@ -81,18 +98,33 @@ function ManageTaskMappingDialog({
             return newMappings;
         });
     };
+
+    const handleTipToggle = (answer: string, tipId: string) => {
+        setTipMappings(prev => {
+            const newMappings = { ...prev };
+            const tipSet = new Set(newMappings[answer]);
+            if (tipSet.has(tipId)) {
+                tipSet.delete(tipId);
+            } else {
+                tipSet.add(tipId);
+            }
+            newMappings[answer] = tipSet;
+            return newMappings;
+        });
+    };
     
     const handleSave = () => {
         if (!question) return;
 
         // Remove all old mappings for this question
-        const otherMappings = allMappings.filter(m => m.questionId !== question.id);
+        const otherTaskMappings = allTaskMappings.filter(m => m.questionId !== question.id);
+        const otherTipMappings = allTipMappings.filter(m => m.questionId !== question.id);
         
         // Create new mappings from the state
-        const newMappings: TaskMapping[] = [];
-        Object.entries(mappings).forEach(([answerValue, taskIds]) => {
+        const newTaskMappings: TaskMapping[] = [];
+        Object.entries(taskMappings).forEach(([answerValue, taskIds]) => {
             taskIds.forEach(taskId => {
-                newMappings.push({
+                newTaskMappings.push({
                     id: `${question.id}-${answerValue}-${taskId}`, // A simple unique ID
                     questionId: question.id,
                     answerValue,
@@ -100,24 +132,44 @@ function ManageTaskMappingDialog({
                 });
             });
         });
+        saveTaskMappingsFn([...otherTaskMappings, ...newTaskMappings]);
 
-        saveMappingsFn([...otherMappings, ...newMappings]);
+        const newTipMappings: TipMapping[] = [];
+        Object.entries(tipMappings).forEach(([answerValue, tipIds]) => {
+            tipIds.forEach(tipId => {
+                newTipMappings.push({
+                    id: `${question.id}-${answerValue}-${tipId}`,
+                    questionId: question.id,
+                    answerValue,
+                    tipId
+                });
+            });
+        });
+        saveTipMappingsFn([...otherTipMappings, ...newTipMappings]);
+
         onOpenChange(false);
     };
 
-    const getButtonLabel = (option: string) => {
-        const selectedIds = mappings[option];
-        if (!selectedIds || selectedIds.size === 0) {
-            return "Select tasks...";
+    const getButtonLabel = (option: string, type: 'task' | 'tip') => {
+        const mappings = type === 'task' ? taskMappings[option] : tipMappings[option];
+        const source = type === 'task' ? allTasks : allTips;
+        
+        if (!mappings || mappings.size === 0) {
+            return `Select ${type}s...`;
         }
-        const selectedTasks = allTasks.filter(task => selectedIds.has(task.id));
-        if (selectedTasks.length === 0) {
-            return "Select tasks...";
+        
+        const selectedItems = source.filter(item => mappings.has(item.id));
+        
+        if (selectedItems.length === 0) {
+            return `Select ${type}s...`;
         }
-        if (selectedTasks.length <= 2) {
-            return selectedTasks.map(t => t.name).join(', ');
+        
+        const itemNames = selectedItems.map(item => 'name' in item ? item.name : item.text.substring(0, 30) + '...');
+
+        if (selectedItems.length <= 2) {
+            return itemNames.join(', ');
         }
-        return `${selectedTasks.slice(0, 2).map(t => t.name).join(', ')} +${selectedTasks.length - 2} more`;
+        return `${itemNames.slice(0, 2).join(', ')} +${selectedItems.length - 2} more`;
     };
 
 
@@ -127,22 +179,20 @@ function ManageTaskMappingDialog({
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Manage Task Mappings for "{question.label}"</DialogTitle>
+                    <DialogTitle>Manage Mappings for "{question.label}"</DialogTitle>
                     <DialogDescription>
-                        For each answer, select the task(s) that should be assigned to the user.
+                        For each answer, select the task(s) and/or tip(s) that should be assigned to the user.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4 overflow-y-auto flex-grow pr-4">
                     {question.options?.map(option => (
                         <div key={option} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-right">{option}</Label>
+                            {/* Tasks Dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-between col-span-2 font-normal"
-                                    >
-                                       <span className="truncate">{getButtonLabel(option)}</span>
+                                    <Button variant="outline" className="w-full justify-between font-normal">
+                                       <span className="truncate">{getButtonLabel(option, 'task')}</span>
                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -150,11 +200,32 @@ function ManageTaskMappingDialog({
                                      {allTasks.map((task) => (
                                         <DropdownMenuCheckboxItem
                                             key={task.id}
-                                            checked={mappings[option]?.has(task.id)}
+                                            checked={taskMappings[option]?.has(task.id)}
                                             onCheckedChange={() => handleTaskToggle(option, task.id)}
                                             onSelect={(e) => e.preventDefault()}
                                         >
                                             {task.name}
+                                        </DropdownMenuCheckboxItem>
+                                     ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                             {/* Tips Dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-between font-normal">
+                                       <span className="truncate">{getButtonLabel(option, 'tip')}</span>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-[400px]">
+                                     {allTips.map((tip) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={tip.id}
+                                            checked={tipMappings[option]?.has(tip.id)}
+                                            onCheckedChange={() => handleTipToggle(option, tip.id)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {tip.text.substring(0, 50) + (tip.text.length > 50 ? '...' : '')}
                                         </DropdownMenuCheckboxItem>
                                      ))}
                                 </DropdownMenuContent>
@@ -178,12 +249,12 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
     defaultQuestionsFn: () => Question[];
 }) {
     const { toast } = useToast();
-    const { isLoading, masterTasks, taskMappings, saveTaskMappings } = useUserData();
+    const { isLoading, masterTasks, taskMappings, saveTaskMappings, masterTips, tipMappings, saveTipMappings } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-    const [isMappingTasks, setIsMappingTasks] = useState(false);
+    const [isMapping, setIsMapping] = useState(false);
     const [mappingQuestion, setMappingQuestion] = useState<Question | null>(null);
 
     const orderedSections = useMemo(() => {
@@ -222,9 +293,9 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         setIsEditing(true);
     };
 
-    const handleMapTasksClick = (question: Question) => {
+    const handleMapClick = (question: Question) => {
         setMappingQuestion(question);
-        setIsMappingTasks(true);
+        setIsMapping(true);
     };
 
     const handleAddNewClick = (parentId?: string) => {
@@ -364,7 +435,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                                         onDelete={handleDeleteClick}
                                         onAddSubQuestion={handleAddNewClick}
                                         onMove={handleMoveQuestion}
-                                        onMapTasks={handleMapTasksClick}
+                                        onMapTasks={handleMapClick}
                                         isFirst={index === 0}
                                         isLast={index === section.questions.length - 1}
                                     />
@@ -391,12 +462,15 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                 />
             </Dialog>
             <ManageTaskMappingDialog
-                isOpen={isMappingTasks}
-                onOpenChange={setIsMappingTasks}
+                isOpen={isMapping}
+                onOpenChange={setIsMapping}
                 question={mappingQuestion}
                 allTasks={masterTasks}
-                allMappings={taskMappings}
-                saveMappingsFn={saveTaskMappings}
+                allTips={masterTips}
+                allTaskMappings={taskMappings}
+                allTipMappings={tipMappings}
+                saveTaskMappingsFn={saveTaskMappings}
+                saveTipMappingsFn={saveTipMappings}
             />
         </>
     );

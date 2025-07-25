@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,7 +20,9 @@ import {
   addReviewQueueItem as addReviewQueueItemToDb,
   getMasterTasks as getMasterTasksFromDb, saveMasterTasks as saveMasterTasksToDb,
   getTaskMappings as getTaskMappingsFromDb, saveTaskMappings as saveTaskMappingsToDb,
-  getGuidanceRules as getGuidanceRulesFromDb, saveGuidanceRules as saveGuidanceRulesToDb
+  getGuidanceRules as getGuidanceRulesFromDb, saveGuidanceRules as saveGuidanceRulesToDb,
+  getMasterTips as getMasterTipsFromDb, saveMasterTips as saveMasterTipsToDb,
+  getTipMappings as getTipMappingsFromDb, saveTipMappings as saveTipMappingsToDb,
 } from '@/lib/demo-data';
 import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
 import { useToast } from './use-toast';
@@ -132,6 +133,21 @@ export interface TaskMapping {
     questionId: string;
     answerValue: string;
     taskId: string;
+}
+
+export interface MasterTip {
+    id: string;
+    type: 'layoff' | 'anxious';
+    priority: 'High' | 'Medium' | 'Low';
+    category: 'Financial' | 'Career' | 'Health' | 'Basics';
+    text: string;
+}
+
+export interface TipMapping {
+    id: string;
+    questionId: string;
+    answerValue: string;
+    tipId: string;
 }
 
 export interface CompanyAssignment {
@@ -277,6 +293,8 @@ export function useUserData() {
   const [masterTasks, setMasterTasksState] = useState<MasterTask[]>([]);
   const [taskMappings, setTaskMappingsState] = useState<TaskMapping[]>([]);
   const [guidanceRules, setGuidanceRulesState] = useState<GuidanceRule[]>([]);
+  const [masterTips, setMasterTipsState] = useState<MasterTip[]>([]);
+  const [tipMappings, setTipMappingsState] = useState<TipMapping[]>([]);
   
   const [companyAssignmentForHr, setCompanyAssignmentForHr] = useState<CompanyAssignment | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -318,6 +336,8 @@ export function useUserData() {
       const loadedMasterTasks = getMasterTasksFromDb();
       const loadedTaskMappings = getTaskMappingsFromDb();
       const loadedGuidanceRules = getGuidanceRulesFromDb();
+      const loadedMasterTips = getMasterTipsFromDb();
+      const loadedTipMappings = getTipMappingsFromDb();
 
       setCompanyAssignmentsState(loadedCompanyAssignments);
       setCompanyConfigsState(loadedCompanyConfigs);
@@ -331,6 +351,8 @@ export function useUserData() {
       setMasterTasksState(loadedMasterTasks);
       setTaskMappingsState(loadedTaskMappings);
       setGuidanceRulesState(loadedGuidanceRules);
+      setMasterTipsState(loadedMasterTips);
+      setTipMappingsState(loadedTipMappings);
 
       // --- USER SPECIFIC DATA ---
       const profileJson = localStorage.getItem(profileKey);
@@ -882,6 +904,16 @@ export function useUserData() {
     setGuidanceRulesState(rules);
   }, []);
 
+  const saveMasterTips = useCallback((tips: MasterTip[]) => {
+      saveMasterTipsToDb(tips);
+      setMasterTipsState(tips);
+  }, []);
+
+  const saveTipMappings = useCallback((mappings: TipMapping[]) => {
+      saveTipMappingsToDb(mappings);
+      setTipMappingsState(mappings);
+  }, []);
+
   return {
     profileData,
     assessmentData,
@@ -918,6 +950,10 @@ export function useUserData() {
     saveTaskMappings,
     guidanceRules,
     saveGuidanceRules,
+    masterTips,
+    saveMasterTips,
+    tipMappings,
+    saveTipMappings,
     getTargetTimezone,
     getCompanyUser,
     addCompanyAssignment,

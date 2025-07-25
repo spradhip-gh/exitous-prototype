@@ -1,6 +1,6 @@
 
 
-import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource, ReviewQueueItem, MasterTask, TaskMapping } from '@/hooks/use-user-data';
+import type { CompanyAssignment, CompanyConfig, PlatformUser, Resource, ReviewQueueItem, MasterTask, TaskMapping, GuidanceRule, MasterTip, TipMapping } from '@/hooks/use-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions, type Question } from './questions';
 import type { ProfileData, AssessmentData } from './schemas';
 import type { ExternalResource } from './external-resources';
@@ -10,28 +10,6 @@ import { PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recom
 // By attaching the data to the global object, it persists across hot-reloads
 // in development, simulating a real database more closely. This ensures that
 // changes like adding custom questions are not lost on page refresh.
-
-export interface Condition {
-    type: 'question' | 'tenure' | 'date_offset';
-    // For question
-    questionId?: string;
-    answer?: string;
-    // For tenure
-    operator?: 'lt' | 'gt' | 'eq' | 'gte_lt';
-    value?: number[];
-    label?: string;
-    // For date_offset
-    dateQuestionId?: string;
-    unit?: 'days' | 'weeks' | 'months';
-    comparison?: 'from_today';
-}
-export interface GuidanceRule {
-    id: string;
-    name: string;
-    companyId?: 'all'; // For now, all rules are global
-    conditions: Condition[];
-    taskId: string;
-}
 
 interface DemoDatabase {
     companyAssignments: CompanyAssignment[];
@@ -48,6 +26,8 @@ interface DemoDatabase {
     masterTasks: MasterTask[];
     taskMappings: TaskMapping[];
     guidanceRules: GuidanceRule[];
+    masterTips: MasterTip[];
+    tipMappings: TipMapping[];
 }
 
 // Augment the global type to include our custom property
@@ -564,6 +544,11 @@ This checklist is designed to help you manage key tasks during your employment t
             { id: 'relocationPaid-Yes-review-severance-agreement', questionId: 'relocationPaid', answerValue: 'Yes', taskId: 'review-severance-agreement' }
         ],
         guidanceRules: [],
+        masterTips: [
+            { id: 'tip-cobra-1', type: 'layoff', priority: 'High', category: 'Health', text: 'Did you know? You generally have 60 days to elect COBRA coverage after your health plan ends.' },
+            { id: 'tip-401k-2', type: 'layoff', priority: 'Medium', category: 'Financial', text: 'Did you know? Rolling over your 401(k) to an IRA can often give you more investment options and lower fees.' }
+        ],
+        tipMappings: [],
     }
 };
 
@@ -624,4 +609,10 @@ export const saveTaskMappings = (data: TaskMapping[]) => { db.taskMappings = dat
 
 export const getGuidanceRules = () => db.guidanceRules;
 export const saveGuidanceRules = (data: GuidanceRule[]) => { db.guidanceRules = data; };
+
+export const getMasterTips = () => db.masterTips;
+export const saveMasterTips = (data: MasterTip[]) => { db.masterTips = data; };
+
+export const getTipMappings = () => db.tipMappings;
+export const saveTipMappings = (data: TipMapping[]) => { db.tipMappings = data; };
     
