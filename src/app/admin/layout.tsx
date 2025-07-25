@@ -82,6 +82,18 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               External Resources
             </Button>
           </Link>
+           <Link href="/admin/review">
+            <Button variant={getVariant('/admin/review')} className="w-full justify-start">
+              <UserCheck className="mr-2" />
+              Guidance Editor
+            </Button>
+          </Link>
+          <Link href="/admin/review-queue">
+            <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
+              <CheckSquare className="mr-2" />
+              Review Queue
+            </Button>
+          </Link>
           <Link href="/admin/analytics">
             <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
               <BarChart className="mr-2" />
@@ -268,7 +280,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
               <AlertDescription className="text-orange-700">
                 Please Note: Data and changes made may refresh to default state at anytime.
-              </AlertDescription>
+              </Description>
             </Alert>
           </div>
           {children}
