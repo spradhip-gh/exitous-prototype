@@ -144,9 +144,8 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={(currentValue) => {
-                                                            handleTaskToggle(option, task.id);
-                                                        }}
+                                                        onSelect={(e) => e.preventDefault()}
+                                                        onClick={() => handleTaskToggle(option, task.id)}
                                                     >
                                                         <Check
                                                             className={cn(
