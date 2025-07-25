@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useCallback } from 'react';
-import { useUserData, MasterTask, TaskMapping } from '@/hooks/use-user-data';
+import { useUserData, MasterTask, ExternalResource } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,11 +21,12 @@ import { PlusCircle, Trash2, Pencil, Link as LinkIcon } from 'lucide-react';
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
 
-function TaskForm({ isOpen, onOpenChange, onSave, task }: {
+function TaskForm({ isOpen, onOpenChange, onSave, task, allResources }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (task: MasterTask) => void;
     task: Partial<MasterTask> | null;
+    allResources: ExternalResource[];
 }) {
     const { toast } = useToast();
     const [formData, setFormData] = useState<Partial<MasterTask>>({});
@@ -118,6 +119,16 @@ function TaskForm({ isOpen, onOpenChange, onSave, task }: {
                         <Label htmlFor="deadlineDays">Deadline Days After Event</Label>
                         <Input id="deadlineDays" name="deadlineDays" type="number" value={formData.deadlineDays || ''} onChange={(e) => handleNumberChange('deadlineDays', e.target.value)} placeholder="e.g., 30"/>
                     </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="linkedResourceId">Linked Resource (Optional)</Label>
+                        <Select name="linkedResourceId" value={formData.linkedResourceId} onValueChange={(v) => handleSelectChange('linkedResourceId', v === 'none' ? '' : v)}>
+                            <SelectTrigger id="linkedResourceId"><SelectValue placeholder="Select a resource..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {allResources.map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -130,11 +141,19 @@ function TaskForm({ isOpen, onOpenChange, onSave, task }: {
 
 export default function TaskManagementPage() {
     const { toast } = useToast();
-    const { masterTasks, saveMasterTasks, isLoading, taskMappings, masterQuestions, masterProfileQuestions } = useUserData();
+    const { 
+        masterTasks, 
+        saveMasterTasks, 
+        isLoading, 
+        taskMappings, 
+        masterQuestions, 
+        masterProfileQuestions,
+        externalResources, 
+    } = useUserData();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
-    const [viewingMappings, setViewingMappings] = useState<TaskMapping[] | null>(null);
+    const [viewingMappings, setViewingMappings] = useState<any[] | null>(null);
     
     const allQuestions = useMemo(() => {
         return {...masterQuestions, ...masterProfileQuestions};
@@ -211,6 +230,7 @@ export default function TaskManagementPage() {
                                     <TableHead>ID</TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Category</TableHead>
+                                    <TableHead>Linked Resource</TableHead>
                                     <TableHead>Mappings</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -221,6 +241,7 @@ export default function TaskManagementPage() {
                                         <TableCell className="font-mono text-xs">{task.id}</TableCell>
                                         <TableCell className="font-medium">{task.name}</TableCell>
                                         <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{task.linkedResourceId ? externalResources.find(r => r.id === task.linkedResourceId)?.name : 'None'}</TableCell>
                                         <TableCell>
                                             <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
                                                 {taskMappingCounts[task.id] || 0}
@@ -261,6 +282,7 @@ export default function TaskManagementPage() {
                 onOpenChange={setIsFormOpen}
                 onSave={handleSave}
                 task={editingTask}
+                allResources={externalResources}
             />
 
             <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>

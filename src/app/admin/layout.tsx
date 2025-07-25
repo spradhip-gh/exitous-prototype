@@ -82,12 +82,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               External Resources
             </Button>
           </Link>
-           <Link href="/admin/review-queue">
-            <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
-              <CheckSquare className="mr-2" />
-              Guidance & Review
-            </Button>
-          </Link>
           <Link href="/admin/analytics">
             <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
               <BarChart className="mr-2" />

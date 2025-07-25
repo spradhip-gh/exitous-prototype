@@ -53,41 +53,55 @@ function ManageTaskMappingDialog({
     allMappings: TaskMapping[];
     saveMappingsFn: (mappings: TaskMapping[]) => void;
 }) {
-    const [selectedAnswer, setSelectedAnswer] = useState<string>('');
-    const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-    const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+    const [mappings, setMappings] = useState<Record<string, Set<string>>>({});
 
     React.useEffect(() => {
-        if (!isOpen) {
-            setSelectedAnswer('');
-            setSelectedTasks(new Set());
+        if (question && isOpen) {
+            const initialMappings: Record<string, Set<string>> = {};
+            question.options?.forEach(opt => {
+                const tasksForAnswer = allMappings
+                    .filter(m => m.questionId === question.id && m.answerValue === opt)
+                    .map(m => m.taskId);
+                initialMappings[opt] = new Set(tasksForAnswer);
+            });
+            setMappings(initialMappings);
+        } else if (!isOpen) {
+            setMappings({});
         }
-    }, [isOpen]);
+    }, [isOpen, question, allMappings]);
 
-    React.useEffect(() => {
-        if (question && selectedAnswer) {
-            const tasksForAnswer = allMappings
-                .filter(m => m.questionId === question.id && m.answerValue === selectedAnswer)
-                .map(m => m.taskId);
-            setSelectedTasks(new Set(tasksForAnswer));
-        } else {
-            setSelectedTasks(new Set());
-        }
-    }, [question, selectedAnswer, allMappings]);
-
+    const handleTaskToggle = (answer: string, taskId: string) => {
+        setMappings(prev => {
+            const newMappings = { ...prev };
+            const taskSet = new Set(newMappings[answer]);
+            if (taskSet.has(taskId)) {
+                taskSet.delete(taskId);
+            } else {
+                taskSet.add(taskId);
+            }
+            newMappings[answer] = taskSet;
+            return newMappings;
+        });
+    };
+    
     const handleSave = () => {
-        if (!question || !selectedAnswer) return;
+        if (!question) return;
 
-        // Remove old mappings for this question/answer pair
-        const otherMappings = allMappings.filter(m => !(m.questionId === question.id && m.answerValue === selectedAnswer));
+        // Remove all old mappings for this question
+        const otherMappings = allMappings.filter(m => m.questionId !== question.id);
         
-        // Add new mappings
-        const newMappings: TaskMapping[] = Array.from(selectedTasks).map(taskId => ({
-            id: `${question.id}-${selectedAnswer}-${taskId}`, // A simple unique ID
-            questionId: question.id,
-            answerValue: selectedAnswer,
-            taskId: taskId
-        }));
+        // Create new mappings from the state
+        const newMappings: TaskMapping[] = [];
+        Object.entries(mappings).forEach(([answerValue, taskIds]) => {
+            taskIds.forEach(taskId => {
+                newMappings.push({
+                    id: `${question.id}-${answerValue}-${taskId}`, // A simple unique ID
+                    questionId: question.id,
+                    answerValue,
+                    taskId
+                });
+            });
+        });
 
         saveMappingsFn([...otherMappings, ...newMappings]);
         onOpenChange(false);
@@ -97,80 +111,60 @@ function ManageTaskMappingDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl max-h-[80vh]">
                 <DialogHeader>
                     <DialogTitle>Manage Task Mappings for "{question.label}"</DialogTitle>
                     <DialogDescription>
-                        Map specific tasks to be assigned when a user selects a particular answer.
+                        For each answer, select the task(s) that should be assigned to the user.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label>When the answer is...</Label>
-                        <Select onValueChange={setSelectedAnswer} value={selectedAnswer}>
-                            <SelectTrigger><SelectValue placeholder="Select an answer option..." /></SelectTrigger>
-                            <SelectContent>
-                                {question.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Assign these tasks...</Label>
-                        <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={isComboboxOpen}
-                                    className="w-full justify-between"
-                                    disabled={!selectedAnswer}
-                                >
-                                    {selectedTasks.size > 0 ? `${selectedTasks.size} tasks selected` : "Select tasks..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full p-0">
-                                <Command>
-                                    <CommandInput placeholder="Search tasks..." />
-                                    <CommandList>
-                                        <CommandEmpty>No tasks found.</CommandEmpty>
-                                        <CommandGroup>
-                                            {allTasks.map((task) => (
-                                                <CommandItem
-                                                    key={task.id}
-                                                    value={task.name}
-                                                    onSelect={() => {
-                                                        setSelectedTasks(prev => {
-                                                            const newSet = new Set(prev);
-                                                            if (newSet.has(task.id)) {
-                                                                newSet.delete(task.id);
-                                                            } else {
-                                                                newSet.add(task.id);
-                                                            }
-                                                            return newSet;
-                                                        })
-                                                    }}
-                                                >
-                                                    <Check
-                                                        className={cn(
-                                                            "mr-2 h-4 w-4",
-                                                            selectedTasks.has(task.id) ? "opacity-100" : "opacity-0"
-                                                        )}
-                                                    />
-                                                    {task.name}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                <div className="py-4 space-y-4 overflow-y-auto">
+                    {question.options?.map(option => (
+                        <div key={option} className="grid grid-cols-3 items-center gap-4">
+                            <Label className="text-right">{option}</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className="w-full justify-between col-span-2"
+                                    >
+                                        {mappings[option]?.size > 0 ? `${mappings[option].size} tasks selected` : "Select tasks..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Search tasks..." />
+                                        <CommandList>
+                                            <CommandEmpty>No tasks found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {allTasks.map((task) => (
+                                                    <CommandItem
+                                                        key={task.id}
+                                                        value={task.name}
+                                                        onSelect={() => handleTaskToggle(option, task.id)}
+                                                    >
+                                                        <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                mappings[option]?.has(task.id) ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                        />
+                                                        {task.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    ))}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={!selectedAnswer}>Save Mappings</Button>
+                    <Button onClick={handleSave}>Save Mappings</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
