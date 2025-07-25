@@ -92,9 +92,7 @@ export interface GuidanceRule {
     id: string;
     name: string;
     conditions: Condition[];
-    guidanceText: string;
-    category: string;
-    linkedResourceId?: string;
+    taskId: string;
 }
 
 export interface ReviewQueueItem {
@@ -131,6 +129,7 @@ export interface MasterTask {
     detail: string;
     deadlineType: 'notification_date' | 'termination_date';
     deadlineDays?: number;
+    linkedResourceId?: string;
 }
 
 export interface TaskMapping {

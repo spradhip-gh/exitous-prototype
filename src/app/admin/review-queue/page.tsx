@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useUserData, ReviewQueueItem, RecommendationItem, GuidanceRule, Condition, Question } from "@/hooks/use-user-data";
+import { useUserData, ReviewQueueItem, RecommendationItem, GuidanceRule, Condition, Question, MasterTask } from "@/hooks/use-user-data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -21,7 +22,7 @@ export default function ReviewQueuePage() {
         getAllCompanyConfigs,
         masterQuestions, 
         masterProfileQuestions,
-        externalResources, 
+        masterTasks,
         isLoading 
     } = useUserData();
     
@@ -183,7 +184,7 @@ export default function ReviewQueuePage() {
                 onSave={handleSaveRule}
                 ruleToConvert={ruleToConvert}
                 questions={allQuestions}
-                externalResources={externalResources}
+                masterTasks={masterTasks}
             />
 
         </div>

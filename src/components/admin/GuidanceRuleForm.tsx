@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,57 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2, CalendarCheck2, Clock, Link as LinkIcon, Bold, Italic, List, ListOrdered } from 'lucide-react';
-import { Question, Condition, GuidanceRule, ExternalResource } from '@/hooks/use-user-data';
+import { Question, Condition, GuidanceRule, ExternalResource, MasterTask } from '@/hooks/use-user-data';
 import { tenureOptions } from '@/lib/guidance-helpers';
 import { PersonalizedRecommendationsInput } from '@/ai/flows/personalized-recommendations';
 
-
-function FormattingToolbar({ textareaRef, onTextChange }: { textareaRef: React.RefObject<HTMLTextAreaElement>, onTextChange: (value: string) => void }) {
-    const formatText = (style: 'bold' | 'italic' | 'ul' | 'ol') => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selectedText = textarea.value.substring(start, end);
-        let newText;
-
-        switch (style) {
-            case 'bold':
-                newText = `**${selectedText}**`;
-                break;
-            case 'italic':
-                newText = `*${selectedText}*`;
-                break;
-            case 'ul':
-                newText = selectedText.split('\n').map(line => `- ${line}`).join('\n');
-                break;
-            case 'ol':
-                newText = selectedText.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
-                break;
-            default:
-                newText = selectedText;
-        }
-
-        const updatedValue = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
-        onTextChange(updatedValue);
-
-        setTimeout(() => {
-            textarea.focus();
-            textarea.selectionStart = start + newText.length - selectedText.length;
-            textarea.selectionEnd = start + newText.length - selectedText.length;
-        }, 0);
-    };
-    
-    return (
-        <div className="flex items-center gap-1 rounded-t-md border border-b-0 border-input p-1 bg-muted/50">
-            <Button type="button" variant="outline" size="sm" onClick={() => formatText('bold')} className="h-7 px-2"><Bold className="h-4 w-4" /></Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => formatText('italic')} className="h-7 px-2"><Italic className="h-4 w-4" /></Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ul')} className="h-7 px-2"><List className="h-4 w-4" /></Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => formatText('ol')} className="h-7 px-2"><ListOrdered className="h-4 w-4" /></Button>
-        </div>
-    );
-}
 
 export default function GuidanceRuleForm({
   isOpen,
@@ -69,29 +23,36 @@ export default function GuidanceRuleForm({
   onSave,
   ruleToConvert,
   questions,
-  externalResources
+  masterTasks,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (rule: GuidanceRule) => void;
   ruleToConvert: { guidanceText: string, category: string, inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> } | null;
   questions: Question[];
-  externalResources: ExternalResource[];
+  masterTasks: MasterTask[];
 }) {
   const { toast } = useToast();
   const [currentRule, setCurrentRule] = useState<Partial<GuidanceRule>>({});
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (isOpen && ruleToConvert) {
-      setCurrentRule({
-        id: `rule-${Date.now()}`,
-        name: `Rule from: ${ruleToConvert.inputData.profileData.state} user`,
-        guidanceText: ruleToConvert.guidanceText,
-        category: ruleToConvert.category,
-        conditions: [],
-      });
-    } else if (!isOpen) {
+    if (isOpen) {
+        if (ruleToConvert) {
+          setCurrentRule({
+            id: `rule-${Date.now()}`,
+            name: `Rule for: ${ruleToConvert.category} need`,
+            conditions: [],
+            taskId: '', // User needs to select this
+          });
+        } else {
+            setCurrentRule({
+                id: `rule-${Date.now()}`,
+                name: '',
+                conditions: [],
+                taskId: '',
+            });
+        }
+    } else {
         setCurrentRule({});
     }
   }, [isOpen, ruleToConvert]);
@@ -128,8 +89,8 @@ export default function GuidanceRuleForm({
   };
 
   const handleSave = () => {
-    if (!currentRule || !currentRule.name || !currentRule.guidanceText || currentRule.conditions?.length === 0) {
-      toast({ title: 'Missing Fields', description: 'Please provide a name, guidance text, and at least one condition.', variant: 'destructive' });
+    if (!currentRule || !currentRule.name || !currentRule.taskId || currentRule.conditions?.length === 0) {
+      toast({ title: 'Missing Fields', description: 'Please provide a name, select a task, and add at least one condition.', variant: 'destructive' });
       return;
     }
     onSave(currentRule as GuidanceRule);
@@ -142,15 +103,15 @@ export default function GuidanceRuleForm({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Convert to Guidance Rule</DialogTitle>
-          <DialogDescription>Create a reusable rule based on this AI recommendation.</DialogDescription>
+          <DialogDescription>Create a reusable rule that assigns a specific task when conditions are met.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="rule-name">Rule Name</Label>
-            <Input id="rule-name" value={currentRule.name || ''} onChange={(e) => setCurrentRule(p => ({ ...p, name: e.target.value }))} />
+            <Input id="rule-name" value={currentRule.name || ''} onChange={(e) => setCurrentRule(p => ({ ...p, name: e.target.value }))} placeholder="e.g., 'COBRA task for terminated employees'"/>
           </div>
           <Card>
-            <CardHeader><CardTitle className="text-base">Conditions</CardTitle><CardDescription className="text-xs">This guidance will apply IF all these conditions are true:</CardDescription></CardHeader>
+            <CardHeader><CardTitle className="text-base">Conditions</CardTitle><CardDescription className="text-xs">This rule will apply IF all these conditions are true:</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               {currentRule.conditions?.map((cond, i) => (
                 <div key={i} className="flex items-end gap-2 p-3 border rounded-md relative">
@@ -231,37 +192,18 @@ export default function GuidanceRuleForm({
               </div>
             </CardContent>
           </Card>
+          
           <div className="space-y-2">
-            <Label htmlFor="guidance-text">Guidance To Provide</Label>
-            <FormattingToolbar textareaRef={textareaRef} onTextChange={(v) => setCurrentRule(p => ({ ...p, guidanceText: v }))} />
-            <Textarea 
-                ref={textareaRef}
-                id="guidance-text" 
-                value={currentRule.guidanceText || ''} 
-                onChange={(e) => setCurrentRule(p => ({ ...p, guidanceText: e.target.value }))} 
-                rows={4} 
-                className="rounded-t-none"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="guidance-category">Category</Label>
-            <Select value={currentRule.category || 'General'} onValueChange={val => setCurrentRule(p => ({ ...p, category: val }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Label htmlFor="task-to-assign">Task to Assign</Label>
+            <Select value={currentRule.taskId || ''} onValueChange={val => setCurrentRule(p => ({ ...p, taskId: val }))}>
+              <SelectTrigger id="task-to-assign"><SelectValue placeholder="Select a master task..." /></SelectTrigger>
               <SelectContent>
-                {['Healthcare', 'Finances', 'Job Search', 'Legal', 'Well-being', 'General'].map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                {masterTasks.map(task => <SelectItem key={task.id} value={task.id}>{task.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">This is the task that will be added to the user's timeline if the conditions are met.</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="linked-resource">Linked Resource (Optional)</Label>
-            <Select value={currentRule.linkedResourceId || ''} onValueChange={val => setCurrentRule(p => ({ ...p, linkedResourceId: val === 'none' ? undefined : val }))}>
-              <SelectTrigger><SelectValue placeholder="Select a resource..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {externalResources.map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
