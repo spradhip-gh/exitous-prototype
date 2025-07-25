@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface OrderedSection {
     id: string;
@@ -58,7 +59,6 @@ function ManageTaskMappingDialog({
 }) {
     const [taskMappings, setTaskMappings] = useState<Record<string, Set<string>>>({});
     const [tipMappings, setTipMappings] = useState<Record<string, Set<string>>>({});
-    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (question && isOpen) {
@@ -81,7 +81,6 @@ function ManageTaskMappingDialog({
         } else if (!isOpen) {
             setTaskMappings({});
             setTipMappings({});
-            setOpenDropdown(null);
         }
     }, [isOpen, question, allTaskMappings, allTipMappings]);
 
@@ -184,11 +183,15 @@ function ManageTaskMappingDialog({
                         For each answer, select the task(s) and/or tip(s) that should be assigned to the user.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-4 overflow-y-auto flex-grow pr-4">
+                 <div className="py-4 space-y-4 overflow-y-auto flex-grow pr-4">
+                     <div className="grid grid-cols-3 items-center gap-4 px-3">
+                        <span className="font-medium text-right text-muted-foreground text-sm">Answer</span>
+                        <span className="font-medium text-muted-foreground text-sm">Tasks Assigned</span>
+                        <span className="font-medium text-muted-foreground text-sm">Tips Assigned</span>
+                    </div>
                     {question.options?.map(option => (
                         <div key={option} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-right">{option}</Label>
-                            {/* Tasks Dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" className="w-full justify-between font-normal">
@@ -209,7 +212,6 @@ function ManageTaskMappingDialog({
                                      ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                             {/* Tips Dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" className="w-full justify-between font-normal">
@@ -218,16 +220,25 @@ function ManageTaskMappingDialog({
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-[400px]">
-                                     {allTips.map((tip) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={tip.id}
-                                            checked={tipMappings[option]?.has(tip.id)}
-                                            onCheckedChange={() => handleTipToggle(option, tip.id)}
-                                            onSelect={(e) => e.preventDefault()}
-                                        >
-                                            {tip.text.substring(0, 50) + (tip.text.length > 50 ? '...' : '')}
-                                        </DropdownMenuCheckboxItem>
-                                     ))}
+                                     <TooltipProvider>
+                                         {allTips.map((tip) => (
+                                             <Tooltip key={tip.id} delayDuration={300}>
+                                                <TooltipTrigger asChild>
+                                                    <DropdownMenuCheckboxItem
+                                                        checked={tipMappings[option]?.has(tip.id)}
+                                                        onCheckedChange={() => handleTipToggle(option, tip.id)}
+                                                        onSelect={(e) => e.preventDefault()}
+                                                        className="truncate"
+                                                    >
+                                                        {tip.text}
+                                                    </DropdownMenuCheckboxItem>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-xs">
+                                                    <p>{tip.text}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                         ))}
+                                     </TooltipProvider>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>

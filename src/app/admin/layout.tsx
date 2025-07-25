@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb, Blocks } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -26,8 +26,11 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
   
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   
-  const [isManagementOpen, setIsManagementOpen] = useState(
-    pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users') || pathname.startsWith('/admin/hr-management')
+  const [isCustomerManagementOpen, setIsCustomerManagementOpen] = useState(
+    pathname.startsWith('/admin/companies') || pathname.startsWith('/admin/users')
+  );
+  const [isContentManagementOpen, setIsContentManagementOpen] = useState(
+    pathname.startsWith('/admin/tasks') || pathname.startsWith('/admin/tips') || pathname.startsWith('/admin/forms')
   );
   
   const getVariant = (path: string) => pathname === path ? 'secondary' : 'ghost';
@@ -52,36 +55,53 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
     <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
         <>
-          <Link href="/admin/users">
-            <Button variant={getVariant('/admin/users')} className="w-full justify-start">
-                <Users className="mr-2" />
-                User Management
-            </Button>
-          </Link>
-          <Link href="/admin/companies">
-            <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
-                <Building className="mr-2" />
-                Company Management
-            </Button>
-          </Link>
-          <Link href="/admin/forms">
-            <Button variant={getVariant('/admin/forms')} className="w-full justify-start">
-              <Wrench className="mr-2" />
-              Master Form Editor
-            </Button>
-          </Link>
-          <Link href="/admin/tasks">
-            <Button variant={getVariant('/admin/tasks')} className="w-full justify-start">
-              <ListChecks className="mr-2" />
-              Task Management
-            </Button>
-          </Link>
-          <Link href="/admin/tips">
-            <Button variant={getVariant('/admin/tips')} className="w-full justify-start">
-              <Lightbulb className="mr-2" />
-              Tips Management
-            </Button>
-          </Link>
+          <Collapsible open={isCustomerManagementOpen} onOpenChange={setIsCustomerManagementOpen}>
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between pr-2">
+                    <span className="flex items-center gap-2"><Users className="mr-2"/> Customer Management</span>
+                    <ChevronRight className={cn("transition-transform", isCustomerManagementOpen && "rotate-90")}/>
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-6 space-y-1 py-1">
+                <Link href="/admin/users">
+                    <Button variant={getVariant('/admin/users')} className="w-full justify-start text-sm font-normal">
+                        User Management
+                    </Button>
+                </Link>
+                <Link href="/admin/companies">
+                    <Button variant={getVariant('/admin/companies')} className="w-full justify-start text-sm font-normal">
+                        Company Management
+                    </Button>
+                </Link>
+            </CollapsibleContent>
+          </Collapsible>
+          
+          <Collapsible open={isContentManagementOpen} onOpenChange={setIsContentManagementOpen}>
+            <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between pr-2">
+                    <span className="flex items-center gap-2"><Blocks className="mr-2"/> Content Management</span>
+                    <ChevronRight className={cn("transition-transform", isContentManagementOpen && "rotate-90")}/>
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pl-6 space-y-1 py-1">
+                <Link href="/admin/forms">
+                    <Button variant={getVariant('/admin/forms')} className="w-full justify-start text-sm font-normal">
+                        Master Form Editor
+                    </Button>
+                </Link>
+                <Link href="/admin/tasks">
+                    <Button variant={getVariant('/admin/tasks')} className="w-full justify-start text-sm font-normal">
+                        Task Management
+                    </Button>
+                </Link>
+                <Link href="/admin/tips">
+                    <Button variant={getVariant('/admin/tips')} className="w-full justify-start text-sm font-normal">
+                        Tips Management
+                    </Button>
+                </Link>
+            </CollapsibleContent>
+          </Collapsible>
+
           <Link href="/admin/review-queue">
             <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
               <CheckSquare className="mr-2" />

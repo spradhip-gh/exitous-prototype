@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useUserData, MasterTip } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Upload } from 'lucide-react';
+import Papa from 'papaparse';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -41,7 +42,7 @@ function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     };
 
     const handleSubmit = () => {
-        const id = tip?.id || formData.id || `tip-${Date.now()}`;
+        const id = tip?.id || `tip-${Date.now()}`;
         if (!formData.text || !formData.category || !formData.priority || !formData.type) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
             return;
@@ -118,6 +119,7 @@ export default function TipsManagementPage() {
         masterTips,
         saveMasterTips,
     } = useUserData();
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingTip, setEditingTip] = useState<Partial<MasterTip> | null>(null);
@@ -151,6 +153,71 @@ export default function TipsManagementPage() {
         setIsFormOpen(false);
         setEditingTip(null);
     };
+    
+    const handleDownloadTemplate = useCallback(() => {
+        const headers = ["id", "type", "priority", "category", "text"];
+        const sampleRow = ["sample-tip-1", "layoff", "Medium", "Financial", "Did you know? You can rollover your 401k to an IRA."];
+        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', 'tips_template.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }, []);
+
+    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const requiredHeaders = ["id", "text", "category", "priority", "type"];
+                const fileHeaders = results.meta.fields?.map(h => h.toLowerCase().replace(/\s/g, '')) || [];
+                if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
+                    toast({ title: "Invalid CSV format", description: `CSV must include columns: ${requiredHeaders.join(', ')}`, variant: "destructive" });
+                    return;
+                }
+                
+                let updatedCount = 0;
+                let addedCount = 0;
+                let newMasterTips = [...masterTips];
+
+                results.data.forEach((row: any) => {
+                    const id = row.id?.trim();
+                    if (!id || !row.text) return;
+
+                    const tip: MasterTip = {
+                        id,
+                        text: row.text,
+                        category: tipCategories.includes(row.category) ? row.category : 'Basics',
+                        priority: tipPriorities.includes(row.priority) ? row.priority : 'Medium',
+                        type: tipTypes.includes(row.type) ? row.type : 'layoff',
+                    };
+                    
+                    const existingIndex = newMasterTips.findIndex(t => t.id === id);
+                    if (existingIndex !== -1) {
+                        newMasterTips[existingIndex] = tip;
+                        updatedCount++;
+                    } else {
+                        newMasterTips.push(tip);
+                        addedCount++;
+                    }
+                });
+
+                saveMasterTips(newMasterTips);
+                toast({ title: "Upload Complete", description: `${addedCount} tips added, ${updatedCount} tips updated.` });
+            },
+            error: (error) => {
+                toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+            }
+        });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }, [masterTips, saveMasterTips, toast]);
+
 
     return (
         <div className="p-4 md:p-8">
@@ -171,6 +238,11 @@ export default function TipsManagementPage() {
                         <CardDescription>The full list of tips that can be mapped to question answers.</CardDescription>
                     </CardHeader>
                     <CardContent>
+                         <div className="flex gap-2 mb-4">
+                            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+                            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button>
+                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>

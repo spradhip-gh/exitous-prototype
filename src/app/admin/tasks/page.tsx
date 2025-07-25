@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload } from 'lucide-react';
+import Papa from 'papaparse';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -154,6 +155,7 @@ export default function TaskManagementPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
     const [viewingMappings, setViewingMappings] = useState<any[] | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     
     const allQuestions = useMemo(() => {
         return {...masterQuestions, ...masterProfileQuestions};
@@ -205,6 +207,76 @@ export default function TaskManagementPage() {
         setEditingTask(null);
     };
 
+     const handleDownloadTemplate = useCallback(() => {
+        const headers = ["id", "type", "name", "category", "detail", "deadlineType", "deadlineDays", "linkedResourceId"];
+        const sampleRow = ["sample-task-id", "layoff", "Sample Task Name", "Basics", "This is a sample task description.", "notification_date", "14", ""];
+        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', 'tasks_template.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }, []);
+
+    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const requiredHeaders = ["id", "name", "category", "detail", "deadlinetype"];
+                const fileHeaders = results.meta.fields?.map(h => h.toLowerCase().replace(/\s/g, '')) || [];
+                const missingHeaders = requiredHeaders.filter(h => !fileHeaders.includes(h));
+
+                if (missingHeaders.length > 0) {
+                    toast({ title: "Invalid CSV format", description: `Missing required columns: ${missingHeaders.join(', ')}`, variant: "destructive" });
+                    return;
+                }
+                
+                let updatedCount = 0;
+                let addedCount = 0;
+                let newMasterTasks = [...masterTasks];
+
+                results.data.forEach((row: any) => {
+                    const id = row.id?.trim();
+                    if (!id) return; // Skip rows without an id
+
+                    const task: MasterTask = {
+                        id,
+                        type: taskTypes.includes(row.type) ? row.type : 'layoff',
+                        name: row.name || 'Unnamed Task',
+                        category: taskCategories.includes(row.category) ? row.category : 'Basics',
+                        detail: row.detail || '',
+                        deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
+                        deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
+                        linkedResourceId: row.linkedResourceId || undefined,
+                    };
+                    
+                    const existingIndex = newMasterTasks.findIndex(t => t.id === id);
+                    if (existingIndex !== -1) {
+                        newMasterTasks[existingIndex] = task;
+                        updatedCount++;
+                    } else {
+                        newMasterTasks.push(task);
+                        addedCount++;
+                    }
+                });
+
+                saveMasterTasks(newMasterTasks);
+                toast({ title: "Upload Complete", description: `${addedCount} tasks added, ${updatedCount} tasks updated.` });
+            },
+            error: (error) => {
+                toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+            }
+        });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }, [masterTasks, saveMasterTasks, toast]);
+
+
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-7xl space-y-8">
@@ -223,7 +295,12 @@ export default function TaskManagementPage() {
                         <CardTitle>Master Task List</CardTitle>
                         <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                     <CardContent>
+                        <div className="flex gap-2 mb-4">
+                            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+                            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button>
+                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
