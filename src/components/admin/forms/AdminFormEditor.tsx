@@ -2,7 +2,7 @@
 
 'use client';
 import * as React from 'react';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserData, Question, buildQuestionTreeFromMap, TaskMapping, MasterTask } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
@@ -112,14 +112,14 @@ function ManageTaskMappingDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[80vh]">
+            <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Manage Task Mappings for "{question.label}"</DialogTitle>
                     <DialogDescription>
                         For each answer, select the task(s) that should be assigned to the user.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-4 overflow-y-auto">
+                <div className="py-4 space-y-4 overflow-y-auto flex-grow pr-4">
                     {question.options?.map(option => (
                         <div key={option} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-right">{option}</Label>
@@ -166,7 +166,7 @@ function ManageTaskMappingDialog({
                         </div>
                     ))}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-shrink-0">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSave}>Save Mappings</Button>
                 </DialogFooter>
