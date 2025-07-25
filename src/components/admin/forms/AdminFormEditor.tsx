@@ -143,7 +143,13 @@ function ManageTaskMappingDialog({
                                                     <CommandItem
                                                         key={task.id}
                                                         value={task.name}
-                                                        onSelect={() => handleTaskToggle(option, task.id)}
+                                                        onSelect={(currentValue) => {
+                                                            handleTaskToggle(option, task.id);
+                                                            // Prevent popover from closing
+                                                            const e = new Event('input', { bubbles: true });
+                                                            const input = document.querySelector(`[cmdk-input]`);
+                                                            input?.dispatchEvent(e);
+                                                        }}
                                                     >
                                                         <Check
                                                             className={cn(
