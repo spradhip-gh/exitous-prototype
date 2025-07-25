@@ -77,7 +77,7 @@ export function buildProfileSchema(questions: Question[]) {
     return schema;
 }
 
-
+const optionalDateOrString = z.union([z.date(), z.string().refine(val => val === "Unsure", { message: "Invalid input" })]).optional();
 
 const baseAssessmentFields = {
   companyName: z.string().optional(),
@@ -98,22 +98,22 @@ const baseAssessmentFields = {
   hadEAP: z.string({ required_error: 'This field is required.' }).min(1),
   
   // Conditionally rendered fields are optional at base
-  severanceAgreementDeadline: z.date().optional(),
-  relocationDate: z.date().optional(),
+  severanceAgreementDeadline: optionalDateOrString,
+  relocationDate: optionalDateOrString,
   workArrangementOther: z.string().optional(),
   usedLeaveManagement: z.string().optional(),
-  internalMessagingAccessEndDate: z.date().optional(),
-  emailAccessEndDate: z.date().optional(),
-  networkDriveAccessEndDate: z.date().optional(),
-  layoffPortalAccessEndDate: z.date().optional(),
-  hrPayrollSystemAccessEndDate: z.date().optional(),
+  internalMessagingAccessEndDate: optionalDateOrString,
+  emailAccessEndDate: optionalDateOrString,
+  networkDriveAccessEndDate: optionalDateOrString,
+  layoffPortalAccessEndDate: optionalDateOrString,
+  hrPayrollSystemAccessEndDate: optionalDateOrString,
   medicalCoverage: z.string().optional(),
-  medicalCoverageEndDate: z.date().optional(),
+  medicalCoverageEndDate: optionalDateOrString,
   dentalCoverage: z.string().optional(),
-  dentalCoverageEndDate: z.date().optional(),
+  dentalCoverageEndDate: optionalDateOrString,
   visionCoverage: z.string().optional(),
-  visionCoverageEndDate: z.date().optional(),
-  eapCoverageEndDate: z.date().optional(),
+  visionCoverageEndDate: optionalDateOrString,
+  eapCoverageEndDate: optionalDateOrString,
 };
 
 export type AssessmentData = z.infer<z.ZodObject<typeof baseAssessmentFields>> & { citizenshipStatus?: string };

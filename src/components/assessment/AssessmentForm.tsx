@@ -54,19 +54,37 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                     <SelectContent>{question.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                 </Select>
             );
-        case 'date':
+        case 'date': {
+            const isUnsure = field.value === 'Unsure';
             return (
-                <Popover><PopoverTrigger asChild>
-                    <FormControl>
-                        <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : <span>{question.placeholder}</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                    </FormControl>
-                </PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
-                    <Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                </PopoverContent></Popover>
+                <div className="flex items-center gap-4">
+                    <Popover><PopoverTrigger asChild>
+                        <FormControl>
+                            <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")} disabled={isUnsure}>
+                                {field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, "PPP") : (isUnsure ? "I'm not sure" : <span>{question.placeholder}</span>)}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                        </FormControl>
+                    </PopoverTrigger><PopoverContent className="w-auto p-0" align="start">
+                        <Calendar captionLayout="dropdown-buttons" fromYear={1960} toYear={new Date().getFullYear() + 5} mode="single" selected={isUnsure ? undefined : field.value} onSelect={field.onChange} initialFocus />
+                    </PopoverContent></Popover>
+                    {question.parentId && (
+                        <div className="flex items-center space-x-2">
+                             <Checkbox
+                                id={`${question.id}-unsure`}
+                                checked={isUnsure}
+                                onCheckedChange={(checked) => {
+                                    field.onChange(checked ? 'Unsure' : undefined);
+                                }}
+                            />
+                            <label htmlFor={`${question.id}-unsure`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                I'm not sure
+                            </label>
+                        </div>
+                    )}
+                </div>
             );
+        }
         case 'radio':
             return (
                  <FormControl><RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="flex flex-wrap gap-4">
