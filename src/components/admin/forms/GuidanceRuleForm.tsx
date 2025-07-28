@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
@@ -194,6 +195,22 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
+
+        const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
+        const mappedAnswersInOtherRules = new Set(
+            otherRules.flatMap(r => r.conditions.map(c => c.answer))
+        );
+
+        const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
+        if (conflict) {
+            toast({
+                title: "Mapping Conflict",
+                description: `The answer "${conflict}" is already mapped in another rule for this question.`,
+                variant: "destructive"
+            });
+            return;
+        }
+
         const id = selectedRuleId || uuidv4();
         const rule: GuidanceRule = {
             id,
@@ -260,6 +277,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         setRanges(newRanges);
     };
 
+    const handleDelete = () => {
+        if (selectedRuleId) {
+            onDelete(selectedRuleId);
+            setSelectedRuleId(null);
+            resetForm();
+        }
+    };
+
     return (
         <div>
             <CardContent className="space-y-6">
@@ -278,7 +303,26 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         <Button variant="outline" className="w-full" onClick={() => setSelectedRuleId(null)}><PlusCircle className="mr-2"/> New Rule</Button>
                     </div>
                     <div className="col-span-3 border-l pl-6">
-                        <h3 className="font-semibold text-lg mb-2">{selectedRuleId ? 'Edit Rule' : 'Create New Rule'}</h3>
+                         <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-semibold text-lg">{selectedRuleId ? 'Edit Rule' : 'Create New Rule'}</h3>
+                             {selectedRuleId && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="sm"><Trash2 className="mr-2" /> Delete Rule</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will permanently delete the rule "{ruleName}". This action cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDelete}>Yes, Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                        </div>
                         
                         <div className="space-y-2 mb-4">
                             <Label htmlFor="rule-name">Rule Name</Label>
