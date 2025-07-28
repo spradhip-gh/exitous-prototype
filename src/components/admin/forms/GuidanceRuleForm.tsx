@@ -137,6 +137,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     const [directTasks, setDirectTasks] = useState<string[]>([]);
     const [directTips, setDirectTips] = useState<string[]>([]);
     const [isNoGuidanceDirect, setIsNoGuidanceDirect] = useState(false);
+    const [isCatchAll, setIsCatchAll] = useState(false);
     
     // Calculated mapping state
     const [calculationType, setCalculationType] = useState<Calculation['type']>('tenure');
@@ -155,6 +156,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         setDirectTasks([]);
         setDirectTips([]);
         setIsNoGuidanceDirect(false);
+        setIsCatchAll(false);
         setCalculationType('tenure');
         setCalculationUnit('years');
         setStartDateQuestion('');
@@ -169,10 +171,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                 setRuleName(rule.name);
                 setRuleType(rule.type);
                 if (rule.type === 'direct') {
-                    setDirectAnswers(rule.conditions.map(c => c.answer || ''));
+                    const answers = rule.conditions.map(c => c.answer || '');
+                    setDirectAnswers(answers);
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
+                    setIsCatchAll(answers.length === 0 && rule.conditions.some(c => c.answer === undefined));
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     setCalculationUnit(rule.calculation?.unit || 'years');
@@ -191,33 +195,37 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     if (!question) return null;
 
     const handleSaveDirectRule = () => {
-        if (directAnswers.length === 0 && !isNoGuidanceDirect) {
-            toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
+        if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
+            toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
             return;
         }
 
         const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
-        const mappedAnswersInOtherRules = new Set(
-            otherRules.flatMap(r => r.conditions.map(c => c.answer))
-        );
 
-        const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
-        if (conflict) {
-            toast({
-                title: "Mapping Conflict",
-                description: `The answer "${conflict}" is already mapped in another rule for this question.`,
-                variant: "destructive"
-            });
-            return;
+        // Check for conflicts
+        if (isCatchAll) {
+            if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
+                toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
+                return;
+            }
+        } else {
+            const mappedAnswersInOtherRules = new Set(
+                otherRules.flatMap(r => r.conditions.map(c => c.answer))
+            );
+            const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
+            if (conflict) {
+                toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
+                return;
+            }
         }
-
+        
         const id = selectedRuleId || uuidv4();
         const rule: GuidanceRule = {
             id,
             questionId: question.id,
-            name: ruleName || `${question.label} - ${directAnswers.join(', ')}`,
+            name: ruleName || `${question.label} - ${isCatchAll ? 'All Answers' : directAnswers.join(', ')}`,
             type: 'direct',
-            conditions: directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
+            conditions: isCatchAll ? [{ type: 'question', questionId: question.id }] : directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
             assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
         };
         onSave(rule);
@@ -345,24 +353,30 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
-                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options || [])}>Select All</Button>
+                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options || [])} disabled={isCatchAll}>Select All</Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
+                                        <Label htmlFor="catch-all">Apply this rule to all answers for this question</Label>
+                                    </div>
                                     <ScrollArea className="h-40">
-                                        <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
-                                            {question.options?.map(option => (
-                                                <div key={option} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`answer-${option}`}
-                                                        checked={directAnswers.includes(option)}
-                                                        onCheckedChange={(checked) => {
-                                                            setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
-                                                        }}
-                                                    />
-                                                    <Label htmlFor={`answer-${option}`} className="font-normal">{option}</Label>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <fieldset disabled={isCatchAll}>
+                                            <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
+                                                {question.options?.map(option => (
+                                                    <div key={option} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`answer-${option}`}
+                                                            checked={directAnswers.includes(option)}
+                                                            onCheckedChange={(checked) => {
+                                                                setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
+                                                            }}
+                                                        />
+                                                        <Label htmlFor={`answer-${option}`} className="font-normal">{option}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </fieldset>
                                     </ScrollArea>
                                 </div>
                                  <div className="flex items-center space-x-2">
