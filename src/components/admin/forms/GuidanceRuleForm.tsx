@@ -69,14 +69,19 @@ function MultiSelectPopover({
                                                     : [...validSelectedIds, item.id];
                                                 onSelectionChange(newSelection);
                                             }}
+                                            className="flex items-center justify-between"
                                         >
-                                            <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    validSelectedIds.includes(item.id) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
                                             <span className="truncate">{item.name}</span>
+                                             <Checkbox
+                                                className="h-4 w-4"
+                                                checked={validSelectedIds.includes(item.id)}
+                                                onCheckedChange={() => {
+                                                    const newSelection = validSelectedIds.includes(item.id)
+                                                        ? validSelectedIds.filter(id => id !== item.id)
+                                                        : [...validSelectedIds, item.id];
+                                                    onSelectionChange(newSelection);
+                                                }}
+                                            />
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
