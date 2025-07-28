@@ -1,10 +1,11 @@
 
+
 'use client';
 import { useState, useMemo } from "react";
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule } from "@/hooks/use-user-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import GuidanceRuleForm from "./GuidanceRuleForm";
 
@@ -88,6 +89,12 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
 
             <Dialog open={isRuleFormOpen} onOpenChange={setIsRuleFormOpen}>
                 <DialogContent className="max-w-4xl">
+                     <DialogHeader>
+                        <DialogTitle>Manage Guidance for "{selectedQuestion?.label}"</DialogTitle>
+                        <DialogDescription>
+                            Define rules to assign tasks and tips. Rules can be based on direct answers or calculated values like age or tenure.
+                        </DialogDescription>
+                    </DialogHeader>
                     <GuidanceRuleForm
                         question={selectedQuestion}
                         allQuestions={questions}
