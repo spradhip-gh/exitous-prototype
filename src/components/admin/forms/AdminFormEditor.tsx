@@ -4,21 +4,17 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, CompanyConfig, TaskMapping, MasterTask, MasterTip, TipMapping, GuidanceRule } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Link, Check, ChevronsUpDown, Trash2, GitBranch } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GuidanceEditor from './GuidanceEditor';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import TaskForm from '@/components/admin/tasks/TaskForm';
-import TipForm from '@/components/admin/tips/TipForm';
 
 
 interface OrderedSection {
@@ -44,6 +40,10 @@ export default function AdminFormEditor() {
         saveMasterQuestions, 
         masterProfileQuestions,
         saveMasterProfileQuestions,
+        guidanceRules,
+        saveGuidanceRules,
+        masterTasks,
+        masterTips,
     } = useUserData();
 
     const allQuestions = useMemo(() => {
@@ -63,7 +63,7 @@ export default function AdminFormEditor() {
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
-                        <TabsTrigger value="guidance">Guidance Editor</TabsTrigger>
+                        <TabsTrigger value="guidance">Guidance Rules</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile" className="mt-6">
                         <QuestionEditor
@@ -82,8 +82,12 @@ export default function AdminFormEditor() {
                         />
                     </TabsContent>
                     <TabsContent value="guidance" className="mt-6">
-                        <GuidanceEditor 
+                        <GuidanceEditor
                             questions={allQuestions}
+                            guidanceRules={guidanceRules}
+                            saveGuidanceRules={saveGuidanceRules}
+                            masterTasks={masterTasks}
+                            masterTips={masterTips}
                         />
                     </TabsContent>
                 </Tabs>
