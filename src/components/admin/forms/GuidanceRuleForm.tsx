@@ -100,7 +100,8 @@ function MultiSelectPopover({
                         ))}
                     </ScrollArea>
                     <DropdownMenuSeparator />
-                     <DropdownMenuItem onSelect={() => {
+                     <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault();
                         onAddNew();
                         setOpen(false);
                      }}>
@@ -128,7 +129,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
 }) {
     const { toast } = useToast();
     const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
-    const [ruleType, setRuleType] = useState<RuleType>('direct');
+    const [ruleType, setRuleType] = useState<'direct' | 'calculated'>('direct');
     
     // Direct mapping state
     const [directAnswers, setDirectAnswers] = useState<string[]>([]);
@@ -137,11 +138,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     const [isNoGuidanceDirect, setIsNoGuidanceDirect] = useState(false);
     
     // Calculated mapping state
-    const [calculationType, setCalculationType] = useState<CalculationType>('tenure');
+    const [calculationType, setCalculationType] = useState<Calculation['type']>('tenure');
     const [calculationUnit, setCalculationUnit] = useState<'years' | 'days'>('years');
     const [startDateQuestion, setStartDateQuestion] = useState<string>('');
     const [endDateQuestion, setEndDateQuestion] = useState<string>('');
-    const [ranges, setRanges] = useState<Range[]>([{ from: 0, to: 5, tasks:[], tips:[] }]);
+    const [ranges, setRanges] = useState<({ from: number, to: number, tasks:string[], tips:string[], noGuidanceRequired?: boolean})[]>([{ from: 0, to: 5, tasks:[], tips:[] }]);
     const [ruleName, setRuleName] = useState('');
 
     const dateQuestions = useMemo(() => allQuestions.filter(q => q.type === 'date'), [allQuestions]);
@@ -189,7 +190,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     if (!question) return null;
 
     const handleSaveDirectRule = () => {
-        if (directAnswers.length === 0) {
+        if (directAnswers.length === 0 && !isNoGuidanceDirect) {
             toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
@@ -242,7 +243,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         resetForm();
     };
 
-    const handleUpdateRange = (index: number, field: keyof Range, value: any) => {
+    const handleUpdateRange = (index: number, field: keyof typeof ranges[0], value: any) => {
         const newRanges = [...ranges];
         (newRanges[index] as any)[field] = value;
         setRanges(newRanges);
@@ -286,7 +287,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         <div className="my-4">
                             <Label>Rule Type</Label>
-                            <Select value={ruleType} onValueChange={(v) => setRuleType(v as RuleType)}>
+                            <Select value={ruleType} onValueChange={(v) => setRuleType(v as 'direct' | 'calculated')}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="direct"><LinkIcon className="mr-2" />Direct Answer Mapping</SelectItem>
@@ -298,7 +299,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         {ruleType === 'direct' && (
                              <div className="space-y-4 p-4 border rounded-md">
                                 <div className="space-y-2">
-                                    <Label>Answers to Map</Label>
+                                    <div className="flex justify-between items-center">
+                                        <Label>Answers to Map</Label>
+                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options || [])}>Select All</Button>
+                                    </div>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
                                     <ScrollArea className="h-40">
                                         <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
@@ -348,7 +352,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Calculation Type</Label>
-                                        <Select value={calculationType} onValueChange={(v) => setCalculationType(v as CalculationType)}>
+                                        <Select value={calculationType} onValueChange={(v) => setCalculationType(v as Calculation['type'])}>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="tenure">Tenure (End Date - Start Date)</SelectItem>
