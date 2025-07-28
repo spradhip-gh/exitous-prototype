@@ -11,15 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit, Check } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
-import TaskForm from '../tasks/TaskForm';
-import TipForm from '../tips/TipForm';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 type RuleType = 'direct' | 'calculated';
 type CalculationType = 'age' | 'tenure';
@@ -31,18 +28,22 @@ function MultiSelectPopover({
     selectedIds,
     onSelectionChange,
     onAddNew,
-    triggerText
 }: {
     label: string,
     items: { id: string; name: string }[],
     onSelectionChange: (newIds: string[]) => void,
     onAddNew: () => void,
-    triggerText: string,
     selectedIds?: string[],
 }) {
     const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
     const validSelectedIds = selectedIds || [];
 
+    const filteredItems = useMemo(() => {
+        if (!search) return items;
+        return items.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
+    }, [search, items]);
+    
     const handleSelect = (id: string) => {
         const newSelection = validSelectedIds.includes(id)
             ? validSelectedIds.filter(currentId => currentId !== id)
@@ -53,49 +54,44 @@ function MultiSelectPopover({
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
+            <DropdownMenu open={open} onOpenChange={setOpen}>
+                <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
                         <span>{validSelectedIds.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
                     </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
-                        <CommandInput placeholder={`Search ${triggerText}...`} />
-                        <ScrollArea className="h-64">
-                            <CommandList>
-                                <CommandEmpty>No {triggerText} found.</CommandEmpty>
-                                <CommandGroup>
-                                    {items.map(item => (
-                                        <CommandItem
-                                            key={item.id}
-                                            value={item.name}
-                                            onSelect={() => handleSelect(item.id)}
-                                            className="flex items-center justify-between"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                        >
-                                            <span className="truncate">{item.name}</span>
-                                             <Checkbox
-                                                className="h-4 w-4"
-                                                checked={validSelectedIds.includes(item.id)}
-                                            />
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </CommandList>
-                        </ScrollArea>
-                        <CommandGroup className="border-t">
-                            <CommandItem onSelect={() => {
-                                onAddNew();
-                                setOpen(false);
-                            }}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                <span>Create new {triggerText.toLowerCase()}...</span>
-                            </CommandItem>
-                        </CommandGroup>
-                    </Command>
-                </PopoverContent>
-            </Popover>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[300px]" align="start">
+                    <div className="p-2">
+                         <Input 
+                            placeholder={`Search ${label.toLowerCase()}...`}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="h-8"
+                        />
+                    </div>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="h-64">
+                         {filteredItems.map(item => (
+                            <DropdownMenuCheckboxItem
+                                key={item.id}
+                                checked={validSelectedIds.includes(item.id)}
+                                onCheckedChange={() => handleSelect(item.id)}
+                                onSelect={(e) => e.preventDefault()} // Prevents menu from closing
+                            >
+                                {item.name}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </ScrollArea>
+                    <DropdownMenuSeparator />
+                     <DropdownMenuItem onSelect={() => {
+                        onAddNew();
+                        setOpen(false);
+                     }}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create new {label.toLowerCase().slice(0, -1)}...
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }
@@ -315,7 +311,6 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         selectedIds={directTasks}
                                         onSelectionChange={setDirectTasks}
                                         onAddNew={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}
-                                        triggerText="Tasks"
                                     />
                                     <MultiSelectPopover
                                         label="Tips to Show"
@@ -323,7 +318,6 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         selectedIds={directTips}
                                         onSelectionChange={setDirectTips}
                                         onAddNew={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}
-                                        triggerText="Tips"
                                     />
                                 </fieldset>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
@@ -394,20 +388,18 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                     </div>
                                                     <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">
                                                          <MultiSelectPopover
-                                                            label="Tasks"
+                                                            label="Tasks to Assign"
                                                             items={masterTasks.map(t => ({id: t.id, name: t.name}))}
                                                             selectedIds={range.tasks}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tasks', newIds)}
                                                             onAddNew={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}
-                                                            triggerText="Tasks"
                                                         />
                                                          <MultiSelectPopover
-                                                            label="Tips"
+                                                            label="Tips to Show"
                                                             items={masterTips.map(t => ({id: t.id, name: t.text}))}
                                                             selectedIds={range.tips}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tips', newIds)}
                                                             onAddNew={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}
-                                                            triggerText="Tips"
                                                         />
                                                     </fieldset>
                                                     <div className="flex items-center space-x-2 col-span-2">

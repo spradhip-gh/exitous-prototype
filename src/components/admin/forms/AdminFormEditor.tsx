@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GuidanceEditor from './GuidanceEditor';
+import TaskForm from '../tasks/TaskForm';
+import TipForm from '../tips/TipForm';
 
 
 interface OrderedSection {
@@ -321,4 +323,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         </>
     );
 }
-
