@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition } from "@/hooks/use-user-data";
+import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
 import { tenureOptions } from '@/lib/guidance-helpers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
-import { externalResources } from 'virtual:genkit-actions-dev';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type RuleType = 'direct' | 'calculated';
@@ -48,6 +47,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     // Calculated mapping state
     const [calculationType, setCalculationType] = useState<CalculationType>('tenure');
+    const [calculationUnit, setCalculationUnit] = useState<'years' | 'days'>('years');
     const [startDateQuestion, setStartDateQuestion] = useState<string>('');
     const [endDateQuestion, setEndDateQuestion] = useState<string>('');
     const [ranges, setRanges] = useState<Range[]>([{ from: 0, to: 5, tasks:[], tips:[] }]);
@@ -63,6 +63,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         setDirectTips([]);
         setIsNoGuidanceDirect(false);
         setCalculationType('tenure');
+        setCalculationUnit('years');
         setStartDateQuestion('');
         setEndDateQuestion('');
         setRanges([{ from: 0, to: 5, tasks:[], tips:[], noGuidanceRequired: false }]);
@@ -81,6 +82,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
+                    setCalculationUnit(rule.calculation?.unit || 'years');
                     if(rule.calculation?.type === 'tenure') {
                         setStartDateQuestion(rule.calculation.startDateQuestionId || '');
                         setEndDateQuestion(rule.calculation.endDateQuestionId || '');
@@ -133,6 +135,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             conditions: [], // Conditions are implicit in the calculation
             calculation: {
                 type: calculationType,
+                unit: calculationUnit,
                 startDateQuestionId: calculationType === 'tenure' ? startDateQuestion : undefined,
                 endDateQuestionId: calculationType === 'tenure' ? endDateQuestion : undefined,
             },
@@ -157,7 +160,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     const handleAddRange = () => {
         const lastRange = ranges[ranges.length - 1];
         const newFrom = lastRange ? lastRange.to : 0;
-        setRanges([...ranges, { from: newFrom, to: newFrom + 5, tasks: [], tips: [] }]);
+        setRanges([...ranges, { from: newFrom, to: newFrom + (calculationUnit === 'years' ? 5 : 30), tasks: [], tips: [] }]);
     };
     
     const handleRemoveRange = (index: number) => {
@@ -285,15 +288,27 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         {ruleType === 'calculated' && (
                             <div className="space-y-4 p-4 border rounded-md">
-                                <div className="space-y-2">
-                                    <Label>Calculation Type</Label>
-                                    <Select value={calculationType} onValueChange={(v) => setCalculationType(v as CalculationType)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="tenure">Tenure (End Date - Start Date)</SelectItem>
-                                            <SelectItem value="age">Age (Today - {question.label})</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Calculation Type</Label>
+                                        <Select value={calculationType} onValueChange={(v) => setCalculationType(v as CalculationType)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="tenure">Tenure (End Date - Start Date)</SelectItem>
+                                                <SelectItem value="age">Age (Today - {question.label})</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Unit</Label>
+                                        <Select value={calculationUnit} onValueChange={(v) => setCalculationUnit(v as 'years' | 'days')}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="years">Years</SelectItem>
+                                                <SelectItem value="days">Days</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 {calculationType === 'tenure' && (
                                      <div className="grid grid-cols-2 gap-4">
@@ -318,7 +333,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                      </div>
                                 )}
                                 <Separator />
-                                <Label>Ranges (in years)</Label>
+                                <Label>Ranges</Label>
                                 <ScrollArea className="h-64">
                                 <div className="space-y-4 pr-4">
                                     {ranges.map((range, index) => (
@@ -326,11 +341,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                             <div className="flex items-start gap-4">
                                                 <div className="grid grid-cols-2 gap-2 flex-grow">
                                                     <div className="space-y-1">
-                                                        <Label>From</Label>
+                                                        <Label>From ({calculationUnit})</Label>
                                                         <Input type="number" value={range.from} onChange={e => handleUpdateRange(index, 'from', Number(e.target.value))} />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <Label>To</Label>
+                                                        <Label>To ({calculationUnit})</Label>
                                                         <Input type="number" value={range.to} onChange={e => handleUpdateRange(index, 'to', Number(e.target.value))} />
                                                     </div>
                                                     <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">

@@ -52,12 +52,31 @@ export interface Condition {
     unit?: 'days' | 'weeks' | 'months';
     comparison?: 'from_today';
 }
+
+export interface Calculation {
+    type: 'age' | 'tenure';
+    unit: 'years' | 'days';
+    startDateQuestionId?: string;
+    endDateQuestionId?: string;
+}
+export interface RangeAssignment {
+    taskIds: string[];
+    tipIds: string[];
+    noGuidanceRequired?: boolean;
+}
 export interface GuidanceRule {
     id: string;
     name: string;
-    companyId?: 'all'; // For now, all rules are global
+    questionId: string;
+    type: 'direct' | 'calculated';
     conditions: Condition[];
-    taskId: string;
+    calculation?: Calculation;
+    ranges?: {
+        from: number;
+        to: number;
+        assignments: RangeAssignment;
+    }[];
+    assignments: RangeAssignment;
 }
 
 export interface HrPermissions {
