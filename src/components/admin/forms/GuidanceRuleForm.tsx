@@ -18,9 +18,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
-type RuleType = 'direct' | 'calculated';
-type CalculationType = 'age' | 'tenure';
-type Range = { from: number; to: number; tasks: string[]; tips: string[], noGuidanceRequired?: boolean };
+const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
+const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 
 function MultiSelectPopover({
     label,
@@ -28,21 +27,33 @@ function MultiSelectPopover({
     selectedIds,
     onSelectionChange,
     onAddNew,
+    categories,
 }: {
     label: string,
-    items: { id: string; name: string }[],
+    items: { id: string; name: string; category: string }[],
     onSelectionChange: (newIds: string[]) => void,
     onAddNew: () => void,
     selectedIds?: string[],
+    categories: string[],
 }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
     const validSelectedIds = selectedIds || [];
 
     const filteredItems = useMemo(() => {
-        if (!search) return items;
-        return items.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
-    }, [search, items]);
+        let list = items;
+
+        if (categoryFilter) {
+            list = list.filter(item => item.category === categoryFilter);
+        }
+
+        if (search) {
+            list = list.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
+        }
+
+        return list;
+    }, [search, items, categoryFilter]);
     
     const handleSelect = (id: string) => {
         const newSelection = validSelectedIds.includes(id)
@@ -69,6 +80,12 @@ function MultiSelectPopover({
                             className="h-8"
                         />
                     </div>
+                     <div className="p-2 pt-0 flex flex-wrap gap-1">
+                        <Button variant={!categoryFilter ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(null)}>All</Button>
+                        {categories.map(cat => (
+                             <Button key={cat} variant={categoryFilter === cat ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(cat)}>{cat}</Button>
+                        ))}
+                    </div>
                     <DropdownMenuSeparator />
                     <ScrollArea className="h-64">
                          {filteredItems.map(item => (
@@ -76,9 +93,9 @@ function MultiSelectPopover({
                                 key={item.id}
                                 checked={validSelectedIds.includes(item.id)}
                                 onCheckedChange={() => handleSelect(item.id)}
-                                onSelect={(e) => e.preventDefault()} // Prevents menu from closing
+                                onSelect={(e) => e.preventDefault()}
                             >
-                                {item.name}
+                                <span className="truncate" title={item.name}>{item.name}</span>
                             </DropdownMenuCheckboxItem>
                         ))}
                     </ScrollArea>
@@ -307,17 +324,19 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <fieldset disabled={isNoGuidanceDirect} className="grid grid-cols-2 gap-4">
                                      <MultiSelectPopover
                                         label="Tasks to Assign"
-                                        items={masterTasks.map(t => ({id: t.id, name: t.name}))}
+                                        items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                                         selectedIds={directTasks}
                                         onSelectionChange={setDirectTasks}
                                         onAddNew={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}
+                                        categories={taskCategories}
                                     />
                                     <MultiSelectPopover
                                         label="Tips to Show"
-                                        items={masterTips.map(t => ({id: t.id, name: t.text}))}
+                                        items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                                         selectedIds={directTips}
                                         onSelectionChange={setDirectTips}
                                         onAddNew={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}
+                                        categories={tipCategories}
                                     />
                                 </fieldset>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
@@ -389,17 +408,19 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                     <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">
                                                          <MultiSelectPopover
                                                             label="Tasks to Assign"
-                                                            items={masterTasks.map(t => ({id: t.id, name: t.name}))}
+                                                            items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                                                             selectedIds={range.tasks}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tasks', newIds)}
                                                             onAddNew={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}
+                                                            categories={taskCategories}
                                                         />
                                                          <MultiSelectPopover
                                                             label="Tips to Show"
-                                                            items={masterTips.map(t => ({id: t.id, name: t.text}))}
+                                                            items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                                                             selectedIds={range.tips}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tips', newIds)}
                                                             onAddNew={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}
+                                                            categories={tipCategories}
                                                         />
                                                     </fieldset>
                                                     <div className="flex items-center space-x-2 col-span-2">
