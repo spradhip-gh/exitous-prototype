@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace } from 'lucide-react';
 import Papa from 'papaparse';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -99,7 +99,7 @@ function TaskForm({ isOpen, onOpenChange, onSave, task, allResources }: {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
-                        <Select name="category" value={formData.category} onValueChange={(v) => handleSelectChange('category', v)}>
+                        <Select name="category" value={formData.category} onValueChange={(v) => handleSelectChange('category', v as any)}>
                             <SelectTrigger id="category"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {taskCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
@@ -156,6 +156,7 @@ export default function TaskManagementPage() {
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
     const [viewingMappings, setViewingMappings] = useState<any[] | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const replaceFileInputRef = React.useRef<HTMLInputElement>(null);
     
     const allQuestions = useMemo(() => {
         return {...masterQuestions, ...masterProfileQuestions};
@@ -219,11 +220,8 @@ export default function TaskManagementPage() {
         link.click();
         document.body.removeChild(link);
     }, []);
-
-    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
+    
+    const processCsvFile = useCallback((file: File, replace: boolean) => {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -239,7 +237,7 @@ export default function TaskManagementPage() {
                 
                 let updatedCount = 0;
                 let addedCount = 0;
-                let newMasterTasks = [...masterTasks];
+                let newMasterTasks = replace ? [] : [...masterTasks];
 
                 results.data.forEach((row: any) => {
                     const id = row.id?.trim();
@@ -267,14 +265,31 @@ export default function TaskManagementPage() {
                 });
 
                 saveMasterTasks(newMasterTasks);
-                toast({ title: "Upload Complete", description: `${addedCount} tasks added, ${updatedCount} tasks updated.` });
+                if(replace) {
+                    toast({ title: "Upload Complete", description: `Task list replaced with ${addedCount} tasks from the file.` });
+                } else {
+                    toast({ title: "Upload Complete", description: `${addedCount} tasks added, ${updatedCount} tasks updated.` });
+                }
             },
             error: (error) => {
                 toast({ title: "Upload Error", description: error.message, variant: "destructive" });
             }
         });
-        if (fileInputRef.current) fileInputRef.current.value = "";
     }, [masterTasks, saveMasterTasks, toast]);
+
+    const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        processCsvFile(file, false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }, [processCsvFile]);
+
+    const handleReplaceUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        processCsvFile(file, true);
+        if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
+    }, [processCsvFile]);
 
 
     return (
@@ -296,10 +311,30 @@ export default function TaskManagementPage() {
                         <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
                     </CardHeader>
                      <CardContent>
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
                             <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
                             <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button>
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
+                            <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
+                                            Continue
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                         <Table>
                             <TableHeader>
