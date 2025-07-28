@@ -619,8 +619,111 @@ This checklist is designed to help you manage key tasks during your employment t
         ],
         guidanceRules: [],
         masterTips: [
-            { id: 'tip-cobra-1', type: 'layoff', priority: 'High', category: 'Health', text: 'You generally have 60 days to elect COBRA coverage after your health plan ends.' },
-            { id: 'tip-401k-2', type: 'layoff', priority: 'Medium', category: 'Financial', text: 'Rolling over your 401(k) to an IRA can often give you more investment options and lower fees.' }
+            {
+                "id": "tip-cobra-1",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Health",
+                "text": "You generally have 60 days from the date of your qualifying event (or the date you receive your election notice) to elect COBRA coverage."
+            },
+            {
+                "id": "tip-401k-2",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Financial",
+                "text": "Leaving your money in your former employer's 401(k) is an option, but rolling it over to an IRA often gives you more investment choices and potentially lower fees."
+            },
+            {
+                "id": "tip-unemployment-3",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Financial",
+                "text": "Most states have a one-week waiting period before unemployment benefits begin. Apply as soon as you're eligible to minimize delays."
+            },
+            {
+                "id": "tip-networking-4",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Career",
+                "text": "Don't just ask for a job. When networking, ask for advice, information, or insights. This often leads to more meaningful connections and uncovers hidden opportunities."
+            },
+            {
+                "id": "tip-severance-5",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Legal",
+                "text": "A severance agreement is a legal contract. It's highly advisable to have an employment lawyer review it before you sign away any rights."
+            },
+            {
+                "id": "tip-fsa-6",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Financial",
+                "text": "Flexible Spending Account (FSA) funds are often 'use-it-or-lose-it' after you leave your job. Check your plan's deadlines for submitting claims."
+            },
+            {
+                "id": "tip-linkedin-7",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Career",
+                "text": "On LinkedIn, you can privately signal to recruiters that you're 'Open to Work' without it showing publicly on your profile."
+            },
+            {
+                "id": "tip-mental-health-8",
+                "type": "anxious",
+                "priority": "High",
+                "category": "Health",
+                "text": "Job searching is a marathon, not a sprint. Schedule breaks and do activities you enjoy to avoid burnout and maintain your mental health."
+            },
+            {
+                "id": "tip-budget-9",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Financial",
+                "text": "When creating a transition budget, categorize expenses into 'needs' and 'wants' to easily identify areas where you can cut back if necessary."
+            },
+            {
+                "id": "tip-resume-10",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Career",
+                "text": "Tailor your resume for each job application by using keywords from the job description. This helps get past automated screening systems (ATS)."
+            },
+            {
+                "id": "tip-hsa-11",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Health",
+                "text": "Unlike an FSA, the money in your Health Savings Account (HSA) is yours to keep and use for medical expenses, even after you've left your job."
+            },
+            {
+                "id": "tip-references-12",
+                "type": "layoff",
+                "priority": "Low",
+                "category": "Career",
+                "text": "Always ask for permission before listing someone as a professional reference and give them a heads-up about the roles you're applying for."
+            },
+            {
+                "id": "tip-routine-13",
+                "type": "anxious",
+                "priority": "Medium",
+                "category": "Health",
+                "text": "Maintaining a daily routine, including getting dressed for 'work' even if you're at home, can significantly boost productivity and morale."
+            },
+            {
+                "id": "tip-taxes-14",
+                "type": "layoff",
+                "priority": "High",
+                "category": "Financial",
+                "text": "Your severance pay is taxable income. You may want to set aside a portion of it for taxes."
+            },
+            {
+                "id": "tip-negotiation-15",
+                "type": "layoff",
+                "priority": "Medium",
+                "category": "Career",
+                "text": "Even in a tough market, there can be room to negotiate a job offer. This can include salary, start date, vacation time, or remote work options."
+            }
         ],
         tipMappings: [],
     }
@@ -689,4 +792,6 @@ export const saveMasterTips = (data: MasterTip[]) => { db.masterTips = data; };
 
 export const getTipMappings = () => db.tipMappings;
 export const saveTipMappings = (data: TipMapping[]) => { db.tipMappings = data; };
+    
+
     
