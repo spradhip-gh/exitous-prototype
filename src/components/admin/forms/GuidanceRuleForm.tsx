@@ -11,16 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+import TaskForm from '../tasks/TaskForm';
+import TipForm from '../tips/TipForm';
+import { externalResources } from 'virtual:genkit-actions-dev';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type RuleType = 'direct' | 'calculated';
 type CalculationType = 'age' | 'tenure';
-type Range = { from: number; to: number; tasks: string[]; tips: string[] };
+type Range = { from: number; to: number; tasks: string[]; tips: string[], noGuidanceRequired?: boolean };
 
-export default function GuidanceRuleForm({ question, allQuestions, existingRules, onSave, onDelete, masterTasks, masterTips }: {
+export default function GuidanceRuleForm({ question, allQuestions, existingRules, onSave, onDelete, masterTasks, masterTips, onAddNewTask, onAddNewTip, allResources }: {
     question: Question | null;
     allQuestions: Question[];
     existingRules: GuidanceRule[];
@@ -28,6 +32,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     onDelete: (ruleId: string) => void;
     masterTasks: MasterTask[];
     masterTips: MasterTip[];
+    onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
+    onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
+    allResources: any[];
 }) {
     const { toast } = useToast();
     const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
@@ -37,6 +44,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     const [directAnswers, setDirectAnswers] = useState<string[]>([]);
     const [directTasks, setDirectTasks] = useState<string[]>([]);
     const [directTips, setDirectTips] = useState<string[]>([]);
+    const [isNoGuidanceDirect, setIsNoGuidanceDirect] = useState(false);
     
     // Calculated mapping state
     const [calculationType, setCalculationType] = useState<CalculationType>('tenure');
@@ -53,10 +61,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         setDirectAnswers([]);
         setDirectTasks([]);
         setDirectTips([]);
+        setIsNoGuidanceDirect(false);
         setCalculationType('tenure');
         setStartDateQuestion('');
         setEndDateQuestion('');
-        setRanges([{ from: 0, to: 5, tasks:[], tips:[] }]);
+        setRanges([{ from: 0, to: 5, tasks:[], tips:[], noGuidanceRequired: false }]);
     }
     
     useEffect(() => {
@@ -69,13 +78,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     setDirectAnswers(rule.conditions.map(c => c.answer || ''));
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
+                    setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     if(rule.calculation?.type === 'tenure') {
                         setStartDateQuestion(rule.calculation.startDateQuestionId || '');
                         setEndDateQuestion(rule.calculation.endDateQuestionId || '');
                     }
-                    setRanges(rule.ranges?.map(r => ({ from: r.from, to: r.to, tasks: r.assignments.taskIds, tips: r.assignments.tipIds })) || [{ from: 0, to: 5, tasks:[], tips:[] }])
+                    setRanges(rule.ranges?.map(r => ({ from: r.from, to: r.to, tasks: r.assignments.taskIds, tips: r.assignments.tipIds, noGuidanceRequired: r.assignments.noGuidanceRequired || false })) || [{ from: 0, to: 5, tasks:[], tips:[] }])
                 }
             }
         } else {
@@ -97,7 +107,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             name: ruleName || `${question.label} - ${directAnswers.join(', ')}`,
             type: 'direct',
             conditions: directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
-            assignments: { taskIds: directTasks, tipIds: directTips }
+            assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
         };
         onSave(rule);
         setSelectedRuleId(null);
@@ -129,7 +139,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             ranges: ranges.map(r => ({
                 from: r.from,
                 to: r.to,
-                assignments: { taskIds: r.tasks, tipIds: r.tips }
+                assignments: { taskIds: r.tasks, tipIds: r.tips, noGuidanceRequired: r.noGuidanceRequired || false }
             })),
             assignments: { taskIds: [], tipIds: [] } // Base assignments not used for calculated rules
         };
@@ -161,13 +171,15 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                 <div className="grid grid-cols-4 gap-6">
                     <div className="col-span-1 space-y-2">
                          <Label>Existing Rules</Label>
-                        <div className="space-y-1 max-h-96 overflow-y-auto pr-2">
-                            {existingRules.map(rule => (
-                                <Button key={rule.id} variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
-                                    {rule.name}
-                                </Button>
-                            ))}
-                        </div>
+                        <ScrollArea className="h-96">
+                            <div className="space-y-1 pr-2">
+                                {existingRules.map(rule => (
+                                    <Button key={rule.id} variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
+                                        {rule.name}
+                                    </Button>
+                                ))}
+                            </div>
+                        </ScrollArea>
                         <Button variant="outline" className="w-full" onClick={() => setSelectedRuleId(null)}><PlusCircle className="mr-2"/> New Rule</Button>
                     </div>
                     <div className="col-span-3 border-l pl-6">
@@ -194,23 +206,28 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <div className="space-y-2">
                                     <Label>Answers to Map</Label>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
-                                    <div className="grid grid-cols-2 gap-2 p-4 border rounded-md max-h-40 overflow-y-auto">
-                                        {question.options?.map(option => (
-                                            <div key={option} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`answer-${option}`}
-                                                    checked={directAnswers.includes(option)}
-                                                    onCheckedChange={(checked) => {
-                                                        setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
-                                                    }}
-                                                />
-                                                <Label htmlFor={`answer-${option}`} className="font-normal">{option}</Label>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ScrollArea className="h-40">
+                                        <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
+                                            {question.options?.map(option => (
+                                                <div key={option} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`answer-${option}`}
+                                                        checked={directAnswers.includes(option)}
+                                                        onCheckedChange={(checked) => {
+                                                            setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
+                                                        }}
+                                                    />
+                                                    <Label htmlFor={`answer-${option}`} className="font-normal">{option}</Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
                                 </div>
-                                
-                                <div className="grid grid-cols-2 gap-4">
+                                 <div className="flex items-center space-x-2">
+                                    <Checkbox id="no-guidance-direct" checked={isNoGuidanceDirect} onCheckedChange={(c) => setIsNoGuidanceDirect(!!c)} />
+                                    <Label htmlFor="no-guidance-direct">No guidance required for these answers</Label>
+                                </div>
+                                <fieldset disabled={isNoGuidanceDirect} className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Tasks to Assign</Label>
                                          <DropdownMenu>
@@ -229,6 +246,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                         {task.name}
                                                     </DropdownMenuCheckboxItem>
                                                 ))}
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}>
+                                                    <PlusCircle className="mr-2" /> Create new task...
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -250,10 +271,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                         {tip.text}
                                                     </DropdownMenuCheckboxItem>
                                                 ))}
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}>
+                                                     <PlusCircle className="mr-2" /> Create new tip...
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                </div>
+                                </fieldset>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
                             </div>
                         )}
@@ -294,10 +319,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 )}
                                 <Separator />
                                 <Label>Ranges (in years)</Label>
-                                <div className="space-y-4">
+                                <ScrollArea className="h-64">
+                                <div className="space-y-4 pr-4">
                                     {ranges.map((range, index) => (
                                         <Card key={index} className="p-4 bg-muted/50">
-                                            <div className="flex items-end gap-4">
+                                            <div className="flex items-start gap-4">
                                                 <div className="grid grid-cols-2 gap-2 flex-grow">
                                                     <div className="space-y-1">
                                                         <Label>From</Label>
@@ -307,27 +333,58 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                         <Label>To</Label>
                                                         <Input type="number" value={range.to} onChange={e => handleUpdateRange(index, 'to', Number(e.target.value))} />
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <Label>Tasks</Label>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between"><span>{range.tasks.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
-                                                            <DropdownMenuContent><DropdownMenuCheckboxItem onSelect={e => e.preventDefault()}>...</DropdownMenuCheckboxItem></DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label>Tips</Label>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between"><span>{range.tips.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
-                                                            <DropdownMenuContent><DropdownMenuCheckboxItem onSelect={e => e.preventDefault()}>...</DropdownMenuCheckboxItem></DropdownMenuContent>
-                                                        </DropdownMenu>
+                                                    <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">
+                                                        <div className="space-y-1">
+                                                            <Label>Tasks</Label>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between bg-background"><span>{range.tasks.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent className="w-64">
+                                                                     {masterTasks.map(task => (
+                                                                        <DropdownMenuCheckboxItem
+                                                                            key={task.id}
+                                                                            checked={range.tasks.includes(task.id)}
+                                                                            onCheckedChange={() => handleUpdateRange(index, 'tasks', range.tasks.includes(task.id) ? range.tasks.filter(id => id !== task.id) : [...range.tasks, task.id])}
+                                                                        >{task.name}</DropdownMenuCheckboxItem>
+                                                                    ))}
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem onSelect={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}>
+                                                                        <PlusCircle className="mr-2" /> Create new task...
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label>Tips</Label>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between bg-background"><span>{range.tips.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent className="w-64">
+                                                                    {masterTips.map(tip => (
+                                                                        <DropdownMenuCheckboxItem
+                                                                            key={tip.id}
+                                                                            checked={range.tips.includes(tip.id)}
+                                                                            onCheckedChange={() => handleUpdateRange(index, 'tips', range.tips.includes(tip.id) ? range.tips.filter(id => id !== tip.id) : [...range.tips, tip.id])}
+                                                                        >{tip.text}</DropdownMenuCheckboxItem>
+                                                                    ))}
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem onSelect={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}>
+                                                                        <PlusCircle className="mr-2" /> Create new tip...
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    </fieldset>
+                                                    <div className="flex items-center space-x-2 col-span-2">
+                                                        <Checkbox id={`no-guidance-range-${index}`} checked={range.noGuidanceRequired} onCheckedChange={(c) => handleUpdateRange(index, 'noGuidanceRequired', !!c)} />
+                                                        <Label htmlFor={`no-guidance-range-${index}`}>No guidance required for this range</Label>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveRange(index)}><Trash2/></Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive flex-shrink-0" onClick={() => handleRemoveRange(index)}><Trash2/></Button>
                                             </div>
                                         </Card>
                                     ))}
                                 </div>
-                                <div className="flex justify-between items-center">
+                                </ScrollArea>
+                                <div className="flex justify-between items-center mt-4">
                                     <Button variant="outline" size="sm" onClick={handleAddRange}><PlusCircle className="mr-2" /> Add Range</Button>
                                     <Button onClick={handleSaveCalculatedRule}>Save Calculated Rule</Button>
                                 </div>
@@ -340,5 +397,3 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
-
-    
