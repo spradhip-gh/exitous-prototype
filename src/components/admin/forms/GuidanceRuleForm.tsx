@@ -10,18 +10,91 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit } from "lucide-react";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit, Check } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 type RuleType = 'direct' | 'calculated';
 type CalculationType = 'age' | 'tenure';
 type Range = { from: number; to: number; tasks: string[]; tips: string[], noGuidanceRequired?: boolean };
+
+function MultiSelectPopover({
+    label,
+    items,
+    selectedIds,
+    onSelectionChange,
+    onAddNew,
+    triggerText
+}: {
+    label: string,
+    items: { id: string; name: string }[],
+    selectedIds: string[],
+    onSelectionChange: (newIds: string[]) => void,
+    onAddNew: () => void,
+    triggerText: string
+}) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="space-y-2">
+            <Label>{label}</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                        <span>{selectedIds.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0">
+                    <Command>
+                        <CommandInput placeholder={`Search ${triggerText}...`} />
+                        <CommandList>
+                            <CommandEmpty>No {triggerText} found.</CommandEmpty>
+                            <CommandGroup>
+                                {items.map(item => (
+                                    <CommandItem
+                                        key={item.id}
+                                        value={item.name}
+                                        onSelect={() => {
+                                            const newSelection = selectedIds.includes(item.id)
+                                                ? selectedIds.filter(id => id !== item.id)
+                                                : [...selectedIds, item.id];
+                                            onSelectionChange(newSelection);
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selectedIds.includes(item.id) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        <span className="truncate">{item.name}</span>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                             <CommandGroup>
+                                <CommandItem onSelect={() => {
+                                    onAddNew();
+                                    setOpen(false);
+                                }}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    <span>Create new {triggerText.toLowerCase()}...</span>
+                                </CommandItem>
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        </div>
+    );
+}
+
 
 export default function GuidanceRuleForm({ question, allQuestions, existingRules, onSave, onDelete, masterTasks, masterTips, onAddNewTask, onAddNewTip, allResources }: {
     question: Question | null;
@@ -231,56 +304,22 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                     <Label htmlFor="no-guidance-direct">No guidance required for these answers</Label>
                                 </div>
                                 <fieldset disabled={isNoGuidanceDirect} className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Tasks to Assign</Label>
-                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-between">
-                                                    <span>{directTasks.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent className="w-64">
-                                                {masterTasks.map(task => (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={task.id}
-                                                        checked={directTasks.includes(task.id)}
-                                                        onCheckedChange={() => setDirectTasks(prev => prev.includes(task.id) ? prev.filter(id => id !== task.id) : [...prev, task.id])}
-                                                    >
-                                                        {task.name}
-                                                    </DropdownMenuCheckboxItem>
-                                                ))}
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}>
-                                                    <PlusCircle className="mr-2" /> Create new task...
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Tips to Show</Label>
-                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-between">
-                                                    <span>{directTips.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent className="w-64">
-                                                {masterTips.map(tip => (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={tip.id}
-                                                        checked={directTips.includes(tip.id)}
-                                                        onCheckedChange={() => setDirectTips(prev => prev.includes(tip.id) ? prev.filter(id => id !== tip.id) : [...prev, tip.id])}
-                                                    >
-                                                        {tip.text}
-                                                    </DropdownMenuCheckboxItem>
-                                                ))}
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}>
-                                                     <PlusCircle className="mr-2" /> Create new tip...
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                     <MultiSelectPopover
+                                        label="Tasks to Assign"
+                                        items={masterTasks.map(t => ({id: t.id, name: t.name}))}
+                                        selectedIds={directTasks}
+                                        onSelectionChange={setDirectTasks}
+                                        onAddNew={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}
+                                        triggerText="Tasks"
+                                    />
+                                    <MultiSelectPopover
+                                        label="Tips to Show"
+                                        items={masterTips.map(t => ({id: t.id, name: t.text}))}
+                                        selectedIds={directTips}
+                                        onSelectionChange={setDirectTips}
+                                        onAddNew={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}
+                                        triggerText="Tips"
+                                    />
                                 </fieldset>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
                             </div>
@@ -349,44 +388,22 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                         <Input type="number" value={range.to} onChange={e => handleUpdateRange(index, 'to', Number(e.target.value))} />
                                                     </div>
                                                     <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">
-                                                        <div className="space-y-1">
-                                                            <Label>Tasks</Label>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between bg-background"><span>{range.tasks.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent className="w-64">
-                                                                     {masterTasks.map(task => (
-                                                                        <DropdownMenuCheckboxItem
-                                                                            key={task.id}
-                                                                            checked={range.tasks.includes(task.id)}
-                                                                            onCheckedChange={() => handleUpdateRange(index, 'tasks', range.tasks.includes(task.id) ? range.tasks.filter(id => id !== task.id) : [...range.tasks, task.id])}
-                                                                        >{task.name}</DropdownMenuCheckboxItem>
-                                                                    ))}
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onSelect={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}>
-                                                                        <PlusCircle className="mr-2" /> Create new task...
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <Label>Tips</Label>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button variant="outline" className="w-full justify-between bg-background"><span>{range.tips.length} selected</span><ChevronsUpDown/></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent className="w-64">
-                                                                    {masterTips.map(tip => (
-                                                                        <DropdownMenuCheckboxItem
-                                                                            key={tip.id}
-                                                                            checked={range.tips.includes(tip.id)}
-                                                                            onCheckedChange={() => handleUpdateRange(index, 'tips', range.tips.includes(tip.id) ? range.tips.filter(id => id !== tip.id) : [...range.tips, tip.id])}
-                                                                        >{tip.text}</DropdownMenuCheckboxItem>
-                                                                    ))}
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onSelect={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}>
-                                                                        <PlusCircle className="mr-2" /> Create new tip...
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
+                                                         <MultiSelectPopover
+                                                            label="Tasks"
+                                                            items={masterTasks.map(t => ({id: t.id, name: t.name}))}
+                                                            selectedIds={range.tasks}
+                                                            onSelectionChange={(newIds) => handleUpdateRange(index, 'tasks', newIds)}
+                                                            onAddNew={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}
+                                                            triggerText="Tasks"
+                                                        />
+                                                         <MultiSelectPopover
+                                                            label="Tips"
+                                                            items={masterTips.map(t => ({id: t.id, name: t.text}))}
+                                                            selectedIds={range.tips}
+                                                            onSelectionChange={(newIds) => handleUpdateRange(index, 'tips', newIds)}
+                                                            onAddNew={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}
+                                                            triggerText="Tips"
+                                                        />
                                                     </fieldset>
                                                     <div className="flex items-center space-x-2 col-span-2">
                                                         <Checkbox id={`no-guidance-range-${index}`} checked={range.noGuidanceRequired} onCheckedChange={(c) => handleUpdateRange(index, 'noGuidanceRequired', !!c)} />
