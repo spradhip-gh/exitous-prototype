@@ -43,6 +43,13 @@ function MultiSelectPopover({
     const [open, setOpen] = useState(false);
     const validSelectedIds = selectedIds || [];
 
+    const handleSelect = (id: string) => {
+        const newSelection = validSelectedIds.includes(id)
+            ? validSelectedIds.filter(currentId => currentId !== id)
+            : [...validSelectedIds, id];
+        onSelectionChange(newSelection);
+    }
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
@@ -63,24 +70,14 @@ function MultiSelectPopover({
                                         <CommandItem
                                             key={item.id}
                                             value={item.name}
-                                            onSelect={() => {
-                                                const newSelection = validSelectedIds.includes(item.id)
-                                                    ? validSelectedIds.filter(id => id !== item.id)
-                                                    : [...validSelectedIds, item.id];
-                                                onSelectionChange(newSelection);
-                                            }}
+                                            onSelect={() => handleSelect(item.id)}
                                             className="flex items-center justify-between"
+                                            onMouseDown={(e) => e.preventDefault()}
                                         >
                                             <span className="truncate">{item.name}</span>
                                              <Checkbox
                                                 className="h-4 w-4"
                                                 checked={validSelectedIds.includes(item.id)}
-                                                onCheckedChange={() => {
-                                                    const newSelection = validSelectedIds.includes(item.id)
-                                                        ? validSelectedIds.filter(id => id !== item.id)
-                                                        : [...validSelectedIds, item.id];
-                                                    onSelectionChange(newSelection);
-                                                }}
                                             />
                                         </CommandItem>
                                     ))}
