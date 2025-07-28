@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,27 +8,22 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Question } from "@/hooks/use-user-data";
 import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, CornerDownRight, Link } from "lucide-react";
 
-function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuestion, onMapTasks, mappingCount }: { 
+function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuestion }: { 
     question: Question, 
     level: number, 
     onEdit: (q: Question) => void, 
     onDelete: (id: string) => void, 
     onAddSubQuestion: (parentId: string) => void,
-    onMapTasks: (q: Question) => void,
-    mappingCount?: { mapped: number, total: number }
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
-    const canMapTasks = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
         <div className="space-y-2">
             <div className="flex items-center space-x-2 group bg-muted/50 p-2 rounded-md" style={{ marginLeft: `${level * 1.5}rem`}}>
                 <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                {mappingCount && mappingCount.total > 0 && <Badge variant="outline">{mappingCount.mapped}/{mappingCount.total} mapped</Badge>}
                 {question.triggerValue && <Badge variant="outline" className="text-xs">On: {question.triggerValue}</Badge>}
                 <div className="flex items-center">
-                    {canMapTasks && <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMapTasks(question)}><Link className="h-3 w-3" /></Button>}
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
@@ -59,7 +55,6 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddSubQuestion={onAddSubQuestion}
-                            onMapTasks={onMapTasks}
                         />
                     ))}
                 </div>
@@ -68,19 +63,16 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
     );
 }
 
-export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMove, onMapTasks, isFirst, isLast, mappingCount }: { 
+export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMove, isFirst, isLast }: { 
     question: Question, 
     onEdit: (q: Question) => void, 
     onDelete: (id: string) => void, 
     onAddSubQuestion: (parentId: string) => void, 
     onMove: (questionId: string, direction: 'up' | 'down') => void,
-    onMapTasks: (q: Question) => void, 
     isFirst: boolean, 
     isLast: boolean,
-    mappingCount?: { mapped: number, total: number }
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
-    const canMapTasks = ['radio', 'select', 'checkbox'].includes(question.type);
 
     return (
         <div className="bg-background rounded-lg my-1">
@@ -94,9 +86,7 @@ export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSub
                     </Button>
                 </div>
                 <Label htmlFor={question.id} className="font-normal text-sm flex-1">{question.label}</Label>
-                {mappingCount && mappingCount.total > 0 && <Badge variant="outline">{mappingCount.mapped}/{mappingCount.total} mapped</Badge>}
                 <div className="flex items-center">
-                    {canMapTasks && <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onMapTasks(question)}><Link className="h-3 w-3" /></Button>}
                     {canHaveSubquestions && <Button variant="ghost" size="sm" onClick={() => onAddSubQuestion(question.id)}><PlusCircle className="mr-2 h-4 w-4"/>Sub</Button>}
                     <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     <AlertDialog>
@@ -126,8 +116,6 @@ export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSub
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddSubQuestion={onAddSubQuestion}
-                            onMapTasks={onMapTasks}
-                            mappingCount={mappingCount}
                          />
                     ))}
                 </div>

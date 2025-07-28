@@ -4,22 +4,17 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, TaskMapping, MasterTask, TipMapping, MasterTip, ExternalResource } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, CompanyConfig } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Link, Check, ChevronsUpDown, Pilcrow } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import TaskForm from '@/components/admin/tasks/TaskForm';
-import TipForm from '@/components/admin/tips/TipForm';
+import GuidanceEditor from './GuidanceEditor';
 
 interface OrderedSection {
     id: string;
@@ -38,258 +33,22 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
     return null;
 }
 
-function ManageTaskMappingDialog({
-    isOpen,
-    onOpenChange,
-    question,
-    allTasks,
-    allTips,
-    allTaskMappings,
-    allTipMappings,
-    saveTaskMappingsFn,
-    saveTipMappingsFn,
-    onAddNewTask,
-    onAddNewTip,
-}: {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    question: Question | null;
-    allTasks: MasterTask[];
-    allTips: MasterTip[];
-    allTaskMappings: TaskMapping[];
-    allTipMappings: TipMapping[];
-    saveTaskMappingsFn: (mappings: TaskMapping[]) => void;
-    saveTipMappingsFn: (mappings: TipMapping[]) => void;
-    onAddNewTask: (answer: string) => void;
-    onAddNewTip: (answer: string) => void;
-}) {
-    const [taskMappings, setTaskMappings] = useState<Record<string, Set<string>>>({});
-    const [tipMappings, setTipMappings] = useState<Record<string, Set<string>>>({});
-
-    React.useEffect(() => {
-        if (question && isOpen) {
-            const initialTaskMappings: Record<string, Set<string>> = {};
-            const initialTipMappings: Record<string, Set<string>> = {};
-
-            question.options?.forEach(opt => {
-                const tasksForAnswer = allTaskMappings
-                    .filter(m => m.questionId === question.id && m.answerValue === opt)
-                    .map(m => m.taskId);
-                initialTaskMappings[opt] = new Set(tasksForAnswer);
-
-                const tipsForAnswer = allTipMappings
-                    .filter(m => m.questionId === question.id && m.answerValue === opt)
-                    .map(m => m.tipId);
-                initialTipMappings[opt] = new Set(tipsForAnswer);
-            });
-            setTaskMappings(initialTaskMappings);
-            setTipMappings(initialTipMappings);
-        } else if (!isOpen) {
-            setTaskMappings({});
-            setTipMappings({});
-        }
-    }, [isOpen, question, allTaskMappings, allTipMappings]);
-
-    const handleTaskToggle = (answer: string, taskId: string) => {
-        setTaskMappings(prev => {
-            const newMappings = { ...prev };
-            const taskSet = new Set(newMappings[answer]);
-            if (taskSet.has(taskId)) {
-                taskSet.delete(taskId);
-            } else {
-                taskSet.add(taskId);
-            }
-            newMappings[answer] = taskSet;
-            return newMappings;
-        });
-    };
-
-    const handleTipToggle = (answer: string, tipId: string) => {
-        setTipMappings(prev => {
-            const newMappings = { ...prev };
-            const tipSet = new Set(newMappings[answer]);
-            if (tipSet.has(tipId)) {
-                tipSet.delete(tipId);
-            } else {
-                tipSet.add(tipId);
-            }
-            newMappings[answer] = tipSet;
-            return newMappings;
-        });
-    };
-    
-    const handleSave = () => {
-        if (!question) return;
-
-        // Remove all old mappings for this question
-        const otherTaskMappings = allTaskMappings.filter(m => m.questionId !== question.id);
-        const otherTipMappings = allTipMappings.filter(m => m.questionId !== question.id);
-        
-        // Create new mappings from the state
-        const newTaskMappings: TaskMapping[] = [];
-        Object.entries(taskMappings).forEach(([answerValue, taskIds]) => {
-            taskIds.forEach(taskId => {
-                newTaskMappings.push({
-                    id: `${question.id}-${answerValue}-${taskId}`, // A simple unique ID
-                    questionId: question.id,
-                    answerValue,
-                    taskId
-                });
-            });
-        });
-        saveTaskMappingsFn([...otherTaskMappings, ...newTaskMappings]);
-
-        const newTipMappings: TipMapping[] = [];
-        Object.entries(tipMappings).forEach(([answerValue, tipIds]) => {
-            tipIds.forEach(tipId => {
-                newTipMappings.push({
-                    id: `${question.id}-${answerValue}-${tipId}`,
-                    questionId: question.id,
-                    answerValue,
-                    tipId
-                });
-            });
-        });
-        saveTipMappingsFn([...otherTipMappings, ...newTipMappings]);
-
-        onOpenChange(false);
-    };
-
-    const getButtonLabel = (option: string, type: 'task' | 'tip') => {
-        const mappings = type === 'task' ? taskMappings[option] : tipMappings[option];
-        const source = type === 'task' ? allTasks : allTips;
-        
-        if (!mappings || mappings.size === 0) {
-            return `Select ${type}s...`;
-        }
-        
-        const selectedItems = source.filter(item => mappings.has(item.id));
-        
-        if (selectedItems.length === 0) {
-            return `Select ${type}s...`;
-        }
-        
-        const itemNames = selectedItems.map(item => 'name' in item ? item.name : item.text);
-
-        if (selectedItems.length <= 2) {
-            return itemNames.join(', ');
-        }
-        return `${itemNames.slice(0, 2).join(', ')} +${selectedItems.length - 2} more`;
-    };
-
-
-    if (!question) return null;
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Manage Mappings for "{question.label}"</DialogTitle>
-                    <DialogDescription>
-                        For each answer, select the task(s) and/or tip(s) that should be assigned to the user.
-                    </DialogDescription>
-                </DialogHeader>
-                 <div className="py-4 space-y-4 overflow-y-auto flex-grow pr-4">
-                     <div className="grid grid-cols-3 items-center gap-4 px-3">
-                        <span className="font-medium text-right text-muted-foreground text-sm">Answer</span>
-                        <span className="font-medium text-muted-foreground text-sm">Tasks Assigned</span>
-                        <span className="font-medium text-muted-foreground text-sm">Tips Assigned</span>
-                    </div>
-                    {question.options?.map(option => (
-                        <div key={option} className="grid grid-cols-3 items-center gap-4">
-                            <Label className="text-right">{option}</Label>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-between font-normal">
-                                       <span className="truncate">{getButtonLabel(option, 'task')}</span>
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-[400px]">
-                                     {allTasks.map((task) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={task.id}
-                                            checked={taskMappings[option]?.has(task.id)}
-                                            onCheckedChange={() => handleTaskToggle(option, task.id)}
-                                        >
-                                            {task.name}
-                                        </DropdownMenuCheckboxItem>
-                                     ))}
-                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onSelect={() => onAddNewTask(option)}>
-                                        <PlusCircle className="mr-2" />
-                                        Create new task...
-                                     </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-between font-normal">
-                                       <span className="truncate">{getButtonLabel(option, 'tip')}</span>
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-[400px]">
-                                     <TooltipProvider>
-                                         {allTips.map((tip) => (
-                                            <div key={tip.id} onClick={(e) => { e.preventDefault(); handleTipToggle(option, tip.id); }} className="relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
-                                                <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                                                    {tipMappings[option]?.has(tip.id) && <Check className="h-4 w-4" />}
-                                                </span>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><span className="truncate">{tip.text}</span></TooltipTrigger>
-                                                    <TooltipContent className="max-w-xs"><p>{tip.text}</p></TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                         ))}
-                                     </TooltipProvider>
-                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onSelect={() => onAddNewTip(option)}>
-                                        <PlusCircle className="mr-2" />
-                                        Create new tip...
-                                     </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    ))}
-                </div>
-                <DialogFooter className="flex-shrink-0">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Mappings</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }: { 
+function QuestionEditorTab({ questionType, questions, saveFn, defaultQuestionsFn, companyConfigs, saveCompanyConfigsFn }: { 
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
     saveFn: (questions: Record<string, Question>) => void;
     defaultQuestionsFn: () => Question[];
+    companyConfigs: Record<string, CompanyConfig>;
+    saveCompanyConfigsFn: (configs: Record<string, CompanyConfig>) => void;
 }) {
     const { toast } = useToast();
     const { 
-        isLoading, 
-        masterTasks, 
-        saveMasterTasks,
-        taskMappings, 
-        saveTaskMappings, 
-        masterTips,
-        saveMasterTips, 
-        tipMappings, 
-        saveTipMappings,
-        externalResources, 
+        isLoading,
     } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-    const [isMapping, setIsMapping] = useState(false);
-    const [mappingQuestion, setMappingQuestion] = useState<Question | null>(null);
-    const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
-    const [isTipFormOpen, setIsTipFormOpen] = useState(false);
-    const [answerToAutoMap, setAnswerToAutoMap] = useState<string | null>(null);
 
     const orderedSections = useMemo(() => {
         if (isLoading || !questions || Object.keys(questions).length === 0) {
@@ -321,37 +80,11 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         })).filter(s => s.questions.length > 0);
     }, [isLoading, questions, defaultQuestionsFn]);
 
-    const mappingCounts = useMemo(() => {
-        const counts: Record<string, { mapped: number, total: number }> = {};
-        const processQuestion = (q: Question) => {
-            if (q.options && q.options.length > 0) {
-                let mappedCount = 0;
-                q.options.forEach(opt => {
-                    const hasTask = taskMappings.some(m => m.questionId === q.id && m.answerValue === opt);
-                    const hasTip = tipMappings.some(m => m.questionId === q.id && m.answerValue === opt);
-                    if (hasTask || hasTip) {
-                        mappedCount++;
-                    }
-                });
-                counts[q.id] = { mapped: mappedCount, total: q.options.length };
-            }
-            if (q.subQuestions) {
-                q.subQuestions.forEach(processQuestion);
-            }
-        };
-        orderedSections.forEach(s => s.questions.forEach(processQuestion));
-        return counts;
-    }, [orderedSections, taskMappings, tipMappings]);
 
     const handleEditClick = (question: Question) => {
         setCurrentQuestion({ ...question });
         setIsNewQuestion(false);
         setIsEditing(true);
-    };
-
-    const handleMapClick = (question: Question) => {
-        setMappingQuestion(question);
-        setIsMapping(true);
     };
 
     const handleAddNewClick = (parentId?: string) => {
@@ -464,40 +197,6 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         }
     };
     
-    const handleAddNewTaskFromMapping = (answer: string) => {
-        setAnswerToAutoMap(answer);
-        setIsTaskFormOpen(true);
-    };
-    
-    const handleAddNewTipFromMapping = (answer: string) => {
-        setAnswerToAutoMap(answer);
-        setIsTipFormOpen(true);
-    };
-
-    const handleSaveNewTask = (taskData: MasterTask) => {
-        const newTasks = [...masterTasks, taskData];
-        saveMasterTasks(newTasks);
-        if (answerToAutoMap && mappingQuestion) {
-            const newMapping: TaskMapping = { id: `${mappingQuestion.id}-${answerToAutoMap}-${taskData.id}`, questionId: mappingQuestion.id, answerValue: answerToAutoMap, taskId: taskData.id };
-            saveTaskMappings([...taskMappings, newMapping]);
-        }
-        toast({ title: 'Task Added & Mapped', description: `Task "${taskData.name}" has been created and mapped.` });
-        setIsTaskFormOpen(false);
-        setAnswerToAutoMap(null);
-    };
-
-    const handleSaveNewTip = (tipData: MasterTip) => {
-        const newTips = [...masterTips, tipData];
-        saveMasterTips(newTips);
-        if (answerToAutoMap && mappingQuestion) {
-            const newMapping: TipMapping = { id: `${mappingQuestion.id}-${answerToAutoMap}-${tipData.id}`, questionId: mappingQuestion.id, answerValue: answerToAutoMap, tipId: tipData.id };
-            saveTipMappings([...tipMappings, newMapping]);
-        }
-        toast({ title: 'Tip Added & Mapped', description: `New tip has been created and mapped.` });
-        setIsTipFormOpen(false);
-        setAnswerToAutoMap(null);
-    };
-
     const existingSections = useMemo(() => [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))], [questions]);
 
     return (
@@ -509,7 +208,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                         {questionType === 'profile' 
                             ? 'These questions appear in the initial "Create Your Profile" step.'
                             : 'These questions appear in the main "Exit Details" assessment.'
-                        } Use arrows to reorder. Click <Link className="inline h-4 w-4 text-muted-foreground"/> to map tasks to answers.
+                        } Use arrows to reorder.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -521,12 +220,10 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                                     <AdminQuestionItem
                                         key={question.id}
                                         question={question}
-                                        mappingCount={mappingCounts[question.id]}
                                         onEdit={handleEditClick}
                                         onDelete={handleDeleteClick}
                                         onAddSubQuestion={handleAddNewClick}
                                         onMove={handleMoveQuestion}
-                                        onMapTasks={handleMapClick}
                                         isFirst={index === 0}
                                         isLast={index === section.questions.length - 1}
                                     />
@@ -552,32 +249,6 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                     onClose={() => setIsEditing(false)}
                 />
             </Dialog>
-            <ManageTaskMappingDialog
-                isOpen={isMapping}
-                onOpenChange={setIsMapping}
-                question={mappingQuestion}
-                allTasks={masterTasks}
-                allTips={masterTips}
-                allTaskMappings={taskMappings}
-                allTipMappings={tipMappings}
-                saveTaskMappingsFn={saveTaskMappings}
-                saveTipMappingsFn={saveTipMappings}
-                onAddNewTask={handleAddNewTaskFromMapping}
-                onAddNewTip={handleAddNewTipFromMapping}
-            />
-             <TaskForm
-                isOpen={isTaskFormOpen}
-                onOpenChange={setIsTaskFormOpen}
-                onSave={handleSaveNewTask}
-                task={null}
-                allResources={externalResources}
-            />
-             <TipForm
-                isOpen={isTipFormOpen}
-                onOpenChange={setIsTipFormOpen}
-                onSave={handleSaveNewTip}
-                tip={null}
-            />
         </>
     );
 }
@@ -589,7 +260,15 @@ export default function AdminFormEditor() {
         saveMasterQuestions, 
         masterProfileQuestions,
         saveMasterProfileQuestions,
+        companyConfigs,
+        saveCompanyConfigs,
     } = useUserData();
+
+    const allQuestions = useMemo(() => {
+        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
+        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
+        return [...profileQs, ...assessmentQs];
+    }, [masterProfileQuestions, masterQuestions]);
 
     return (
         <div className="p-4 md:p-8">
@@ -599,24 +278,36 @@ export default function AdminFormEditor() {
                     <p className="text-muted-foreground">Add, edit, or delete the default questions for both the Profile and the main Assessment. Changes are saved automatically.</p>
                 </div>
                 <Tabs defaultValue="profile">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
+                        <TabsTrigger value="guidance">Guidance Editor</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile" className="mt-6">
-                        <QuestionEditor
+                        <QuestionEditorTab
                             questionType="profile"
                             questions={masterProfileQuestions}
                             saveFn={saveMasterProfileQuestions}
                             defaultQuestionsFn={getDefaultProfileQuestions}
+                            companyConfigs={companyConfigs}
+                            saveCompanyConfigsFn={saveCompanyConfigs}
                         />
                     </TabsContent>
                     <TabsContent value="assessment" className="mt-6">
-                        <QuestionEditor
+                        <QuestionEditorTab
                             questionType="assessment"
                             questions={masterQuestions}
                             saveFn={saveMasterQuestions}
                             defaultQuestionsFn={getDefaultQuestions}
+                             companyConfigs={companyConfigs}
+                            saveCompanyConfigsFn={saveCompanyConfigs}
+                        />
+                    </TabsContent>
+                    <TabsContent value="guidance" className="mt-6">
+                        <GuidanceEditor 
+                            questions={allQuestions}
+                            companyConfigs={companyConfigs}
+                            saveCompanyConfigsFn={saveCompanyConfigs}
                         />
                     </TabsContent>
                 </Tabs>
