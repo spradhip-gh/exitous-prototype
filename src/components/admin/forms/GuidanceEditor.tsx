@@ -25,7 +25,7 @@ export default function GuidanceEditor({ questions, companyConfigs, saveCompanyC
         setIsGuidanceDialogOpen(true);
     };
 
-    const companyNames = useMemo(() => Object.keys(companyConfigs), [companyConfigs]);
+    const companyNames = useMemo(() => Object.keys(companyConfigs || {}), [companyConfigs]);
 
     return (
         <Card>
@@ -61,4 +61,3 @@ export default function GuidanceEditor({ questions, companyConfigs, saveCompanyC
         </Card>
     );
 }
-
