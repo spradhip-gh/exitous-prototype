@@ -28,7 +28,7 @@ export default function GuidanceRuleForm({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (rule: GuidanceRule) => void;
-  ruleToConvert: { guidanceText: string, category: string, inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> } | null;
+  ruleToConvert: Partial<GuidanceRule> | { guidanceText: string, category: string, inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> } | null;
   questions: Question[];
   masterTasks: MasterTask[];
 }) {
@@ -38,13 +38,17 @@ export default function GuidanceRuleForm({
   useEffect(() => {
     if (isOpen) {
         if (ruleToConvert) {
-          setCurrentRule({
-            id: `rule-${Date.now()}`,
-            name: `Rule for: ${ruleToConvert.category} need`,
-            conditions: [],
-            taskId: '', // User needs to select this
-          });
-        } else {
+            if ('inputData' in ruleToConvert) { // converting from review queue
+                 setCurrentRule({
+                    id: `rule-${Date.now()}`,
+                    name: `Rule for: ${ruleToConvert.category} need`,
+                    conditions: [],
+                    taskId: '',
+                });
+            } else { // editing existing rule
+                setCurrentRule(ruleToConvert);
+            }
+        } else { // creating new rule
             setCurrentRule({
                 id: `rule-${Date.now()}`,
                 name: '',
@@ -102,7 +106,7 @@ export default function GuidanceRuleForm({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Convert to Guidance Rule</DialogTitle>
+          <DialogTitle>{'id' in (ruleToConvert || {}) ? 'Edit Guidance Rule' : 'Create Guidance Rule'}</DialogTitle>
           <DialogDescription>Create a reusable rule that assigns a specific task when conditions are met.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
@@ -176,7 +180,7 @@ export default function GuidanceRuleForm({
                       </div>
                       <div className="space-y-2">
                         <Label>Offset (days)</Label>
-                        <Input type="number" value={cond.value} onChange={e => handleConditionChange(i, { ...cond, value: parseInt(e.target.value, 10) || 0 })} />
+                        <Input type="number" value={cond.value as number || ''} onChange={e => handleConditionChange(i, { ...cond, value: parseInt(e.target.value, 10) || 0 })} />
                       </div>
                     </div>
                   )}
@@ -207,7 +211,7 @@ export default function GuidanceRuleForm({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave}>Create Rule</Button>
+          <Button onClick={handleSave}>{ 'id' in (ruleToConvert || {}) ? 'Save Rule' : 'Create Rule'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

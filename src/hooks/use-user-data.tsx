@@ -45,7 +45,7 @@ export interface Condition {
     answer?: string;
     // For tenure
     operator?: 'lt' | 'gt' | 'eq' | 'gte_lt';
-    value?: number[];
+    value?: number | number[]; // Can be a single number or a range [min, max]
     label?: string;
     // For date_offset
     dateQuestionId?: string;
