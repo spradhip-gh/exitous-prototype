@@ -15,16 +15,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import GuidanceRuleForm from '@/components/admin/GuidanceRuleForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 function GuidanceRulesTab() {
     const { guidanceRules, saveGuidanceRules, masterQuestions, masterProfileQuestions, masterTasks } = useUserData();
     const { toast } = useToast();
-    const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
-    const [editingRule, setEditingRule] = useState<Partial<GuidanceRule> | null>(null);
-
+    
     const allQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
@@ -45,20 +42,6 @@ function GuidanceRulesTab() {
         }
         return 'Invalid condition';
     };
-    
-    const handleSaveRule = (rule: GuidanceRule) => {
-        let updatedRules;
-        if (guidanceRules.some(r => r.id === rule.id)) {
-            updatedRules = guidanceRules.map(r => r.id === rule.id ? rule : r);
-            toast({ title: 'Rule Updated', description: `Rule "${rule.name}" has been updated.` });
-        } else {
-            updatedRules = [...guidanceRules, rule];
-            toast({ title: 'Rule Added', description: `Rule "${rule.name}" has been created.` });
-        }
-        saveGuidanceRules(updatedRules);
-        setIsRuleFormOpen(false);
-        setEditingRule(null);
-    };
 
     const handleDeleteRule = (ruleId: string) => {
         const updatedRules = guidanceRules.filter(r => r.id !== ruleId);
@@ -66,11 +49,6 @@ function GuidanceRulesTab() {
         toast({ title: 'Rule Deleted' });
     };
 
-    const handleEditRule = (rule: GuidanceRule) => {
-        setEditingRule(rule);
-        setIsRuleFormOpen(true);
-    }
-    
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -78,7 +56,7 @@ function GuidanceRulesTab() {
                     <CardTitle>Guidance Rules</CardTitle>
                     <CardDescription>Create and manage deterministic rules for assigning tasks.</CardDescription>
                 </div>
-                <Button onClick={() => { setEditingRule(null); setIsRuleFormOpen(true); }}><PlusCircle className="mr-2"/> Add New Rule</Button>
+                <p className="text-sm text-muted-foreground">Rules are managed in the <span className="font-bold">Master Form Editor</span>.</p>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -103,13 +81,12 @@ function GuidanceRulesTab() {
                                     <Badge variant="outline">{masterTasks.find(t => t.id === rule.taskId)?.name || rule.taskId}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                     <Button variant="ghost" size="icon" onClick={() => handleEditRule(rule)}><Pencil className="h-4 w-4" /></Button>
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Delete Rule?</AlertDialogTitle>
-                                                <AlertDialogDescription>Are you sure you want to delete the rule "{rule.name}"?</AlertDialogDescription>
+                                                <AlertDialogDescription>Are you sure you want to delete the rule "{rule.name}"? This action can only be done here.</AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -127,14 +104,6 @@ function GuidanceRulesTab() {
                     </TableBody>
                 </Table>
             </CardContent>
-            <GuidanceRuleForm
-                isOpen={isRuleFormOpen}
-                onOpenChange={setIsRuleFormOpen}
-                ruleToConvert={editingRule}
-                onSave={handleSaveRule}
-                questions={allQuestions}
-                masterTasks={masterTasks}
-            />
         </Card>
     );
 }
@@ -144,19 +113,8 @@ export default function ReviewQueuePage() {
     const { 
         reviewQueue, 
         saveReviewQueue,
-        masterQuestions,
-        masterProfileQuestions,
-        masterTasks,
-        saveGuidanceRules,
-        guidanceRules,
     } = useUserData();
 
-    const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
-    const [ruleToConvert, setRuleToConvert] = useState<{
-        guidanceText: string,
-        category: string,
-        inputData: ReviewQueueItem['inputData']
-    } | null>(null);
 
     const handleStatusChange = (id: string, status: 'approved' | 'rejected') => {
         const updatedQueue = reviewQueue.map(item =>
@@ -166,27 +124,6 @@ export default function ReviewQueuePage() {
         toast({ title: `Recommendation ${status}` });
     };
     
-    const handleCreateRule = (item: ReviewQueueItem, recommendation: ReviewQueueItem['output']['recommendations'][0]) => {
-        setRuleToConvert({
-            guidanceText: recommendation.details,
-            category: recommendation.category,
-            inputData: item.inputData,
-        });
-        setIsRuleFormOpen(true);
-    };
-
-    const handleSaveRule = (rule: GuidanceRule) => {
-        saveGuidanceRules([...guidanceRules, rule]);
-        toast({ title: "Guidance Rule Saved", description: `Rule "${rule.name}" has been created.` });
-        setIsRuleFormOpen(false);
-    };
-    
-    const allQuestions = useMemo(() => {
-        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
-        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
-        return [...profileQs, ...assessmentQs];
-    }, [masterProfileQuestions, masterQuestions]);
-
     const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending');
     const reviewedItems = reviewQueue.filter(item => item.status !== 'pending');
 
@@ -208,7 +145,7 @@ export default function ReviewQueuePage() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Pending AI Recommendations</CardTitle>
-                                <CardDescription>Review the AI's output based on sample user data. Approve, reject, or convert to a rule.</CardDescription>
+                                <CardDescription>Review the AI's output based on sample user data. Approve or reject the recommendation.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {pendingReviewItems.length > 0 ? pendingReviewItems.map(item => (
@@ -216,7 +153,6 @@ export default function ReviewQueuePage() {
                                         key={item.id}
                                         item={item}
                                         onStatusChange={handleStatusChange}
-                                        onCreateRule={handleCreateRule}
                                      />
                                 )) : (
                                     <p className="text-muted-foreground text-center py-8">The review queue is empty.</p>
@@ -261,19 +197,11 @@ export default function ReviewQueuePage() {
                     </TabsContent>
                  </Tabs>
             </div>
-            <GuidanceRuleForm 
-                isOpen={isRuleFormOpen}
-                onOpenChange={setIsRuleFormOpen}
-                ruleToConvert={ruleToConvert}
-                onSave={handleSaveRule}
-                questions={allQuestions}
-                masterTasks={masterTasks}
-            />
         </div>
     );
 }
 
-function ReviewItemCard({ item, onStatusChange, onCreateRule }: { item: ReviewQueueItem, onStatusChange: (id: string, status: 'approved' | 'rejected') => void, onCreateRule: (item: ReviewQueueItem, recommendation: ReviewQueueItem['output']['recommendations'][0]) => void }) {
+function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onStatusChange: (id: string, status: 'approved' | 'rejected') => void }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
 
     return (
@@ -307,11 +235,6 @@ function ReviewItemCard({ item, onStatusChange, onCreateRule }: { item: ReviewQu
                         </div>
                         <p className="text-sm text-muted-foreground">{rec.timeline} {rec.endDate && `(Due: ${rec.endDate})`}</p>
                         <p className="text-sm mt-1">{rec.details}</p>
-                        <div className="flex gap-2 justify-end mt-2">
-                            <Button size="sm" variant="outline" onClick={() => onCreateRule(item, rec)}>
-                                <GitBranch className="mr-2"/> Create Rule
-                            </Button>
-                        </div>
                     </div>
                 ))}
             </CardContent>
