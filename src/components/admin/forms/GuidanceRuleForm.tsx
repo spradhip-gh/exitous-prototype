@@ -35,12 +35,13 @@ function MultiSelectPopover({
 }: {
     label: string,
     items: { id: string; name: string }[],
-    selectedIds: string[],
     onSelectionChange: (newIds: string[]) => void,
     onAddNew: () => void,
-    triggerText: string
+    triggerText: string,
+    selectedIds?: string[],
 }) {
     const [open, setOpen] = useState(false);
+    const validSelectedIds = selectedIds || [];
 
     return (
         <div className="space-y-2">
@@ -48,46 +49,48 @@ function MultiSelectPopover({
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between">
-                        <span>{selectedIds.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
+                        <span>{validSelectedIds.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-0">
+                <PopoverContent className="w-[300px] p-0" align="start">
                     <Command>
                         <CommandInput placeholder={`Search ${triggerText}...`} />
-                        <CommandList>
-                            <CommandEmpty>No {triggerText} found.</CommandEmpty>
-                            <CommandGroup>
-                                {items.map(item => (
-                                    <CommandItem
-                                        key={item.id}
-                                        value={item.name}
-                                        onSelect={() => {
-                                            const newSelection = selectedIds.includes(item.id)
-                                                ? selectedIds.filter(id => id !== item.id)
-                                                : [...selectedIds, item.id];
-                                            onSelectionChange(newSelection);
-                                        }}
-                                    >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                selectedIds.includes(item.id) ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        <span className="truncate">{item.name}</span>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                             <CommandGroup>
-                                <CommandItem onSelect={() => {
-                                    onAddNew();
-                                    setOpen(false);
-                                }}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    <span>Create new {triggerText.toLowerCase()}...</span>
-                                </CommandItem>
-                            </CommandGroup>
-                        </CommandList>
+                        <ScrollArea className="h-64">
+                            <CommandList>
+                                <CommandEmpty>No {triggerText} found.</CommandEmpty>
+                                <CommandGroup>
+                                    {items.map(item => (
+                                        <CommandItem
+                                            key={item.id}
+                                            value={item.name}
+                                            onSelect={() => {
+                                                const newSelection = validSelectedIds.includes(item.id)
+                                                    ? validSelectedIds.filter(id => id !== item.id)
+                                                    : [...validSelectedIds, item.id];
+                                                onSelectionChange(newSelection);
+                                            }}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    validSelectedIds.includes(item.id) ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            <span className="truncate">{item.name}</span>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </ScrollArea>
+                        <CommandGroup className="border-t">
+                            <CommandItem onSelect={() => {
+                                onAddNew();
+                                setOpen(false);
+                            }}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                <span>Create new {triggerText.toLowerCase()}...</span>
+                            </CommandItem>
+                        </CommandGroup>
                     </Command>
                 </PopoverContent>
             </Popover>
