@@ -1,30 +1,39 @@
 
 
 'use client';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule } from "@/hooks/use-user-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import GuidanceRuleForm from "./GuidanceRuleForm";
+import TaskForm from '../tasks/TaskForm';
+import TipForm from '../tips/TipForm';
 
-export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceRules, masterTasks, masterTips }: {
+export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceRules, masterTasks, masterTips, externalResources, saveMasterTasks, saveMasterTips }: {
     questions: Question[];
     guidanceRules: GuidanceRule[];
     saveGuidanceRules: (rules: GuidanceRule[]) => void;
     masterTasks: MasterTask[];
     masterTips: MasterTip[];
+    externalResources: any[];
+    saveMasterTasks: (tasks: MasterTask[]) => void;
+    saveMasterTips: (tips: MasterTip[]) => void;
 }) {
     const { toast } = useToast();
     const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
     const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
 
+    const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [isTipFormOpen, setIsTipFormOpen] = useState(false);
+    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
+
     const handleManageGuidance = (question: Question) => {
         setSelectedQuestion(question);
         setIsRuleFormOpen(true);
     };
-    
+
     const handleSaveRule = (newRule: GuidanceRule) => {
         let newRules;
         const existingRuleIndex = guidanceRules.findIndex(r => r.id === newRule.id);
@@ -36,7 +45,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         }
         saveGuidanceRules(newRules);
         toast({ title: "Guidance Rule Saved" });
-    }
+    };
 
     const handleDeleteRule = (ruleId: string) => {
         const newRules = guidanceRules.filter(r => r.id !== ruleId);
@@ -50,9 +59,12 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
             if (q.options && q.options.length > 0) {
                 const mappedAnswers = new Set<string>();
                 guidanceRules.forEach(rule => {
-                    if (rule.questionId === q.id && rule.type === 'direct') {
+                    const isRelevantDirectRule = rule.type === 'direct' && rule.questionId === q.id;
+                    if (isRelevantDirectRule) {
                         rule.conditions.forEach(c => {
-                            if (c.answer) mappedAnswers.add(c.answer);
+                            if (c.answer) {
+                                mappedAnswers.add(c.answer);
+                            }
                         });
                     }
                 });
@@ -61,6 +73,38 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         });
         return counts;
     }, [questions, guidanceRules]);
+    
+    const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTaskFormOpen(true);
+    }, []);
+
+    const handleAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTipFormOpen(true);
+    }, []);
+
+    const handleSaveNewTask = (taskData: MasterTask) => {
+        const newTasks = [...masterTasks, taskData];
+        saveMasterTasks(newTasks);
+        toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
+        if (newItemCallback) {
+            newItemCallback(taskData);
+        }
+        setIsTaskFormOpen(false);
+        setNewItemCallback(null);
+    };
+
+    const handleSaveNewTip = (tipData: MasterTip) => {
+        const newTips = [...masterTips, tipData];
+        saveMasterTips(newTips);
+        toast({ title: 'Tip Added' });
+        if (newItemCallback) {
+            newItemCallback(tipData);
+        }
+        setIsTipFormOpen(false);
+        setNewItemCallback(null);
+    };
 
     return (
         <>
@@ -103,9 +147,28 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                         onDelete={handleDeleteRule}
                         masterTasks={masterTasks}
                         masterTips={masterTips}
+                        onAddNewTask={handleAddNewTask}
+                        onAddNewTip={handleAddNewTip}
+                        allResources={externalResources}
                     />
                 </DialogContent>
             </Dialog>
+            
+            <TaskForm 
+                isOpen={isTaskFormOpen}
+                onOpenChange={setIsTaskFormOpen}
+                onSave={handleSaveNewTask}
+                task={null}
+                allResources={externalResources}
+            />
+
+             <TipForm 
+                isOpen={isTipFormOpen}
+                onOpenChange={setIsTipFormOpen}
+                onSave={handleSaveNewTip}
+                tip={null}
+            />
         </>
     );
 }
+
