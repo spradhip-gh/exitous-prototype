@@ -44,6 +44,9 @@ export default function AdminFormEditor() {
         saveGuidanceRules,
         masterTasks,
         masterTips,
+        externalResources,
+        saveMasterTasks,
+        saveMasterTips,
     } = useUserData();
 
     const allQuestions = useMemo(() => {
@@ -88,6 +91,9 @@ export default function AdminFormEditor() {
                             saveGuidanceRules={saveGuidanceRules}
                             masterTasks={masterTasks}
                             masterTips={masterTips}
+                            externalResources={externalResources}
+                            saveMasterTasks={saveMasterTasks}
+                            saveMasterTips={saveMasterTips}
                         />
                     </TabsContent>
                 </Tabs>
@@ -315,3 +321,4 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         </>
     );
 }
+

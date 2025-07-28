@@ -119,7 +119,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                             <SelectTrigger id="linkedResourceId"><SelectValue placeholder="Select a resource..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">None</SelectItem>
-                                {allResources.map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
+                                {(allResources || []).map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
