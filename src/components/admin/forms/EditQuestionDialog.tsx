@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,19 +34,31 @@ export default function EditQuestionDialog({
     const { toast } = useToast();
     const { auth } = useAuth();
     const { masterQuestions, masterProfileQuestions } = useUserData();
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
+    
+    // State for all edits
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     
-    // State for HR suggestions
-    const [newOptions, setNewOptions] = useState<string[]>([]);
-    const [optionsToRemove, setOptionsToRemove] = useState<string[]>([]);
-    const [suggestedGuidance, setSuggestedGuidance] = useState<Record<string, string>>({});
-    
+    // State for HR "Suggest Edits" mode
+    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<{ option: string; guidance: string }[]>([]);
+    const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
+
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
-    const isHrSuggesting = isHrEditing && !!currentQuestion?.isLocked;
-
+    const isSuggestionMode = isHrEditing && !!currentQuestion?.isLocked;
+    
+    // This effect runs once when the dialog opens or the question prop changes
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentQuestion(question);
+            setIsCreatingNewSection(false);
+            setNewSectionName("");
+            setSuggestedOptionsToAdd([]);
+            setSuggestedOptionsToRemove([]);
+        }
+    }, [isOpen, question]);
+    
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
@@ -70,17 +81,6 @@ export default function EditQuestionDialog({
         return new Set(masterQuestionForEdit.options);
     }, [masterQuestionForEdit]);
 
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentQuestion(question);
-            setIsCreatingNewSection(false);
-            setNewSectionName("");
-            setNewOptions([]);
-            setOptionsToRemove([]);
-            setSuggestedGuidance({});
-        }
-    }, [isOpen, question]);
-
     if (!isOpen || !currentQuestion) {
         return null;
     }
@@ -90,15 +90,12 @@ export default function EditQuestionDialog({
     const handleSave = () => {
         if (!currentQuestion) return;
 
-        if (isHrSuggesting) {
+        if (isSuggestionMode) {
             const suggestedEdits = {
-                newOptions: newOptions.map(opt => ({
-                    option: opt,
-                    guidance: suggestedGuidance[opt] || ''
-                })),
-                optionsToRemove
+                optionsToAdd: suggestedOptionsToAdd,
+                optionsToRemove: suggestedOptionsToRemove
             };
-            if (suggestedEdits.newOptions.length === 0 && suggestedEdits.optionsToRemove.length === 0) {
+            if (suggestedEdits.optionsToAdd.length === 0 && suggestedEdits.optionsToRemove.length === 0) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition or removal.", variant: "destructive" });
                 return;
             }
@@ -126,19 +123,38 @@ export default function EditQuestionDialog({
             return { ...prev, dependsOnValue: newValues };
         });
     };
+    
+    // Handlers for suggestion mode
+    const handleAddSuggestion = () => {
+        setSuggestedOptionsToAdd(prev => [...prev, { option: '', guidance: '' }]);
+    };
+    
+    const handleUpdateSuggestion = (index: number, field: 'option' | 'guidance', value: string) => {
+        setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    };
+
+    const handleRemoveSuggestion = (index: number) => {
+        setSuggestedOptionsToAdd(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleToggleRemovalSuggestion = (option: string) => {
+        setSuggestedOptionsToRemove(prev => 
+            prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]
+        );
+    };
 
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>{isHrSuggesting ? 'Suggest Edits' : (isNew ? 'Add Custom Question' : 'Edit Question')}</DialogTitle>
+                <DialogTitle>{isSuggestionMode ? 'Suggest Edits' : (isNew ? 'Add Custom Question' : 'Edit Question')}</DialogTitle>
                 <DialogDescription>
-                    {isHrSuggesting 
+                    {isSuggestionMode 
                         ? `This question is locked. You can suggest adding or removing answer choices. Your suggestions will be sent for review.`
                         : (isNew ? 'Create a new question.' : 'Modify the question text, answer options, and default value.')}
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isHrSuggesting} className="space-y-6 py-4">
+            <fieldset disabled={isSuggestionMode} className="space-y-6 py-4">
                 {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
                     <Alert variant="default" className="bg-primary/5 border-primary/50">
                         <BellDot className="h-4 w-4 !text-primary" />
@@ -248,7 +264,7 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && !isHrSuggesting && (
+                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-2">
                         <Label htmlFor="question-options">Answer Options (one per line)</Label>
                          {isHrEditing && !currentQuestion.isCustom && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
@@ -354,19 +370,19 @@ export default function EditQuestionDialog({
                 )}
             </fieldset>
 
-             {isHrSuggesting && currentQuestion.options && (
+            {isSuggestionMode && currentQuestion.options && (
                 <div className="space-y-6 py-4">
                     <Separator />
                     <div className="space-y-2">
                         <Label>Current Answer Options</Label>
                         <p className="text-xs text-muted-foreground">You can suggest removing existing options.</p>
                         <div className="space-y-2 rounded-md border p-4">
-                             {currentQuestion.options.map(option => (
+                            {currentQuestion.options.map(option => (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
-                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setOptionsToRemove(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option])}>
+                                    <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
                                         <Trash2 className="mr-2 h-3 w-3" />
-                                        {optionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
+                                        {suggestedOptionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
                                     </Button>
                                 </div>
                             ))}
@@ -375,27 +391,25 @@ export default function EditQuestionDialog({
                     <div className="space-y-2">
                         <Label>Suggest New Options</Label>
                         <div className="space-y-4">
-                            {newOptions.map((option, index) => (
-                                <div key={index} className="space-y-2 p-3 bg-muted/50 rounded-md">
-                                    <Input value={option} onChange={(e) => {
-                                        const newOpt = e.target.value;
-                                        setNewOptions(prev => prev.map((o, i) => i === index ? newOpt : o));
-                                        setSuggestedGuidance(prev => ({...prev, [newOpt]: prev[option]}));
-                                    }} placeholder="New option name" />
-                                    <Textarea value={suggestedGuidance[option] || ''} onChange={(e) => setSuggestedGuidance(prev => ({...prev, [option]: e.target.value}))} placeholder="Optional: suggest a task or tip for this answer."/>
+                            {suggestedOptionsToAdd.map((suggestion, index) => (
+                                <div key={index} className="relative space-y-2 p-3 pr-10 bg-muted/50 rounded-md">
+                                    <Input value={suggestion.option} onChange={(e) => handleUpdateSuggestion(index, 'option', e.target.value)} placeholder="New option name" />
+                                    <Textarea value={suggestion.guidance} onChange={(e) => handleUpdateSuggestion(index, 'guidance', e.target.value)} placeholder="Optional: suggest a task or tip for this answer."/>
+                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             ))}
                         </div>
-                        <Button variant="outline" size="sm" className="mt-2" onClick={() => setNewOptions(prev => [...prev, ''])}><PlusCircle className="mr-2"/> Suggest New Option</Button>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={handleAddSuggestion}><PlusCircle className="mr-2"/> Suggest New Option</Button>
                     </div>
                 </div>
-             )}
-
+            )}
 
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" onClick={onClose}>Cancel</Button></DialogClose>
                 <Button onClick={handleSave}>
-                    {isHrSuggesting ? 'Submit Suggestions for Review' : 'Save Changes'}
+                    {isSuggestionMode ? 'Submit Suggestions for Review' : 'Save Changes'}
                 </Button>
             </DialogFooter>
         </DialogContent>
