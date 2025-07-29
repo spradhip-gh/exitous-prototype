@@ -64,10 +64,20 @@ export default function HrFormEditor() {
         if (companyName && !isLoading && Object.keys(masterQuestions).length > 0) {
             const assessmentQuestions = getCompanyConfig(companyName, false, 'assessment');
             const profileQuestions = getCompanyConfig(companyName, false, 'profile');
-            return [...profileQuestions, ...assessmentQuestions];
+            
+            const allQuestions = [...profileQuestions, ...assessmentQuestions];
+            
+            // Deduplicate questions based on ID, profile questions take precedence
+            const questionMap = new Map<string, Question>();
+            for(const q of allQuestions) {
+                if(!questionMap.has(q.id)) {
+                    questionMap.set(q.id, q);
+                }
+            }
+            return Array.from(questionMap.values());
         }
         return [];
-    }, [companyName, isLoading, masterQuestions, getCompanyConfig]);
+    }, [companyName, isLoading, masterQuestions, masterProfileQuestions, getCompanyConfig]);
 
     useEffect(() => {
         if (questionTree.length === 0) {
@@ -442,4 +452,3 @@ export default function HrFormEditor() {
         </div>
     );
 }
-
