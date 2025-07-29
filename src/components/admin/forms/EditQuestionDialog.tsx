@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2 } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
@@ -45,7 +45,8 @@ export default function EditQuestionDialog({
     const [suggestedGuidance, setSuggestedGuidance] = useState<Record<string, string>>({});
     
     const isAdmin = auth?.role === 'admin';
-    const isHrSuggesting = !isAdmin && !!currentQuestion?.isLocked;
+    const isHrEditing = auth?.role === 'hr';
+    const isHrSuggesting = isHrEditing && !!currentQuestion?.isLocked;
 
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -120,6 +121,11 @@ export default function EditQuestionDialog({
             return { ...prev, dependsOnValue: newValues };
         });
     };
+
+    const masterOptionsSet = useMemo(() => {
+        if (!masterQuestionForEdit?.options) return new Set();
+        return new Set(masterQuestionForEdit.options);
+    }, [masterQuestionForEdit]);
 
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -245,7 +251,27 @@ export default function EditQuestionDialog({
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && !isHrSuggesting && (
                     <div className="space-y-2">
                         <Label htmlFor="question-options">Answer Options (one per line)</Label>
-                        <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} />
+                         {isHrEditing && !currentQuestion.isCustom && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
+                        <Textarea 
+                            id="question-options" 
+                            value={currentQuestion.options?.join('\n') || ''} 
+                            onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} 
+                            rows={currentQuestion.options?.length || 3} 
+                        />
+                         {isHrEditing && !currentQuestion.isCustom && (
+                            <div className="space-y-1 pt-2">
+                                {currentQuestion.options?.map(opt => {
+                                    const isCustom = !masterOptionsSet.has(opt);
+                                    if (!isCustom) return null;
+                                    return (
+                                        <div key={opt} className="flex items-center gap-2">
+                                            <Star className="h-3 w-3 text-amber-500 fill-current"/>
+                                            <span className="text-xs text-muted-foreground">Custom answer: "{opt}"</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
