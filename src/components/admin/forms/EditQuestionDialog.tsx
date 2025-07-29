@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
@@ -24,7 +24,7 @@ interface EditQuestionDialogProps {
     isNew: boolean;
     question: Partial<Question> | null;
     existingSections?: string[];
-    onSave: (question: Partial<Question>, newSectionName?: string) => void;
+    onSave: (question: Partial<Question>, newSectionName?: string, suggestedEdits?: any) => void;
     onClose: () => void;
     masterQuestionForEdit?: Question | null;
 }
@@ -39,7 +39,13 @@ export default function EditQuestionDialog({
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     
+    // State for HR suggestions
+    const [newOptions, setNewOptions] = useState<string[]>([]);
+    const [optionsToRemove, setOptionsToRemove] = useState<string[]>([]);
+    const [suggestedGuidance, setSuggestedGuidance] = useState<Record<string, string>>({});
+    
     const isAdmin = auth?.role === 'admin';
+    const isHrSuggesting = !isAdmin && !!currentQuestion?.isLocked;
 
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -63,6 +69,9 @@ export default function EditQuestionDialog({
             setCurrentQuestion(question);
             setIsCreatingNewSection(false);
             setNewSectionName("");
+            setNewOptions([]);
+            setOptionsToRemove([]);
+            setSuggestedGuidance({});
         }
     }, [isOpen, question]);
 
@@ -74,6 +83,23 @@ export default function EditQuestionDialog({
 
     const handleSave = () => {
         if (!currentQuestion) return;
+
+        if (isHrSuggesting) {
+            const suggestedEdits = {
+                newOptions: newOptions.map(opt => ({
+                    option: opt,
+                    guidance: suggestedGuidance[opt] || ''
+                })),
+                optionsToRemove
+            };
+            if (suggestedEdits.newOptions.length === 0 && suggestedEdits.optionsToRemove.length === 0) {
+                toast({ title: "No Changes Suggested", description: "Please suggest an addition or removal.", variant: "destructive" });
+                return;
+            }
+            onSave(currentQuestion, undefined, suggestedEdits);
+            return;
+        }
+
         if (isCreatingNewSection && !newSectionName.trim()) {
             toast({ title: "New Section Required", variant: "destructive" });
             return;
@@ -98,11 +124,15 @@ export default function EditQuestionDialog({
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>{isNew ? 'Add Custom Question' : 'Edit Question'}</DialogTitle>
-                <DialogDescription>{isNew ? 'Create a new question.' : 'Modify the question text, answer options, and default value.'}</DialogDescription>
+                <DialogTitle>{isHrSuggesting ? 'Suggest Edits' : (isNew ? 'Add Custom Question' : 'Edit Question')}</DialogTitle>
+                <DialogDescription>
+                    {isHrSuggesting 
+                        ? `This question is locked. You can suggest adding or removing answer choices. Your suggestions will be sent for review.`
+                        : (isNew ? 'Create a new question.' : 'Modify the question text, answer options, and default value.')}
+                </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6 py-4">
+            <fieldset disabled={isHrSuggesting} className="space-y-6 py-4">
                 {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
                     <Alert variant="default" className="bg-primary/5 border-primary/50">
                         <BellDot className="h-4 w-4 !text-primary" />
@@ -212,7 +242,7 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
+                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && !isHrSuggesting && (
                     <div className="space-y-2">
                         <Label htmlFor="question-options">Answer Options (one per line)</Label>
                         <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} />
@@ -296,11 +326,51 @@ export default function EditQuestionDialog({
                         <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
                     </div>
                 )}
-            </div>
+            </fieldset>
+
+             {isHrSuggesting && currentQuestion.options && (
+                <div className="space-y-6 py-4">
+                    <Separator />
+                    <div className="space-y-2">
+                        <Label>Current Answer Options</Label>
+                        <p className="text-xs text-muted-foreground">You can suggest removing existing options.</p>
+                        <div className="space-y-2 rounded-md border p-4">
+                             {currentQuestion.options.map(option => (
+                                <div key={option} className="flex items-center justify-between">
+                                    <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
+                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setOptionsToRemove(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option])}>
+                                        <Trash2 className="mr-2 h-3 w-3" />
+                                        {optionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Suggest New Options</Label>
+                        <div className="space-y-4">
+                            {newOptions.map((option, index) => (
+                                <div key={index} className="space-y-2 p-3 bg-muted/50 rounded-md">
+                                    <Input value={option} onChange={(e) => {
+                                        const newOpt = e.target.value;
+                                        setNewOptions(prev => prev.map((o, i) => i === index ? newOpt : o));
+                                        setSuggestedGuidance(prev => ({...prev, [newOpt]: prev[option]}));
+                                    }} placeholder="New option name" />
+                                    <Textarea value={suggestedGuidance[option] || ''} onChange={(e) => setSuggestedGuidance(prev => ({...prev, [option]: e.target.value}))} placeholder="Optional: suggest a task or tip for this answer."/>
+                                </div>
+                            ))}
+                        </div>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={() => setNewOptions(prev => [...prev, ''])}><PlusCircle className="mr-2"/> Suggest New Option</Button>
+                    </div>
+                </div>
+             )}
+
 
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" onClick={onClose}>Cancel</Button></DialogClose>
-                <Button onClick={handleSave}>Save Changes</Button>
+                <Button onClick={handleSave}>
+                    {isHrSuggesting ? 'Submit Suggestions for Review' : 'Save Changes'}
+                </Button>
             </DialogFooter>
         </DialogContent>
     );

@@ -1,9 +1,10 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem } from "@/hooks/use-user-data";
 import { getDefaultQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export default function HrFormEditor() {
         isLoading, 
         companyAssignmentForHr,
         getCompanyConfig, 
+        addReviewQueueItem
     } = useUserData();
     
     const companyName = auth?.companyName;
@@ -240,8 +242,32 @@ export default function HrFormEditor() {
         generateAndSaveConfig(newSections);
     };
 
-    const handleSaveEdit = (questionToSave: Partial<Question>) => {
+    const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any) => {
         if (!questionToSave) return;
+        
+        if (suggestedEdits) {
+             const reviewItem = {
+                id: `review-suggestion-${Date.now()}`,
+                userEmail: auth?.email || 'unknown-hr',
+                inputData: { 
+                    type: 'question_edit_suggestion',
+                    companyName: auth?.companyName,
+                    questionId: questionToSave.id,
+                    questionLabel: questionToSave.label,
+                    suggestions: suggestedEdits
+                },
+                output: {}, // Not applicable here
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            } as unknown as ReviewQueueItem;
+
+            addReviewQueueItem(reviewItem);
+            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
+
+            setIsEditing(false);
+            setCurrentQuestion(null);
+            return;
+        }
 
         let newQuestion = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
         let newSections = JSON.parse(JSON.stringify(orderedSections));
