@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -204,7 +204,61 @@ export default function ReviewQueuePage() {
 
 function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onStatusChange: (id: string, status: 'approved' | 'rejected') => void }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
+    const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
 
+    if (isSuggestion) {
+        const { companyName, questionLabel, suggestions } = item.inputData;
+        const { optionsToAdd, optionsToRemove } = suggestions;
+
+        return (
+            <Card className="bg-muted/50">
+                <CardHeader>
+                     <CardTitle className="text-base flex items-center gap-2">
+                        <FilePenLine /> HR Suggested Question Edit
+                     </CardTitle>
+                    <CardDescription className="text-xs">
+                        Suggested by: {item.userEmail} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="p-3 border rounded-md bg-background">
+                         <p className="text-sm text-muted-foreground">For Question:</p>
+                         <p className="font-semibold text-base">"{questionLabel}"</p>
+                    </div>
+                     {optionsToRemove?.length > 0 && (
+                        <div>
+                             <p className="text-sm font-medium mb-1">Suggested Removals:</p>
+                             <div className="flex flex-wrap gap-2">
+                                {optionsToRemove.map((opt, i) => <Badge key={i} variant="destructive">{opt}</Badge>)}
+                             </div>
+                        </div>
+                     )}
+                      {optionsToAdd?.length > 0 && (
+                        <div>
+                             <p className="text-sm font-medium mb-2">Suggested Additions:</p>
+                             <div className="space-y-2">
+                                {optionsToAdd.map((opt: any, i: number) => (
+                                    <div key={i} className="p-2 border rounded-md bg-green-50 border-green-200">
+                                        <p className="font-semibold text-green-800">{opt.option}</p>
+                                        <blockquote className="mt-1 border-l-2 pl-3 border-green-300 italic text-green-700 text-xs flex items-start gap-2">
+                                            <MessageSquareQuote className="h-4 w-4 mt-0.5 shrink-0"/>
+                                            <span>{opt.guidance || 'No guidance suggested.'}</span>
+                                        </blockquote>
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+                     )}
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 border-t pt-4">
+                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item.id, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
+                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item.id, 'approved')}><ThumbsUp className="mr-2"/> Approve</Button>
+                </CardFooter>
+            </Card>
+        )
+    }
+
+    // Default rendering for AI recommendations
     return (
         <Card className="bg-muted/50">
              <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
