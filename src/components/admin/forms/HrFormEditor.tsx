@@ -11,10 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from 'date-fns';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 interface HrOrderedSection {
     id: string;
@@ -32,6 +36,98 @@ function findQuestion(sections: HrOrderedSection[], questionId: string): Questio
     }
     return null;
 }
+
+function MySuggestionsTab() {
+    const { auth } = useAuth();
+    const { reviewQueue, saveReviewQueue } = useUserData();
+    const { toast } = useToast();
+
+    const mySuggestions = useMemo(() => {
+        if (!auth?.email || !auth.companyName) return [];
+        return reviewQueue
+            .filter(item => 
+                item.inputData?.type === 'question_edit_suggestion' &&
+                item.userEmail.toLowerCase() === auth.email!.toLowerCase() &&
+                item.inputData?.companyName === auth.companyName
+            )
+            .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+    }, [reviewQueue, auth]);
+    
+    const handleWithdraw = (itemId: string) => {
+        const updatedQueue = reviewQueue.filter(item => item.id !== itemId);
+        saveReviewQueue(updatedQueue);
+        toast({ title: "Suggestion Withdrawn", description: "Your suggestion has been removed from the review queue." });
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch(status) {
+            case 'approved': return <Badge variant="default" className="bg-green-600">Approved</Badge>;
+            case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+            default: return <Badge variant="secondary">Pending</Badge>;
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>My Submitted Suggestions</CardTitle>
+                <CardDescription>A history of the suggestions you've submitted for review for {auth?.companyName}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Question</TableHead>
+                            <TableHead>Suggestion Details</TableHead>
+                            <TableHead>Date Submitted</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mySuggestions.length > 0 ? mySuggestions.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.inputData.questionLabel}</TableCell>
+                                <TableCell>
+                                    <div className="text-xs space-y-1">
+                                        {item.inputData.suggestions.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                        {item.inputData.suggestions.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{format(parseISO(item.createdAt), 'PPp')}</TableCell>
+                                <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                <TableCell className="text-right">
+                                     {item.status === 'pending' && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="outline" size="sm">Withdraw</Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Withdraw Suggestion?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This will remove your suggestion from the review queue. This action cannot be undone.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleWithdraw(item.id)}>Yes, Withdraw</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">You have not submitted any suggestions for this company.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function QuestionEditor({
     questionType,
@@ -460,15 +556,19 @@ export default function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
                  <Tabs defaultValue="profile">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
+                        <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile" className="mt-6">
                         <QuestionEditor questionType="profile" canWrite={canWrite} />
                     </TabsContent>
                     <TabsContent value="assessment" className="mt-6">
                        <QuestionEditor questionType="assessment" canWrite={canWrite} />
+                    </TabsContent>
+                    <TabsContent value="suggestions" className="mt-6">
+                       <MySuggestionsTab />
                     </TabsContent>
                 </Tabs>
             </div>
