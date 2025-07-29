@@ -11,11 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2 } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
+import { useAuth } from "@/hooks/use-auth";
+import { Switch } from "@/components/ui/switch";
 
 interface EditQuestionDialogProps {
     isOpen: boolean;
@@ -31,11 +33,14 @@ export default function EditQuestionDialog({
     isOpen, isNew, question, existingSections, onSave, onClose, masterQuestionForEdit
 }: EditQuestionDialogProps) {
     const { toast } = useToast();
+    const { auth } = useAuth();
     const { masterQuestions, masterProfileQuestions } = useUserData();
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     
+    const isAdmin = auth?.role === 'admin';
+
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
@@ -275,7 +280,22 @@ export default function EditQuestionDialog({
                       <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
                 </div>
 
-
+                {isAdmin && !isNew && !currentQuestion.parentId && (
+                    <div className="space-y-4 rounded-md border border-dashed p-4">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
+                                <Lock className="text-muted-foreground" />
+                                Lock this Question
+                            </Label>
+                            <Switch 
+                                id="is-locked-switch"
+                                checked={!!currentQuestion.isLocked}
+                                onCheckedChange={(checked) => setCurrentQuestion(q => q ? { ...q, isLocked: checked } : null)}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
+                    </div>
+                )}
             </div>
 
             <DialogFooter>

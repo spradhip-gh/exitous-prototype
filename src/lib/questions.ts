@@ -8,6 +8,7 @@ export interface Question {
     section: string;
     type: "select" | "radio" | "checkbox" | "date" | "text";
     isActive: boolean;
+    isLocked?: boolean; // If true, HR cannot edit or disable this question
     isCustom?: boolean;
     defaultValue?: string | string[];
     options?: string[];
@@ -31,6 +32,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Basic Information',
         type: 'text',
         isActive: true,
+        isLocked: true,
         placeholder: 'YYYY'
     },
     { 
@@ -39,6 +41,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Basic Information',
         type: 'select',
         isActive: true,
+        isLocked: true,
         placeholder: 'Select a state',
         options: [ 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming' ],
     },
@@ -48,6 +51,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Basic Information',
         type: 'select',
         isActive: true,
+        isLocked: true,
         placeholder: "Select an option",
         options: ['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'],
         subQuestions: [
@@ -69,6 +73,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Family & Household',
         type: 'select',
         isActive: true,
+        isLocked: true,
         options: ['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'],
         placeholder: "Select a status",
     },
@@ -78,6 +83,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Family & Household',
         type: 'radio',
         isActive: true,
+        isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
     },
     { 
@@ -86,6 +92,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Family & Household',
         type: 'radio',
         isActive: true,
+        isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
     },
     { 
@@ -94,6 +101,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Family & Household',
         type: 'radio',
         isActive: true,
+        isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
     },
     { 
@@ -102,6 +110,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Family & Household',
         type: 'radio',
         isActive: true,
+        isLocked: true,
         options: ['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'],
     },
     { 
@@ -110,6 +119,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Circumstances',
         type: 'radio',
         isActive: true,
+        isLocked: true,
         options: ['Homeowner', 'Renter', 'Corporate housing', 'Other', 'Prefer not to answer'],
     },
     { 
@@ -118,6 +128,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Circumstances',
         type: 'select',
         isActive: true,
+        isLocked: true,
         options: [
             'U.S. citizen', 'Permanent U.S. resident (green card holder), not a citizen',
             'Pending I-485; working on an Employment Authorization Document (EAD) based on a pending I-485 (C9 class)',
@@ -133,6 +144,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         section: 'Circumstances',
         type: 'checkbox',
         isActive: true,
+        isLocked: true,
         options: [
             'City/state/country relocation', 'Home purchase', 'College enrollment for yourself or a dependent',
             'Marriage / separation / divorce', 'Serious mental or physical illness or accident (affecting you, a dependent, or a loved one)',
@@ -168,6 +180,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        isLocked: true,
         placeholder: "Pick a date",
     },
     { 
@@ -176,6 +189,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        isLocked: true,
         placeholder: "Pick a date",
     },
     { 
@@ -184,6 +198,7 @@ export const getDefaultQuestions = (): Question[] => [
         section: "Work & Employment Details",
         type: "date",
         isActive: true,
+        isLocked: true,
         placeholder: "Pick a date",
     },
     { 
