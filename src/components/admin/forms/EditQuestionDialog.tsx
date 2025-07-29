@@ -35,7 +35,7 @@ export default function EditQuestionDialog({
     const { toast } = useToast();
     const { auth } = useAuth();
     const { masterQuestions, masterProfileQuestions } = useUserData();
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     
@@ -64,6 +64,11 @@ export default function EditQuestionDialog({
         const sourceMap = currentQuestion.dependencySource === 'profile' ? masterProfileQuestions : masterQuestions;
         return sourceMap[currentQuestion.dependsOn]?.options || [];
     }, [currentQuestion, masterProfileQuestions, masterQuestions]);
+
+    const masterOptionsSet = useMemo(() => {
+        if (!masterQuestionForEdit?.options) return new Set();
+        return new Set(masterQuestionForEdit.options);
+    }, [masterQuestionForEdit]);
 
     useEffect(() => {
         if (isOpen) {
@@ -121,11 +126,6 @@ export default function EditQuestionDialog({
             return { ...prev, dependsOnValue: newValues };
         });
     };
-
-    const masterOptionsSet = useMemo(() => {
-        if (!masterQuestionForEdit?.options) return new Set();
-        return new Set(masterQuestionForEdit.options);
-    }, [masterQuestionForEdit]);
 
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
