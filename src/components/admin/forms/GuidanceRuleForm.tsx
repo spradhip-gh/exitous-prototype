@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -62,55 +63,76 @@ function MultiSelectPopover({
             : [...validSelectedIds, id];
         onSelectionChange(newSelection);
     }
+    
+    const displayLabel = useMemo(() => {
+        if (validSelectedIds.length === 0) return `0 selected`;
+        if (validSelectedIds.length <= 2) {
+            return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
+        }
+        return `${validSelectedIds.length} selected`;
+    }, [validSelectedIds, items]);
 
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
-            <DropdownMenu open={open} onOpenChange={setOpen}>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                        <span>{validSelectedIds.length} selected</span> <ChevronsUpDown className="h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[300px]" align="start">
-                    <div className="p-2">
-                         <Input 
-                            placeholder={`Search ${label.toLowerCase()}...`}
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="h-8"
-                        />
-                    </div>
-                     <div className="p-2 pt-0 flex flex-wrap gap-1">
-                        <Button variant={!categoryFilter ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(null)}>All</Button>
-                        {categories.map(cat => (
-                             <Button key={cat} variant={categoryFilter === cat ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(cat)}>{cat}</Button>
-                        ))}
-                    </div>
-                    <DropdownMenuSeparator />
-                    <ScrollArea className="h-64">
-                         {filteredItems.map(item => (
-                            <DropdownMenuCheckboxItem
-                                key={item.id}
-                                checked={validSelectedIds.includes(item.id)}
-                                onCheckedChange={() => handleSelect(item.id)}
-                                onSelect={(e) => e.preventDefault()}
-                            >
-                                <span className="truncate" title={item.name}>{item.name}</span>
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </ScrollArea>
-                    <DropdownMenuSeparator />
-                     <DropdownMenuItem onSelect={(e) => {
-                        e.preventDefault();
-                        onAddNew();
-                        setOpen(false);
-                     }}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Create new {label.toLowerCase().slice(0, -1)}...
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <TooltipProvider>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenu open={open} onOpenChange={setOpen}>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between font-normal truncate">
+                                    <span className="truncate">{displayLabel}</span> <ChevronsUpDown className="h-4 w-4 shrink-0" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[300px]" align="start">
+                                <div className="p-2">
+                                     <Input 
+                                        placeholder={`Search ${label.toLowerCase()}...`}
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="h-8"
+                                    />
+                                </div>
+                                 <div className="p-2 pt-0 flex flex-wrap gap-1">
+                                    <Button variant={!categoryFilter ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(null)}>All</Button>
+                                    {categories.map(cat => (
+                                         <Button key={cat} variant={categoryFilter === cat ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(cat)}>{cat}</Button>
+                                    ))}
+                                </div>
+                                <DropdownMenuSeparator />
+                                <ScrollArea className="h-64">
+                                     {filteredItems.map(item => (
+                                        <DropdownMenuCheckboxItem
+                                            key={item.id}
+                                            checked={validSelectedIds.includes(item.id)}
+                                            onCheckedChange={() => handleSelect(item.id)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            <span className="truncate" title={item.name}>{item.name}</span>
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </ScrollArea>
+                                <DropdownMenuSeparator />
+                                 <DropdownMenuItem onSelect={(e) => {
+                                    e.preventDefault();
+                                    onAddNew();
+                                    setOpen(false);
+                                 }}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Create new {label.toLowerCase().slice(0, -1)}...
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TooltipTrigger>
+                    {validSelectedIds.length > 2 && (
+                        <TooltipContent>
+                           <p className="max-w-xs">
+                             {validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ')}
+                           </p>
+                        </TooltipContent>
+                    )}
+                 </Tooltip>
+            </TooltipProvider>
         </div>
     );
 }
