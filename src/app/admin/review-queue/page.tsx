@@ -114,15 +114,71 @@ export default function ReviewQueuePage() {
     const { 
         reviewQueue, 
         saveReviewQueue,
+        getAllCompanyConfigs,
+        saveCompanyConfig,
+        masterQuestions,
+        masterProfileQuestions
     } = useUserData();
 
+    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected') => {
+        
+        if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
+            const { companyName, questionId, suggestions } = item.inputData;
+            
+            if (!companyName || !questionId || !suggestions) {
+                 toast({ title: 'Error Applying Suggestion', description: 'The suggestion data is incomplete.', variant: 'destructive' });
+                 return;
+            }
 
-    const handleStatusChange = (id: string, status: 'approved' | 'rejected') => {
-        const updatedQueue = reviewQueue.map(item =>
-            item.id === id ? { ...item, status } : item
+            const allConfigs = getAllCompanyConfigs();
+            const companyConfig = allConfigs[companyName];
+            if (!companyConfig) {
+                 toast({ title: 'Error Applying Suggestion', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
+                 return;
+            }
+
+            const newConfig = JSON.parse(JSON.stringify(companyConfig)); // Deep copy
+            if (!newConfig.questions) newConfig.questions = {};
+
+            const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
+            const masterQuestion = allMasterQs[questionId];
+            if (!masterQuestion) {
+                 toast({ title: 'Error Applying Suggestion', description: `Could not find master question with ID: ${questionId}.`, variant: 'destructive' });
+                 return;
+            }
+
+            const currentOptions = newConfig.questions[questionId]?.options || masterQuestion.options || [];
+            let newOptions = [...currentOptions];
+
+            if (suggestions.optionsToRemove && suggestions.optionsToRemove.length > 0) {
+                newOptions = newOptions.filter(opt => !suggestions.optionsToRemove.includes(opt));
+            }
+            if (suggestions.optionsToAdd && suggestions.optionsToAdd.length > 0) {
+                 suggestions.optionsToAdd.forEach((suggestion: { option: string }) => {
+                    if (!newOptions.includes(suggestion.option)) {
+                        newOptions.push(suggestion.option);
+                    }
+                });
+            }
+
+            if (!newConfig.questions[questionId]) {
+                newConfig.questions[questionId] = { options: newOptions };
+            } else {
+                newConfig.questions[questionId].options = newOptions;
+            }
+
+            saveCompanyConfig(companyName, newConfig);
+            toast({ title: `Suggestion Approved`, description: `Changes have been applied to ${companyName}'s form.` });
+
+        } else {
+            toast({ title: `Recommendation ${status}` });
+        }
+        
+        // Update the status of the item in the queue regardless
+        const updatedQueue = reviewQueue.map(i =>
+            i.id === item.id ? { ...i, status } : i
         );
         saveReviewQueue(updatedQueue);
-        toast({ title: `Recommendation ${status}` });
     };
     
     const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending');
@@ -202,7 +258,7 @@ export default function ReviewQueuePage() {
     );
 }
 
-function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onStatusChange: (id: string, status: 'approved' | 'rejected') => void }) {
+function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected') => void }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
 
@@ -229,7 +285,7 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
                         <div>
                              <p className="text-sm font-medium mb-1">Suggested Removals:</p>
                              <div className="flex flex-wrap gap-2">
-                                {optionsToRemove.map((opt, i) => <Badge key={i} variant="destructive">{opt}</Badge>)}
+                                {optionsToRemove.map((opt: any, i: number) => <Badge key={i} variant="destructive">{opt}</Badge>)}
                              </div>
                         </div>
                      )}
@@ -251,8 +307,8 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
                      )}
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item.id, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
-                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item.id, 'approved')}><ThumbsUp className="mr-2"/> Approve</Button>
+                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
+                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}><ThumbsUp className="mr-2"/> Approve</Button>
                 </CardFooter>
             </Card>
         )
@@ -294,16 +350,13 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
                 ))}
             </CardContent>
             <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                <Button size="sm" variant="destructive" onClick={() => onStatusChange(item.id, 'rejected')}>
+                <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}>
                     <ThumbsDown className="mr-2"/> Reject
                 </Button>
-                 <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item.id, 'approved')}>
+                 <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}>
                     <ThumbsUp className="mr-2"/> Approve
                 </Button>
             </CardFooter>
         </Card>
     )
 }
-
-
-    
