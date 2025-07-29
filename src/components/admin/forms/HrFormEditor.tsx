@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question, ReviewQueueItem } from "@/hooks/use-user-data";
-import { getDefaultQuestions } from "@/lib/questions";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap } from "@/hooks/use-user-data";
+import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -40,6 +40,7 @@ export default function HrFormEditor() {
         getAllCompanyConfigs, 
         saveCompanyConfig, 
         masterQuestions, 
+        masterProfileQuestions,
         isLoading, 
         companyAssignmentForHr,
         getCompanyConfig, 
@@ -61,7 +62,9 @@ export default function HrFormEditor() {
 
     const questionTree = useMemo(() => {
         if (companyName && !isLoading && Object.keys(masterQuestions).length > 0) {
-            return getCompanyConfig(companyName, false);
+            const assessmentQuestions = getCompanyConfig(companyName, false, 'assessment');
+            const profileQuestions = getCompanyConfig(companyName, false, 'profile');
+            return [...profileQuestions, ...assessmentQuestions];
         }
         return [];
     }, [companyName, isLoading, masterQuestions, getCompanyConfig]);
@@ -81,7 +84,10 @@ export default function HrFormEditor() {
             sectionsMap[q.section].push(q);
         });
         
-        const masterSectionOrder = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
+        const defaultProfileSections = [...new Set(getDefaultProfileQuestions().filter(q => !q.parentId).map(q => q.section))];
+        const defaultAssessmentSections = [...new Set(getDefaultQuestions().filter(q => !q.parentId).map(q => q.section))];
+        const masterSectionOrder = [...defaultProfileSections, ...defaultAssessmentSections];
+
         Object.keys(sectionsMap).forEach(s => {
             if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
         });
@@ -137,12 +143,14 @@ export default function HrFormEditor() {
         const companyOverrides: Record<string, Partial<Question>> = {};
         const customQuestions: Record<string, Question> = {};
         const questionOrderBySection: Record<string, string[]> = {};
+        
+        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
 
         const processQuestionForSave = (q: Question) => {
             if (q.isCustom) {
                 customQuestions[q.id] = q;
             } else {
-                const masterQ = masterQuestions[q.id];
+                const masterQ = allMasterQuestions[q.id];
                 if (!masterQ) {
                     if(q.parentId) { // It's a custom sub-question on a master question
                          customQuestions[q.id] = q;
@@ -179,7 +187,7 @@ export default function HrFormEditor() {
 
         saveCompanyConfig(companyName, newConfig);
         toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
-    }, [companyName, masterQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
+    }, [companyName, masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
 
 
     const handleToggleQuestion = (questionId: string) => {
@@ -357,8 +365,9 @@ export default function HrFormEditor() {
     };
     
     const masterQuestionForEdit = useMemo(() => {
-        return currentQuestion && !currentQuestion.isCustom && masterQuestions ? masterQuestions[currentQuestion.id!] : null;
-    }, [currentQuestion, masterQuestions]);
+        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+        return currentQuestion && !currentQuestion.isCustom && allMasterQuestions ? allMasterQuestions[currentQuestion.id!] : null;
+    }, [currentQuestion, masterQuestions, masterProfileQuestions]);
 
     const availableSections = useMemo(() => [...new Set(Object.values(masterQuestions || {}).filter(q => !q.parentId).map(q => q.section))], [masterQuestions]);
 
@@ -376,8 +385,8 @@ export default function HrFormEditor() {
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
                 <div className="space-y-2">
-                    <h1 className="font-headline text-3xl font-bold">Assessment Question Editor</h1>
-                    <p className="text-muted-foreground">Manage the assessment form for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
+                    <h1 className="font-headline text-3xl font-bold">Form Editor</h1>
+                    <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
                 <fieldset disabled={!canWrite}>
                     <Card>
@@ -388,7 +397,8 @@ export default function HrFormEditor() {
                                     <h3 className="font-semibold mb-4 text-lg">{section}</h3>
                                     <div className="space-y-2">
                                         {sectionQuestions.map((question, index) => {
-                                            const masterQ = masterQuestions[question.id];
+                                            const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+                                            const masterQ = allMasterQuestions[question.id];
                                             const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
                                             
                                             return (
@@ -432,3 +442,4 @@ export default function HrFormEditor() {
         </div>
     );
 }
+

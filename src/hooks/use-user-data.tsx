@@ -719,14 +719,23 @@ export function useUserData() {
     return user ? user.role : null;
   }, [platformUsers]);
 
-  const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true): Question[] => {
-    if (Object.keys(masterQuestions).length === 0) return [];
+  const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
+    const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+    
+    let sourceMasterQuestions: Record<string, Question>;
+    if (formType === 'all') {
+        sourceMasterQuestions = allMasterQuestions;
+    } else {
+        sourceMasterQuestions = formType === 'assessment' ? masterQuestions : masterProfileQuestions;
+    }
+    
+    if (Object.keys(sourceMasterQuestions).length === 0) return [];
 
     const companyConfig = companyName ? companyConfigs[companyName] : undefined;
     
     // Create a deep copy to avoid mutating the master questions state
     const combinedFlatMap = structuredClone({
-        ...masterQuestions,
+        ...sourceMasterQuestions,
         ...(companyConfig?.customQuestions || {})
     });
     
@@ -734,6 +743,14 @@ export function useUserData() {
         for (const id in companyConfig.questions) {
             if (combinedFlatMap[id]) {
                 Object.assign(combinedFlatMap[id], companyConfig.questions[id]);
+                // Check if options are overridden and flag them
+                const masterQ = allMasterQuestions[id];
+                if (masterQ?.options && combinedFlatMap[id].options) {
+                    const masterOptionsSet = new Set(masterQ.options);
+                    combinedFlatMap[id].options = combinedFlatMap[id].options!.map(opt => {
+                        return { value: opt, isCustom: !masterOptionsSet.has(opt) }
+                    }).map(o => o.value);
+                }
             }
         }
     }
@@ -783,7 +800,7 @@ export function useUserData() {
     }
     
     return questionTree;
-  }, [masterQuestions, companyConfigs]);
+  }, [masterQuestions, masterProfileQuestions, companyConfigs]);
 
   const getProfileCompletion = useCallback(() => {
     if (!profileSchema?.shape) {
