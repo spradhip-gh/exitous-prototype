@@ -228,7 +228,7 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
                 </CollapsibleContent>
             </Collapsible>
             <CardContent className="space-y-2">
-                {item.output.recommendations.map((rec, index) => (
+                {item.output?.recommendations?.map((rec, index) => (
                     <div key={index} className="p-3 border rounded-md bg-background">
                         <div className="flex justify-between items-center">
                              <p className="font-semibold">{rec.task}</p>
@@ -250,3 +250,6 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
         </Card>
     )
 }
+
+
+    
