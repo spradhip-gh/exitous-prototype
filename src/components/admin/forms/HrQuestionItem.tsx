@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
+    const canEditLockedQuestion = isLocked && canHaveSubquestions;
 
     return (
         <div className="space-y-2">
@@ -26,7 +27,9 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    {(canWrite && (!isLocked || canEditLockedQuestion)) && (
+                        <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    )}
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -70,6 +73,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
 export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
+    const canEditLockedQuestion = isLocked && canHaveSubquestions;
 
     return (
         <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
@@ -106,7 +110,9 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    {(canWrite && (!isLocked || canEditLockedQuestion)) && (
+                        <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    )}
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
