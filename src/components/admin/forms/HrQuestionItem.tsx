@@ -26,7 +26,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite || isLocked}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -106,7 +106,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite || isLocked}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(question)} disabled={!canWrite}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     {question.isCustom && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>

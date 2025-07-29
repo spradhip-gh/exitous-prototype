@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,21 +35,18 @@ export default function EditQuestionDialog({
     const { toast } = useToast();
     const { auth } = useAuth();
     const { masterQuestions, masterProfileQuestions } = useUserData();
-    
-    // State for all edits
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+
+    // All hooks must be called unconditionally at the top of the component.
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
-    
-    // State for HR "Suggest Edits" mode
     const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<{ option: string; guidance: string }[]>([]);
     const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
-
+    
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isSuggestionMode = isHrEditing && !!currentQuestion?.isLocked;
     
-    // This effect runs once when the dialog opens or the question prop changes
     useEffect(() => {
         if (isOpen) {
             setCurrentQuestion(question);
@@ -81,6 +79,7 @@ export default function EditQuestionDialog({
         return new Set(masterQuestionForEdit.options);
     }, [masterQuestionForEdit]);
 
+    // Now, we can have our conditional return.
     if (!isOpen || !currentQuestion) {
         return null;
     }
