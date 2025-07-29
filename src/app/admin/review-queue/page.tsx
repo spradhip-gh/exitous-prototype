@@ -17,6 +17,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/hooks/use-auth';
 
 
 function GuidanceRulesTab() {
@@ -111,6 +112,7 @@ function GuidanceRulesTab() {
 
 export default function ReviewQueuePage() {
     const { toast } = useToast();
+    const { auth } = useAuth();
     const { 
         reviewQueue, 
         saveReviewQueue,
@@ -122,6 +124,8 @@ export default function ReviewQueuePage() {
 
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected') => {
         
+        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId: auth?.email };
+
         if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
             const { companyName, questionId, suggestions } = item.inputData;
             
@@ -146,8 +150,13 @@ export default function ReviewQueuePage() {
                  toast({ title: 'Error Applying Suggestion', description: `Could not find master question with ID: ${questionId}.`, variant: 'destructive' });
                  return;
             }
+            
+            // Ensure the override exists if it doesn't
+            if (!newConfig.questions[questionId]) {
+                newConfig.questions[questionId] = {};
+            }
 
-            const currentOptions = newConfig.questions[questionId]?.options || masterQuestion.options || [];
+            const currentOptions = newConfig.questions[questionId].options || masterQuestion.options || [];
             let newOptions = [...currentOptions];
 
             if (suggestions.optionsToRemove && suggestions.optionsToRemove.length > 0) {
@@ -161,14 +170,12 @@ export default function ReviewQueuePage() {
                 });
             }
 
-            if (!newConfig.questions[questionId]) {
-                newConfig.questions[questionId] = { options: newOptions };
-            } else {
-                newConfig.questions[questionId].options = newOptions;
-            }
+            newConfig.questions[questionId].options = newOptions;
 
             saveCompanyConfig(companyName, newConfig);
             toast({ title: `Suggestion Approved`, description: `Changes have been applied to ${companyName}'s form.` });
+            
+            reviewedItem = { ...reviewedItem, changeDetails: suggestions };
 
         } else {
             toast({ title: `Recommendation ${status}` });
@@ -176,13 +183,13 @@ export default function ReviewQueuePage() {
         
         // Update the status of the item in the queue regardless
         const updatedQueue = reviewQueue.map(i =>
-            i.id === item.id ? { ...i, status } : i
+            i.id === item.id ? reviewedItem : i
         );
         saveReviewQueue(updatedQueue);
     };
     
     const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending');
-    const reviewedItems = reviewQueue.filter(item => item.status !== 'pending');
+    const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     return (
         <div className="p-4 md:p-8">
@@ -228,7 +235,7 @@ export default function ReviewQueuePage() {
                                             <TableHead>User</TableHead>
                                             <TableHead>Company</TableHead>
                                             <TableHead>Date</TableHead>
-                                            <TableHead>Status</TableHead>
+                                            <TableHead>Details</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -241,6 +248,12 @@ export default function ReviewQueuePage() {
                                                     <Badge variant={item.status === 'approved' ? 'default' : 'destructive'} className={item.status === 'approved' ? 'bg-green-600' : ''}>
                                                         {item.status}
                                                     </Badge>
+                                                    {item.changeDetails && (
+                                                         <div className="text-xs text-muted-foreground mt-1">
+                                                            {item.changeDetails.optionsToAdd?.length > 0 && <div>+ Added: {item.changeDetails.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                                            {item.changeDetails.optionsToRemove?.length > 0 && <div>- Removed: {item.changeDetails.optionsToRemove.join(', ')}</div>}
+                                                         </div>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -264,7 +277,7 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
 
     if (isSuggestion) {
         const { companyName, questionLabel, suggestions } = item.inputData;
-        const { optionsToAdd, optionsToRemove } = suggestions;
+        const { optionsToAdd, optionsToRemove } = suggestions || {};
 
         return (
             <Card className="bg-muted/50">

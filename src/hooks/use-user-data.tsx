@@ -115,10 +115,13 @@ export interface Resource {
 export interface ReviewQueueItem {
     id: string;
     userEmail: string;
-    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'>;
+    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> & { type?: string, questionLabel?: string, suggestions?: any };
     output: PersonalizedRecommendationsOutput;
     status: 'pending' | 'approved' | 'rejected';
     createdAt: string; // ISO string
+    reviewedAt?: string;
+    reviewerId?: string;
+    changeDetails?: any;
 }
 
 export interface CompanyConfig {
@@ -742,14 +745,18 @@ export function useUserData() {
     if (companyConfig?.questions) {
         for (const id in companyConfig.questions) {
             if (combinedFlatMap[id]) {
-                Object.assign(combinedFlatMap[id], companyConfig.questions[id]);
-                // Check if options are overridden and flag them
-                const masterQ = allMasterQuestions[id];
-                if (masterQ?.options && combinedFlatMap[id].options) {
-                    const masterOptionsSet = new Set(masterQ.options);
-                    combinedFlatMap[id].options = combinedFlatMap[id].options!.map(opt => {
-                        return { value: opt, isCustom: !masterOptionsSet.has(opt) }
-                    }).map(o => o.value);
+                const override = companyConfig.questions[id];
+                Object.assign(combinedFlatMap[id], override);
+                
+                // If the override has options, compare them to the master to flag custom ones
+                if(override?.options && allMasterQuestions[id]?.options) {
+                    const masterOptionsSet = new Set(allMasterQuestions[id].options);
+                    override.options.forEach(opt => {
+                        if (!masterOptionsSet.has(opt)) {
+                            // This is a custom option, we need to mark it if we store options as objects.
+                            // For now, the comparison happens in the UI.
+                        }
+                    });
                 }
             }
         }
