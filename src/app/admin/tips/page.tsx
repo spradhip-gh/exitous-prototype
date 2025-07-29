@@ -19,6 +19,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { PlusCircle, Trash2, Pencil, Download, Upload, Replace } from 'lucide-react';
 import Papa from 'papaparse';
 import TipForm from '@/components/admin/tips/TipForm';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 export default function TipsManagementPage() {
     const { toast } = useToast();
@@ -200,7 +202,18 @@ export default function TipsManagementPage() {
                             <TableBody>
                                 {masterTips.map(tip => (
                                     <TableRow key={tip.id}>
-                                        <TableCell className="font-medium max-w-lg truncate">{tip.text}</TableCell>
+                                        <TableCell className="font-medium max-w-lg">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="truncate">{tip.text}</p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="max-w-sm">{tip.text}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
                                         <TableCell><Badge variant="secondary">{tip.category}</Badge></TableCell>
                                         <TableCell><Badge variant={tip.priority === 'High' ? 'destructive' : 'outline'}>{tip.priority}</Badge></TableCell>
                                         <TableCell className="text-right">
