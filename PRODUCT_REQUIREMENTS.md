@@ -23,7 +23,7 @@ The platform is designed to serve four distinct user roles:
 | ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **End-User**     | An employee who has been notified of their exit from a company.                                         | - Understand critical deadlines (severance, benefits).<br>- Receive a personalized, step-by-step action plan.<br>- Connect with vetted professional resources.<br>- Securely manage personal and exit-related data. |
 | **HR Manager**   | A human resources professional at a client company.                                                     | - Manage the list of exiting employees for their company.<br>- Customize the assessment questionnaire.<br>- Upload company-specific resources.<br>- Analyze assessment data to identify areas of confusion.<br>- Preview the end-user experience. |
-| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions.<br>- Curate the directory of external professional resources.<br>- Oversee all platform users and data. |
+| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions, tasks, and tips.<br>- Create and manage deterministic guidance rules.<br>- Curate the external professional resources directory.<br>- Oversee all platform users and data. |
 | **Consultant**   | An external or internal expert tasked with quality control.                                             | - Review and approve AI-generated content and recommendations to ensure quality, accuracy, and empathy.<br>- Convert high-quality recommendations into reusable guidance rules. |
 
 ## 3. Key Features & Functionality
@@ -62,10 +62,13 @@ The platform is designed to serve four distinct user roles:
 - **Company Management:**
     - Create new company accounts and assign HR Managers.
     - Set user limits and subscription tiers (e.g., Basic vs. Pro) for each company.
-- **Master Form Editor:**
-    - Create, edit, and delete questions in the master (default) assessment template, organized into "Profile" and "Assessment" tabs.
-    - Add descriptive tooltips to questions for user clarity.
-    - Reorder questions via drag-and-drop.
+- **Content Management:**
+    - **Master Form Editor:** Create, edit, and delete questions in the master (default) assessment template.
+    - **Task Management:** Create, edit, and bulk-manage (via CSV) the master list of all actionable tasks.
+    - **Tips Management:** Create, edit, and bulk-manage (via CSV) a master list of "Did you know..." tips that provide contextual advice.
+- **Guidance & Review:**
+    - **Guidance Rules:** Create complex, deterministic rules to assign specific tasks and tips based on user answers or calculated values (e.g., tenure, age).
+    - **Review Queue:** Review, approve, or reject AI-generated recommendations.
 - **External Resources Management:** Build and manage the full directory of external resources, including adding partners, editing details, and marking them as "Verified."
 - **Platform-wide Analytics:** View aggregated analytics on "Unsure" answers across all companies.
 - **Platform User Management:** Grant or revoke Admin and Consultant access to the platform.
@@ -193,3 +196,4 @@ Stores the curated directory of professional services and partners.
 | `website`           | `TEXT`  | The URL to the resource's website.                     |
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
+```

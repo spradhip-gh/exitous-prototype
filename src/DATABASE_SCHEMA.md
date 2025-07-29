@@ -145,7 +145,6 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `detail`                      | `TEXT`    | A more detailed Markdown description of what the task involves.           |
 | `deadline_type`               | `TEXT`    | The event that triggers the deadline ('notification_date' or 'termination_date'). |
 | `deadline_days`               | `INTEGER` | The number of days from the `deadline_type` event that the task is due.   |
-| `linked_resource_id`          | `UUID`    | Optional **Foreign Key** to `external_resources.id`.                      |
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
@@ -191,7 +190,6 @@ Maps tips from `master_tips` to specific question answers.
 
 *Composite unique key on (`question_id`, `answer_value`, `tip_id`).*
 
-
 ### `company_resources`
 
 Stores documents and links uploaded by an HR Manager for their employees.
@@ -223,7 +221,7 @@ Stores the curated directory of professional services and partners that can be r
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `availability`      | `JSONB` | Array of tiers this is available to (e.g., `["basic", "pro"]`). |
 | `basic_offer`       | `TEXT`  | Description of a special offer for basic users.        |
-| `pro_offer`         | `TEXT`  | Description of a special offer for pro users.          |
+| `pro_offer`         | `TEXT`  | Description of a special offer for pro users.        |
 | `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
 | `keywords`          | `JSONB` | An array of keywords for searching.                    |
 | `created_at`        | `TIMESTAMPTZ`| Timestamp of creation.                                 |
@@ -236,9 +234,13 @@ Stores consultant-created rules to provide deterministic, high-quality guidance 
 | Column          | Type      | Description                                       |
 | --------------- | --------- | ------------------------------------------------- |
 | `id`            | `UUID`    | **Primary Key**.                                  |
+| `question_id`    | `TEXT`   | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
 | `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
-| `conditions`    | `JSONB`   | An array of condition objects that must all be true. |
-| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`. The task to assign if conditions are met. |
+| `type`          | `TEXT`    | The type of rule: 'direct' (answer-based) or 'calculated' (range-based). |
+| `conditions`    | `JSONB`   | For 'direct' rules, an array of condition objects that must all be true. |
+| `calculation`   | `JSONB`   | For 'calculated' rules, defines the calculation logic (e.g., tenure, age). |
+| `ranges`        | `JSONB`   | For 'calculated' rules, an array of value ranges and their corresponding assignments. |
+| `assignments`   | `JSONB`   | The tasks and/or tips to assign if conditions are met. Stored as `{ "taskIds": [...], "tipIds": [...] }`. |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of creation.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
 
@@ -256,3 +258,4 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+```

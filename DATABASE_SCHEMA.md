@@ -16,10 +16,12 @@ This document outlines the proposed database schema for the ExitBetter applicati
 8.  [Company Question Configs](#company_question_configs)
 9.  [Master Tasks](#master_tasks)
 10. [Task Mappings](#task_mappings)
-11. [Company Resources](#company_resources)
-12. [External Resources](#external_resources)
-13. [Guidance Rules](#guidance_rules)
-14. [Review Queue](#review_queue)
+11. [Master Tips](#master_tips)
+12. [Tip Mappings](#tip_mappings)
+13. [Company Resources](#company_resources)
+14. [External Resources](#external_resources)
+15. [Guidance Rules](#guidance_rules)
+16. [Review Queue](#review_queue)
 
 ---
 
@@ -160,6 +162,34 @@ Maps tasks from `master_tasks` to specific question answers. This creates the lo
 
 *Composite unique key on (`question_id`, `answer_value`, `task_id`).*
 
+### `master_tips`
+
+Stores the master list of all "Did you know..." tips that can be mapped to answers.
+
+| Column          | Type      | Description                                                       |
+| --------------- | --------- | ----------------------------------------------------------------- |
+| `id`            | `TEXT`    | **Primary Key**. A unique, kebab-case identifier for the tip.       |
+| `type`          | `TEXT`    | The workflow type (e.g., 'layoff', 'anxious'). Default: 'layoff'. |
+| `priority`      | `TEXT`    | The display priority ('High', 'Medium', 'Low').                   |
+| `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
+| `text`          | `TEXT`    | The content of the tip.                                           |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
+| `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
+
+### `tip_mappings`
+
+Maps tips from `master_tips` to specific question answers.
+
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the tip.                         |
+| `tip_id`        | `TEXT`    | **Foreign Key** to `master_tips.id`.                                 |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
+
+*Composite unique key on (`question_id`, `answer_value`, `tip_id`).*
+
 ### `company_resources`
 
 Stores documents and links uploaded by an HR Manager for their employees.
@@ -191,7 +221,7 @@ Stores the curated directory of professional services and partners that can be r
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `availability`      | `JSONB` | Array of tiers this is available to (e.g., `["basic", "pro"]`). |
 | `basic_offer`       | `TEXT`  | Description of a special offer for basic users.        |
-| `pro_offer`         | `TEXT`  | Description of a special offer for pro users.          |
+| `pro_offer`         | `TEXT`  | Description of a special offer for pro users.        |
 | `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
 | `keywords`          | `JSONB` | An array of keywords for searching.                    |
 | `created_at`        | `TIMESTAMPTZ`| Timestamp of creation.                                 |
@@ -204,12 +234,13 @@ Stores consultant-created rules to provide deterministic, high-quality guidance 
 | Column          | Type      | Description                                       |
 | --------------- | --------- | ------------------------------------------------- |
 | `id`            | `UUID`    | **Primary Key**.                                  |
-| `company_id`    | `UUID`    | **Foreign Key** to `companies.id`.                |
+| `question_id`    | `TEXT`   | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
 | `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
-| `conditions`    | `JSONB`   | An array of condition objects that must all be true. |
-| `guidance_text` | `TEXT`    | The Markdown-formatted guidance to display.       |
-| `category`      | `TEXT`    | The category of the guidance (e.g., "Healthcare"). |
-| `linked_resource_id` | `UUID` | Optional **Foreign Key** to `external_resources.id`. |
+| `type`          | `TEXT`    | The type of rule: 'direct' (answer-based) or 'calculated' (range-based). |
+| `conditions`    | `JSONB`   | For 'direct' rules, an array of condition objects that must all be true. |
+| `calculation`   | `JSONB`   | For 'calculated' rules, defines the calculation logic (e.g., tenure, age). |
+| `ranges`        | `JSONB`   | For 'calculated' rules, an array of value ranges and their corresponding assignments. |
+| `assignments`   | `JSONB`   | The tasks and/or tips to assign if conditions are met. Stored as `{ "taskIds": [...], "tipIds": [...] }`. |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of creation.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
 
@@ -227,3 +258,4 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+```

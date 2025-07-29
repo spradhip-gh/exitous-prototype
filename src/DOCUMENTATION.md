@@ -1,4 +1,3 @@
-
 # Building Exitbetter: A Step-by-Step Guide
 
 This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
@@ -178,3 +177,4 @@ In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that gen
     -   **Resiliency:** Implement a retry mechanism within the flow to handle temporary "503 Service Unavailable" errors from the AI model, making the feature more robust. This function will be used by the `TimelineDashboard` component to fetch the recommendations.
 
 This guide provides a comprehensive roadmap to recreate the core functionality of the Exitbetter application. Each step involves creating components, defining logic, and styling according to the project's design guidelines.
+```
