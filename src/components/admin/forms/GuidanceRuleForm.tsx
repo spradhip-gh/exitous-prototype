@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
