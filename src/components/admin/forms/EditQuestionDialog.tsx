@@ -141,7 +141,7 @@ export default function EditQuestionDialog({
         saveMasterTasks,
         saveMasterTips,
         getAllCompanyConfigs,
-        saveCompanyConfig, // Get the function from the hook
+        saveCompanyConfig,
     } = useUserData();
     
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
@@ -202,11 +202,52 @@ export default function EditQuestionDialog({
 
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
 
-    if (!isOpen || !currentQuestion) {
-        return null;
-    }
+    const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTaskFormOpen(true);
+        setIsGuidanceDialogOpen(false); // Hide guidance while creating task
+    }, []);
 
-    const handleSave = () => {
+    const onAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTipFormOpen(true);
+        setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
+    }, []);
+
+    const handleSaveNewTask = useCallback((taskData: MasterTask) => {
+        const companyName = auth?.companyName;
+        if (!companyName) return;
+
+        const currentConfig = companyConfig || {};
+        const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
+        const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
+        saveCompanyConfig(companyName, newConfig);
+
+        if (newItemCallback) {
+            newItemCallback(taskData);
+        }
+        setIsTaskFormOpen(false);
+        setIsGuidanceDialogOpen(true); // Re-open guidance dialog
+        setNewItemCallback(null);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+
+    const handleSaveNewTip = useCallback((tipData: MasterTip) => {
+        const companyName = auth?.companyName;
+        if (companyName) {
+            const currentConfig = companyConfig || {};
+            const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
+            const newConfig = { ...currentConfig, companyTips: newCompanyTips };
+            saveCompanyConfig(companyName, newConfig);
+        }
+        if (newItemCallback) {
+            newItemCallback(tipData);
+        }
+        setIsTipFormOpen(false);
+        setIsGuidanceDialogOpen(true); // Re-open guidance dialog
+        setNewItemCallback(null);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+
+    const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
         if (isSuggestionMode) {
@@ -228,9 +269,9 @@ export default function EditQuestionDialog({
         }
         
         onSave({ ...currentQuestion, answerGuidance }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
-    };
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidance, isHrEditing, isNew]);
 
-    const handleDependsOnValueChange = (option: string, isChecked: boolean) => {
+    const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
             if (!prev) return null;
             const existingValues = Array.isArray(prev.dependsOnValue) ? prev.dependsOnValue : (prev.dependsOnValue ? [prev.dependsOnValue] : []);
@@ -242,91 +283,49 @@ export default function EditQuestionDialog({
             }
             return { ...prev, dependsOnValue: newValues };
         });
-    };
+    }, []);
     
-    const handleAddSuggestion = () => {
+    const handleAddSuggestion = useCallback(() => {
         setSuggestedOptionsToAdd(prev => [...prev, { option: '' }]);
-    };
+    }, []);
     
-    const handleUpdateSuggestionOption = (index: number, value: string) => {
+    const handleUpdateSuggestionOption = useCallback((index: number, value: string) => {
         setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === index ? { ...item, option: value } : item));
-    };
+    }, []);
 
-    const handleRemoveSuggestion = (index: number) => {
+    const handleRemoveSuggestion = useCallback((index: number) => {
         setSuggestedOptionsToAdd(prev => prev.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const handleToggleRemovalSuggestion = (option: string) => {
+    const handleToggleRemovalSuggestion = useCallback((option: string) => {
         setSuggestedOptionsToRemove(prev => 
             prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]
         );
-    };
-
-    const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setNewItemCallback(() => callback);
-        setIsTaskFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating task
     }, []);
-
-    const onAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
-        setNewItemCallback(() => callback);
-        setIsTipFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
-    }, []);
-
-    const handleSaveNewTask = (taskData: MasterTask) => {
-        const companyName = auth?.companyName;
-        if (!companyName) return;
-
-        const currentConfig = companyConfig || {};
-        const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
-        const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
-        saveCompanyConfig(companyName, newConfig);
-
-        if (newItemCallback) {
-            newItemCallback(taskData);
-        }
-        setIsTaskFormOpen(false);
-        setIsGuidanceDialogOpen(true); // Re-open guidance dialog
-        setNewItemCallback(null);
-    };
-
-    const handleSaveNewTip = (tipData: MasterTip) => {
-        const companyName = auth?.companyName;
-        if (!companyName) return;
-
-        const currentConfig = companyConfig || {};
-        const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
-        const newConfig = { ...currentConfig, companyTips: newCompanyTips };
-        saveCompanyConfig(companyName, newConfig);
-
-        if (newItemCallback) {
-            newItemCallback(tipData);
-        }
-        setIsTipFormOpen(false);
-        setIsGuidanceDialogOpen(true); // Re-open guidance dialog
-        setNewItemCallback(null);
-    };
     
-    const handleSaveAnswerGuidance = (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
+    const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
         setAnswerGuidance(prev => ({
             ...prev,
             [answer]: { tasks: taskIds, tips: tipIds, noGuidanceRequired }
         }));
-    };
+    }, []);
     
-    const openGuidanceDialog = (answer: string) => {
+    const openGuidanceDialog = useCallback((answer: string) => {
         setCurrentAnswerForGuidance(answer);
         setIsGuidanceDialogOpen(true);
-    }
+    }, []);
     
-    const isGuidanceSetForAnswer = (answer: string): boolean => {
+    const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
         const guidance = answerGuidance[answer];
         if (!guidance) return false;
         return guidance.noGuidanceRequired || guidance.tasks.length > 0 || guidance.tips.length > 0;
-    }
+    }, [answerGuidance]);
     
     const { companyTasks = [], companyTips = [] } = companyConfig || {};
+
+    if (!isOpen || !currentQuestion) {
+        return null;
+    }
 
     return (
         <>
@@ -646,18 +645,27 @@ export default function EditQuestionDialog({
         
         <TaskForm 
             isOpen={isTaskFormOpen}
-            onOpenChange={setIsTaskFormOpen}
+            onOpenChange={(open) => {
+                setIsTaskFormOpen(open);
+                if (!open) {
+                    setIsGuidanceDialogOpen(true);
+                }
+            }}
             onSave={handleSaveNewTask}
             task={null}
             allResources={externalResources}
         />
         <TipForm 
             isOpen={isTipFormOpen}
-            onOpenChange={setIsTipFormOpen}
+            onOpenChange={(open) => {
+                setIsTipFormOpen(open);
+                if (!open) {
+                    setIsGuidanceDialogOpen(true);
+                }
+            }}
             onSave={handleSaveNewTip}
             tip={null}
         />
         </>
     );
 }
-
