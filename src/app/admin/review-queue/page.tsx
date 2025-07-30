@@ -124,7 +124,8 @@ export default function ReviewQueuePage() {
 
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected') => {
         
-        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId: auth?.email };
+        const reviewerId = auth?.email || 'admin';
+        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId };
 
         if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
             const { companyName, questionId, suggestions } = item.inputData;
@@ -160,7 +161,7 @@ export default function ReviewQueuePage() {
             let newOptions = [...currentOptions];
 
             if (suggestions.optionsToRemove && suggestions.optionsToRemove.length > 0) {
-                newOptions = newOptions.filter(opt => !suggestions.optionsToRemove.includes(opt));
+                newOptions = newOptions.filter((opt: string) => !suggestions.optionsToRemove.includes(opt));
             }
             if (suggestions.optionsToAdd && suggestions.optionsToAdd.length > 0) {
                  suggestions.optionsToAdd.forEach((suggestion: { option: string }) => {
@@ -181,7 +182,6 @@ export default function ReviewQueuePage() {
             toast({ title: `Recommendation ${status}` });
         }
         
-        // Update the status of the item in the queue regardless
         const updatedQueue = reviewQueue.map(i =>
             i.id === item.id ? reviewedItem : i
         );

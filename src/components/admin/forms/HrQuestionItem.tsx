@@ -14,7 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
-    const canEditLockedQuestion = isLocked && canHaveSubquestions;
 
     return (
         <div className="space-y-2">
@@ -27,7 +26,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    {(canWrite && (!isLocked || canEditLockedQuestion)) && (
+                    {canWrite && (
                         <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     )}
                     {question.isCustom && (
@@ -91,7 +90,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     )}
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                    {isLocked && (
+                    {isLocked && !question.isCustom && (
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger>
@@ -110,7 +109,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    {(canWrite && (!isLocked || canEditLockedQuestion)) && (
+                    {canWrite && (!isLocked || canEditLockedQuestion) && (
                         <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     )}
                     {question.isCustom && (
@@ -121,7 +120,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Custom Question?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete "{question.label}" and any sub-questions. This cannot be undone.</AlertDialogDescription>
+                                    <AlertDialogDescription>This will permanently delete "{question.label}" and any sub-questions. This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>

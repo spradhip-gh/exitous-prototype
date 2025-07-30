@@ -37,7 +37,7 @@ interface EditQuestionDialogProps {
     isNew: boolean;
     question: Partial<Question> | null;
     existingSections?: string[];
-    onSave: (question: Partial<Question>, newSectionName?: string, suggestedEdits?: any) => void;
+    onSave: (question: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved?: boolean) => void;
     onClose: () => void;
     masterQuestionForEdit?: Question | null;
 }
@@ -61,7 +61,9 @@ export default function EditQuestionDialog({
 
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
-    const isSuggestionMode = isHrEditing && (!!currentQuestion?.isLocked || !!currentQuestion?.isCustom);
+    const isCustomQuestion = !!question?.isCustom;
+    const isSuggestionMode = isHrEditing && !isCustomQuestion;
+
 
     useEffect(() => {
         if (isOpen) {
@@ -113,7 +115,7 @@ export default function EditQuestionDialog({
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition or removal.", variant: "destructive" });
                 return;
             }
-            onSave(currentQuestion, undefined, suggestedEdits);
+            onSave(currentQuestion, undefined, suggestedEdits, false);
             return;
         }
 
@@ -121,7 +123,11 @@ export default function EditQuestionDialog({
             toast({ title: "New Section Required", variant: "destructive" });
             return;
         }
-        onSave(currentQuestion, isCreatingNewSection ? newSectionName : undefined);
+
+        // If HR is creating a new custom question, we auto-approve it.
+        const isAutoApproved = isHrEditing && isNew;
+
+        onSave(currentQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
     };
 
     const handleDependsOnValueChange = (option: string, isChecked: boolean) => {
@@ -187,12 +193,12 @@ export default function EditQuestionDialog({
                 <DialogTitle>{isSuggestionMode ? 'Suggest Edits' : (isNew ? 'Add Custom Question' : 'Edit Question')}</DialogTitle>
                 <DialogDescription>
                     {isSuggestionMode 
-                        ? `This question is locked. You can suggest adding or removing answer choices. Your suggestions will be sent for review.`
-                        : (isNew ? 'Create a new question.' : 'Modify the question text, answer options, and default value.')}
+                        ? `This is a locked master question. You can suggest adding or removing answer choices. Your suggestions will be sent for review.`
+                        : (isNew ? 'Create a new question for your company.' : 'Modify the question text, answer options, and default value.')}
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isSuggestionMode && !currentQuestion.isCustom} className="space-y-6 py-4">
+            <fieldset disabled={isSuggestionMode} className="space-y-6 py-4">
                  {isHrEditing && !isSuggestionMode && (
                     <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800">
                         <HelpCircle className="h-4 w-4 !text-blue-600"/>
