@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, GuidanceRule } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -48,23 +48,27 @@ interface EditQuestionDialogProps {
 }
 
 function AnswerGuidanceDialog({ 
-    isOpen, onOpenChange, questionLabel, answer, questionId, allCompanyTasks, allCompanyTips, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance 
+    isOpen, onOpenChange, questionLabel, answer, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance 
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     questionLabel: string;
     answer: string;
-    questionId: string;
-    allCompanyTasks: MasterTask[];
-    allCompanyTips: MasterTip[];
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
     onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
     onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
     existingGuidance?: { tasks: string[], tips: string[], noGuidanceRequired: boolean };
 }) {
+    const { auth } = useAuth();
+    const { getAllCompanyConfigs } = useUserData();
+    
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [selectedTips, setSelectedTips] = useState<string[]>([]);
     const [noGuidance, setNoGuidance] = useState(false);
+    
+    const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : undefined;
+    const allCompanyTasks = companyConfig?.companyTasks || [];
+    const allCompanyTips = companyConfig?.companyTips || [];
 
     useEffect(() => {
         if (isOpen && existingGuidance) {
@@ -143,16 +147,10 @@ export default function EditQuestionDialog({
 }: EditQuestionDialogProps) {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { 
-        masterQuestions, 
+    const {
+        masterQuestions,
         masterProfileQuestions,
-        externalResources, 
-        guidanceRules,
-        saveGuidanceRules,
-        masterTasks,
-        masterTips,
-        saveMasterTasks,
-        saveMasterTips,
+        externalResources,
         getAllCompanyConfigs,
         saveCompanyConfig,
     } = useUserData();
@@ -170,7 +168,6 @@ export default function EditQuestionDialog({
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
     const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState<number | null>(null);
     const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
-
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
 
     const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth?.companyName] : undefined;
@@ -178,26 +175,25 @@ export default function EditQuestionDialog({
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
     const isSuggestionMode = isHrEditing && !isCustomQuestion;
-
+    
     const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
         setNewItemCallback(() => callback);
         setIsTaskFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating task
+        // setIsGuidanceDialogOpen(false); // Hide guidance while creating task
     }, []);
 
     const onAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
         setNewItemCallback(() => callback);
         setIsTipFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
+        // setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
     }, []);
 
     const handleSaveNewTask = useCallback((taskData: MasterTask) => {
         const companyName = auth?.companyName;
-        if (!companyName) return;
+        if (!companyName || !companyConfig) return;
 
-        const currentConfig = companyConfig || {};
-        const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
-        const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
+        const newCompanyTasks = [...(companyConfig.companyTasks || []), taskData];
+        const newConfig = { ...companyConfig, companyTasks: newCompanyTasks };
         saveCompanyConfig(companyName, newConfig);
 
         if (newItemCallback) {
@@ -210,12 +206,12 @@ export default function EditQuestionDialog({
 
     const handleSaveNewTip = useCallback((tipData: MasterTip) => {
         const companyName = auth?.companyName;
-        if (companyName) {
-            const currentConfig = companyConfig || {};
-            const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
-            const newConfig = { ...currentConfig, companyTips: newCompanyTips };
-            saveCompanyConfig(companyName, newConfig);
-        }
+        if (!companyName || !companyConfig) return;
+        
+        const newCompanyTips = [...(companyConfig.companyTips || []), tipData];
+        const newConfig = { ...companyConfig, companyTips: newCompanyTips };
+        saveCompanyConfig(companyName, newConfig);
+        
         if (newItemCallback) {
             newItemCallback(tipData);
         }
@@ -223,6 +219,7 @@ export default function EditQuestionDialog({
         setIsGuidanceDialogOpen(true); // Re-open guidance dialog
         setNewItemCallback(null);
     }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+
 
     useEffect(() => {
         if (isOpen) {
@@ -235,10 +232,6 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
 
-    if (!isOpen || !currentQuestion) {
-        return null;
-    }
-    
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
@@ -336,9 +329,10 @@ export default function EditQuestionDialog({
         if (!guidance) return false;
         return guidance.noGuidanceRequired || guidance.tasks.length > 0 || guidance.tips.length > 0;
     }, [answerGuidance]);
-    
-    const { companyTasks = [], companyTips = [] } = companyConfig || {};
 
+    if (!isOpen || !currentQuestion) {
+        return null;
+    }
 
     return (
         <>
@@ -619,8 +613,8 @@ export default function EditQuestionDialog({
                                         </div>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTask((newTask) => handleSaveNewTask(newTask)); }}><ListChecks className="mr-2"/> Suggest Task</Button>
-                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTip((newTip) => handleSaveNewTip(newTip)); }}><Lightbulb className="mr-2"/> Suggest Tip</Button>
+                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTask((newTask: MasterTask) => handleSaveNewTask(newTask)); }}><ListChecks className="mr-2"/> Suggest Task</Button>
+                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTip((newTip: MasterTip) => handleSaveNewTip(newTip)); }}><Lightbulb className="mr-2"/> Suggest Tip</Button>
                                         </div>
                                     )}
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
@@ -647,12 +641,15 @@ export default function EditQuestionDialog({
             onOpenChange={setIsGuidanceDialogOpen}
             questionLabel={currentQuestion?.label || ''}
             answer={currentAnswerForGuidance}
-            questionId={currentQuestion?.id || ''}
-            allCompanyTasks={companyTasks}
-            allCompanyTips={companyTips}
             onSaveGuidance={handleSaveAnswerGuidance}
-            onAddNewTask={onAddNewTask}
-            onAddNewTip={onAddNewTip}
+            onAddNewTask={(callback) => {
+                setIsGuidanceDialogOpen(false);
+                onAddNewTask(callback);
+            }}
+            onAddNewTip={(callback) => {
+                setIsGuidanceDialogOpen(false);
+                onAddNewTip(callback);
+            }}
             existingGuidance={answerGuidance[currentAnswerForGuidance]}
         />
         
@@ -682,3 +679,4 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
