@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb, Check } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -122,7 +122,7 @@ export default function ReviewQueuePage() {
         masterQuestions,
         masterProfileQuestions,
         masterTasks,
-        masterTips
+        masterTips,
     } = useUserData();
 
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => {
@@ -131,42 +131,40 @@ export default function ReviewQueuePage() {
         let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId };
         
         const allConfigs = getAllCompanyConfigs();
+        const companyName = item.inputData?.companyName;
 
-        if (status === 'approved' && item.inputData?.type === 'custom_question_guidance') {
-            const { companyName, question } = item.inputData;
-             if (!companyName || !question) {
-                 toast({ title: 'Error Applying Suggestion', description: 'The custom question data is incomplete.', variant: 'destructive' });
-                 return;
-            }
-            const companyConfig = allConfigs[companyName];
-            if (!companyConfig) {
-                 toast({ title: 'Error Applying Suggestion', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
-                 return;
-            }
+        if (!companyName) {
+            toast({ title: 'Error processing action', description: 'Company name is missing from the review item.', variant: 'destructive' });
+            return;
+        }
+
+        const companyConfig = allConfigs[companyName];
+        if (!companyConfig) {
+             toast({ title: 'Error processing action', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
+             return;
+        }
+        
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+
+        if (status === 'rejected' && item.inputData?.type === 'custom_question_guidance') {
+            const { question } = item.inputData;
+            if (!question?.id) return;
             
-            const newConfig = JSON.parse(JSON.stringify(companyConfig));
-            if (!newConfig.customQuestions) newConfig.customQuestions = {};
-
-            newConfig.customQuestions[question.id] = question;
+            // Remove the custom question from the company's config
+            if (newConfig.customQuestions && newConfig.customQuestions[question.id]) {
+                delete newConfig.customQuestions[question.id];
+            }
             saveCompanyConfig(companyName, newConfig);
-            toast({ title: `Custom Question Approved`, description: `Question "${question.label}" has been added to ${companyName}'s form.` });
-            reviewedItem = { ...reviewedItem, changeDetails: { approvedQuestion: question } };
+            toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been removed from ${companyName}'s form.` });
+            reviewedItem = { ...reviewedItem, changeDetails: { rejectedQuestion: question } };
 
         } else if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
-            const { companyName, questionId, suggestions } = item.inputData;
-            
-            if (!companyName || !questionId || !suggestions) {
+            const { questionId, suggestions } = item.inputData;
+            if (!questionId || !suggestions) {
                  toast({ title: 'Error Applying Suggestion', description: 'The suggestion data is incomplete.', variant: 'destructive' });
                  return;
             }
 
-            const companyConfig = allConfigs[companyName];
-            if (!companyConfig) {
-                 toast({ title: 'Error Applying Suggestion', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
-                 return;
-            }
-
-            const newConfig = JSON.parse(JSON.stringify(companyConfig)); // Deep copy
             if (!newConfig.questions) newConfig.questions = {};
 
             const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
@@ -176,7 +174,6 @@ export default function ReviewQueuePage() {
                  return;
             }
             
-            // Ensure the override exists if it doesn't
             if (!newConfig.questions[questionId]) {
                 newConfig.questions[questionId] = {};
             }
@@ -203,7 +200,7 @@ export default function ReviewQueuePage() {
             reviewedItem = { ...reviewedItem, changeDetails: suggestions };
 
         } else {
-            toast({ title: `Item ${status}` });
+            toast({ title: `Item marked as ${status}` });
         }
         
         const updatedQueue = reviewQueue.map(i =>
@@ -212,8 +209,7 @@ export default function ReviewQueuePage() {
         saveReviewQueue(updatedQueue);
     };
     
-    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending' && (item.inputData?.type === 'question_edit_suggestion' || item.inputData?.type === 'custom_question_guidance'));
-    const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type !== 'question_edit_suggestion' && item.inputData?.type !== 'custom_question_guidance');
+    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending');
     const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     return (
@@ -222,7 +218,7 @@ export default function ReviewQueuePage() {
                  <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold">Guidance &amp; Review</h1>
                     <p className="text-muted-foreground">
-                       Review AI-generated recommendations and create deterministic guidance rules.
+                       Review HR-submitted suggestions, audit AI recommendations, and create deterministic guidance rules.
                     </p>
                 </div>
                  <Tabs defaultValue="review-queue">
@@ -233,8 +229,8 @@ export default function ReviewQueuePage() {
                     <TabsContent value="review-queue" className="mt-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Pending Actions</CardTitle>
-                                <CardDescription>These items require your direct approval or rejection to take effect.</CardDescription>
+                                <CardTitle>Pending Review</CardTitle>
+                                <CardDescription>These items require your attention.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {pendingActionItems.length > 0 ? pendingActionItems.map(item => (
@@ -246,27 +242,7 @@ export default function ReviewQueuePage() {
                                         masterTips={masterTips}
                                      />
                                 )) : (
-                                    <p className="text-muted-foreground text-center py-8">No items require your action right now.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                         <Card className="mt-8">
-                            <CardHeader>
-                                <CardTitle>Informational Review</CardTitle>
-                                <CardDescription>These items were auto-approved and are for your awareness. You can mark them as reviewed to clear them from this list.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {pendingReviewItems.length > 0 ? pendingReviewItems.map(item => (
-                                     <ReviewItemCard 
-                                        key={item.id}
-                                        item={item}
-                                        onStatusChange={handleStatusChange}
-                                        isInformational={true}
-                                        masterTasks={masterTasks}
-                                        masterTips={masterTips}
-                                     />
-                                )) : (
-                                    <p className="text-muted-foreground text-center py-8">The informational review queue is empty.</p>
+                                    <p className="text-muted-foreground text-center py-8">The review queue is empty.</p>
                                 )}
                             </CardContent>
                         </Card>
@@ -326,7 +302,7 @@ export default function ReviewQueuePage() {
     );
 }
 
-function ReviewItemCard({ item, onStatusChange, isInformational = false, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, isInformational?: boolean, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
+function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
     const isCustomQuestion = item.inputData?.type === 'custom_question_guidance';
@@ -405,11 +381,13 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false, masterT
                             <div>
                                 <h4 className="font-medium text-sm mb-2">Answers & Guidance</h4>
                                 <div className="space-y-3">
-                                {question.options.map(option => {
+                                {question.options.filter(Boolean).map(option => {
                                     const guidance = question.answerGuidance?.[option];
                                     if (!guidance) return null;
                                     const assignedTasks = guidance.tasks?.map(taskId => masterTasks.find(t => t.id === taskId)?.name).filter(Boolean);
                                     const assignedTips = guidance.tips?.map(tipId => masterTips.find(t => t.id === tipId)?.text).filter(Boolean);
+                                    
+                                    if ((assignedTasks?.length || 0) === 0 && (assignedTips?.length || 0) === 0 && !guidance.noGuidanceRequired) return null;
 
                                     return (
                                         <div key={option} className="p-3 border-l-4 rounded-r-md bg-muted/50">
@@ -443,19 +421,19 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false, masterT
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-4">
                     <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
-                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}><ThumbsUp className="mr-2"/> Approve</Button>
+                    <Button size="sm" variant="secondary" onClick={() => onStatusChange(item, 'reviewed')}><Check className="mr-2"/> Mark as Reviewed</Button>
                 </CardFooter>
             </Card>
         )
     }
 
-    // Default rendering for AI recommendations
+    // Default rendering for AI recommendations for audit
     return (
         <Card className="bg-muted/50">
              <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
-                        <CardTitle className="text-base">{item.userEmail}</CardTitle>
+                        <CardTitle className="text-base">AI Recommendation for: {item.userEmail}</CardTitle>
                         <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}</CardDescription>
                     </div>
                     <CollapsibleTrigger asChild>
@@ -466,7 +444,7 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false, masterT
                 </CardHeader>
                 <CollapsibleContent>
                     <div className="px-6 pb-4">
-                        <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
+                        <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto max-h-60">
                             {JSON.stringify(item.inputData, null, 2)}
                         </pre>
                     </div>
@@ -485,19 +463,10 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false, masterT
                 ))}
             </CardContent>
             <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                {isInformational ? (
-                    <Button size="sm" onClick={() => onStatusChange(item, 'reviewed')}><Archive className="mr-2"/> Mark as Reviewed</Button>
-                ) : (
-                    <>
-                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}>
-                        <ThumbsDown className="mr-2"/> Reject
-                    </Button>
-                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}>
-                        <ThumbsUp className="mr-2"/> Approve
-                    </Button>
-                    </>
-                )}
+                <Button size="sm" variant="secondary" onClick={() => onStatusChange(item, 'reviewed')}><Archive className="mr-2"/> Mark as Reviewed</Button>
             </CardFooter>
         </Card>
     )
 }
+
+    
