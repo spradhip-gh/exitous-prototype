@@ -249,9 +249,7 @@ function QuestionEditor({
 
         const processQuestionForSave = (q: Question) => {
             if (q.isCustom) {
-                if (isAutoApproved) { // Only save if auto-approved (which means it's an admin)
-                    customQuestions[q.id] = q;
-                }
+                customQuestions[q.id] = q;
             } else {
                 const masterQ = allMasterQuestions[q.id];
                 if (!masterQ) {
@@ -293,9 +291,8 @@ function QuestionEditor({
         };
 
         saveCompanyConfig(companyName, newConfig);
-        if (isAutoApproved) {
-            toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
-        }
+        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+
     }, [companyName, masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
 
 
@@ -409,7 +406,7 @@ function QuestionEditor({
                 }));
                 newIdNumber = highestNumber + 1;
             }
-            newQuestion.id = `${customQuestionPrefix}${newIdNumber}`;
+            newQuestion.id = newQuestion.id || `${customQuestionPrefix}${newIdNumber}`;
             
             if (newQuestion.parentId) {
                 const findAndAdd = (questions: Question[]) => {
@@ -432,24 +429,24 @@ function QuestionEditor({
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
             }
-             if (!isAutoApproved) {
-                const reviewItem: ReviewQueueItem = {
-                    id: `review-custom-q-${Date.now()}`,
-                    userEmail: auth?.email || 'unknown-hr',
-                    inputData: {
-                        type: 'custom_question_guidance',
-                        companyName: auth?.companyName,
-                        questionLabel: newQuestion.label,
-                        questionId: newQuestion.id,
-                        question: newQuestion,
-                    },
-                    output: {},
-                    status: 'pending',
-                    createdAt: new Date().toISOString(),
-                };
-                addReviewQueueItem(reviewItem);
-                toast({ title: "Custom Question Submitted", description: "Your new question and its guidance have been sent for review."});
-            }
+            // A new custom question is saved immediately and enters the review queue for audit.
+            const reviewItem: ReviewQueueItem = {
+                id: `review-custom-q-${Date.now()}`,
+                userEmail: auth?.email || 'unknown-hr',
+                inputData: {
+                    type: 'custom_question_guidance',
+                    companyName: auth?.companyName,
+                    questionLabel: newQuestion.label,
+                    questionId: newQuestion.id,
+                    question: newQuestion,
+                },
+                output: {},
+                status: 'pending', // Pending Admin review
+                createdAt: new Date().toISOString(),
+            };
+            addReviewQueueItem(reviewItem);
+            toast({ title: "Custom Question Added", description: "Your new question is live and has been sent for administrative review." });
+            
 
         } else { 
             const findAndUpdate = (questions: Question[]) => {
@@ -470,7 +467,7 @@ function QuestionEditor({
         }
         
         setOrderedSections(newSections);
-        generateAndSaveConfig(newSections, isAutoApproved);
+        generateAndSaveConfig(newSections, true);
         setIsEditing(false);
         setCurrentQuestion(null);
     };
