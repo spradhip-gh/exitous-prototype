@@ -55,8 +55,8 @@ function AnswerGuidanceDialog({
     questionLabel: string;
     answer: string;
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
-    onAddNewTask: (callback: (item: MasterTask) => void) => void;
-    onAddNewTip: (callback: (item: MasterTip) => void) => void;
+    onAddNewTask: (callback: () => void) => void;
+    onAddNewTip: (callback: () => void) => void;
     existingGuidance?: { tasks: string[], tips: string[], noGuidanceRequired: boolean };
     selectedTasks: string[];
     setSelectedTasks: (tasks: string[]) => void;
@@ -66,7 +66,7 @@ function AnswerGuidanceDialog({
     allCompanyTips: MasterTip[];
 }) {
     const [noGuidance, setNoGuidance] = useState(false);
-
+    
     useEffect(() => {
         if (isOpen && existingGuidance) {
             setSelectedTasks(existingGuidance.tasks);
@@ -78,7 +78,7 @@ function AnswerGuidanceDialog({
             setSelectedTips([]);
             setNoGuidance(false);
         }
-    }, [isOpen, existingGuidance, answer]);
+    }, [isOpen, existingGuidance, answer, setSelectedTasks, setSelectedTips]);
 
 
     if (!isOpen) {
@@ -110,7 +110,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
-                            onAddNew={() => onAddNewTask((newTask) => { setSelectedTasks([...selectedTasks, newTask.id]); })}
+                            onAddNew={() => onAddNewTask()}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
@@ -118,7 +118,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
-                            onAddNew={() => onAddNewTip((newTip) => { setSelectedTips([...selectedTips, newTip.id]); })}
+                            onAddNew={() => onAddNewTip()}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -162,7 +162,15 @@ export default function EditQuestionDialog({
     const [selectedTasksForGuidance, setSelectedTasksForGuidance] = useState<string[]>([]);
     const [selectedTipsForGuidance, setSelectedTipsForGuidance] = useState<string[]>([]);
     
-    const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth?.companyName] : undefined;
+    const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
+
+    useEffect(() => {
+        if(auth?.companyName) {
+            setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
+        }
+    }, [auth?.companyName, getAllCompanyConfigs]);
+
+
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
@@ -171,14 +179,18 @@ export default function EditQuestionDialog({
     const allCompanyTasks = useMemo(() => companyConfig?.companyTasks || [], [companyConfig]);
     const allCompanyTips = useMemo(() => companyConfig?.companyTips || [], [companyConfig]);
 
-    const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setNewItemCallback(() => callback);
+    const onAddNewTask = useCallback(() => {
+        setNewItemCallback(() => (newTask: MasterTask) => {
+            setSelectedTasksForGuidance(prev => [...prev, newTask.id]);
+        });
         setIsTaskFormOpen(true);
         setIsGuidanceDialogOpen(false);
     }, []);
 
-    const onAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
-        setNewItemCallback(() => callback);
+    const onAddNewTip = useCallback(() => {
+        setNewItemCallback(() => (newTip: MasterTip) => {
+            setSelectedTipsForGuidance(prev => [...prev, newTip.id]);
+        });
         setIsTipFormOpen(true);
         setIsGuidanceDialogOpen(false);
     }, []);
@@ -215,7 +227,6 @@ export default function EditQuestionDialog({
         setIsGuidanceDialogOpen(true);
     }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
 
-
     useEffect(() => {
         if (isOpen) {
             setCurrentQuestion(question);
@@ -226,6 +237,10 @@ export default function EditQuestionDialog({
             setAnswerGuidance(question?.answerGuidance || {});
         }
     }, [isOpen, question]);
+    
+    if (!isOpen || !currentQuestion) {
+        return null;
+    }
 
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -327,10 +342,6 @@ export default function EditQuestionDialog({
         if (!guidance) return false;
         return guidance.noGuidanceRequired || guidance.tasks.length > 0 || guidance.tips.length > 0;
     }, [answerGuidance]);
-
-    if (!isOpen || !currentQuestion) {
-        return null;
-    }
 
     return (
         <>
@@ -611,8 +622,8 @@ export default function EditQuestionDialog({
                                         </div>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => onAddNewTask((newTask) => console.log('Task added:', newTask))}><ListChecks className="mr-2"/> Suggest Task</Button>
-                                            <Button variant="outline" size="sm" onClick={() => onAddNewTip((newTip) => console.log('Tip added:', newTip))}><Lightbulb className="mr-2"/> Suggest Tip</Button>
+                                            <Button variant="outline" size="sm" onClick={() => {}}><ListChecks className="mr-2"/> Suggest Task</Button>
+                                            <Button variant="outline" size="sm" onClick={() => {}}><Lightbulb className="mr-2"/> Suggest Tip</Button>
                                         </div>
                                     )}
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
@@ -677,5 +688,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
-    
