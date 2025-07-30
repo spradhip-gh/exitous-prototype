@@ -1022,7 +1022,7 @@ export function useUserData() {
 
     // 1. Process Guidance Rules
     const answeredQuestionIds = new Set(Object.keys(assessmentData));
-    rulesToProcess.forEach(rule => {
+    guidanceRules.forEach(rule => {
       const answer = assessmentData[rule.questionId as keyof AssessmentData] as string;
       const catchAllCondition = rule.conditions.find(c => c.answer === undefined);
   
@@ -1030,7 +1030,7 @@ export function useUserData() {
         if (rule.conditions.some(c => c.answer === answer)) {
           processAssignments(rule.assignments);
         } else if (catchAllCondition) {
-          const hasMoreSpecificRule = rulesToProcess.some(r => r.id !== rule.id && r.questionId === rule.questionId && r.conditions.some(c => c.answer === answer));
+          const hasMoreSpecificRule = guidanceRules.some(r => r.id !== rule.id && r.questionId === rule.questionId && r.conditions.some(c => c.answer === answer));
           if (!hasMoreSpecificRule) {
             processAssignments(rule.assignments);
           }
@@ -1119,6 +1119,8 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
+
 
 
 
