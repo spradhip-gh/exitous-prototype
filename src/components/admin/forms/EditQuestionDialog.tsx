@@ -71,7 +71,7 @@ function AnswerGuidanceDialog({
             setSelectedTasks(existingGuidance.tasks);
             setSelectedTips(existingGuidance.tips);
             setNoGuidance(existingGuidance.noGuidanceRequired);
-        } else {
+        } else if (isOpen) {
             setSelectedTasks([]);
             setSelectedTips([]);
             setNoGuidance(false);
@@ -136,6 +136,8 @@ export default function EditQuestionDialog({
         externalResources, 
         guidanceRules,
         saveGuidanceRules,
+        masterTasks,
+        masterTips,
         saveMasterTasks,
         saveMasterTips,
         getAllCompanyConfigs,
@@ -220,31 +222,8 @@ export default function EditQuestionDialog({
             toast({ title: "New Section Required", variant: "destructive" });
             return;
         }
-
-        const newRules: GuidanceRule[] = [];
-        Object.entries(answerGuidance).forEach(([answer, guidance]) => {
-            const rule: GuidanceRule = {
-                id: uuidv4(),
-                questionId: currentQuestion.id!,
-                name: `${currentQuestion.label} - ${answer}`,
-                type: 'direct',
-                conditions: [{ type: 'question', questionId: currentQuestion.id!, answer }],
-                assignments: {
-                    taskIds: guidance.tasks,
-                    tipIds: guidance.tips,
-                    noGuidanceRequired: guidance.noGuidanceRequired,
-                }
-            };
-            newRules.push(rule);
-        });
-
-        if (newRules.length > 0) {
-            const otherRules = guidanceRules.filter(r => r.questionId !== currentQuestion.id);
-            saveGuidanceRules([...otherRules, ...newRules]);
-        }
         
-        const isAutoApproved = isHrEditing && isNew;
-        onSave({ ...currentQuestion, answerGuidance }, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
+        onSave({ ...currentQuestion, answerGuidance }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
     };
 
     const handleDependsOnValueChange = (option: string, isChecked: boolean) => {
@@ -296,9 +275,11 @@ export default function EditQuestionDialog({
         } else {
             const companyName = auth?.companyName;
             if (!companyName) return;
+            
             const currentConfig = companyConfig || {};
-            const newTasks = [...(currentConfig.companyTasks || []), taskData];
-            saveMasterTasks(newTasks);
+            const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
+            const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
+            saveCompanyConfig(companyName, newConfig);
         }
         if (newItemCallback) {
             newItemCallback(taskData);
@@ -316,8 +297,9 @@ export default function EditQuestionDialog({
             const companyName = auth?.companyName;
             if (!companyName) return;
             const currentConfig = companyConfig || {};
-            const newTips = [...(currentConfig.companyTips || []), tipData];
-            saveMasterTips(newTips);
+            const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
+            const newConfig = { ...currentConfig, companyTips: newCompanyTips };
+            saveCompanyConfig(companyName, newConfig);
         }
         if (newItemCallback) {
             newItemCallback(tipData);
@@ -342,6 +324,8 @@ export default function EditQuestionDialog({
     const isGuidanceSetForAnswer = (answer: string): boolean => {
         return !!answerGuidance[answer];
     }
+    
+     const { companyTasks = [], companyTips = [] } = companyConfig || {};
 
     return (
         <>
@@ -651,17 +635,11 @@ export default function EditQuestionDialog({
             questionLabel={currentQuestion?.label || ''}
             answer={currentAnswerForGuidance}
             questionId={currentQuestion?.id || ''}
-            allCompanyTasks={companyConfig?.companyTasks || []}
-            allCompanyTips={companyConfig?.companyTips || []}
+            allCompanyTasks={companyTasks}
+            allCompanyTips={companyTips}
             onSaveGuidance={handleSaveAnswerGuidance}
-            onAddNewTask={(callback) => {
-                setIsGuidanceDialogOpen(false);
-                onAddNewTask(callback);
-            }}
-            onAddNewTip={(callback) => {
-                setIsGuidanceDialogOpen(false);
-                onAddNewTip(callback);
-            }}
+            onAddNewTask={onAddNewTask}
+            onAddNewTip={onAddNewTip}
             existingGuidance={answerGuidance[currentAnswerForGuidance]}
         />
         
@@ -681,4 +659,5 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
 
