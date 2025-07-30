@@ -149,6 +149,7 @@ export default function EditQuestionDialog({
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
     const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState<number | null>(null);
+    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
@@ -167,7 +168,7 @@ export default function EditQuestionDialog({
             setNewSectionName("");
             setSuggestedOptionsToAdd([]);
             setSuggestedOptionsToRemove([]);
-            setAnswerGuidance({}); // Reset guidance on open
+            setAnswerGuidance(question?.answerGuidance || {});
         }
     }, [isOpen, question]);
     
@@ -243,7 +244,7 @@ export default function EditQuestionDialog({
         }
         
         const isAutoApproved = isHrEditing && isNew;
-        onSave(currentQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
+        onSave({ ...currentQuestion, answerGuidance }, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
     };
 
     const handleDependsOnValueChange = (option: string, isChecked: boolean) => {
@@ -278,10 +279,14 @@ export default function EditQuestionDialog({
         );
     };
 
-    const handleAddGuidance = (index: number, type: 'task' | 'tip') => {
-        setCurrentSuggestionIndex(index);
-        if (type === 'task') setIsTaskFormOpen(true);
-        if (type === 'tip') setIsTipFormOpen(true);
+    const onAddNewTask = (callback: (newTask: MasterTask) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTaskFormOpen(true);
+    };
+
+    const onAddNewTip = (callback: (newTip: MasterTip) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTipFormOpen(true);
     };
 
     const handleSaveNewTask = (taskData: MasterTask) => {
@@ -295,8 +300,12 @@ export default function EditQuestionDialog({
             const newTasks = [...(currentConfig.companyTasks || []), taskData];
             saveMasterTasks(newTasks);
         }
+        if (newItemCallback) {
+            newItemCallback(taskData);
+        }
         setIsTaskFormOpen(false);
         setCurrentSuggestionIndex(null);
+        setNewItemCallback(null);
     };
 
     const handleSaveNewTip = (tipData: MasterTip) => {
@@ -310,8 +319,12 @@ export default function EditQuestionDialog({
             const newTips = [...(currentConfig.companyTips || []), tipData];
             saveMasterTips(newTips);
         }
+        if (newItemCallback) {
+            newItemCallback(tipData);
+        }
         setIsTipFormOpen(false);
         setCurrentSuggestionIndex(null);
+        setNewItemCallback(null);
     };
     
     const handleSaveAnswerGuidance = (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
@@ -609,8 +622,8 @@ export default function EditQuestionDialog({
                                         </div>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleAddGuidance(index, 'task')}><ListChecks className="mr-2"/> Suggest Task</Button>
-                                            <Button variant="outline" size="sm" onClick={() => handleAddGuidance(index, 'tip')}><Lightbulb className="mr-2"/> Suggest Tip</Button>
+                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTask((newTask) => handleSaveNewTask(newTask)); }}><ListChecks className="mr-2"/> Suggest Task</Button>
+                                            <Button variant="outline" size="sm" onClick={() => { setCurrentSuggestionIndex(index); onAddNewTip((newTip) => handleSaveNewTip(newTip)); }}><Lightbulb className="mr-2"/> Suggest Tip</Button>
                                         </div>
                                     )}
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
@@ -652,20 +665,20 @@ export default function EditQuestionDialog({
             existingGuidance={answerGuidance[currentAnswerForGuidance]}
         />
         
-        {/* Dialogs for creating new tasks/tips */}
         <TaskForm 
             isOpen={isTaskFormOpen}
             onOpenChange={setIsTaskFormOpen}
             onSave={handleSaveNewTask}
-            task={null} // Always a new task
+            task={null}
             allResources={externalResources}
         />
         <TipForm 
             isOpen={isTipFormOpen}
             onOpenChange={setIsTipFormOpen}
             onSave={handleSaveNewTip}
-            tip={null} // Always a new tip
+            tip={null}
         />
         </>
     );
 }
+
