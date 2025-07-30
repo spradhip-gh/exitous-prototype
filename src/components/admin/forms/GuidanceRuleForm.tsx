@@ -107,7 +107,7 @@ export function MultiSelectPopover({
                                             onCheckedChange={() => handleSelect(item.id)}
                                             onSelect={(e) => e.preventDefault()}
                                         >
-                                            <span className="truncate" title={item.name}>{item.name}</span>
+                                            <span title={item.name}>{item.name}</span>
                                         </DropdownMenuCheckboxItem>
                                     )) : (
                                         <p className="p-2 text-xs text-center text-muted-foreground">No items found.</p>
