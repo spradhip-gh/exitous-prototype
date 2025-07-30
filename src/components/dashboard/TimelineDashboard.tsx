@@ -11,7 +11,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -106,8 +106,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
+  
   const [isAddDateOpen, setIsAddDateOpen] = useState(false);
   const [newDateLabel, setNewDateLabel] = useState('');
   const [newDate, setNewDate] = useState<Date | undefined>();
@@ -214,7 +213,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     fetchRecommendations();
   }, [profileData, assessmentData, isPreview, isFullyComplete, auth, recommendations, saveRecommendations]);
 
-  const sortedRecommendations = useMemo(() => {
+  const { tasks, tips } = useMemo(() => {
     const aiRecs = recommendations?.recommendations || [];
     const manualRecs = mappedRecommendations || [];
 
@@ -238,7 +237,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       return Infinity;
     };
 
-    return combined.sort((a, b) => {
+    const sorted = combined.sort((a, b) => {
       const aDate = taskDateOverrides[a.taskId] || a.endDate;
       const bDate = taskDateOverrides[b.taskId] || b.endDate;
       
@@ -254,20 +253,14 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       
       return 0;
     });
+
+    return {
+      tasks: sorted.filter(item => !item.taskId.startsWith('tip-')),
+      tips: sorted.filter(item => item.taskId.startsWith('tip-')),
+    };
+
   }, [recommendations, mappedRecommendations, taskDateOverrides]);
 
-  const recommendationCategories = useMemo(() => {
-    if (!sortedRecommendations) return [];
-    const categories = new Set(sortedRecommendations.map(r => r.category));
-    return Array.from(categories);
-  }, [sortedRecommendations]);
-
-  const filteredRecommendations = useMemo(() => {
-    if (!activeCategory) {
-      return sortedRecommendations;
-    }
-    return sortedRecommendations.filter(r => r.category === activeCategory);
-  }, [sortedRecommendations, activeCategory]);
 
   const handleAddDate = () => {
     if (!newDateLabel || !newDate) {
@@ -332,117 +325,104 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   if (!isFullyComplete) {
     return <ProgressTracker />;
   }
-  
-  const hasRecommendations = filteredRecommendations.length > 0;
 
   return (
     <>
       <ResourceDialog resource={selectedResource} open={!!selectedResource} onOpenChange={(open) => !open && setSelectedResource(null)} />
-      {sortedRecommendations.length > 0 && (
-          <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
-                    <CardDescription>
-                        A tailored list of actions to guide you through your exit.
-                    </CardDescription>
+      <div className="space-y-8">
+        {(tasks.length > 0 || tips.length > 0) && (
+            <Card className="shadow-lg">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="font-headline text-2xl">Your Personalized Next Steps</CardTitle>
+                      <CardDescription>
+                          A tailored list of actions to guide you through your exit.
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                             <Button variant="ghost" size="icon" onClick={handleRefresh}><RefreshCw className="h-4 w-4" /></Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Refresh Recommendations</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Dialog open={isAddDateOpen} onOpenChange={setIsAddDateOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline"><PlusCircle className="mr-2"/> Add Custom Date</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add a Custom Date</DialogTitle>
+                            <DialogDescription>Add a personal event or deadline to your timeline.</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="date-label">Event Label</Label>
+                              <Input id="date-label" value={newDateLabel} onChange={(e) => setNewDateLabel(e.target.value)} placeholder="e.g., Follow up with recruiter" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Date</Label>
+                              <Popover>
+                                  <PopoverTrigger asChild>
+                                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
+                                          <Calendar className="mr-2 h-4 w-4" />
+                                          {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
+                                      </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={newDate} onSelect={setNewDate} initialFocus /></PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAddDateOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAddDate}>Add to Timeline</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" onClick={handleRefresh}><RefreshCw className="h-4 w-4" /></Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Refresh Recommendations</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Dialog open={isAddDateOpen} onOpenChange={setIsAddDateOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline"><PlusCircle className="mr-2"/> Add Custom Date</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add a Custom Date</DialogTitle>
-                          <DialogDescription>Add a personal event or deadline to your timeline.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="date-label">Event Label</Label>
-                            <Input id="date-label" value={newDateLabel} onChange={(e) => setNewDateLabel(e.target.value)} placeholder="e.g., Follow up with recruiter" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Date</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newDate && "text-muted-foreground")}>
-                                        <Calendar className="mr-2 h-4 w-4" />
-                                        {newDate ? format(newDate, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><CalendarPicker mode="single" selected={newDate} onSelect={setNewDate} initialFocus /></PopoverContent>
-                            </Popover>
-                          </div>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    {tasks.length > 0 && (
+                        <div>
+                            <h3 className="text-xl font-bold font-headline mb-4">Tasks & Deadlines</h3>
+                            <Timeline 
+                                recommendations={tasks} 
+                                completedTasks={completedTasks}
+                                toggleTaskCompletion={toggleTaskCompletion}
+                                taskDateOverrides={taskDateOverrides}
+                                updateTaskDate={updateTaskDate}
+                                userTimezone={userTimezone}
+                                onConnectClick={handleConnectClick}
+                                externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
+                            />
                         </div>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsAddDateOpen(false)}>Cancel</Button>
-                          <Button onClick={handleAddDate}>Add to Timeline</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-                  <div className="flex flex-wrap items-center gap-2 pt-4">
-                      <Button variant={!activeCategory ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(null)}>All</Button>
-                      {recommendationCategories.map(category => (
-                          <Button key={category} variant={activeCategory === category ? 'default' : 'outline'} size="sm" onClick={() => setActiveCategory(category)}>{category}</Button>
-                      ))}
-                  </div>
-              </CardHeader>
-              <CardContent>
-                  <Tabs defaultValue="timeline" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="timeline">Timeline View</TabsTrigger>
-                      <TabsTrigger value="table">Table View</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="timeline" className="mt-6">
-                          {hasRecommendations ? (
-                              <Timeline 
-                                  recommendations={filteredRecommendations} 
-                                  completedTasks={completedTasks}
-                                  toggleTaskCompletion={toggleTaskCompletion}
-                                  taskDateOverrides={taskDateOverrides}
-                                  updateTaskDate={updateTaskDate}
-                                  userTimezone={userTimezone}
-                                  onConnectClick={handleConnectClick}
-                                  externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
-                              />
-                           ) : (
-                              <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
-                           )}
-                      </TabsContent>
-                      <TabsContent value="table" className="mt-6">
-                           {hasRecommendations ? (
-                              <RecommendationsTable 
-                                  recommendations={filteredRecommendations} 
-                                  completedTasks={completedTasks}
-                                  toggleTaskCompletion={toggleTaskCompletion}
-                                  taskDateOverrides={taskDateOverrides}
-                                  updateTaskDate={updateTaskDate}
-                                  userTimezone={userTimezone}
-                                  onConnectClick={handleConnectClick}
-                                  externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
-                              />
-                           ) : (
-                              <p className="text-center text-muted-foreground py-8">No recommendations in this category.</p>
-                           )}
-                      </TabsContent>
-                  </Tabs>
-              </CardContent>
-          </Card>
-      )}
+                    )}
+                     {tips.length > 0 && (
+                        <div>
+                            <h3 className="text-xl font-bold font-headline mb-4">Did You Know...</h3>
+                            <div className="space-y-4">
+                              {tips.map(tip => (
+                                <Alert key={tip.taskId}>
+                                  <Lightbulb className="h-4 w-4" />
+                                  <AlertTitle>{tip.category}</AlertTitle>
+                                  <AlertDescription>
+                                    <ReactMarkdown className="prose prose-sm">{tip.task.replace('Did you know: ', '')}</ReactMarkdown>
+                                  </AlertDescription>
+                                </Alert>
+                              ))}
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        )}
+      </div>
     </>
   );
 }
@@ -598,110 +578,4 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
       })}
     </div>
   );
-}
-
-
-function RecommendationsTable({ recommendations, completedTasks, toggleTaskCompletion, taskDateOverrides, updateTaskDate, userTimezone, onConnectClick, externalResources }: RecommendationProps) {
-    if (!recommendations || recommendations.length === 0) {
-      return <p className="text-muted-foreground text-center">No recommendations available.</p>;
-    }
-
-    const handleDateSelect = (taskId: string, date: Date | undefined) => {
-        if (date) {
-            const [year, month, day] = format(date, 'yyyy-MM-dd').split('-').map(Number);
-            const correctedDate = new Date(year, month-1, day);
-            updateTaskDate(taskId, correctedDate);
-        }
-    };
-
-    const getHasResource = (taskId: string) => {
-        const isConsultantTask = taskId.startsWith('consultant-guidance-');
-        if (isConsultantTask) {
-            const resourceId = taskId.replace('consultant-guidance-', '');
-            return externalResources.some(res => res.id === resourceId);
-        }
-        return externalResources.some(res => res.relatedTaskIds?.includes(taskId));
-    }
-
-    return (
-        <Card>
-          <Table>
-              <TableHeader>
-                  <TableRow>
-                      <TableHead className="w-[50px]">Status</TableHead>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="w-[200px]">Timeline / Due Date</TableHead>
-                  </TableRow>
-              </TableHeader>
-              <TableBody>
-                  {recommendations.map((item, index) => {
-                    const isCompleted = completedTasks.has(item.taskId);
-                    const overriddenDateStr = taskDateOverrides[item.taskId];
-                    const rawDateStr = overriddenDateStr || item.endDate;
-                    const hasResource = getHasResource(item.taskId);
-
-                    let displayDate: Date | null = null;
-                    if(rawDateStr) {
-                       try {
-                            const parsed = parse(rawDateStr, 'yyyy-MM-dd', new Date());
-                            if(isValid(parsed)) {
-                                displayDate = parsed;
-                            }
-                        } catch (e) {
-                            console.warn(`Could not parse date: ${rawDateStr}`);
-                        }
-                    }
-                    
-                    return (
-                      <TableRow key={item.taskId || index} data-completed={isCompleted}>
-                          <TableCell className="text-center">
-                            <Checkbox 
-                                id={`task-table-${item.taskId}`}
-                                checked={isCompleted}
-                                onCheckedChange={() => toggleTaskCompletion(item.taskId)}
-                             />
-                          </TableCell>
-                          <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
-                            <p className="font-medium">{item.task}</p>
-                            <div className="text-xs text-muted-foreground prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1"><ReactMarkdown>{item.details}</ReactMarkdown></div>
-                             {hasResource && (
-                                <Button variant="link" size="sm" className="h-auto p-0 text-xs -ml-1 mt-1" onClick={() => onConnectClick(item.taskId, item.category)}>
-                                    <Handshake className="mr-1.5 h-3 w-3"/> Connect with a Professional
-                                </Button>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
-                          </TableCell>
-                          <TableCell className={cn(isCompleted && "text-muted-foreground line-through")}>
-                            {displayDate && isValid(displayDate) ? (
-                                <div className="flex items-center gap-1 text-sm font-medium">
-                                    <span>{formatInTz(displayDate, "PPP", { timeZone: userTimezone })}</span>
-                                     {!isCompleted && <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                                            <Edit className="h-3 w-3" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <CalendarPicker
-                                                mode="single"
-                                                selected={displayDate}
-                                                onSelect={(date) => handleDateSelect(item.taskId, date)}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>}
-                                </div>
-                            ) : (
-                                <p>{item.timeline}</p>
-                            )}
-                          </TableCell>
-                      </TableRow>
-                  )})}
-              </TableBody>
-          </Table>
-        </Card>
-    );
 }

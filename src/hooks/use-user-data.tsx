@@ -989,6 +989,36 @@ export function useUserData() {
     const allQuestions = getCompanyConfig(auth?.companyName, true, 'all');
     let recommendations: RecommendationItem[] = [];
 
+    const processAssignments = (assignments: RangeAssignment) => {
+      assignments.taskIds?.forEach(taskId => {
+        const task = allTasks.find(t => t.id === taskId);
+        if (task) {
+          recommendations.push({
+            taskId: task.id,
+            task: task.name,
+            category: task.category,
+            details: task.detail,
+            timeline: `Due in ${task.deadlineDays} days`,
+            endDate: getEndDate(task.deadlineType, task.deadlineDays),
+            isGoal: false,
+          });
+        }
+      });
+      assignments.tipIds?.forEach(tipId => {
+        const tip = allTips.find(t => t.id === tipId);
+        if (tip) {
+          recommendations.push({
+            taskId: `tip-${tip.id}`,
+            task: `Did you know: ${tip.text}`,
+            category: tip.category,
+            details: `A helpful tip related to ${tip.category.toLowerCase()}. Priority: ${tip.priority}`,
+            timeline: "Suggestion",
+            isGoal: true,
+          });
+        }
+      });
+    };
+
     // 1. Process Guidance Rules
     const answeredQuestionIds = new Set(Object.keys(assessmentData));
     const rulesToProcess = guidanceRules.filter(r => answeredQuestionIds.has(r.questionId));
@@ -996,56 +1026,18 @@ export function useUserData() {
     rulesToProcess.forEach(rule => {
         const answer = assessmentData[rule.questionId as keyof AssessmentData] as string;
         if (rule.type === 'direct' && rule.conditions.some(c => c.answer === answer)) {
-            rule.assignments.taskIds.forEach(taskId => {
-                const task = allTasks.find(t => t.id === taskId);
-                if (task) {
-                    recommendations.push({
-                        taskId: task.id,
-                        task: task.name,
-                        category: task.category,
-                        details: task.detail,
-                        timeline: `Due in ${task.deadlineDays} days`,
-                        endDate: getEndDate(task.deadlineType, task.deadlineDays),
-                        isGoal: false,
-                    });
-                }
-            });
+            processAssignments(rule.assignments);
         }
     });
 
     // 2. Process Answer Guidance from Custom Questions
     allQuestions.forEach(q => {
-        if (q.isCustom && q.answerGuidance) {
+        if (q.answerGuidance) {
             const answer = assessmentData[q.id as keyof AssessmentData];
-            if (answer && q.answerGuidance[answer as string]) {
-                const guidance = q.answerGuidance[answer as string];
-                guidance.tasks?.forEach(taskId => {
-                    const task = allTasks.find(t => t.id === taskId);
-                    if (task) {
-                         recommendations.push({
-                            taskId: task.id,
-                            task: task.name,
-                            category: task.category,
-                            details: task.detail,
-                            timeline: `Due in ${task.deadlineDays} days`,
-                            endDate: getEndDate(task.deadlineType, task.deadlineDays),
-                            isGoal: false,
-                        });
-                    }
-                });
-                guidance.tips?.forEach(tipId => {
-                    const tip = allTips.find(t => t.id === tipId);
-                    if (tip) {
-                        recommendations.push({
-                            taskId: `tip-${tip.id}`,
-                            task: `Did you know: ${tip.text}`,
-                            category: tip.category,
-                            details: `A helpful tip related to ${tip.category.toLowerCase()}. Priority: ${tip.priority}`,
-                            timeline: "Suggestion",
-                            isGoal: true,
-                        });
-                    }
-                });
+            const guidance = answer && q.answerGuidance[answer as string];
+            if (guidance) {
+                const assignments: RangeAssignment = { taskIds: guidance.tasks || [], tipIds: guidance.tips || [] };
+                processAssignments(assignments);
             }
         }
     });
@@ -1119,3 +1111,4 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
