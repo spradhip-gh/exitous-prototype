@@ -48,7 +48,7 @@ interface EditQuestionDialogProps {
 }
 
 function AnswerGuidanceDialog({ 
-    isOpen, onOpenChange, questionLabel, answer, questionId, allCompanyTasks, allCompanyTips, allMasterTasks, allMasterTips, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance 
+    isOpen, onOpenChange, questionLabel, answer, questionId, allCompanyTasks, allCompanyTips, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance 
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
@@ -57,8 +57,6 @@ function AnswerGuidanceDialog({
     questionId: string;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-    allMasterTasks: MasterTask[];
-    allMasterTips: MasterTip[];
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
     onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
     onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
@@ -80,19 +78,6 @@ function AnswerGuidanceDialog({
         }
     }, [isOpen, existingGuidance]);
     
-    const combinedTasks = useMemo(() => {
-        const uniqueTasks = new Map<string, MasterTask>();
-        [...allMasterTasks, ...allCompanyTasks].forEach(task => uniqueTasks.set(task.id, task));
-        return Array.from(uniqueTasks.values());
-    }, [allMasterTasks, allCompanyTasks]);
-
-    const combinedTips = useMemo(() => {
-        const uniqueTips = new Map<string, MasterTip>();
-        [...allMasterTips, ...allCompanyTips].forEach(tip => uniqueTips.set(tip.id, tip));
-        return Array.from(uniqueTips.values());
-    }, [allMasterTips, allCompanyTips]);
-
-
     const handleSave = () => {
         onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
         onOpenChange(false);
@@ -115,7 +100,7 @@ function AnswerGuidanceDialog({
                      <fieldset disabled={noGuidance} className="space-y-4">
                         <MultiSelectPopover
                             label="Tasks to Assign"
-                            items={combinedTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
+                            items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
                             onAddNew={() => onAddNewTask((newTask) => setSelectedTasks(prev => [...prev, newTask.id]))}
@@ -123,7 +108,7 @@ function AnswerGuidanceDialog({
                         />
                          <MultiSelectPopover
                             label="Tips to Show"
-                            items={combinedTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
+                            items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
                             onAddNew={() => onAddNewTip((newTip) => setSelectedTips(prev => [...prev, newTip.id]))}
@@ -151,8 +136,6 @@ export default function EditQuestionDialog({
         externalResources, 
         guidanceRules,
         saveGuidanceRules,
-        masterTasks,
-        masterTips,
         saveMasterTasks,
         saveMasterTips,
         getAllCompanyConfigs,
@@ -657,8 +640,6 @@ export default function EditQuestionDialog({
             questionId={currentQuestion?.id || ''}
             allCompanyTasks={companyConfig?.companyTasks || []}
             allCompanyTips={companyConfig?.companyTips || []}
-            allMasterTasks={masterTasks}
-            allMasterTips={masterTips}
             onSaveGuidance={handleSaveAnswerGuidance}
             onAddNewTask={(callback) => {
                 setIsGuidanceDialogOpen(false);
