@@ -82,6 +82,19 @@ function AnswerGuidanceDialog({
         onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
         onOpenChange(false);
     }
+    
+    const handleAddNewTaskWithSelection = () => {
+        onAddNewTask((newTask) => {
+            setSelectedTasks(prev => [...prev, newTask.id]);
+        });
+    };
+
+    const handleAddNewTipWithSelection = () => {
+        onAddNewTip((newTip) => {
+            setSelectedTips(prev => [...prev, newTip.id]);
+        });
+    };
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -103,7 +116,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
-                            onAddNew={() => onAddNewTask((newTask) => setSelectedTasks(prev => [...prev, newTask.id]))}
+                            onAddNew={handleAddNewTaskWithSelection}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
@@ -111,7 +124,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
-                            onAddNew={() => onAddNewTip((newTip) => setSelectedTips(prev => [...prev, newTip.id]))}
+                            onAddNew={handleAddNewTipWithSelection}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -143,7 +156,7 @@ export default function EditQuestionDialog({
         getAllCompanyConfigs,
         saveCompanyConfig,
     } = useUserData();
-    
+
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
@@ -160,47 +173,11 @@ export default function EditQuestionDialog({
 
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
 
-    const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : undefined;
+    const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth?.companyName] : undefined;
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
     const isSuggestionMode = isHrEditing && !isCustomQuestion;
-
-
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentQuestion(question);
-            setIsCreatingNewSection(false);
-            setNewSectionName("");
-            setSuggestedOptionsToAdd([]);
-            setSuggestedOptionsToRemove([]);
-            setAnswerGuidance(question?.answerGuidance || {});
-        }
-    }, [isOpen, question]);
-    
-    const dependencyQuestions = useMemo(() => {
-        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
-        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
-        return {
-            profile: profileQs.filter(q => ['select', 'radio', 'checkbox'].includes(q.type)),
-            assessment: assessmentQs.filter(q => ['select', 'radio', 'checkbox'].includes(q.type)),
-        }
-    }, [masterProfileQuestions, masterQuestions]);
-
-    const sourceQuestionOptions = useMemo(() => {
-        if (!currentQuestion?.dependencySource || !currentQuestion?.dependsOn) {
-            return [];
-        }
-        const sourceMap = currentQuestion.dependencySource === 'profile' ? masterProfileQuestions : masterQuestions;
-        return sourceMap[currentQuestion.dependsOn]?.options || [];
-    }, [currentQuestion, masterProfileQuestions, masterQuestions]);
-
-    const masterOptionsSet = useMemo(() => {
-        if (!masterQuestionForEdit?.options) return new Set();
-        return new Set(masterQuestionForEdit.options);
-    }, [masterQuestionForEdit]);
-
-    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
 
     const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
         setNewItemCallback(() => callback);
@@ -246,6 +223,45 @@ export default function EditQuestionDialog({
         setIsGuidanceDialogOpen(true); // Re-open guidance dialog
         setNewItemCallback(null);
     }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentQuestion(question);
+            setIsCreatingNewSection(false);
+            setNewSectionName("");
+            setSuggestedOptionsToAdd([]);
+            setSuggestedOptionsToRemove([]);
+            setAnswerGuidance(question?.answerGuidance || {});
+        }
+    }, [isOpen, question]);
+
+    if (!isOpen || !currentQuestion) {
+        return null;
+    }
+    
+    const dependencyQuestions = useMemo(() => {
+        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
+        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
+        return {
+            profile: profileQs.filter(q => ['select', 'radio', 'checkbox'].includes(q.type)),
+            assessment: assessmentQs.filter(q => ['select', 'radio', 'checkbox'].includes(q.type)),
+        }
+    }, [masterProfileQuestions, masterQuestions]);
+
+    const sourceQuestionOptions = useMemo(() => {
+        if (!currentQuestion?.dependencySource || !currentQuestion?.dependsOn) {
+            return [];
+        }
+        const sourceMap = currentQuestion.dependencySource === 'profile' ? masterProfileQuestions : masterQuestions;
+        return sourceMap[currentQuestion.dependsOn]?.options || [];
+    }, [currentQuestion, masterProfileQuestions, masterQuestions]);
+
+    const masterOptionsSet = useMemo(() => {
+        if (!masterQuestionForEdit?.options) return new Set();
+        return new Set(masterQuestionForEdit.options);
+    }, [masterQuestionForEdit]);
+
+    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
 
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
@@ -323,9 +339,6 @@ export default function EditQuestionDialog({
     
     const { companyTasks = [], companyTips = [] } = companyConfig || {};
 
-    if (!isOpen || !currentQuestion) {
-        return null;
-    }
 
     return (
         <>
