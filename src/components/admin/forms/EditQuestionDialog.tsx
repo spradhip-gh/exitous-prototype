@@ -51,17 +51,14 @@ function AnswerGuidanceDialog({
     
     useEffect(() => {
         if (isOpen) {
-            if (existingGuidance) {
-                setSelectedTasks(existingGuidance.tasks || []);
-                setSelectedTips(existingGuidance.tips || []);
-                setNoGuidance(existingGuidance.noGuidanceRequired || false);
-            } else {
-                 setSelectedTasks([]);
-                 setSelectedTips([]);
-                 setNoGuidance(false);
-            }
+            // Use the selections passed from the parent, which represent the current staged state,
+            // rather than only the last-saved `existingGuidance`. This preserves selections
+            // when adding multiple new items.
+            setSelectedTasks(existingGuidance?.tasks || []);
+            setSelectedTips(existingGuidance?.tips || []);
+            setNoGuidance(existingGuidance?.noGuidanceRequired || false);
         }
-    }, [isOpen, existingGuidance, answer, setSelectedTasks, setSelectedTips]);
+    }, [isOpen, existingGuidance, setSelectedTasks, setSelectedTips]);
 
     const handleSave = () => {
         onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
@@ -155,7 +152,7 @@ export default function EditQuestionDialog({
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [newItemSetter, setNewItemSetter] = useState<{ fn: ((prev: string[]) => string[]) | null }>({ fn: null });
+    const [newItemSetter, setNewItemSetter] = useState<{ fn: ((ids: string[] | ((prev: string[]) => string[])) => void) | null }>({ fn: null });
     const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
     
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
@@ -212,7 +209,6 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
     
-    // This effect ensures the auto-selection happens *after* the new item list is updated.
     useEffect(() => {
         if (newItemSetter.fn && lastAddedItemId) {
             newItemSetter.fn(prev => [...prev, lastAddedItemId]);
@@ -335,8 +331,12 @@ export default function EditQuestionDialog({
     
     const openGuidanceDialog = useCallback((answer: string) => {
         setCurrentAnswerForGuidance(answer);
+        // Pre-populate the selections from the main state
+        const currentGuidance = answerGuidance[answer];
+        setSelectedTasks(currentGuidance?.tasks || []);
+        setSelectedTips(currentGuidance?.tips || []);
         setIsGuidanceDialogOpen(true);
-    }, []);
+    }, [answerGuidance]);
     
     const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
         const guidance = answerGuidance[answer];
