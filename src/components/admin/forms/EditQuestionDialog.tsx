@@ -70,7 +70,7 @@ function AnswerGuidanceDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
                         Set Guidance for:{" "}
@@ -94,7 +94,7 @@ function AnswerGuidanceDialog({
                         <Checkbox 
                             id="no-guidance-required" 
                             checked={noGuidanceRequired} 
-                            onCheckedChange={setNoGuidanceRequired} 
+                            onCheckedChange={(checked) => setNoGuidanceRequired(!!checked)}
                         />
                         <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
                     </div>
