@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
@@ -531,10 +531,7 @@ export default function EditQuestionDialog({
                                          <Button variant="outline" size="sm" onClick={() => openGuidanceDialog(option)}>
                                             <Settings className="mr-2 h-4 w-4" />Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
                                          </Button>
-                                         <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setCurrentQuestion(q => {
-                                             if (!q || !q.options) return q;
-                                             return { ...q, options: q.options.filter((_, i) => i !== index) };
-                                         })}><Trash2 className="h-4 w-4" /></Button>
+                                         <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setCurrentQuestion(q => q ? { ...q, options: q.options.filter((_, i) => i !== index) } : null)}><Trash2 className="h-4 w-4" /></Button>
                                      </div>
                                 ))}
                                 <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? { ...q, options: [...(q.options || []), ''] } : null)}><PlusCircle className="mr-2"/> Add Option</Button>
@@ -705,3 +702,4 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
