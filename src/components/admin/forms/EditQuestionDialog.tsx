@@ -11,13 +11,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
+import TaskForm from "../tasks/TaskForm";
+import TipForm from "../tips/TipForm";
+
+interface SuggestedGuidance {
+    type: 'task' | 'tip';
+    item: Partial<MasterTask | MasterTip>;
+}
+
+interface SuggestedOption {
+    option: string;
+    guidance?: SuggestedGuidance;
+}
+
 
 interface EditQuestionDialogProps {
     isOpen: boolean;
@@ -34,19 +47,22 @@ export default function EditQuestionDialog({
 }: EditQuestionDialogProps) {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { masterQuestions, masterProfileQuestions } = useUserData();
-
-    // All hooks must be called unconditionally at the top of the component.
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
+    const { masterQuestions, masterProfileQuestions, externalResources, saveMasterTasks, saveMasterTips } = useUserData();
+    
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
-    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<{ option: string; guidance: string }[]>([]);
+    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<SuggestedOption[]>([]);
     const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
     
+    const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [isTipFormOpen, setIsTipFormOpen] = useState(false);
+    const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState<number | null>(null);
+
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
-    const isSuggestionMode = isHrEditing && !!currentQuestion?.isLocked;
-    
+    const isSuggestionMode = isHrEditing && (!!currentQuestion?.isLocked || !!currentQuestion?.isCustom);
+
     useEffect(() => {
         if (isOpen) {
             setCurrentQuestion(question);
@@ -79,12 +95,11 @@ export default function EditQuestionDialog({
         return new Set(masterQuestionForEdit.options);
     }, [masterQuestionForEdit]);
 
-    // Now, we can have our conditional return.
+    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
+
     if (!isOpen || !currentQuestion) {
         return null;
     }
-
-    const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
 
     const handleSave = () => {
         if (!currentQuestion) return;
@@ -123,13 +138,12 @@ export default function EditQuestionDialog({
         });
     };
     
-    // Handlers for suggestion mode
     const handleAddSuggestion = () => {
-        setSuggestedOptionsToAdd(prev => [...prev, { option: '', guidance: '' }]);
+        setSuggestedOptionsToAdd(prev => [...prev, { option: '' }]);
     };
     
-    const handleUpdateSuggestion = (index: number, field: 'option' | 'guidance', value: string) => {
-        setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    const handleUpdateSuggestionOption = (index: number, value: string) => {
+        setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === index ? { ...item, option: value } : item));
     };
 
     const handleRemoveSuggestion = (index: number) => {
@@ -142,7 +156,32 @@ export default function EditQuestionDialog({
         );
     };
 
+    const handleAddGuidance = (index: number, type: 'task' | 'tip') => {
+        setCurrentSuggestionIndex(index);
+        if (type === 'task') setIsTaskFormOpen(true);
+        if (type === 'tip') setIsTipFormOpen(true);
+    };
+
+    const handleSaveNewTask = (taskData: MasterTask) => {
+        if (currentSuggestionIndex !== null) {
+            const newSuggestion: SuggestedGuidance = { type: 'task', item: { ...taskData, isCompanySpecific: true } };
+            setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === currentSuggestionIndex ? { ...item, guidance: newSuggestion } : item));
+        }
+        setIsTaskFormOpen(false);
+        setCurrentSuggestionIndex(null);
+    };
+
+    const handleSaveNewTip = (tipData: MasterTip) => {
+        if (currentSuggestionIndex !== null) {
+            const newSuggestion: SuggestedGuidance = { type: 'tip', item: { ...tipData, isCompanySpecific: true } };
+            setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === currentSuggestionIndex ? { ...item, guidance: newSuggestion } : item));
+        }
+        setIsTipFormOpen(false);
+        setCurrentSuggestionIndex(null);
+    };
+
     return (
+        <>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle>{isSuggestionMode ? 'Suggest Edits' : (isNew ? 'Add Custom Question' : 'Edit Question')}</DialogTitle>
@@ -153,7 +192,16 @@ export default function EditQuestionDialog({
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isSuggestionMode} className="space-y-6 py-4">
+            <fieldset disabled={isSuggestionMode && !currentQuestion.isCustom} className="space-y-6 py-4">
+                 {isHrEditing && !isSuggestionMode && (
+                    <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800">
+                        <HelpCircle className="h-4 w-4 !text-blue-600"/>
+                        <AlertTitle>Adding Custom Guidance</AlertTitle>
+                        <AlertDescription>
+                          For new custom questions or custom answers, it's important to provide guidance. Please suggest a corresponding task or tip for each new answer choice to ensure users receive relevant advice.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
                     <Alert variant="default" className="bg-primary/5 border-primary/50">
                         <BellDot className="h-4 w-4 !text-primary" />
@@ -369,14 +417,14 @@ export default function EditQuestionDialog({
                 )}
             </fieldset>
 
-            {isSuggestionMode && currentQuestion.options && (
+            {isSuggestionMode && (
                 <div className="space-y-6 py-4">
                     <Separator />
                     <div className="space-y-2">
                         <Label>Current Answer Options</Label>
                         <p className="text-xs text-muted-foreground">You can suggest removing existing options.</p>
                         <div className="space-y-2 rounded-md border p-4">
-                            {currentQuestion.options.map(option => (
+                            {currentQuestion.options?.map(option => (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
                                     <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
@@ -392,8 +440,21 @@ export default function EditQuestionDialog({
                         <div className="space-y-4">
                             {suggestedOptionsToAdd.map((suggestion, index) => (
                                 <div key={index} className="relative space-y-2 p-3 pr-10 bg-muted/50 rounded-md">
-                                    <Input value={suggestion.option} onChange={(e) => handleUpdateSuggestion(index, 'option', e.target.value)} placeholder="New option name" />
-                                    <Textarea value={suggestion.guidance} onChange={(e) => handleUpdateSuggestion(index, 'guidance', e.target.value)} placeholder="Optional: suggest a task or tip for this answer."/>
+                                    <Input value={suggestion.option} onChange={(e) => handleUpdateSuggestionOption(index, e.target.value)} placeholder="New option name" />
+                                    {suggestion.guidance ? (
+                                        <div className="p-2 border-l-2 border-green-400 bg-green-50">
+                                            <p className="text-xs font-semibold text-green-700 flex items-center gap-1">
+                                                {suggestion.guidance.type === 'task' ? <ListChecks /> : <Lightbulb />}
+                                                Suggested {suggestion.guidance.type === 'task' ? 'Task' : 'Tip'}:
+                                            </p>
+                                            <p className="text-sm text-green-800">{suggestion.guidance.type === 'task' ? (suggestion.guidance.item as MasterTask).name : (suggestion.guidance.item as MasterTip).text}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => handleAddGuidance(index, 'task')}><ListChecks className="mr-2"/> Suggest Task</Button>
+                                            <Button variant="outline" size="sm" onClick={() => handleAddGuidance(index, 'tip')}><Lightbulb className="mr-2"/> Suggest Tip</Button>
+                                        </div>
+                                    )}
                                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -412,5 +473,21 @@ export default function EditQuestionDialog({
                 </Button>
             </DialogFooter>
         </DialogContent>
+
+        {/* Dialogs for creating new tasks/tips */}
+        <TaskForm 
+            isOpen={isTaskFormOpen}
+            onOpenChange={setIsTaskFormOpen}
+            onSave={handleSaveNewTask}
+            task={null} // Always a new task
+            allResources={externalResources}
+        />
+        <TipForm 
+            isOpen={isTipFormOpen}
+            onOpenChange={setIsTipFormOpen}
+            onSave={handleSaveNewTip}
+            tip={null} // Always a new tip
+        />
+        </>
     );
 }

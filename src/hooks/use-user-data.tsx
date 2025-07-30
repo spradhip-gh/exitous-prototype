@@ -130,6 +130,8 @@ export interface CompanyConfig {
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
     resources?: Resource[];
+    companyTasks?: MasterTask[];
+    companyTips?: MasterTip[];
 }
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
@@ -149,6 +151,7 @@ export interface MasterTask {
     deadlineType: 'notification_date' | 'termination_date';
     deadlineDays?: number;
     linkedResourceId?: string;
+    isCompanySpecific?: boolean;
 }
 
 export interface TaskMapping {
@@ -164,6 +167,7 @@ export interface MasterTip {
     priority: 'High' | 'Medium' | 'Low';
     category: 'Financial' | 'Career' | 'Health' | 'Basics';
     text: string;
+    isCompanySpecific?: boolean;
 }
 
 export interface TipMapping {

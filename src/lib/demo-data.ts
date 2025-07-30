@@ -244,6 +244,8 @@ This checklist is designed to help you manage key tasks during your employment t
                         content: `This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.`
                     },
                 ],
+                companyTasks: [],
+                companyTips: [],
             },
             'Initech': {
                 questions: {},
@@ -285,6 +287,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 customQuestions: {},
                 questionOrderBySection: {},
                 resources: [],
+                companyTasks: [],
+                companyTips: [],
             },
             'Globex Software': {
                 questions: {},
@@ -295,6 +299,8 @@ This checklist is designed to help you manage key tasks during your employment t
                 customQuestions: {},
                 questionOrderBySection: {},
                 resources: [],
+                companyTasks: [],
+                companyTips: [],
             }
         },
         platformUsers: [
