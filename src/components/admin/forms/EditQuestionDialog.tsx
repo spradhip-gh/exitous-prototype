@@ -32,28 +32,21 @@ interface AnswerGuidanceDialogProps {
     questionLabel: string;
     answer: string;
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
-    onAddNewTask: () => void;
-    onAddNewTip: () => void;
+    onAddNewTask: (callback: (item: any) => void) => void;
+    onAddNewTip: (callback: (item: any) => void) => void;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-    currentGuidanceForAnswer: AnswerGuidance;
+    currentGuidance: AnswerGuidance;
+    setCurrentGuidance: React.Dispatch<React.SetStateAction<AnswerGuidance>>;
 }
 
 function AnswerGuidanceDialog({
-    isOpen, onOpenChange, questionLabel, answer, onSaveGuidance,
+    isOpen, onOpenChange, questionLabel, answer,
     onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips,
-    currentGuidanceForAnswer
+    currentGuidance, setCurrentGuidance
 }: AnswerGuidanceDialogProps) {
-    const [stagedGuidance, setStagedGuidance] = useState<AnswerGuidance>({});
-
-    useEffect(() => {
-        if(isOpen) {
-            setStagedGuidance(currentGuidanceForAnswer);
-        }
-    }, [isOpen, currentGuidanceForAnswer]);
 
     const handleSave = () => {
-        onSaveGuidance(answer, stagedGuidance.tasks || [], stagedGuidance.tips || [], stagedGuidance.noGuidanceRequired || false);
         onOpenChange(false);
     }
     
@@ -74,26 +67,26 @@ function AnswerGuidanceDialog({
                      <div className="flex items-center space-x-2">
                         <Checkbox 
                             id="no-guidance-required" 
-                            checked={stagedGuidance.noGuidanceRequired} 
-                            onCheckedChange={(c) => setStagedGuidance(prev => ({...prev, noGuidanceRequired: !!c}))} 
+                            checked={currentGuidance.noGuidanceRequired} 
+                            onCheckedChange={(c) => setCurrentGuidance(prev => ({...prev, noGuidanceRequired: !!c}))} 
                         />
                         <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
                     </div>
-                     <fieldset disabled={stagedGuidance.noGuidanceRequired} className="space-y-4">
+                     <fieldset disabled={currentGuidance.noGuidanceRequired} className="space-y-4">
                         <MultiSelectPopover
                             label="Tasks to Assign"
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
-                            selectedIds={stagedGuidance.tasks || []}
-                            onSelectionChange={(ids) => setStagedGuidance(prev => ({...prev, tasks: ids}))}
-                            onAddNew={onAddNewTask}
+                            selectedIds={currentGuidance.tasks || []}
+                            onSelectionChange={(ids) => setCurrentGuidance(prev => ({...prev, tasks: ids}))}
+                            onAddNew={() => onAddNewTask((newTask) => setCurrentGuidance(prev => ({...prev, tasks: [...(prev.tasks || []), newTask.id]})))}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
                             label="Tips to Show"
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
-                            selectedIds={stagedGuidance.tips || []}
-                            onSelectionChange={(ids) => setStagedGuidance(prev => ({...prev, tips: ids}))}
-                            onAddNew={onAddNewTip}
+                            selectedIds={currentGuidance.tips || []}
+                            onSelectionChange={(ids) => setCurrentGuidance(prev => ({...prev, tips: ids}))}
+                            onAddNew={() => onAddNewTip((newTip) => setCurrentGuidance(prev => ({...prev, tips: [...(prev.tips || []), newTip.id]})))}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -142,7 +135,9 @@ export default function EditQuestionDialog({
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
     
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
-    const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
+    const [currentGuidance, setCurrentGuidance] = useState<AnswerGuidance>({});
+
+    const [answerGuidanceOverrides, setAnswerGuidanceOverrides] = useState<Record<string, AnswerGuidance>>({});
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
     
@@ -188,11 +183,11 @@ export default function EditQuestionDialog({
             const config = getAllCompanyConfigs()[auth.companyName];
             setCompanyConfig(config);
              if (question?.id && config?.answerGuidanceOverrides?.[question.id]) {
-                setAnswerGuidance(config.answerGuidanceOverrides[question.id]);
+                setAnswerGuidanceOverrides(config.answerGuidanceOverrides[question.id]);
             } else if (question?.answerGuidance) {
-                setAnswerGuidance(question.answerGuidance);
+                setAnswerGuidanceOverrides(question.answerGuidance);
             } else {
-                setAnswerGuidance({});
+                setAnswerGuidanceOverrides({});
             }
         }
     }, [auth?.companyName, getAllCompanyConfigs, isOpen, question]);
@@ -270,7 +265,7 @@ export default function EditQuestionDialog({
             const suggestedEdits = {
                 optionsToAdd: suggestedOptionsToAdd,
                 optionsToRemove: suggestedOptionsToRemove,
-                guidanceOverrides: answerGuidance,
+                guidanceOverrides: answerGuidanceOverrides,
             };
             if (suggestedEdits.optionsToAdd.length === 0 && suggestedEdits.optionsToRemove.length === 0 && Object.keys(suggestedEdits.guidanceOverrides).length === 0) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance change.", variant: "destructive" });
@@ -285,8 +280,8 @@ export default function EditQuestionDialog({
             return;
         }
         
-        onSave({ ...currentQuestion, answerGuidance }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidance, isHrEditing, isNew]);
+        onSave({ ...currentQuestion, answerGuidance: answerGuidanceOverrides }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -321,7 +316,7 @@ export default function EditQuestionDialog({
     }, []);
     
     const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
-        setAnswerGuidance(prev => ({
+        setAnswerGuidanceOverrides(prev => ({
             ...prev,
             [answer]: { tasks: taskIds, tips: tipIds, noGuidanceRequired }
         }));
@@ -329,14 +324,15 @@ export default function EditQuestionDialog({
     
     const openGuidanceDialog = useCallback((answer: string) => {
         setCurrentAnswerForGuidance(answer);
+        setCurrentGuidance(answerGuidanceOverrides[answer] || {});
         setIsGuidanceDialogOpen(true);
-    }, []);
+    }, [answerGuidanceOverrides]);
     
     const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
-        const guidance = answerGuidance[answer];
+        const guidance = answerGuidanceOverrides[answer];
         if (!guidance) return false;
         return guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0);
-    }, [answerGuidance]);
+    }, [answerGuidanceOverrides]);
 
     if (!isOpen || !currentQuestion) {
         return null;
@@ -476,21 +472,60 @@ export default function EditQuestionDialog({
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="question-options">Answer Options</Label>
-                            <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
-                            {isHrEditing && !currentQuestion.isCustom && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
+                            <Label>Answer Options</Label>
+                            {isSuggestionMode ? (
+                                <>
+                                 <p className="text-xs text-muted-foreground">Suggest removing options or adding company-specific guidance.</p>
+                                 <div className="space-y-2 rounded-md border p-4">
+                                     {currentQuestion.options?.map(option => (
+                                         <div key={option} className="flex items-center justify-between">
+                                             <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
+                                             <div className="flex items-center gap-2">
+                                                 <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                                     <Settings className="mr-2"/> Manage Guidance
+                                                 </Button>
+                                                 <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
+                                                     <Trash2 className="mr-2 h-3 w-3" />
+                                                     {suggestedOptionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
+                                                 </Button>
+                                             </div>
+                                         </div>
+                                     ))}
+                                 </div>
+                                </>
+                            ) : (
+                                <>
+                                 <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
+                                 {isHrEditing && !isCustomQuestion && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
+                                </>
+                            )}
                         </div>
 
-                         {isHrEditing && (
-                            <div className="pt-2 space-y-2 border-t pt-4">
+                        {isSuggestionMode && (
+                             <div className="space-y-2">
+                                <Label>Suggest New Options</Label>
+                                <div className="space-y-4">
+                                    {suggestedOptionsToAdd.map((suggestion, index) => (
+                                        <div key={index} className="relative space-y-2 p-3 pr-10 bg-muted/50 rounded-md">
+                                            <Input value={suggestion.option} onChange={(e) => handleUpdateSuggestionOption(index, e.target.value)} placeholder="New option name" />
+                                            <Button variant="outline" size="sm" onClick={() => openGuidanceDialog(suggestion.option || `_new_option_${index}`)}><ListChecks className="mr-2"/> Suggest Guidance</Button>
+                                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button variant="outline" size="sm" className="mt-2" onClick={handleAddSuggestion}><PlusCircle className="mr-2"/> Suggest New Option</Button>
+                            </div>
+                        )}
+                        
+                        {isCustomQuestion && (
+                             <div className="pt-2 space-y-2 border-t pt-4">
                                 <Label>Guidance for Answers</Label>
-                                <p className="text-xs text-muted-foreground">Map company-specific tasks or tips to each answer. This will override any default admin-set guidance.</p>
+                                <p className="text-xs text-muted-foreground">Map company-specific tasks or tips to each answer.</p>
                                 {currentQuestion.options?.filter(Boolean).map(option => (
                                     <div key={option} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                                        <div className="flex items-center gap-2">
-                                             <p>{option}</p>
-                                             {isHrEditing && !currentQuestion.isCustom && !masterOptionsSet.has(option) && <Star className="h-3 w-3 text-amber-500 fill-current"/>}
-                                        </div>
+                                        <p>{option}</p>
                                         <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
                                             <Settings className="mr-2"/> Manage Guidance
                                         </Button>
@@ -580,47 +615,6 @@ export default function EditQuestionDialog({
                 )}
             </fieldset>
 
-            {isSuggestionMode && (
-                <div className="space-y-6 py-4">
-                    <Separator />
-                    <div className="space-y-2">
-                        <Label>Current Answer Options</Label>
-                        <p className="text-xs text-muted-foreground">You can suggest removing existing options or adding company-specific guidance to them.</p>
-                        <div className="space-y-2 rounded-md border p-4">
-                            {currentQuestion.options?.map(option => (
-                                <div key={option} className="flex items-center justify-between">
-                                    <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                            <Settings className="mr-2"/> Manage Guidance
-                                        </Button>
-                                        <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
-                                            <Trash2 className="mr-2 h-3 w-3" />
-                                            {suggestedOptionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Suggest New Options</Label>
-                        <div className="space-y-4">
-                            {suggestedOptionsToAdd.map((suggestion, index) => (
-                                <div key={index} className="relative space-y-2 p-3 pr-10 bg-muted/50 rounded-md">
-                                    <Input value={suggestion.option} onChange={(e) => handleUpdateSuggestionOption(index, e.target.value)} placeholder="New option name" />
-                                    <Button variant="outline" size="sm" onClick={() => {}}><ListChecks className="mr-2"/> Suggest Guidance</Button>
-                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground" onClick={() => handleRemoveSuggestion(index)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                        <Button variant="outline" size="sm" className="mt-2" onClick={handleAddSuggestion}><PlusCircle className="mr-2"/> Suggest New Option</Button>
-                    </div>
-                </div>
-            )}
-
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" onClick={onClose}>Cancel</Button></DialogClose>
                 <Button onClick={handleSave}>
@@ -631,19 +625,22 @@ export default function EditQuestionDialog({
 
         <AnswerGuidanceDialog
             isOpen={isGuidanceDialogOpen}
-            onOpenChange={setIsGuidanceDialogOpen}
+            onOpenChange={(open) => {
+                // When closing the guidance dialog, save the staged guidance to the main override state
+                if(!open) {
+                    handleSaveAnswerGuidance(currentAnswerForGuidance, currentGuidance.tasks || [], currentGuidance.tips || [], currentGuidance.noGuidanceRequired || false);
+                }
+                setIsGuidanceDialogOpen(open);
+            }}
             questionLabel={currentQuestion?.label || ''}
             answer={currentAnswerForGuidance}
             onSaveGuidance={handleSaveAnswerGuidance}
-            onAddNewTask={() => handleAddNewTask((newTask) => {
-                setAnswerGuidance(prev => ({...prev, [currentAnswerForGuidance]: { ...(prev[currentAnswerForGuidance] || {}), tasks: [...(prev[currentAnswerForGuidance]?.tasks || []), newTask.id]}}))
-            })}
-            onAddNewTip={() => handleAddNewTip((newTip) => {
-                setAnswerGuidance(prev => ({...prev, [currentAnswerForGuidance]: { ...(prev[currentAnswerForGuidance] || {}), tips: [...(prev[currentAnswerForGuidance]?.tips || []), newTip.id]}}))
-            })}
+            onAddNewTask={handleAddNewTask}
+            onAddNewTip={handleAddNewTip}
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
-            currentGuidanceForAnswer={answerGuidance[currentAnswerForGuidance] || {}}
+            currentGuidance={currentGuidance}
+            setCurrentGuidance={setCurrentGuidance}
         />
         
         <TaskForm 
