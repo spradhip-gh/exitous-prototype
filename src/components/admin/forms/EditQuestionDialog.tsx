@@ -33,35 +33,20 @@ interface AnswerGuidanceDialogProps {
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
     onAddNewTask: () => void;
     onAddNewTip: () => void;
-    existingGuidance?: AnswerGuidance;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-    selectedTasks: string[];
-    setSelectedTasks: (ids: string[] | ((prev: string[]) => string[])) => void;
-    selectedTips: string[];
-    setSelectedTips: (ids: string[] | ((prev: string[]) => string[])) => void;
+    currentGuidance: AnswerGuidance;
+    setCurrentGuidance: React.Dispatch<React.SetStateAction<AnswerGuidance>>;
 }
 
 function AnswerGuidanceDialog({
     isOpen, onOpenChange, questionLabel, answer, onSaveGuidance,
-    onAddNewTask, onAddNewTip, existingGuidance, allCompanyTasks, allCompanyTips,
-    selectedTasks, setSelectedTasks, selectedTips, setSelectedTips
+    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips,
+    currentGuidance, setCurrentGuidance
 }: AnswerGuidanceDialogProps) {
-    const [noGuidance, setNoGuidance] = useState(false);
     
-    useEffect(() => {
-        if (isOpen) {
-            // Use the selections passed from the parent, which represent the current staged state,
-            // rather than only the last-saved `existingGuidance`. This preserves selections
-            // when adding multiple new items.
-            setSelectedTasks(existingGuidance?.tasks || []);
-            setSelectedTips(existingGuidance?.tips || []);
-            setNoGuidance(existingGuidance?.noGuidanceRequired || false);
-        }
-    }, [isOpen, existingGuidance, setSelectedTasks, setSelectedTips]);
-
     const handleSave = () => {
-        onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
+        onSaveGuidance(answer, currentGuidance.tasks || [], currentGuidance.tips || [], currentGuidance.noGuidanceRequired || false);
         onOpenChange(false);
     }
     
@@ -80,23 +65,27 @@ function AnswerGuidanceDialog({
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                      <div className="flex items-center space-x-2">
-                        <Checkbox id="no-guidance-required" checked={noGuidance} onCheckedChange={(c) => setNoGuidance(!!c)} />
+                        <Checkbox 
+                            id="no-guidance-required" 
+                            checked={currentGuidance.noGuidanceRequired} 
+                            onCheckedChange={(c) => setCurrentGuidance(prev => ({...prev, noGuidanceRequired: !!c}))} 
+                        />
                         <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
                     </div>
-                     <fieldset disabled={noGuidance} className="space-y-4">
+                     <fieldset disabled={currentGuidance.noGuidanceRequired} className="space-y-4">
                         <MultiSelectPopover
                             label="Tasks to Assign"
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
-                            selectedIds={selectedTasks}
-                            onSelectionChange={setSelectedTasks}
+                            selectedIds={currentGuidance.tasks || []}
+                            onSelectionChange={(ids) => setCurrentGuidance(prev => ({...prev, tasks: ids}))}
                             onAddNew={onAddNewTask}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
                             label="Tips to Show"
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
-                            selectedIds={selectedTips}
-                            onSelectionChange={setSelectedTips}
+                            selectedIds={currentGuidance.tips || []}
+                            onSelectionChange={(ids) => setCurrentGuidance(prev => ({...prev, tips: ids}))}
                             onAddNew={onAddNewTip}
                             categories={tipCategories}
                         />
@@ -149,11 +138,9 @@ export default function EditQuestionDialog({
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [lastAddedItemId, setLastAddedItemId] = useState<{ type: 'task' | 'tip', id: string } | null>(null);
-    
-    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-    const [selectedTips, setSelectedTips] = useState<string[]>([]);
 
+    const [currentGuidance, setCurrentGuidance] = useState<AnswerGuidance>({});
+    
     // --- COMPUTED VALUES ---
     const { masterQuestions, masterProfileQuestions, externalResources } = useUserData();
     const isAdmin = auth?.role === 'admin';
@@ -206,16 +193,6 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
     
-     useEffect(() => {
-        if (lastAddedItemId) {
-            if (lastAddedItemId.type === 'task') {
-                setSelectedTasks(prev => [...prev, lastAddedItemId.id]);
-            } else {
-                setSelectedTips(prev => [...prev, lastAddedItemId.id]);
-            }
-            setLastAddedItemId(null);
-        }
-    }, [companyConfig, lastAddedItemId]);
     
     // --- CALLBACKS & HANDLERS ---
      const onAddNewTask = useCallback(() => {
@@ -240,7 +217,7 @@ export default function EditQuestionDialog({
         
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
         
-        setLastAddedItemId({ type: 'task', id: taskData.id });
+        setCurrentGuidance(prev => ({...prev, tasks: [...(prev.tasks || []), taskData.id]}));
         
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
@@ -257,8 +234,8 @@ export default function EditQuestionDialog({
         saveCompanyConfig(companyName, newConfig);
         
         toast({ title: 'Tip Added' });
-
-        setLastAddedItemId({ type: 'tip', id: tipData.id });
+        
+        setCurrentGuidance(prev => ({...prev, tips: [...(prev.tips || []), tipData.id]}));
 
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
@@ -329,10 +306,7 @@ export default function EditQuestionDialog({
     
     const openGuidanceDialog = useCallback((answer: string) => {
         setCurrentAnswerForGuidance(answer);
-        // Pre-populate the selections from the main state
-        const currentGuidance = answerGuidance[answer];
-        setSelectedTasks(currentGuidance?.tasks || []);
-        setSelectedTips(currentGuidance?.tips || []);
+        setCurrentGuidance(answerGuidance[answer] || { tasks: [], tips: [], noGuidanceRequired: false });
         setIsGuidanceDialogOpen(true);
     }, [answerGuidance]);
     
@@ -658,11 +632,8 @@ export default function EditQuestionDialog({
             onAddNewTip={onAddNewTip}
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
-            existingGuidance={answerGuidance[currentAnswerForGuidance]}
-            selectedTasks={selectedTasks}
-            setSelectedTasks={setSelectedTasks}
-            selectedTips={selectedTips}
-            setSelectedTips={setSelectedTips}
+            currentGuidance={currentGuidance}
+            setCurrentGuidance={setCurrentGuidance}
         />
         
         <TaskForm 
