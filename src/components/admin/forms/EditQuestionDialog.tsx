@@ -129,9 +129,6 @@ export default function EditQuestionDialog({
     const { toast } = useToast();
     const { auth } = useAuth();
     const {
-        masterQuestions,
-        masterProfileQuestions,
-        externalResources,
         getAllCompanyConfigs,
         saveCompanyConfig,
         addReviewQueueItem,
@@ -152,13 +149,13 @@ export default function EditQuestionDialog({
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [newItemSetter, setNewItemSetter] = useState<{ fn: ((ids: string[] | ((prev: string[]) => string[])) => void) | null }>({ fn: null });
-    const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
+    const [lastAddedItemId, setLastAddedItemId] = useState<{ type: 'task' | 'tip', id: string } | null>(null);
     
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [selectedTips, setSelectedTips] = useState<string[]>([]);
 
     // --- COMPUTED VALUES ---
+    const { masterQuestions, masterProfileQuestions, externalResources } = useUserData();
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
@@ -209,23 +206,24 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
     
-    useEffect(() => {
-        if (newItemSetter.fn && lastAddedItemId) {
-            newItemSetter.fn(prev => [...prev, lastAddedItemId]);
-            setNewItemSetter({ fn: null });
+     useEffect(() => {
+        if (lastAddedItemId) {
+            if (lastAddedItemId.type === 'task') {
+                setSelectedTasks(prev => [...prev, lastAddedItemId.id]);
+            } else {
+                setSelectedTips(prev => [...prev, lastAddedItemId.id]);
+            }
             setLastAddedItemId(null);
         }
-    }, [companyConfig, newItemSetter, lastAddedItemId]);
+    }, [companyConfig, lastAddedItemId]);
     
     // --- CALLBACKS & HANDLERS ---
      const onAddNewTask = useCallback(() => {
-        setNewItemSetter({ fn: setSelectedTasks });
         setIsGuidanceDialogOpen(false);
         setIsTaskFormOpen(true);
     }, []);
 
     const onAddNewTip = useCallback(() => {
-        setNewItemSetter({ fn: setSelectedTips });
         setIsGuidanceDialogOpen(false);
         setIsTipFormOpen(true);
     }, []);
@@ -242,7 +240,7 @@ export default function EditQuestionDialog({
         
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
         
-        setLastAddedItemId(taskData.id);
+        setLastAddedItemId({ type: 'task', id: taskData.id });
         
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
@@ -260,7 +258,7 @@ export default function EditQuestionDialog({
         
         toast({ title: 'Tip Added' });
 
-        setLastAddedItemId(tipData.id);
+        setLastAddedItemId({ type: 'tip', id: tipData.id });
 
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
