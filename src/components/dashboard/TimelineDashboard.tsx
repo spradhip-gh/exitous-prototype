@@ -11,7 +11,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb, Star } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -202,9 +202,14 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
           layoffDetails: stringifiedAssessmentData,
         });
         saveRecommendations(result);
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
-        setError('Failed to generate personalized recommendations. Please try again later.');
+        const errorMessage = String(e?.cause || e.message || '');
+        if (errorMessage.includes('503')) {
+            setError('The AI service is currently overloaded. Your timeline is showing default guidance. Please try refreshing in a few moments.');
+        } else {
+            setError('Failed to generate personalized recommendations. Please try again later.');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -410,7 +415,10 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                               {tips.map(tip => (
                                 <Alert key={tip.taskId}>
                                   <Lightbulb className="h-4 w-4" />
-                                  <AlertTitle>{tip.category}</AlertTitle>
+                                  <div className="flex items-center gap-2">
+                                    <AlertTitle>{tip.category}</AlertTitle>
+                                    {tip.isCompanySpecific && <Star className="h-4 w-4 text-amber-500 fill-current" />}
+                                  </div>
                                   <AlertDescription>
                                     <ReactMarkdown className="prose prose-sm">{tip.task.replace('Did you know: ', '')}</ReactMarkdown>
                                   </AlertDescription>
@@ -528,6 +536,7 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
               <div className="flex items-center gap-2 mb-1">
                  <p className={cn("text-base font-semibold", isCompleted && "line-through")}>{item.task}</p>
                  <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
+                 {item.isCompanySpecific && <Star className="h-4 w-4 text-amber-500 fill-current" />}
               </div>
               <div className={cn("text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1", isCompleted && "line-through")}>
                 <ReactMarkdown>{item.details}</ReactMarkdown>
@@ -579,3 +588,4 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
     </div>
   );
 }
+

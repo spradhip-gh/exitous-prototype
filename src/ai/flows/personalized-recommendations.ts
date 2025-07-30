@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -90,6 +91,7 @@ const RecommendationItemSchema = z.object({
   details: z.string().describe('Additional details or context for the recommendation. This should be formatted in Markdown.'),
   endDate: z.string().optional().describe("A specific deadline or key date for this task in 'YYYY-MM-DD' format, if applicable. Extract this from user-provided dates like coverage end dates."),
   isGoal: z.boolean().optional().describe("Set to true if this is a flexible goal (like 'Within 2 weeks'), false if it is a hard deadline."),
+  isCompanySpecific: z.boolean().optional().describe("Set to true if this task is from a company-specific rule or custom question."),
 });
 
 

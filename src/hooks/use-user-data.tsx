@@ -990,7 +990,7 @@ export function useUserData() {
     const allQuestions = getCompanyConfig(auth?.companyName, true, 'all');
     let recommendations: RecommendationItem[] = [];
 
-    const processAssignments = (assignments: RangeAssignment) => {
+    const processAssignments = (assignments: RangeAssignment, isCompanySpecific: boolean = false) => {
       assignments.taskIds?.forEach(taskId => {
         const task = allTasks.find(t => t.id === taskId);
         if (task) {
@@ -1002,6 +1002,7 @@ export function useUserData() {
             timeline: `Due in ${task.deadlineDays} days`,
             endDate: getEndDate(task.deadlineType, task.deadlineDays),
             isGoal: false,
+            isCompanySpecific: task.isCompanySpecific,
           });
         }
       });
@@ -1015,6 +1016,7 @@ export function useUserData() {
             details: `A helpful tip related to ${tip.category.toLowerCase()}. Priority: ${tip.priority}`,
             timeline: "Suggestion",
             isGoal: true,
+            isCompanySpecific: tip.isCompanySpecific,
           });
         }
       });
@@ -1045,7 +1047,7 @@ export function useUserData() {
             const guidance = answer && q.answerGuidance[answer as string];
             if (guidance) {
                 const assignments: RangeAssignment = { taskIds: guidance.tasks || [], tipIds: guidance.tips || [] };
-                processAssignments(assignments);
+                processAssignments(assignments, true);
             }
         }
     });
@@ -1119,6 +1121,7 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 
 
 
