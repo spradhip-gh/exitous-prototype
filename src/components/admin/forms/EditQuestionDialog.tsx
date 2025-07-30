@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -55,8 +55,8 @@ function AnswerGuidanceDialog({
     questionLabel: string;
     answer: string;
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
-    onAddNewTask: (callback: () => void) => void;
-    onAddNewTip: (callback: () => void) => void;
+    onAddNewTask: () => void;
+    onAddNewTip: () => void;
     existingGuidance?: { tasks: string[], tips: string[], noGuidanceRequired: boolean };
     selectedTasks: string[];
     setSelectedTasks: (tasks: string[]) => void;
@@ -66,14 +66,13 @@ function AnswerGuidanceDialog({
     allCompanyTips: MasterTip[];
 }) {
     const [noGuidance, setNoGuidance] = useState(false);
-    
+
     useEffect(() => {
         if (isOpen && existingGuidance) {
             setSelectedTasks(existingGuidance.tasks);
             setSelectedTips(existingGuidance.tips);
             setNoGuidance(existingGuidance.noGuidanceRequired);
         } else if (isOpen) {
-            // Reset state when opening for a new answer, but not on re-renders
             setSelectedTasks([]);
             setSelectedTips([]);
             setNoGuidance(false);
@@ -110,7 +109,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
-                            onAddNew={() => onAddNewTask()}
+                            onAddNew={onAddNewTask}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
@@ -118,7 +117,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
-                            onAddNew={() => onAddNewTip()}
+                            onAddNew={onAddNewTip}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -145,7 +144,7 @@ export default function EditQuestionDialog({
         saveCompanyConfig,
     } = useUserData();
 
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<SuggestedOption[]>([]);
@@ -157,19 +156,20 @@ export default function EditQuestionDialog({
     
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
-    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
     
     const [selectedTasksForGuidance, setSelectedTasksForGuidance] = useState<string[]>([]);
     const [selectedTipsForGuidance, setSelectedTipsForGuidance] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
 
+    const [taskSetter, setTaskSetter] = useState<( ( (newTask: MasterTask) => void ) | null)>(null);
+    const [tipSetter, setTipSetter] = useState<( ( (newTip: MasterTip) => void ) | null)>(null);
+
     useEffect(() => {
         if(auth?.companyName) {
             setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
         }
     }, [auth?.companyName, getAllCompanyConfigs]);
-
 
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
@@ -180,20 +180,21 @@ export default function EditQuestionDialog({
     const allCompanyTips = useMemo(() => companyConfig?.companyTips || [], [companyConfig]);
 
     const onAddNewTask = useCallback(() => {
-        setNewItemCallback(() => (newTask: MasterTask) => {
-            setSelectedTasksForGuidance(prev => [...prev, newTask.id]);
+        setTaskSetter(() => (newTask: MasterTask) => {
+             setSelectedTasksForGuidance(prev => [...prev, newTask.id]);
         });
         setIsTaskFormOpen(true);
         setIsGuidanceDialogOpen(false);
     }, []);
 
     const onAddNewTip = useCallback(() => {
-        setNewItemCallback(() => (newTip: MasterTip) => {
+        setTipSetter(() => (newTip: MasterTip) => {
             setSelectedTipsForGuidance(prev => [...prev, newTip.id]);
         });
         setIsTipFormOpen(true);
         setIsGuidanceDialogOpen(false);
     }, []);
+
 
     const handleSaveNewTask = useCallback((taskData: MasterTask) => {
         const companyName = auth?.companyName;
@@ -204,12 +205,12 @@ export default function EditQuestionDialog({
         const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
         saveCompanyConfig(companyName, newConfig);
 
-        if (newItemCallback) {
-            newItemCallback(taskData);
+        if (taskSetter) {
+            taskSetter(taskData);
         }
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, taskSetter]);
 
     const handleSaveNewTip = useCallback((tipData: MasterTip) => {
         const companyName = auth?.companyName;
@@ -220,12 +221,12 @@ export default function EditQuestionDialog({
         const newConfig = { ...currentConfig, companyTips: newCompanyTips };
         saveCompanyConfig(companyName, newConfig);
         
-        if (newItemCallback) {
-            newItemCallback(tipData);
+        if (tipSetter) {
+            tipSetter(tipData);
         }
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, tipSetter]);
 
     useEffect(() => {
         if (isOpen) {
@@ -238,10 +239,6 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
     
-    if (!isOpen || !currentQuestion) {
-        return null;
-    }
-
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
@@ -342,6 +339,10 @@ export default function EditQuestionDialog({
         if (!guidance) return false;
         return guidance.noGuidanceRequired || guidance.tasks.length > 0 || guidance.tips.length > 0;
     }, [answerGuidance]);
+
+    if (!isOpen || !currentQuestion) {
+        return null;
+    }
 
     return (
         <>
