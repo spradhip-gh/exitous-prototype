@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,15 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, GuidanceRule } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
+import { MultiSelectPopover } from "./GuidanceRuleForm";
+import { v4 as uuidv4 } from 'uuid';
+
+const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
+const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 
 interface SuggestedGuidance {
     type: 'task' | 'tip';
@@ -42,23 +47,130 @@ interface EditQuestionDialogProps {
     masterQuestionForEdit?: Question | null;
 }
 
+function AnswerGuidanceDialog({ 
+    isOpen, onOpenChange, questionLabel, answer, questionId, allCompanyTasks, allCompanyTips, allMasterTasks, allMasterTips, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance 
+}: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    questionLabel: string;
+    answer: string;
+    questionId: string;
+    allCompanyTasks: MasterTask[];
+    allCompanyTips: MasterTip[];
+    allMasterTasks: MasterTask[];
+    allMasterTips: MasterTip[];
+    onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
+    onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
+    onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
+    existingGuidance?: { tasks: string[], tips: string[], noGuidanceRequired: boolean };
+}) {
+    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+    const [selectedTips, setSelectedTips] = useState<string[]>([]);
+    const [noGuidance, setNoGuidance] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && existingGuidance) {
+            setSelectedTasks(existingGuidance.tasks);
+            setSelectedTips(existingGuidance.tips);
+            setNoGuidance(existingGuidance.noGuidanceRequired);
+        } else {
+            setSelectedTasks([]);
+            setSelectedTips([]);
+            setNoGuidance(false);
+        }
+    }, [isOpen, existingGuidance]);
+    
+    const combinedTasks = useMemo(() => {
+        const uniqueTasks = new Map<string, MasterTask>();
+        [...allMasterTasks, ...allCompanyTasks].forEach(task => uniqueTasks.set(task.id, task));
+        return Array.from(uniqueTasks.values());
+    }, [allMasterTasks, allCompanyTasks]);
+
+    const combinedTips = useMemo(() => {
+        const uniqueTips = new Map<string, MasterTip>();
+        [...allMasterTips, ...allCompanyTips].forEach(tip => uniqueTips.set(tip.id, tip));
+        return Array.from(uniqueTips.values());
+    }, [allMasterTips, allCompanyTips]);
+
+
+    const handleSave = () => {
+        onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Set Guidance for "{answer}"</DialogTitle>
+                    <DialogDescription>
+                        For the question: "{questionLabel}"
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                     <div className="flex items-center space-x-2">
+                        <Checkbox id="no-guidance-required" checked={noGuidance} onCheckedChange={(c) => setNoGuidance(!!c)} />
+                        <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
+                    </div>
+                     <fieldset disabled={noGuidance} className="space-y-4">
+                        <MultiSelectPopover
+                            label="Tasks to Assign"
+                            items={combinedTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
+                            selectedIds={selectedTasks}
+                            onSelectionChange={setSelectedTasks}
+                            onAddNew={() => onAddNewTask((newTask) => setSelectedTasks(prev => [...prev, newTask.id]))}
+                            categories={taskCategories}
+                        />
+                         <MultiSelectPopover
+                            label="Tips to Show"
+                            items={combinedTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
+                            selectedIds={selectedTips}
+                            onSelectionChange={setSelectedTips}
+                            onAddNew={() => onAddNewTip((newTip) => setSelectedTips(prev => [...prev, newTip.id]))}
+                            categories={tipCategories}
+                        />
+                    </fieldset>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave}>Save Guidance</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function EditQuestionDialog({
     isOpen, isNew, question, existingSections, onSave, onClose, masterQuestionForEdit
 }: EditQuestionDialogProps) {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { masterQuestions, masterProfileQuestions, externalResources, saveMasterTasks, saveMasterTips } = useUserData();
+    const { 
+        masterQuestions, 
+        masterProfileQuestions,
+        externalResources, 
+        guidanceRules,
+        saveGuidanceRules,
+        masterTasks,
+        masterTips,
+        saveMasterTasks,
+        saveMasterTips,
+        getAllCompanyConfigs,
+    } = useUserData();
     
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<SuggestedOption[]>([]);
     const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
-    
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
     const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState<number | null>(null);
+    const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
+    const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
+    const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
 
+    const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : undefined;
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
@@ -72,6 +184,7 @@ export default function EditQuestionDialog({
             setNewSectionName("");
             setSuggestedOptionsToAdd([]);
             setSuggestedOptionsToRemove([]);
+            setAnswerGuidance({}); // Reset guidance on open
         }
     }, [isOpen, question]);
     
@@ -124,9 +237,29 @@ export default function EditQuestionDialog({
             return;
         }
 
-        // If HR is creating a new custom question, we auto-approve it.
-        const isAutoApproved = isHrEditing && isNew;
+        const newRules: GuidanceRule[] = [];
+        Object.entries(answerGuidance).forEach(([answer, guidance]) => {
+            const rule: GuidanceRule = {
+                id: uuidv4(),
+                questionId: currentQuestion.id!,
+                name: `${currentQuestion.label} - ${answer}`,
+                type: 'direct',
+                conditions: [{ type: 'question', questionId: currentQuestion.id!, answer }],
+                assignments: {
+                    taskIds: guidance.tasks,
+                    tipIds: guidance.tips,
+                    noGuidanceRequired: guidance.noGuidanceRequired,
+                }
+            };
+            newRules.push(rule);
+        });
 
+        if (newRules.length > 0) {
+            const otherRules = guidanceRules.filter(r => r.questionId !== currentQuestion.id);
+            saveGuidanceRules([...otherRules, ...newRules]);
+        }
+        
+        const isAutoApproved = isHrEditing && isNew;
         onSave(currentQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
     };
 
@@ -172,6 +305,12 @@ export default function EditQuestionDialog({
         if (currentSuggestionIndex !== null) {
             const newSuggestion: SuggestedGuidance = { type: 'task', item: { ...taskData, isCompanySpecific: true } };
             setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === currentSuggestionIndex ? { ...item, guidance: newSuggestion } : item));
+        } else {
+            const companyName = auth?.companyName;
+            if (!companyName) return;
+            const currentConfig = companyConfig || {};
+            const newTasks = [...(currentConfig.companyTasks || []), taskData];
+            saveMasterTasks(newTasks);
         }
         setIsTaskFormOpen(false);
         setCurrentSuggestionIndex(null);
@@ -181,10 +320,32 @@ export default function EditQuestionDialog({
         if (currentSuggestionIndex !== null) {
             const newSuggestion: SuggestedGuidance = { type: 'tip', item: { ...tipData, isCompanySpecific: true } };
             setSuggestedOptionsToAdd(prev => prev.map((item, i) => i === currentSuggestionIndex ? { ...item, guidance: newSuggestion } : item));
+        } else {
+            const companyName = auth?.companyName;
+            if (!companyName) return;
+            const currentConfig = companyConfig || {};
+            const newTips = [...(currentConfig.companyTips || []), tipData];
+            saveMasterTips(newTips);
         }
         setIsTipFormOpen(false);
         setCurrentSuggestionIndex(null);
     };
+    
+    const handleSaveAnswerGuidance = (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
+        setAnswerGuidance(prev => ({
+            ...prev,
+            [answer]: { tasks: taskIds, tips: tipIds, noGuidanceRequired }
+        }));
+    };
+    
+    const openGuidanceDialog = (answer: string) => {
+        setCurrentAnswerForGuidance(answer);
+        setIsGuidanceDialogOpen(true);
+    }
+    
+    const isGuidanceSetForAnswer = (answer: string): boolean => {
+        return !!answerGuidance[answer];
+    }
 
     return (
         <>
@@ -204,7 +365,7 @@ export default function EditQuestionDialog({
                         <HelpCircle className="h-4 w-4 !text-blue-600"/>
                         <AlertTitle>Adding Custom Guidance</AlertTitle>
                         <AlertDescription>
-                          For new custom questions or custom answers, it's important to provide guidance. Please suggest a corresponding task or tip for each new answer choice to ensure users receive relevant advice.
+                          For new custom questions or custom answers, it is important to provide guidance. Please suggest a corresponding task or tip for each new answer choice to ensure users receive relevant advice.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -319,14 +480,9 @@ export default function EditQuestionDialog({
 
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-2">
-                        <Label htmlFor="question-options">Answer Options (one per line)</Label>
+                        <Label htmlFor="question-options">Answer Options</Label>
+                        <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
                          {isHrEditing && !currentQuestion.isCustom && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
-                        <Textarea 
-                            id="question-options" 
-                            value={currentQuestion.options?.join('\n') || ''} 
-                            onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} 
-                            rows={currentQuestion.options?.length || 3} 
-                        />
                          {isHrEditing && !currentQuestion.isCustom && (
                             <div className="space-y-1 pt-2">
                                 {currentQuestion.options?.map(opt => {
@@ -339,6 +495,19 @@ export default function EditQuestionDialog({
                                         </div>
                                     )
                                 })}
+                            </div>
+                        )}
+                        {isHrEditing && currentQuestion.isCustom && currentQuestion.options && currentQuestion.options.length > 0 && (
+                            <div className="pt-2 space-y-2">
+                                <Label>Guidance for Answers</Label>
+                                {currentQuestion.options.filter(Boolean).map(option => (
+                                    <div key={option} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                        <p>{option}</p>
+                                        <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                            <Settings className="mr-2"/> Manage Guidance
+                                        </Button>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -480,6 +649,28 @@ export default function EditQuestionDialog({
             </DialogFooter>
         </DialogContent>
 
+        <AnswerGuidanceDialog
+            isOpen={isGuidanceDialogOpen}
+            onOpenChange={setIsGuidanceDialogOpen}
+            questionLabel={currentQuestion?.label || ''}
+            answer={currentAnswerForGuidance}
+            questionId={currentQuestion?.id || ''}
+            allCompanyTasks={companyConfig?.companyTasks || []}
+            allCompanyTips={companyConfig?.companyTips || []}
+            allMasterTasks={masterTasks}
+            allMasterTips={masterTips}
+            onSaveGuidance={handleSaveAnswerGuidance}
+            onAddNewTask={(callback) => {
+                setIsGuidanceDialogOpen(false);
+                onAddNewTask(callback);
+            }}
+            onAddNewTip={(callback) => {
+                setIsGuidanceDialogOpen(false);
+                onAddNewTip(callback);
+            }}
+            existingGuidance={answerGuidance[currentAnswerForGuidance]}
+        />
+        
         {/* Dialogs for creating new tasks/tips */}
         <TaskForm 
             isOpen={isTaskFormOpen}
