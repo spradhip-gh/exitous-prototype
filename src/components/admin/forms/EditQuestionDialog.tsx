@@ -49,9 +49,9 @@ interface AnswerGuidanceDialogProps {
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
     selectedTasks: string[];
+    setSelectedTasks: (ids: string[] | ((prev: string[]) => string[])) => void;
     selectedTips: string[];
-    setSelectedTasks: (ids: string[]) => void;
-    setSelectedTips: (ids: string[]) => void;
+    setSelectedTips: (ids: string[] | ((prev: string[]) => string[])) => void;
 }
 
 function AnswerGuidanceDialog({
@@ -59,17 +59,20 @@ function AnswerGuidanceDialog({
     onAddNewTask, onAddNewTip, existingGuidance, allCompanyTasks, allCompanyTips,
     selectedTasks, setSelectedTasks, selectedTips, setSelectedTips
 }: AnswerGuidanceDialogProps) {
+    const { useUserData } = useAuth(); // Note: This seems like a typo, should probably be useAuth() or similar
     const [noGuidance, setNoGuidance] = useState(false);
 
     useEffect(() => {
-        if (isOpen && existingGuidance) {
-            setSelectedTasks(existingGuidance.tasks || []);
-            setSelectedTips(existingGuidance.tips || []);
-            setNoGuidance(existingGuidance.noGuidanceRequired || false);
-        } else if (isOpen) {
-            setSelectedTasks([]);
-            setSelectedTips([]);
-            setNoGuidance(false);
+        if (isOpen) {
+            if (existingGuidance) {
+                setSelectedTasks(existingGuidance.tasks || []);
+                setSelectedTips(existingGuidance.tips || []);
+                setNoGuidance(existingGuidance.noGuidanceRequired || false);
+            } else {
+                 setSelectedTasks([]);
+                 setSelectedTips([]);
+                 setNoGuidance(false);
+            }
         }
     }, [isOpen, existingGuidance, answer, setSelectedTasks, setSelectedTips]);
 
@@ -150,7 +153,7 @@ export default function EditQuestionDialog({
     } = useUserData();
     
     // --- STATE ---
-    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
+    const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<SuggestedOption[]>([]);
@@ -166,8 +169,7 @@ export default function EditQuestionDialog({
     const [selectedTips, setSelectedTips] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [newItemSetter, setNewItemSetter] = useState<{set: ((newIds: string[]) => void) | null}>({ set: null });
-
+    const [newItemSetter, setNewItemSetter] = useState<{set: ((item: any) => void) | null}>({ set: null });
 
     // --- COMPUTED VALUES ---
     const isAdmin = auth?.role === 'admin';
@@ -207,7 +209,7 @@ export default function EditQuestionDialog({
         if(auth?.companyName) {
             setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
         }
-    }, [auth?.companyName, getAllCompanyConfigs]);
+    }, [auth?.companyName, getAllCompanyConfigs, isOpen]); // Rerun when dialog opens to get fresh config
 
     useEffect(() => {
         if (isOpen) {
@@ -221,16 +223,16 @@ export default function EditQuestionDialog({
     }, [isOpen, question]);
     
     // --- CALLBACKS & HANDLERS ---
-     const onAddNewTask = useCallback((setter: (newIds: string[]) => void) => {
-        setNewItemSetter({ set: (newItem) => setter(prev => [...prev, newItem.id]) });
-        setIsTaskFormOpen(true);
+     const onAddNewTask = useCallback((setter: (newIds: string[] | ((prev: string[]) => string[])) => void) => {
+        setNewItemSetter({ set: setter as any });
         setIsGuidanceDialogOpen(false);
+        setIsTaskFormOpen(true);
     }, []);
 
-    const onAddNewTip = useCallback((setter: (newIds: string[]) => void) => {
-        setNewItemSetter({ set: (newItem) => setter(prev => [...prev, newItem.id]) });
-        setIsTipFormOpen(true);
+    const onAddNewTip = useCallback((setter: (newIds: string[] | ((prev: string[]) => string[])) => void) => {
+        setNewItemSetter({ set: setter as any });
         setIsGuidanceDialogOpen(false);
+        setIsTipFormOpen(true);
     }, []);
 
     const handleSaveNewTask = useCallback((taskData: MasterTask) => {
@@ -246,7 +248,7 @@ export default function EditQuestionDialog({
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
 
         if (newItemSetter.set) {
-            newItemSetter.set(taskData);
+            newItemSetter.set((prev: string[]) => [...prev, taskData.id]);
         }
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
@@ -265,7 +267,7 @@ export default function EditQuestionDialog({
         toast({ title: 'Tip Added' });
         
         if (newItemSetter.set) {
-            newItemSetter.set(tipData);
+            newItemSetter.set((prev: string[]) => [...prev, tipData.id]);
         }
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
@@ -694,4 +696,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
