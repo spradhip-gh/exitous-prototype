@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,34 +37,30 @@ interface SuggestedOption {
 }
 
 
-interface EditQuestionDialogProps {
-    isOpen: boolean;
-    isNew: boolean;
-    question: Partial<Question> | null;
-    existingSections?: string[];
-    onSave: (question: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved?: boolean) => void;
-    onClose: () => void;
-    masterQuestionForEdit?: Question | null;
-}
-
-function AnswerGuidanceDialog({
-    isOpen, onOpenChange, questionLabel, answer, onSaveGuidance, onAddNewTask, onAddNewTip, existingGuidance, allCompanyTasks, allCompanyTips
-}: {
+interface AnswerGuidanceDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     questionLabel: string;
     answer: string;
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
-    onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
-    onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
-    existingGuidance?: { tasks: string[], tips: string[], noGuidanceRequired: boolean };
+    onAddNewTask: (setter: (newIds: string[]) => void) => void;
+    onAddNewTip: (setter: (newIds: string[]) => void) => void;
+    existingGuidance?: AnswerGuidance;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-}) {
+    selectedTasks: string[];
+    selectedTips: string[];
+    setSelectedTasks: (ids: string[]) => void;
+    setSelectedTips: (ids: string[]) => void;
+}
+
+function AnswerGuidanceDialog({
+    isOpen, onOpenChange, questionLabel, answer, onSaveGuidance,
+    onAddNewTask, onAddNewTip, existingGuidance, allCompanyTasks, allCompanyTips,
+    selectedTasks, setSelectedTasks, selectedTips, setSelectedTips
+}: AnswerGuidanceDialogProps) {
     const [noGuidance, setNoGuidance] = useState(false);
-    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-    const [selectedTips, setSelectedTips] = useState<string[]>([]);
-    
+
     useEffect(() => {
         if (isOpen && existingGuidance) {
             setSelectedTasks(existingGuidance.tasks || []);
@@ -75,7 +71,7 @@ function AnswerGuidanceDialog({
             setSelectedTips([]);
             setNoGuidance(false);
         }
-    }, [isOpen, existingGuidance, answer]);
+    }, [isOpen, existingGuidance, answer, setSelectedTasks, setSelectedTips]);
 
     const handleSave = () => {
         onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
@@ -106,7 +102,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
-                            onAddNew={() => onAddNewTask((newTask) => setSelectedTasks(prev => [...prev, newTask.id]))}
+                            onAddNew={() => onAddNewTask(setSelectedTasks)}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
@@ -114,7 +110,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
-                            onAddNew={() => onAddNewTip((newTip) => setSelectedTips(prev => [...prev, newTip.id]))}
+                            onAddNew={() => onAddNewTip(setSelectedTips)}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -126,6 +122,16 @@ function AnswerGuidanceDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+interface EditQuestionDialogProps {
+    isOpen: boolean;
+    isNew: boolean;
+    question: Partial<Question> | null;
+    existingSections?: string[];
+    onSave: (question: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved?: boolean) => void;
+    onClose: () => void;
+    masterQuestionForEdit?: Question | null;
 }
 
 export default function EditQuestionDialog({
@@ -155,10 +161,13 @@ export default function EditQuestionDialog({
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
     
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
-    const [answerGuidance, setAnswerGuidance] = useState<Record<string, { tasks: string[], tips: string[], noGuidanceRequired: boolean }>>({});
+    const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
+    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+    const [selectedTips, setSelectedTips] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
+    const [newItemSetter, setNewItemSetter] = useState<{set: ((newIds: string[]) => void) | null}>({ set: null });
+
 
     // --- COMPUTED VALUES ---
     const isAdmin = auth?.role === 'admin';
@@ -212,16 +221,16 @@ export default function EditQuestionDialog({
     }, [isOpen, question]);
     
     // --- CALLBACKS & HANDLERS ---
-    const onAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setNewItemCallback(() => callback);
+     const onAddNewTask = useCallback((setter: (newIds: string[]) => void) => {
+        setNewItemSetter({ set: (newItem) => setter(prev => [...prev, newItem.id]) });
         setIsTaskFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating task
+        setIsGuidanceDialogOpen(false);
     }, []);
 
-    const onAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
-        setNewItemCallback(() => callback);
+    const onAddNewTip = useCallback((setter: (newIds: string[]) => void) => {
+        setNewItemSetter({ set: (newItem) => setter(prev => [...prev, newItem.id]) });
         setIsTipFormOpen(true);
-        setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
+        setIsGuidanceDialogOpen(false);
     }, []);
 
     const handleSaveNewTask = useCallback((taskData: MasterTask) => {
@@ -232,18 +241,16 @@ export default function EditQuestionDialog({
         const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
         const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
         
-        if (saveCompanyConfig) {
-            saveCompanyConfig(companyName, newConfig);
-        }
+        saveCompanyConfig(companyName, newConfig);
         
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
 
-        if (newItemCallback) {
-            newItemCallback(taskData);
+        if (newItemSetter.set) {
+            newItemSetter.set(taskData);
         }
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemSetter]);
 
     const handleSaveNewTip = useCallback((tipData: MasterTip) => {
         const companyName = auth?.companyName;
@@ -253,18 +260,16 @@ export default function EditQuestionDialog({
         const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
         const newConfig = { ...currentConfig, companyTips: newCompanyTips };
 
-        if (saveCompanyConfig) {
-            saveCompanyConfig(companyName, newConfig);
-        }
+        saveCompanyConfig(companyName, newConfig);
         
         toast({ title: 'Tip Added' });
         
-        if (newItemCallback) {
-            newItemCallback(tipData);
+        if (newItemSetter.set) {
+            newItemSetter.set(tipData);
         }
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemSetter]);
     
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
@@ -337,7 +342,7 @@ export default function EditQuestionDialog({
     const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
         const guidance = answerGuidance[answer];
         if (!guidance) return false;
-        return guidance.noGuidanceRequired || guidance.tasks.length > 0 || guidance.tips.length > 0;
+        return guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0);
     }, [answerGuidance]);
 
     if (!isOpen || !currentQuestion) {
@@ -657,6 +662,10 @@ export default function EditQuestionDialog({
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
             existingGuidance={answerGuidance[currentAnswerForGuidance]}
+            selectedTasks={selectedTasks}
+            setSelectedTasks={setSelectedTasks}
+            selectedTips={selectedTips}
+            setSelectedTips={setSelectedTips}
         />
         
         <TaskForm 

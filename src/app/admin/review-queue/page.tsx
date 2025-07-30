@@ -4,13 +4,13 @@
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
-import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition } from '@/hooks/use-user-data';
+import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition, Question, MasterTip } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/use-auth';
+import { Separator } from '@/components/ui/separator';
 
 
 function GuidanceRulesTab() {
@@ -119,7 +120,9 @@ export default function ReviewQueuePage() {
         getAllCompanyConfigs,
         saveCompanyConfig,
         masterQuestions,
-        masterProfileQuestions
+        masterProfileQuestions,
+        masterTasks,
+        masterTips
     } = useUserData();
 
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => {
@@ -239,6 +242,8 @@ export default function ReviewQueuePage() {
                                         key={item.id}
                                         item={item}
                                         onStatusChange={handleStatusChange}
+                                        masterTasks={masterTasks}
+                                        masterTips={masterTips}
                                      />
                                 )) : (
                                     <p className="text-muted-foreground text-center py-8">No items require your action right now.</p>
@@ -257,6 +262,8 @@ export default function ReviewQueuePage() {
                                         item={item}
                                         onStatusChange={handleStatusChange}
                                         isInformational={true}
+                                        masterTasks={masterTasks}
+                                        masterTips={masterTips}
                                      />
                                 )) : (
                                     <p className="text-muted-foreground text-center py-8">The informational review queue is empty.</p>
@@ -319,7 +326,7 @@ export default function ReviewQueuePage() {
     );
 }
 
-function ReviewItemCard({ item, onStatusChange, isInformational = false }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, isInformational?: boolean }) {
+function ReviewItemCard({ item, onStatusChange, isInformational = false, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, isInformational?: boolean, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
     const isCustomQuestion = item.inputData?.type === 'custom_question_guidance';
@@ -377,7 +384,7 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false }: { ite
     }
 
     if (isCustomQuestion) {
-        const { companyName, question } = item.inputData;
+        const { companyName, question } = item.inputData as { companyName: string, question: Question };
         return (
              <Card className="bg-muted/50">
                 <CardHeader>
@@ -389,9 +396,50 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false }: { ite
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
-                        {JSON.stringify(question, null, 2)}
-                    </pre>
+                    <div className="p-4 border rounded-md bg-background space-y-4">
+                         <div>
+                            <p className="text-sm font-semibold">"{question.label}"</p>
+                            <p className="text-xs text-muted-foreground">{question.section} | Type: {question.type}</p>
+                        </div>
+                        {question.options && question.options.length > 0 && (
+                            <div>
+                                <h4 className="font-medium text-sm mb-2">Answers & Guidance</h4>
+                                <div className="space-y-3">
+                                {question.options.map(option => {
+                                    const guidance = question.answerGuidance?.[option];
+                                    if (!guidance) return null;
+                                    const assignedTasks = guidance.tasks?.map(taskId => masterTasks.find(t => t.id === taskId)?.name).filter(Boolean);
+                                    const assignedTips = guidance.tips?.map(tipId => masterTips.find(t => t.id === tipId)?.text).filter(Boolean);
+
+                                    return (
+                                        <div key={option} className="p-3 border-l-4 rounded-r-md bg-muted/50">
+                                            <p className="font-semibold text-sm">When answer is "{option}":</p>
+                                            <div className="pl-4 mt-2 space-y-2">
+                                                {assignedTasks && assignedTasks.length > 0 && (
+                                                    <div>
+                                                         <p className="text-xs font-semibold flex items-center gap-1.5"><ListChecks /> Assign Tasks:</p>
+                                                         <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                                                            {assignedTasks.map(name => <li key={name}>{name}</li>)}
+                                                         </ul>
+                                                    </div>
+                                                )}
+                                                 {assignedTips && assignedTips.length > 0 && (
+                                                    <div>
+                                                         <p className="text-xs font-semibold flex items-center gap-1.5"><Lightbulb /> Show Tips:</p>
+                                                         <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                                                            {assignedTips.map(text => <li key={text}>{text}</li>)}
+                                                         </ul>
+                                                    </div>
+                                                )}
+                                                {guidance.noGuidanceRequired && <p className="text-xs text-muted-foreground italic">No guidance required.</p>}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-4">
                     <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>

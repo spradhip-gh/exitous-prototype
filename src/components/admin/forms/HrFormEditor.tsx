@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { v4 as uuidv4 } from 'uuid';
 
 interface HrOrderedSection {
     id: string;
@@ -291,7 +292,9 @@ function QuestionEditor({
         };
 
         saveCompanyConfig(companyName, newConfig);
-        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+        if (isAutoApproved) {
+            toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+        }
 
     }, [companyName, masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
 
@@ -396,17 +399,9 @@ function QuestionEditor({
                 return;
             }
 
-            const customQuestionPrefix = `${companyName.toLowerCase().replace(/\s+/g, '-')}-custom-`;
-            const allCustomIds = Object.keys(getAllCompanyConfigs()[companyName]?.customQuestions || {});
-            let newIdNumber = 1;
-            if (allCustomIds.length > 0) {
-                const highestNumber = Math.max(0, ...allCustomIds.map(id => {
-                    const numPart = id.replace(customQuestionPrefix, '');
-                    return parseInt(numPart, 10) || 0;
-                }));
-                newIdNumber = highestNumber + 1;
+            if (!newQuestion.id) {
+                newQuestion.id = `custom-${uuidv4()}`;
             }
-            newQuestion.id = newQuestion.id || `${customQuestionPrefix}${newIdNumber}`;
             
             if (newQuestion.parentId) {
                 const findAndAdd = (questions: Question[]) => {
@@ -429,6 +424,7 @@ function QuestionEditor({
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
             }
+            
             // A new custom question is saved immediately and enters the review queue for audit.
             const reviewItem: ReviewQueueItem = {
                 id: `review-custom-q-${Date.now()}`,
@@ -467,7 +463,7 @@ function QuestionEditor({
         }
         
         setOrderedSections(newSections);
-        generateAndSaveConfig(newSections, true);
+        generateAndSaveConfig(newSections, isAutoApproved);
         setIsEditing(false);
         setCurrentQuestion(null);
     };
