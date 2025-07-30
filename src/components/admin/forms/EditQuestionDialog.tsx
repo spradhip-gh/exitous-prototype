@@ -12,7 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,17 +24,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
-
-interface SuggestedGuidance {
-    type: 'task' | 'tip';
-    item: Partial<MasterTask | MasterTip>;
-}
-
-interface SuggestedOption {
-    option: string;
-    guidance?: SuggestedGuidance;
-}
-
 
 interface AnswerGuidanceDialogProps {
     isOpen: boolean;
@@ -59,7 +48,7 @@ function AnswerGuidanceDialog({
     selectedTasks, setSelectedTasks, selectedTips, setSelectedTips
 }: AnswerGuidanceDialogProps) {
     const [noGuidance, setNoGuidance] = useState(false);
-
+    
     useEffect(() => {
         if (isOpen) {
             if (existingGuidance) {
@@ -148,13 +137,14 @@ export default function EditQuestionDialog({
         externalResources,
         getAllCompanyConfigs,
         saveCompanyConfig,
+        addReviewQueueItem,
     } = useUserData();
     
     // --- STATE ---
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
-    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<SuggestedOption[]>([]);
+    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<any[]>([]);
     const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
     
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
@@ -163,12 +153,13 @@ export default function EditQuestionDialog({
     
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
     const [answerGuidance, setAnswerGuidance] = useState<Record<string, AnswerGuidance>>({});
-    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-    const [selectedTips, setSelectedTips] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
+    const [newItemSetter, setNewItemSetter] = useState<{ fn: ((prev: string[]) => string[]) | null }>({ fn: null });
+    const [lastAddedItemId, setLastAddedItemId] = useState<string | null>(null);
     
-    const [newItemCallback, setNewItemCallback] = useState<{ fn: ((item: any) => void) | null }>({ fn: null });
+    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+    const [selectedTips, setSelectedTips] = useState<string[]>([]);
 
     // --- COMPUTED VALUES ---
     const isAdmin = auth?.role === 'admin';
@@ -208,7 +199,7 @@ export default function EditQuestionDialog({
         if(auth?.companyName) {
             setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
         }
-    }, [auth?.companyName, getAllCompanyConfigs, isOpen]); // Rerun when dialog opens to get fresh config
+    }, [auth?.companyName, getAllCompanyConfigs, isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -221,15 +212,24 @@ export default function EditQuestionDialog({
         }
     }, [isOpen, question]);
     
+    // This effect ensures the auto-selection happens *after* the new item list is updated.
+    useEffect(() => {
+        if (newItemSetter.fn && lastAddedItemId) {
+            newItemSetter.fn(prev => [...prev, lastAddedItemId]);
+            setNewItemSetter({ fn: null });
+            setLastAddedItemId(null);
+        }
+    }, [companyConfig, newItemSetter, lastAddedItemId]);
+    
     // --- CALLBACKS & HANDLERS ---
      const onAddNewTask = useCallback(() => {
-        setNewItemCallback({ fn: (newTask: MasterTask) => setSelectedTasks(prev => [...prev, newTask.id]) });
+        setNewItemSetter({ fn: setSelectedTasks });
         setIsGuidanceDialogOpen(false);
         setIsTaskFormOpen(true);
     }, []);
 
     const onAddNewTip = useCallback(() => {
-        setNewItemCallback({ fn: (newTip: MasterTip) => setSelectedTips(prev => [...prev, newTip.id]) });
+        setNewItemSetter({ fn: setSelectedTips });
         setIsGuidanceDialogOpen(false);
         setIsTipFormOpen(true);
     }, []);
@@ -245,13 +245,12 @@ export default function EditQuestionDialog({
         saveCompanyConfig(companyName, newConfig);
         
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
-
-        if (newItemCallback.fn) {
-            newItemCallback.fn(taskData);
-        }
+        
+        setLastAddedItemId(taskData.id);
+        
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast]);
 
     const handleSaveNewTip = useCallback((tipData: MasterTip) => {
         const companyName = auth?.companyName;
@@ -264,13 +263,12 @@ export default function EditQuestionDialog({
         saveCompanyConfig(companyName, newConfig);
         
         toast({ title: 'Tip Added' });
-        
-        if (newItemCallback.fn) {
-            newItemCallback.fn(tipData);
-        }
+
+        setLastAddedItemId(tipData.id);
+
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast]);
     
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
