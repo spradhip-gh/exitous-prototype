@@ -234,7 +234,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { auth, loading } = useAuth();
-  const { companyAssignments } = useUserData();
+  const { companyAssignments, reviewQueue } = useUserData();
   const router = useRouter();
 
   useEffect(() => {
@@ -242,6 +242,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.push('/');
     }
   }, [auth, loading, router]);
+
+  const pendingReviewCount = useMemo(() => {
+    return reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type === 'question_edit_suggestion').length;
+  }, [reviewQueue]);
 
   if (loading || !auth || (auth.role !== 'hr' && auth.role !== 'consultant' && auth.role !== 'admin')) {
     return (
@@ -288,6 +292,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navContent}
         </aside>
         <main className="flex-1">
+           {pendingReviewCount > 0 && (auth.role === 'admin' || auth.role === 'consultant') && (
+            <div className="border-b border-blue-300 bg-blue-50 p-4">
+              <Alert variant="default" className="border-blue-300 bg-transparent">
+                <CheckSquare className="h-4 w-4 !text-blue-600" />
+                <AlertTitle className="text-blue-800">Action Required</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  There are {pendingReviewCount} new item(s) in the <Link href="/admin/review-queue" className="font-semibold underline">Guidance & Review</Link> queue that need your attention.
+                </AlertDescription>
+              </Alert>
+            </div>
+           )}
            <div className="border-b border-orange-200 bg-orange-50 p-4">
             <Alert variant="default" className="border-orange-300 bg-transparent">
               <TriangleAlert className="h-4 w-4 !text-orange-600" />

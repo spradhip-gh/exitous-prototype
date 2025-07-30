@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -122,7 +122,7 @@ export default function ReviewQueuePage() {
         masterProfileQuestions
     } = useUserData();
 
-    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected') => {
+    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => {
         
         const reviewerId = auth?.email || 'admin';
         let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId };
@@ -179,7 +179,7 @@ export default function ReviewQueuePage() {
             reviewedItem = { ...reviewedItem, changeDetails: suggestions };
 
         } else {
-            toast({ title: `Recommendation ${status}` });
+            toast({ title: `Item ${status}` });
         }
         
         const updatedQueue = reviewQueue.map(i =>
@@ -188,7 +188,8 @@ export default function ReviewQueuePage() {
         saveReviewQueue(updatedQueue);
     };
     
-    const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending');
+    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type === 'question_edit_suggestion');
+    const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type !== 'question_edit_suggestion');
     const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     return (
@@ -208,8 +209,25 @@ export default function ReviewQueuePage() {
                     <TabsContent value="review-queue" className="mt-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Pending AI Recommendations</CardTitle>
-                                <CardDescription>Review the AI's output based on sample user data. Approve or reject the recommendation.</CardDescription>
+                                <CardTitle>Pending Actions</CardTitle>
+                                <CardDescription>These items require your direct approval or rejection to take effect.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {pendingActionItems.length > 0 ? pendingActionItems.map(item => (
+                                     <ReviewItemCard 
+                                        key={item.id}
+                                        item={item}
+                                        onStatusChange={handleStatusChange}
+                                     />
+                                )) : (
+                                    <p className="text-muted-foreground text-center py-8">No items require your action right now.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                         <Card className="mt-8">
+                            <CardHeader>
+                                <CardTitle>Informational Review</CardTitle>
+                                <CardDescription>These items were auto-approved and are for your awareness. You can mark them as reviewed to clear them from this list.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {pendingReviewItems.length > 0 ? pendingReviewItems.map(item => (
@@ -217,46 +235,55 @@ export default function ReviewQueuePage() {
                                         key={item.id}
                                         item={item}
                                         onStatusChange={handleStatusChange}
+                                        isInformational={true}
                                      />
                                 )) : (
-                                    <p className="text-muted-foreground text-center py-8">The review queue is empty.</p>
+                                    <p className="text-muted-foreground text-center py-8">The informational review queue is empty.</p>
                                 )}
                             </CardContent>
                         </Card>
                          <Card className="mt-8">
                             <CardHeader>
                                 <CardTitle>Reviewed Items</CardTitle>
-                                <CardDescription>A log of previously reviewed recommendations.</CardDescription>
+                                <CardDescription>A log of previously reviewed recommendations and actions.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                  <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>User</TableHead>
+                                            <TableHead>User/Source</TableHead>
                                             <TableHead>Company</TableHead>
                                             <TableHead>Date</TableHead>
                                             <TableHead>Details</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {reviewedItems.map(item => (
-                                            <TableRow key={item.id}>
-                                                <TableCell>{item.userEmail}</TableCell>
-                                                <TableCell>{item.inputData.companyName || 'N/A'}</TableCell>
-                                                <TableCell>{format(parseISO(item.createdAt), 'PPP')}</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={item.status === 'approved' ? 'default' : 'destructive'} className={item.status === 'approved' ? 'bg-green-600' : ''}>
-                                                        {item.status}
-                                                    </Badge>
-                                                    {item.changeDetails && (
-                                                         <div className="text-xs text-muted-foreground mt-1">
-                                                            {item.changeDetails.optionsToAdd?.length > 0 && <div>+ Added: {item.changeDetails.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
-                                                            {item.changeDetails.optionsToRemove?.length > 0 && <div>- Removed: {item.changeDetails.optionsToRemove.join(', ')}</div>}
-                                                         </div>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {reviewedItems.map(item => {
+                                            const getStatusBadge = () => {
+                                                switch(item.status) {
+                                                    case 'approved': return <Badge variant="default" className="bg-green-600">Approved</Badge>;
+                                                    case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+                                                    case 'reviewed': return <Badge variant="secondary">Reviewed</Badge>;
+                                                    default: return <Badge variant="outline">{item.status}</Badge>;
+                                                }
+                                            }
+                                            return (
+                                                <TableRow key={item.id}>
+                                                    <TableCell>{item.userEmail}</TableCell>
+                                                    <TableCell>{item.inputData.companyName || 'N/A'}</TableCell>
+                                                    <TableCell>{format(parseISO(item.createdAt), 'PPP')}</TableCell>
+                                                    <TableCell>
+                                                        {getStatusBadge()}
+                                                        {item.changeDetails && (
+                                                            <div className="text-xs text-muted-foreground mt-1">
+                                                                {item.changeDetails.optionsToAdd?.length > 0 && <div>+ Added: {item.changeDetails.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                                                {item.changeDetails.optionsToRemove?.length > 0 && <div>- Removed: {item.changeDetails.optionsToRemove.join(', ')}</div>}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
                                     </TableBody>
                                 </Table>
                             </CardContent>
@@ -271,7 +298,7 @@ export default function ReviewQueuePage() {
     );
 }
 
-function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected') => void }) {
+function ReviewItemCard({ item, onStatusChange, isInformational = false }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, isInformational?: boolean }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
 
@@ -363,12 +390,18 @@ function ReviewItemCard({ item, onStatusChange }: { item: ReviewQueueItem, onSta
                 ))}
             </CardContent>
             <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}>
-                    <ThumbsDown className="mr-2"/> Reject
-                </Button>
-                 <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}>
-                    <ThumbsUp className="mr-2"/> Approve
-                </Button>
+                {isInformational ? (
+                    <Button size="sm" onClick={() => onStatusChange(item, 'reviewed')}><Archive className="mr-2"/> Mark as Reviewed</Button>
+                ) : (
+                    <>
+                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}>
+                        <ThumbsDown className="mr-2"/> Reject
+                    </Button>
+                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}>
+                        <ThumbsUp className="mr-2"/> Approve
+                    </Button>
+                    </>
+                )}
             </CardFooter>
         </Card>
     )
