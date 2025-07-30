@@ -44,7 +44,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
                     <SelectContent>{question.options?.map(o => {
-                        const isCustom = !masterOptionsSet.has(o);
+                        const isCustom = !question.isCustom && !masterOptionsSet.has(o);
                         return (
                             <SelectItem key={o} value={o}>
                                 <div className="flex items-center gap-2">
@@ -84,7 +84,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
             return (
                  <FormControl><RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="flex flex-wrap gap-4">
                     {question.options?.map(o => {
-                        const isCustom = !masterOptionsSet.has(o);
+                        const isCustom = !question.isCustom && !masterOptionsSet.has(o);
                         return (
                         <FormItem key={o} className="flex items-center space-x-2">
                             <FormControl><RadioGroupItem value={o} /></FormControl>
@@ -113,7 +113,7 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 <div className="space-y-2">
                     {question.options?.map((item) => (
                     <FormField key={item} control={form.control} name={question.id as any} render={({ field: f }) => {
-                        const isCustom = !masterOptionsSet.has(item);
+                        const isCustom = !question.isCustom && !masterOptionsSet.has(item);
                         return (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl><Checkbox checked={f.value?.includes(item)} onCheckedChange={(checked) => {
                                 const value = f.value || [];
