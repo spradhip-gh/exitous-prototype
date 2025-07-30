@@ -514,8 +514,10 @@ export default function EditQuestionDialog({
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-4">
                         <Label>Answer Options &amp; Guidance</Label>
+                        
                         {isSuggestionMode ? (
                              <div className="space-y-2 rounded-md border p-4">
+                                <Label>Current Answer Options</Label>
                                  {currentQuestion.options?.map(option => (
                                      <div key={option} className="flex items-center justify-between">
                                          <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
@@ -557,7 +559,6 @@ export default function EditQuestionDialog({
                                          <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? { ...q, options: [...(q.options || []), ''] } : null)}><PlusCircle className="mr-2"/> Add Option</Button>
                                     </>
                                 )}
-
                                  {isHrEditing && !isCustomQuestion && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
                             </div>
                         )}
@@ -582,7 +583,7 @@ export default function EditQuestionDialog({
                         )}
                         
                         {(isAdmin || (isHrEditing && isCustomQuestion)) && (
-                            <div className="pt-2 space-y-2 border-t pt-4">
+                            <div className="pt-2 space-y-2 border-t mt-4">
                                 <Label>Guidance for Answers</Label>
                                 <p className="text-xs text-muted-foreground">Map tasks or tips to each answer.</p>
                                 {currentQuestion.options?.filter(Boolean).map(option => (
