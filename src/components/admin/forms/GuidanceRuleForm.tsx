@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
@@ -79,7 +80,7 @@ export function MultiSelectPopover({
                     <TooltipTrigger asChild>
                         <DropdownMenu open={open} onOpenChange={setOpen}>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between font-normal truncate">
+                                <Button variant="outline" className="w-full justify-between font-normal">
                                     <span className="truncate">{displayLabel}</span> <ChevronsUpDown className="h-4 w-4 shrink-0" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -107,7 +108,7 @@ export function MultiSelectPopover({
                                             onCheckedChange={() => handleSelect(item.id)}
                                             onSelect={(e) => e.preventDefault()}
                                         >
-                                            <span title={item.name}>{item.name}</span>
+                                            <span className="truncate" title={item.name}>{item.name}</span>
                                         </DropdownMenuCheckboxItem>
                                     )) : (
                                         <p className="p-2 text-xs text-center text-muted-foreground">No items found.</p>
@@ -120,7 +121,7 @@ export function MultiSelectPopover({
                                     setOpen(false);
                                  }}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Create new {label.toLowerCase().slice(0, -1)}...
+                                    <span>Create new {label.includes('Task') ? 'task...' : 'tip...'}</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -532,3 +533,4 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
+
