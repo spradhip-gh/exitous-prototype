@@ -209,12 +209,9 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const { output } = await ai.generate({
-          prompt,
-          context: {
+        const { output } = await prompt({
             ...input,
             externalResources,
-          },
         });
         
         // Add the result to the review queue
