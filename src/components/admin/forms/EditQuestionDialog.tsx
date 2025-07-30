@@ -13,19 +13,116 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
-import { MultiSelectPopover } from "./GuidanceRuleForm";
 import { v4 as uuidv4 } from 'uuid';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
+
+function LocalMultiSelectPopover({
+    label,
+    items,
+    selectedIds,
+    onSelectionChange,
+    onAddNew,
+    categories,
+    popoverContentWidth = "w-[300px]"
+}: {
+    label: string,
+    items: { id: string; name: string; category: string }[],
+    onSelectionChange: (newIds: string[]) => void,
+    onAddNew: () => void,
+    selectedIds?: string[],
+    categories: string[],
+    popoverContentWidth?: string
+}) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+    const validSelectedIds = selectedIds || [];
+
+    const filteredItems = useMemo(() => {
+        let list = items;
+        if (categoryFilter) list = list.filter(item => item.category === categoryFilter);
+        if (search) list = list.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
+        return list;
+    }, [search, items, categoryFilter]);
+    
+    const handleSelect = (id: string) => {
+        const newSelection = validSelectedIds.includes(id)
+            ? validSelectedIds.filter(currentId => currentId !== id)
+            : [...validSelectedIds, id];
+        onSelectionChange(newSelection);
+    }
+    
+    const displayLabel = useMemo(() => {
+        if (validSelectedIds.length === 0) return `0 selected`;
+        if (validSelectedIds.length <= 2) {
+            return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
+        }
+        return `${validSelectedIds.length} selected`;
+    }, [validSelectedIds, items]);
+
+    const tooltipContent = useMemo(() => {
+        return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
+    }, [validSelectedIds, items]);
+
+    return (
+        <div className="space-y-2">
+            <Label>{label}</Label>
+            <TooltipProvider>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenu open={open} onOpenChange={setOpen}>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between font-normal">
+                                    <span className="truncate">{displayLabel}</span> <ChevronsUpDown className="h-4 w-4 shrink-0" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className={popoverContentWidth} align="start">
+                                <div className="p-2">
+                                     <Input placeholder={`Search...`} value={search} onChange={(e) => setSearch(e.target.value)} className="h-8" />
+                                </div>
+                                 <div className="p-2 pt-0 flex flex-wrap gap-1">
+                                    <Button variant={!categoryFilter ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(null)}>All</Button>
+                                    {categories.map(cat => (
+                                         <Button key={cat} variant={categoryFilter === cat ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setCategoryFilter(cat)}>{cat}</Button>
+                                    ))}
+                                </div>
+                                <DropdownMenuSeparator />
+                                <ScrollArea className="max-h-64">
+                                     {filteredItems.length > 0 ? filteredItems.map(item => (
+                                        <DropdownMenuCheckboxItem key={item.id} checked={validSelectedIds.includes(item.id)} onCheckedChange={() => handleSelect(item.id)} onSelect={(e) => e.preventDefault()}>
+                                            <span className="truncate" title={item.name}>{item.name}</span>
+                                        </DropdownMenuCheckboxItem>
+                                    )) : <p className="p-2 text-xs text-center text-muted-foreground">No items found.</p>}
+                                </ScrollArea>
+                                <DropdownMenuSeparator />
+                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onAddNew(); setOpen(false); }}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    <span>Create new...</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TooltipTrigger>
+                    {validSelectedIds.length > 0 && <TooltipContent><p className="max-w-xs">{tooltipContent}</p></TooltipContent>}
+                 </Tooltip>
+            </TooltipProvider>
+            {validSelectedIds.length > 2 && <p className="text-xs text-muted-foreground pl-1">Hover to see all selections.</p>}
+        </div>
+    );
+}
 
 interface AnswerGuidanceDialogProps {
     isOpen: boolean;
@@ -99,7 +196,7 @@ function AnswerGuidanceDialog({
                         <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
                     </div>
                      <fieldset disabled={noGuidanceRequired} className="space-y-4">
-                        <MultiSelectPopover
+                        <LocalMultiSelectPopover
                             label="Tasks to Assign"
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
@@ -108,7 +205,7 @@ function AnswerGuidanceDialog({
                             categories={taskCategories}
                             popoverContentWidth="w-[450px]"
                         />
-                         <MultiSelectPopover
+                         <LocalMultiSelectPopover
                             label="Tips to Show"
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
@@ -149,6 +246,7 @@ export default function EditQuestionDialog({
         getAllCompanyConfigs,
         saveCompanyConfig,
         addReviewQueueItem,
+        externalResources,
     } = useUserData();
     
     // --- STATE ---
@@ -172,7 +270,7 @@ export default function EditQuestionDialog({
     const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
     
     // --- COMPUTED VALUES ---
-    const { masterQuestions, masterProfileQuestions, externalResources } = useUserData();
+    const { masterQuestions, masterProfileQuestions } = useUserData();
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
