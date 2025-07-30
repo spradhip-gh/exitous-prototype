@@ -71,6 +71,11 @@ export function MultiSelectPopover({
         return `${validSelectedIds.length} selected`;
     }, [validSelectedIds, items]);
 
+    const tooltipContent = useMemo(() => {
+        return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
+    }, [validSelectedIds, items]);
+
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
@@ -125,10 +130,10 @@ export function MultiSelectPopover({
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </TooltipTrigger>
-                    {validSelectedIds.length > 2 && (
+                    {validSelectedIds.length > 0 && (
                         <TooltipContent>
                            <p className="max-w-xs">
-                             {validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ')}
+                             {tooltipContent}
                            </p>
                         </TooltipContent>
                     )}
