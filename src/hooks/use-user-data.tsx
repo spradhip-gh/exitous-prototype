@@ -1022,13 +1022,20 @@ export function useUserData() {
 
     // 1. Process Guidance Rules
     const answeredQuestionIds = new Set(Object.keys(assessmentData));
-    const rulesToProcess = guidanceRules.filter(r => answeredQuestionIds.has(r.questionId));
-
     rulesToProcess.forEach(rule => {
-        const answer = assessmentData[rule.questionId as keyof AssessmentData] as string;
-        if (rule.type === 'direct' && rule.conditions.some(c => c.answer === answer)) {
+      const answer = assessmentData[rule.questionId as keyof AssessmentData] as string;
+      const catchAllCondition = rule.conditions.find(c => c.answer === undefined);
+  
+      if (rule.type === 'direct') {
+        if (rule.conditions.some(c => c.answer === answer)) {
+          processAssignments(rule.assignments);
+        } else if (catchAllCondition) {
+          const hasMoreSpecificRule = rulesToProcess.some(r => r.id !== rule.id && r.questionId === rule.questionId && r.conditions.some(c => c.answer === answer));
+          if (!hasMoreSpecificRule) {
             processAssignments(rule.assignments);
+          }
         }
+      }
     });
 
     // 2. Process Answer Guidance from Custom Questions
@@ -1112,5 +1119,6 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 
 
