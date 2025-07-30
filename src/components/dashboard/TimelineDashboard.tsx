@@ -392,41 +392,60 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-8">
-                    {tasks.length > 0 && (
-                        <div>
-                            <h3 className="text-xl font-bold font-headline mb-4">Tasks & Deadlines</h3>
-                            <Timeline 
-                                recommendations={tasks} 
-                                completedTasks={completedTasks}
-                                toggleTaskCompletion={toggleTaskCompletion}
-                                taskDateOverrides={taskDateOverrides}
-                                updateTaskDate={updateTaskDate}
-                                userTimezone={userTimezone}
-                                onConnectClick={handleConnectClick}
-                                externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
-                            />
-                        </div>
-                    )}
-                     {tips.length > 0 && (
-                        <div>
-                            <h3 className="text-xl font-bold font-headline mb-4">Did You Know...</h3>
-                            <div className="space-y-4">
-                              {tips.map(tip => (
-                                <Alert key={tip.taskId}>
-                                  <Lightbulb className="h-4 w-4" />
-                                  <div className="flex items-center gap-2">
-                                    <AlertTitle>{tip.category}</AlertTitle>
-                                    {tip.isCompanySpecific && <Star className="h-4 w-4 text-amber-500 fill-current" />}
-                                  </div>
-                                  <AlertDescription>
-                                    <ReactMarkdown className="prose prose-sm">{tip.task.replace('Did you know: ', '')}</ReactMarkdown>
-                                  </AlertDescription>
-                                </Alert>
-                              ))}
-                            </div>
-                        </div>
-                    )}
+                <CardContent>
+                    <Tabs defaultValue="tasks">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="tasks">Tasks & Deadlines</TabsTrigger>
+                            <TabsTrigger value="tips">Did You Know...</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="tasks" className="pt-6">
+                             {tasks.length > 0 ? (
+                                <Timeline 
+                                    recommendations={tasks} 
+                                    completedTasks={completedTasks}
+                                    toggleTaskCompletion={toggleTaskCompletion}
+                                    taskDateOverrides={taskDateOverrides}
+                                    updateTaskDate={updateTaskDate}
+                                    userTimezone={userTimezone}
+                                    onConnectClick={handleConnectClick}
+                                    externalResources={externalResources.filter(r => r.availability?.includes(companyVersion))}
+                                />
+                             ) : (
+                                <p className="text-muted-foreground text-center py-8">No tasks or deadlines found.</p>
+                             )}
+                        </TabsContent>
+                         <TabsContent value="tips" className="pt-6">
+                              {tips.length > 0 ? (
+                                 <div className="space-y-4">
+                                  {tips.map(tip => (
+                                    <Alert key={tip.taskId}>
+                                      <Lightbulb className="h-4 w-4" />
+                                      <div className="flex items-center gap-2">
+                                        <AlertTitle>{tip.category}</AlertTitle>
+                                        {tip.isCompanySpecific && (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Star className="h-4 w-4 text-amber-500 fill-current cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>This is a custom tip from your company.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        )}
+                                      </div>
+                                      <AlertDescription>
+                                        <ReactMarkdown className="prose prose-sm">{tip.task.replace('Did you know: ', '')}</ReactMarkdown>
+                                      </AlertDescription>
+                                    </Alert>
+                                  ))}
+                                </div>
+                             ) : (
+                                <p className="text-muted-foreground text-center py-8">No tips available.</p>
+                             )}
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
         )}
@@ -536,7 +555,18 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
               <div className="flex items-center gap-2 mb-1">
                  <p className={cn("text-base font-semibold", isCompleted && "line-through")}>{item.task}</p>
                  <Badge variant={isCompleted ? 'outline' : 'secondary'}>{item.category}</Badge>
-                 {item.isCompanySpecific && <Star className="h-4 w-4 text-amber-500 fill-current" />}
+                 {item.isCompanySpecific && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Star className="h-4 w-4 text-amber-500 fill-current cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>This is a custom task from your company.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                 )}
               </div>
               <div className={cn("text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-ol:my-1", isCompleted && "line-through")}>
                 <ReactMarkdown>{item.details}</ReactMarkdown>
