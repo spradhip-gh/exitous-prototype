@@ -22,6 +22,7 @@ import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
 import { MultiSelectPopover } from "./GuidanceRuleForm";
 import { v4 as uuidv4 } from 'uuid';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -58,7 +59,19 @@ function AnswerGuidanceDialog({
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Set Guidance for "{answer}"</DialogTitle>
+                    <DialogTitle>
+                        Set Guidance for:{" "}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="font-bold inline-block max-w-xs truncate align-bottom">"{answer}"</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{answer}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </DialogTitle>
                     <DialogDescription>
                         For the question: "{questionLabel}"
                     </DialogDescription>
@@ -262,16 +275,32 @@ export default function EditQuestionDialog({
         if (!currentQuestion) return;
 
         if (isSuggestionMode) {
-            const suggestedEdits = {
-                optionsToAdd: suggestedOptionsToAdd,
-                optionsToRemove: suggestedOptionsToRemove,
-                guidanceOverrides: answerGuidanceOverrides,
-            };
-            if (suggestedEdits.optionsToAdd.length === 0 && suggestedEdits.optionsToRemove.length === 0 && Object.keys(suggestedEdits.guidanceOverrides).length === 0) {
+             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && Object.keys(answerGuidanceOverrides).length === 0) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance change.", variant: "destructive" });
                 return;
             }
-            onSave(currentQuestion, undefined, suggestedEdits, false);
+             const reviewItem = {
+                id: `review-suggestion-${Date.now()}`,
+                userEmail: auth?.email || 'unknown-hr',
+                inputData: { 
+                    type: 'question_edit_suggestion',
+                    companyName: auth?.companyName,
+                    questionId: currentQuestion.id,
+                    questionLabel: currentQuestion.label,
+                    suggestions: {
+                        optionsToAdd: suggestedOptionsToAdd,
+                        optionsToRemove: suggestedOptionsToRemove,
+                        guidanceOverrides: answerGuidanceOverrides,
+                    }
+                },
+                output: {},
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            } as unknown as ReviewQueueItem;
+
+            addReviewQueueItem(reviewItem);
+            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
+            onClose();
             return;
         }
 
@@ -281,7 +310,7 @@ export default function EditQuestionDialog({
         }
         
         onSave({ ...currentQuestion, answerGuidance: answerGuidanceOverrides }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew]);
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -471,37 +500,33 @@ export default function EditQuestionDialog({
 
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Answer Options</Label>
-                            {isSuggestionMode ? (
-                                <>
-                                 <p className="text-xs text-muted-foreground">Suggest removing options or adding company-specific guidance.</p>
-                                 <div className="space-y-2 rounded-md border p-4">
-                                     {currentQuestion.options?.map(option => (
-                                         <div key={option} className="flex items-center justify-between">
-                                             <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
-                                             <div className="flex items-center gap-2">
-                                                 <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                                     <Settings className="mr-2"/> Manage Guidance
-                                                 </Button>
-                                                 <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
-                                                     <Trash2 className="mr-2 h-3 w-3" />
-                                                     {suggestedOptionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
-                                                 </Button>
-                                             </div>
+                        <Label>Answer Options &amp; Guidance</Label>
+                        {isSuggestionMode ? (
+                             <div className="space-y-2 rounded-md border p-4">
+                                 {currentQuestion.options?.map(option => (
+                                     <div key={option} className="flex items-center justify-between">
+                                         <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
+                                         <div className="flex items-center gap-2">
+                                             <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                                 <Settings className="mr-2"/> Manage Guidance
+                                             </Button>
+                                             <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
+                                                 <Trash2 className="mr-2 h-3 w-3" />
+                                                 {suggestedOptionsToRemove.includes(option) ? 'Undo' : 'Suggest Removal'}
+                                             </Button>
                                          </div>
-                                     ))}
-                                 </div>
-                                </>
-                            ) : (
-                                <>
-                                 <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
+                                     </div>
+                                 ))}
+                             </div>
+                        ) : (
+                             <div className="space-y-2">
+                                <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
                                  {isHrEditing && !isCustomQuestion && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
-                                </>
-                            )}
-                        </div>
-
-                        {isSuggestionMode && (
+                            </div>
+                        )}
+                        
+                        
+                        {(isSuggestionMode || (isHrEditing && isCustomQuestion)) && (
                              <div className="space-y-2">
                                 <Label>Suggest New Options</Label>
                                 <div className="space-y-4">
@@ -519,10 +544,10 @@ export default function EditQuestionDialog({
                             </div>
                         )}
                         
-                        {isCustomQuestion && (
+                        {isAdmin && !isSuggestionMode && (
                              <div className="pt-2 space-y-2 border-t pt-4">
                                 <Label>Guidance for Answers</Label>
-                                <p className="text-xs text-muted-foreground">Map company-specific tasks or tips to each answer.</p>
+                                <p className="text-xs text-muted-foreground">Map tasks or tips to each answer.</p>
                                 {currentQuestion.options?.filter(Boolean).map(option => (
                                     <div key={option} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                                         <p>{option}</p>
