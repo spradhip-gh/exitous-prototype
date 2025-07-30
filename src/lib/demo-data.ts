@@ -183,7 +183,13 @@ const initializeDb = (): DemoDatabase => {
                         isCustom: true,
                         options: ['Yes', 'No'],
                         defaultValue: 'No',
-                        lastUpdated: new Date().toISOString()
+                        lastUpdated: new Date().toISOString(),
+                        answerGuidance: {
+                            'Yes': {
+                                tasks: ['company-task-cancel-trip'],
+                                tips: ['company-tip-travel-insurance']
+                            }
+                        }
                     }
                 },
                 questionOrderBySection: {},
@@ -244,8 +250,12 @@ This checklist is designed to help you manage key tasks during your employment t
                         content: `This document outlines the official Work From Home (WFH) policy for Globex Corporation employees. It specifies eligibility criteria for remote and hybrid work, including job roles and performance requirements. The policy details expectations for home office setup, data security protocols, and communication standards. It also covers the process for requesting a WFH arrangement and the guidelines for equipment reimbursement. All remote employees are expected to maintain regular working hours and be available during core business times.`
                     },
                 ],
-                companyTasks: [],
-                companyTips: [],
+                companyTasks: [
+                    { id: 'company-task-cancel-trip', name: 'Reach out to Globex travel partners to see about cancelling your trip for refund.', category: 'Financial', type: 'layoff', detail: 'Contact the travel agency or airline to inquire about cancellation policies and potential refunds for your business trip.', deadlineType: 'notification_date', deadlineDays: 7, isCompanySpecific: true }
+                ],
+                companyTips: [
+                    { id: 'company-tip-travel-insurance', text: 'Some travel insurance policies cover cancellations due to job loss. Check your policy details.', category: 'Financial', priority: 'Medium', type: 'layoff', isCompanySpecific: true }
+                ],
             },
             'Initech': {
                 questions: {},
@@ -630,7 +640,7 @@ This checklist is designed to help you manage key tasks during your employment t
             { "id": "3", "type": "layoff", "priority": "Medium", "category": "Health", "text": "Staying connected with friends, family, or support groups. and avoiding the temptation to isolate can help you maintain your mental and emotional well-being." },
             { "id": "4", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "Talking candidly about your current situation with your spouse / significant other can help broaden your perspective when deciding what life adjustments are needed." },
             { "id": "6", "type": "layoff", "priority": "Medium", "category": "Health", "text": "Setting regular check-ins to share your feelings, discuss progress, and explore options with a spouse, partner, other family member, or close friend can ensure you're getting the emotional support you need." },
-            { "id": "8", "type": "layoff", "priority": "High", "category": "Basics", "text": "If you live with other adults, starting open communication with them now can help you get a handle on how your job loss might affect your current living arrangement, especially if you have some financial dependence on them." },
+            { "id": "8", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "If you live with other adults, starting open communication with them now can help you get a handle on how your job loss might affect your current living arrangement, especially if you have some financial dependence on them." },
             { "id": "9", "type": "layoff", "priority": "Medium", "category": "Health", "text": "You may be able to make use of your partner’s benefits. Look into any services and coverage available to you through your partner’s health insurance for practical peace of mind." },
             { "id": "10", "type": "layoff", "priority": "Medium", "category": "Financial", "text": "Taking time to reassess any post-divorce finances (e.g., budget, lump-sum payments, or debt repayment) may show you qualify to negotiate a temporary, more affordable structured payment plan." },
             { "id": "11", "type": "layoff", "priority": "High", "category": "Financial", "text": "If you pay child support or alimony you may be able to negotiate a temporary, more affordable payment so you can fulfill your obligations and maintain entitlements." },
@@ -713,7 +723,7 @@ This checklist is designed to help you manage key tasks during your employment t
             { "id": "208", "type": "layoff", "priority": "High", "category": "Basics", "text": "If you change employers, your visa petition must be approved before your start date, and your new role must be one that's approved for a TN visa." },
             { "id": "209", "type": "layoff", "priority": "High", "category": "Basics", "text": "Maintaining your visa status after your job loss depends on your stage in the F-1 or M-1 process. A Designated School Official (DSO) can help with dates and requirements." },
             { "id": "210", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "If you have OPT work authorization, it requires \"productive work,\" but not pay. So even if you volunteer, your work must be defined as productive." },
-            { "id": "211", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "If you have OPT STEM work authorization, pay is required to show maintenance of your OPT STEM authorization status." },
+            { "id": "211", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "If you're on OPT STEM work authorization, pay is required to show maintenance of your OPT STEM authorization status." },
             { "id": "212", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "If you have CPT work authorization, to maintain your CPT status you only need to maintain your full-time status at the university. Work isn't required." },
             { "id": "213", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "Being mindful of your I-94 expiration date is critical, especially for entry to the United States." },
             { "id": "214", "type": "layoff", "priority": "Medium", "category": "Basics", "text": "Your particular visa allows you to freely change employers to any position, any occupation and still maintain your visa status." },
@@ -828,6 +838,8 @@ export const saveMasterTips = (data: MasterTip[]) => { db.masterTips = data; };
 
 export const getTipMappings = () => db.tipMappings;
 export const saveTipMappings = (data: TipMapping[]) => { db.tipMappings = data; };
+    
+
     
 
     
