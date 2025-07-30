@@ -84,7 +84,7 @@ export function MultiSelectPopover({
                                     <span className="truncate">{displayLabel}</span> <ChevronsUpDown className="h-4 w-4 shrink-0" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[400px]" align="start">
+                            <DropdownMenuContent className="w-[450px]" align="start">
                                 <div className="p-2">
                                      <Input 
                                         placeholder={`Search ${label.toLowerCase()}...`}
@@ -533,5 +533,3 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
-
-
