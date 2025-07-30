@@ -22,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 
-function MultiSelectPopover({
+export function MultiSelectPopover({
     label,
     items,
     selectedIds,
