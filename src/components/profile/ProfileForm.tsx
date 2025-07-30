@@ -34,12 +34,37 @@ import { CalendarIcon, Info, Star } from 'lucide-react';
 import { convertStringsToDates } from '@/hooks/use-user-data';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
+    const { masterProfileQuestions } = useUserData();
+    const masterQuestion = masterProfileQuestions[question.id];
+    const masterOptionsSet = useMemo(() => new Set(masterQuestion?.options || []), [masterQuestion]);
+
     switch (question.type) {
         case 'select':
             return (
                 <Select onValueChange={field.onChange} value={field.value ?? ''}>
                     <FormControl><SelectTrigger><SelectValue placeholder={question.placeholder} /></SelectTrigger></FormControl>
-                    <SelectContent>{question.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                    <SelectContent>{question.options?.map(o => {
+                        const isCustom = !masterOptionsSet.has(o);
+                        return (
+                            <SelectItem key={o} value={o}>
+                                <div className="flex items-center gap-2">
+                                    <span>{o}</span>
+                                    {isCustom && (
+                                        <TooltipProvider>
+                                            <Tooltip delayDuration={100}>
+                                                <TooltipTrigger>
+                                                    <Star className="h-4 w-4 text-amber-500 fill-current" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Custom answer option added by your company.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </div>
+                            </SelectItem>
+                        )
+                    })}</SelectContent>
                 </Select>
             );
         case 'date':
@@ -58,7 +83,29 @@ const renderFormControl = (question: Question, field: any, form: any) => {
         case 'radio':
             return (
                  <FormControl><RadioGroup onValueChange={field.onChange} value={field.value ?? ''} className="flex flex-wrap gap-4">
-                    {question.options?.map(o => <FormItem key={o} className="flex items-center space-x-2"><FormControl><RadioGroupItem value={o} /></FormControl><FormLabel className="font-normal">{o}</FormLabel></FormItem>)}
+                    {question.options?.map(o => {
+                        const isCustom = !masterOptionsSet.has(o);
+                        return (
+                        <FormItem key={o} className="flex items-center space-x-2">
+                            <FormControl><RadioGroupItem value={o} /></FormControl>
+                             <div className="flex items-center gap-2">
+                                <FormLabel className="font-normal">{o}</FormLabel>
+                                {isCustom && (
+                                     <TooltipProvider>
+                                        <Tooltip delayDuration={100}>
+                                            <TooltipTrigger>
+                                                <Star className="h-4 w-4 text-amber-500 fill-current" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Custom answer option added by your company.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
+                        </FormItem>
+                        )
+                    })}
                 </RadioGroup></FormControl>
             );
         case 'checkbox':
@@ -66,12 +113,27 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                 <div className="space-y-2">
                     {question.options?.map((item) => (
                     <FormField key={item} control={form.control} name={question.id as any} render={({ field: f }) => {
+                        const isCustom = !masterOptionsSet.has(item);
                         return (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl><Checkbox checked={f.value?.includes(item)} onCheckedChange={(checked) => {
                                 const value = f.value || [];
                                 return checked ? f.onChange([...value, item]) : f.onChange(value?.filter((v) => v !== item));
                             }} /></FormControl>
-                            <FormLabel className="font-normal">{item}</FormLabel>
+                             <div className="flex items-center gap-2">
+                                <FormLabel className="font-normal">{item}</FormLabel>
+                                {isCustom && (
+                                     <TooltipProvider>
+                                        <Tooltip delayDuration={100}>
+                                            <TooltipTrigger>
+                                                <Star className="h-4 w-4 text-amber-500 fill-current" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Custom answer option added by your company.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
                         </FormItem>);
                     }} />
                     ))}
