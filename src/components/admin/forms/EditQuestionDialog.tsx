@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -43,8 +42,8 @@ interface AnswerGuidanceDialogProps {
     questionLabel: string;
     answer: string;
     onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
-    onAddNewTask: (setter: (newIds: string[]) => void) => void;
-    onAddNewTip: (setter: (newIds: string[]) => void) => void;
+    onAddNewTask: () => void;
+    onAddNewTip: () => void;
     existingGuidance?: AnswerGuidance;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
@@ -59,7 +58,6 @@ function AnswerGuidanceDialog({
     onAddNewTask, onAddNewTip, existingGuidance, allCompanyTasks, allCompanyTips,
     selectedTasks, setSelectedTasks, selectedTips, setSelectedTips
 }: AnswerGuidanceDialogProps) {
-    const { useUserData } = useAuth(); // Note: This seems like a typo, should probably be useAuth() or similar
     const [noGuidance, setNoGuidance] = useState(false);
 
     useEffect(() => {
@@ -105,7 +103,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                             selectedIds={selectedTasks}
                             onSelectionChange={setSelectedTasks}
-                            onAddNew={() => onAddNewTask(setSelectedTasks)}
+                            onAddNew={onAddNewTask}
                             categories={taskCategories}
                         />
                          <MultiSelectPopover
@@ -113,7 +111,7 @@ function AnswerGuidanceDialog({
                             items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                             selectedIds={selectedTips}
                             onSelectionChange={setSelectedTips}
-                            onAddNew={() => onAddNewTip(setSelectedTips)}
+                            onAddNew={onAddNewTip}
                             categories={tipCategories}
                         />
                     </fieldset>
@@ -169,7 +167,8 @@ export default function EditQuestionDialog({
     const [selectedTips, setSelectedTips] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
-    const [newItemSetter, setNewItemSetter] = useState<{set: ((item: any) => void) | null}>({ set: null });
+    
+    const [newItemCallback, setNewItemCallback] = useState<{ fn: ((item: any) => void) | null }>({ fn: null });
 
     // --- COMPUTED VALUES ---
     const isAdmin = auth?.role === 'admin';
@@ -223,14 +222,14 @@ export default function EditQuestionDialog({
     }, [isOpen, question]);
     
     // --- CALLBACKS & HANDLERS ---
-     const onAddNewTask = useCallback((setter: (newIds: string[] | ((prev: string[]) => string[])) => void) => {
-        setNewItemSetter({ set: setter as any });
+     const onAddNewTask = useCallback(() => {
+        setNewItemCallback({ fn: (newTask: MasterTask) => setSelectedTasks(prev => [...prev, newTask.id]) });
         setIsGuidanceDialogOpen(false);
         setIsTaskFormOpen(true);
     }, []);
 
-    const onAddNewTip = useCallback((setter: (newIds: string[] | ((prev: string[]) => string[])) => void) => {
-        setNewItemSetter({ set: setter as any });
+    const onAddNewTip = useCallback(() => {
+        setNewItemCallback({ fn: (newTip: MasterTip) => setSelectedTips(prev => [...prev, newTip.id]) });
         setIsGuidanceDialogOpen(false);
         setIsTipFormOpen(true);
     }, []);
@@ -247,12 +246,12 @@ export default function EditQuestionDialog({
         
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
 
-        if (newItemSetter.set) {
-            newItemSetter.set((prev: string[]) => [...prev, taskData.id]);
+        if (newItemCallback.fn) {
+            newItemCallback.fn(taskData);
         }
         setIsTaskFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemSetter]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
 
     const handleSaveNewTip = useCallback((tipData: MasterTip) => {
         const companyName = auth?.companyName;
@@ -266,12 +265,12 @@ export default function EditQuestionDialog({
         
         toast({ title: 'Tip Added' });
         
-        if (newItemSetter.set) {
-            newItemSetter.set((prev: string[]) => [...prev, tipData.id]);
+        if (newItemCallback.fn) {
+            newItemCallback.fn(tipData);
         }
         setIsTipFormOpen(false);
         setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemSetter]);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
     
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
