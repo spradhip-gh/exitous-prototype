@@ -30,6 +30,7 @@ export function MultiSelectPopover({
     onSelectionChange,
     onAddNew,
     categories,
+    popoverContentWidth = "w-[300px]"
 }: {
     label: string,
     items: { id: string; name: string; category: string }[],
@@ -37,6 +38,7 @@ export function MultiSelectPopover({
     onAddNew: () => void,
     selectedIds?: string[],
     categories: string[],
+    popoverContentWidth?: string
 }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -89,7 +91,7 @@ export function MultiSelectPopover({
                                     <span className="truncate">{displayLabel}</span> <ChevronsUpDown className="h-4 w-4 shrink-0" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[450px]" align="start">
+                            <DropdownMenuContent className={popoverContentWidth} align="start">
                                 <div className="p-2">
                                      <Input 
                                         placeholder={`Search ${label.toLowerCase()}...`}
@@ -539,4 +541,3 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
-

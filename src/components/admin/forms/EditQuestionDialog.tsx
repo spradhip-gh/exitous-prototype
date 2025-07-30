@@ -106,6 +106,7 @@ function AnswerGuidanceDialog({
                             onSelectionChange={setSelectedTasks}
                             onAddNew={() => onAddNewTask((newTask) => setSelectedTasks(prev => [...prev, newTask.id]))}
                             categories={taskCategories}
+                            popoverContentWidth="w-[450px]"
                         />
                          <MultiSelectPopover
                             label="Tips to Show"
@@ -114,6 +115,7 @@ function AnswerGuidanceDialog({
                             onSelectionChange={setSelectedTips}
                             onAddNew={() => onAddNewTip((newTip) => setSelectedTips(prev => [...prev, newTip.id]))}
                             categories={tipCategories}
+                            popoverContentWidth="w-[450px]"
                         />
                     </fieldset>
                 </div>
@@ -702,4 +704,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
