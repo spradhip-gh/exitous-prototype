@@ -99,8 +99,8 @@ export function MultiSelectPopover({
                                     ))}
                                 </div>
                                 <DropdownMenuSeparator />
-                                <ScrollArea className="h-64">
-                                     {filteredItems.map(item => (
+                                <ScrollArea className="max-h-64">
+                                     {filteredItems.length > 0 ? filteredItems.map(item => (
                                         <DropdownMenuCheckboxItem
                                             key={item.id}
                                             checked={validSelectedIds.includes(item.id)}
@@ -109,7 +109,9 @@ export function MultiSelectPopover({
                                         >
                                             <span className="truncate" title={item.name}>{item.name}</span>
                                         </DropdownMenuCheckboxItem>
-                                    ))}
+                                    )) : (
+                                        <p className="p-2 text-xs text-center text-muted-foreground">No items found.</p>
+                                    )}
                                 </ScrollArea>
                                 <DropdownMenuSeparator />
                                  <DropdownMenuItem onSelect={(e) => {
