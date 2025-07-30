@@ -750,7 +750,8 @@ export function useUserData() {
     // Create a deep copy to avoid mutating the master questions state
     const combinedFlatMap = structuredClone({
         ...sourceMasterQuestions,
-        ...(companyConfig?.customQuestions || {})
+        // Only include custom questions if we are looking at the assessment form
+        ...(formType !== 'profile' ? companyConfig?.customQuestions || {} : {})
     });
     
     if (companyConfig?.questions) {
@@ -1111,4 +1112,5 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 

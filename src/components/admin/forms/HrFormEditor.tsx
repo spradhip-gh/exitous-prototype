@@ -572,17 +572,17 @@ export default function HrFormEditor() {
                     <h1 className="font-headline text-3xl font-bold">Form Editor</h1>
                     <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
-                 <Tabs defaultValue="profile">
+                 <Tabs defaultValue="assessment">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
+                        <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="profile" className="mt-6">
-                        <QuestionEditor questionType="profile" canWrite={canWrite} />
-                    </TabsContent>
                     <TabsContent value="assessment" className="mt-6">
                        <QuestionEditor questionType="assessment" canWrite={canWrite} />
+                    </TabsContent>
+                    <TabsContent value="profile" className="mt-6">
+                        <QuestionEditor questionType="profile" canWrite={canWrite} />
                     </TabsContent>
                     <TabsContent value="suggestions" className="mt-6">
                        <MySuggestionsTab />
