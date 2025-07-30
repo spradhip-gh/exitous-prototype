@@ -229,7 +229,8 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         return output!;
       } catch (error: any) {
         attempt++;
-        const isOverloaded = error.message && (error.message.includes('503') || error.message.includes('overloaded'));
+        const errorMessage = String(error?.message || '');
+        const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
         
         if (isOverloaded && attempt < maxRetries) {
           console.warn(`Attempt ${attempt} failed with 503 error. Retrying in 2 seconds...`);
