@@ -40,6 +40,7 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   "Well-being": HeartHandshake,
   "Custom": CalendarPlus,
   "General": Info,
+  "Basics": Briefcase,
   "default": Calendar,
 };
 
@@ -100,6 +101,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     recommendations,
     saveRecommendations,
     clearRecommendations,
+    getMappedRecommendations,
   } = useUserData();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -127,6 +129,11 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
 
   const isProfileComplete = !!profileData;
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
+
+  const mappedRecommendations = useMemo(() => {
+      if (!isFullyComplete) return [];
+      return getMappedRecommendations();
+  }, [isFullyComplete, getMappedRecommendations]);
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -208,9 +215,15 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   }, [profileData, assessmentData, isPreview, isFullyComplete, auth, recommendations, saveRecommendations]);
 
   const sortedRecommendations = useMemo(() => {
-    if (!recommendations?.recommendations) {
-      return [];
-    }
+    const aiRecs = recommendations?.recommendations || [];
+    const manualRecs = mappedRecommendations || [];
+
+    const manualTaskIds = new Set(manualRecs.map(rec => rec.taskId));
+    
+    // Filter out AI recommendations that are duplicates of manual ones
+    const deduplicatedAiRecs = aiRecs.filter(rec => !manualTaskIds.has(rec.taskId));
+    
+    const combined = [...manualRecs, ...deduplicatedAiRecs];
 
     const getDateValue = (dateStr: string | undefined) => {
       if (!dateStr) return Infinity;
@@ -225,7 +238,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       return Infinity;
     };
 
-    return [...recommendations.recommendations].sort((a, b) => {
+    return combined.sort((a, b) => {
       const aDate = taskDateOverrides[a.taskId] || a.endDate;
       const bDate = taskDateOverrides[b.taskId] || b.endDate;
       
@@ -241,7 +254,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       
       return 0;
     });
-  }, [recommendations, taskDateOverrides]);
+  }, [recommendations, mappedRecommendations, taskDateOverrides]);
 
   const recommendationCategories = useMemo(() => {
     if (!sortedRecommendations) return [];

@@ -25,8 +25,9 @@ import {
   getMasterTips as getMasterTipsFromDb, saveMasterTips as saveMasterTipsToDb,
   getTipMappings as getTipMappingsFromDb, saveTipMappings as saveTipMappingsToDb,
 } from '@/lib/demo-data';
-import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
+import { PersonalizedRecommendationsInput, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from './use-toast';
+import { addDays, differenceInDays } from 'date-fns';
 
 
 const PROFILE_KEY = 'exitbetter-profile';
@@ -112,12 +113,18 @@ export interface Resource {
   content?: string; // Can be text content or a data URI
 }
 
+export interface AnswerGuidance {
+    tasks?: string[];
+    tips?: string[];
+    noGuidanceRequired?: boolean;
+}
+
 export interface ReviewQueueItem {
     id: string;
     userEmail: string;
-    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> & { type?: string, questionLabel?: string, suggestions?: any };
+    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> & { type?: string, questionLabel?: string, suggestions?: any, question?: Question };
     output: PersonalizedRecommendationsOutput;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'reviewed';
     createdAt: string; // ISO string
     reviewedAt?: string;
     reviewerId?: string;
@@ -962,6 +969,92 @@ export function useUserData() {
       setTipMappingsState(mappings);
   }, []);
 
+  const getMappedRecommendations = useCallback((): RecommendationItem[] => {
+    if (!assessmentData) return [];
+    
+    const companyConfig = auth?.companyName ? companyConfigs[auth.companyName] : null;
+    const allTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
+    const allTips = [...masterTips, ...(companyConfig?.companyTips || [])];
+
+    const getEndDate = (deadlineType: MasterTask['deadlineType'], deadlineDays?: number): string | undefined => {
+        if (!deadlineDays) return undefined;
+        const baseDateKey = deadlineType === 'notification_date' ? 'notificationDate' : 'finalDate';
+        const baseDate = assessmentData[baseDateKey as keyof AssessmentData];
+        if (baseDate && baseDate instanceof Date) {
+            return convertDatesToStrings(addDays(baseDate, deadlineDays));
+        }
+        return undefined;
+    };
+    
+    const allQuestions = getCompanyConfig(auth?.companyName, true, 'all');
+    let recommendations: RecommendationItem[] = [];
+
+    // 1. Process Guidance Rules
+    const answeredQuestionIds = new Set(Object.keys(assessmentData));
+    const rulesToProcess = guidanceRules.filter(r => answeredQuestionIds.has(r.questionId));
+
+    rulesToProcess.forEach(rule => {
+        const answer = assessmentData[rule.questionId as keyof AssessmentData] as string;
+        if (rule.type === 'direct' && rule.conditions.some(c => c.answer === answer)) {
+            rule.assignments.taskIds.forEach(taskId => {
+                const task = allTasks.find(t => t.id === taskId);
+                if (task) {
+                    recommendations.push({
+                        taskId: task.id,
+                        task: task.name,
+                        category: task.category,
+                        details: task.detail,
+                        timeline: `Due in ${task.deadlineDays} days`,
+                        endDate: getEndDate(task.deadlineType, task.deadlineDays),
+                        isGoal: false,
+                    });
+                }
+            });
+        }
+    });
+
+    // 2. Process Answer Guidance from Custom Questions
+    allQuestions.forEach(q => {
+        if (q.isCustom && q.answerGuidance) {
+            const answer = assessmentData[q.id as keyof AssessmentData];
+            if (answer && q.answerGuidance[answer as string]) {
+                const guidance = q.answerGuidance[answer as string];
+                guidance.tasks?.forEach(taskId => {
+                    const task = allTasks.find(t => t.id === taskId);
+                    if (task) {
+                         recommendations.push({
+                            taskId: task.id,
+                            task: task.name,
+                            category: task.category,
+                            details: task.detail,
+                            timeline: `Due in ${task.deadlineDays} days`,
+                            endDate: getEndDate(task.deadlineType, task.deadlineDays),
+                            isGoal: false,
+                        });
+                    }
+                });
+                guidance.tips?.forEach(tipId => {
+                    const tip = allTips.find(t => t.id === tipId);
+                    if (tip) {
+                        recommendations.push({
+                            taskId: `tip-${tip.id}`,
+                            task: `Did you know: ${tip.text}`,
+                            category: tip.category,
+                            details: `A helpful tip related to ${tip.category.toLowerCase()}. Priority: ${tip.priority}`,
+                            timeline: "Suggestion",
+                            isGoal: true,
+                        });
+                    }
+                });
+            }
+        }
+    });
+
+    return recommendations;
+
+  }, [assessmentData, guidanceRules, masterTasks, masterTips, auth?.companyName, companyConfigs, getCompanyConfig]);
+
+
   return {
     profileData,
     assessmentData,
@@ -1023,5 +1116,6 @@ export function useUserData() {
     deletePlatformUser,
     getPlatformUserRole,
     saveExternalResources,
+    getMappedRecommendations,
   };
 }
