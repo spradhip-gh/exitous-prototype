@@ -126,8 +126,30 @@ export default function ReviewQueuePage() {
         
         const reviewerId = auth?.email || 'admin';
         let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId };
+        
+        const allConfigs = getAllCompanyConfigs();
 
-        if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
+        if (status === 'approved' && item.inputData?.type === 'custom_question_guidance') {
+            const { companyName, question } = item.inputData;
+             if (!companyName || !question) {
+                 toast({ title: 'Error Applying Suggestion', description: 'The custom question data is incomplete.', variant: 'destructive' });
+                 return;
+            }
+            const companyConfig = allConfigs[companyName];
+            if (!companyConfig) {
+                 toast({ title: 'Error Applying Suggestion', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
+                 return;
+            }
+            
+            const newConfig = JSON.parse(JSON.stringify(companyConfig));
+            if (!newConfig.customQuestions) newConfig.customQuestions = {};
+
+            newConfig.customQuestions[question.id] = question;
+            saveCompanyConfig(companyName, newConfig);
+            toast({ title: `Custom Question Approved`, description: `Question "${question.label}" has been added to ${companyName}'s form.` });
+            reviewedItem = { ...reviewedItem, changeDetails: { approvedQuestion: question } };
+
+        } else if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
             const { companyName, questionId, suggestions } = item.inputData;
             
             if (!companyName || !questionId || !suggestions) {
@@ -135,7 +157,6 @@ export default function ReviewQueuePage() {
                  return;
             }
 
-            const allConfigs = getAllCompanyConfigs();
             const companyConfig = allConfigs[companyName];
             if (!companyConfig) {
                  toast({ title: 'Error Applying Suggestion', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
@@ -188,8 +209,8 @@ export default function ReviewQueuePage() {
         saveReviewQueue(updatedQueue);
     };
     
-    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type === 'question_edit_suggestion');
-    const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type !== 'question_edit_suggestion');
+    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending' && (item.inputData?.type === 'question_edit_suggestion' || item.inputData?.type === 'custom_question_guidance'));
+    const pendingReviewItems = reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type !== 'question_edit_suggestion' && item.inputData?.type !== 'custom_question_guidance');
     const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     return (
@@ -301,6 +322,7 @@ export default function ReviewQueuePage() {
 function ReviewItemCard({ item, onStatusChange, isInformational = false }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, isInformational?: boolean }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
+    const isCustomQuestion = item.inputData?.type === 'custom_question_guidance';
 
     if (isSuggestion) {
         const { companyName, questionLabel, suggestions } = item.inputData;
@@ -345,6 +367,31 @@ function ReviewItemCard({ item, onStatusChange, isInformational = false }: { ite
                              </div>
                         </div>
                      )}
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 border-t pt-4">
+                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
+                    <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => onStatusChange(item, 'approved')}><ThumbsUp className="mr-2"/> Approve</Button>
+                </CardFooter>
+            </Card>
+        )
+    }
+
+    if (isCustomQuestion) {
+        const { companyName, question } = item.inputData;
+        return (
+             <Card className="bg-muted/50">
+                <CardHeader>
+                     <CardTitle className="text-base flex items-center gap-2">
+                        <PlusCircle /> New Custom Question & Guidance
+                     </CardTitle>
+                    <CardDescription className="text-xs">
+                        Submitted by: {item.userEmail} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto">
+                        {JSON.stringify(question, null, 2)}
+                    </pre>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-4">
                     <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>

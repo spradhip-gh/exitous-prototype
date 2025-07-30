@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -79,14 +78,13 @@ function AnswerGuidanceDialog({
         }
     }, [isOpen, existingGuidance, answer, setSelectedTasks, setSelectedTips]);
 
-
-    if (!isOpen) {
-        return null;
-    }
-
     const handleSave = () => {
         onSaveGuidance(answer, selectedTasks, selectedTips, noGuidance);
         onOpenChange(false);
+    }
+    
+    if (!isOpen) {
+        return null;
     }
 
     return (
@@ -134,6 +132,8 @@ function AnswerGuidanceDialog({
 export default function EditQuestionDialog({
     isOpen, isNew, question, existingSections, onSave, onClose, masterQuestionForEdit
 }: EditQuestionDialogProps) {
+    
+    // --- HOOKS ---
     const { toast } = useToast();
     const { auth } = useAuth();
     const {
@@ -143,7 +143,8 @@ export default function EditQuestionDialog({
         getAllCompanyConfigs,
         saveCompanyConfig,
     } = useUserData();
-
+    
+    // --- STATE ---
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(question);
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
@@ -161,16 +162,9 @@ export default function EditQuestionDialog({
     const [selectedTipsForGuidance, setSelectedTipsForGuidance] = useState<string[]>([]);
     
     const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
+    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
 
-    const [taskSetter, setTaskSetter] = useState<( ( (newTask: MasterTask) => void ) | null)>(null);
-    const [tipSetter, setTipSetter] = useState<( ( (newTip: MasterTip) => void ) | null)>(null);
-
-    useEffect(() => {
-        if(auth?.companyName) {
-            setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
-        }
-    }, [auth?.companyName, getAllCompanyConfigs]);
-
+    // --- COMPUTED VALUES ---
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
     const isCustomQuestion = !!question?.isCustom;
@@ -178,66 +172,6 @@ export default function EditQuestionDialog({
     
     const allCompanyTasks = useMemo(() => companyConfig?.companyTasks || [], [companyConfig]);
     const allCompanyTips = useMemo(() => companyConfig?.companyTips || [], [companyConfig]);
-
-    const onAddNewTask = useCallback(() => {
-        setTaskSetter(() => (newTask: MasterTask) => {
-             setSelectedTasksForGuidance(prev => [...prev, newTask.id]);
-        });
-        setIsTaskFormOpen(true);
-        setIsGuidanceDialogOpen(false);
-    }, []);
-
-    const onAddNewTip = useCallback(() => {
-        setTipSetter(() => (newTip: MasterTip) => {
-            setSelectedTipsForGuidance(prev => [...prev, newTip.id]);
-        });
-        setIsTipFormOpen(true);
-        setIsGuidanceDialogOpen(false);
-    }, []);
-
-
-    const handleSaveNewTask = useCallback((taskData: MasterTask) => {
-        const companyName = auth?.companyName;
-        const currentConfig = companyConfig;
-        if (!companyName || !currentConfig) return;
-
-        const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
-        const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
-        saveCompanyConfig(companyName, newConfig);
-
-        if (taskSetter) {
-            taskSetter(taskData);
-        }
-        setIsTaskFormOpen(false);
-        setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, taskSetter]);
-
-    const handleSaveNewTip = useCallback((tipData: MasterTip) => {
-        const companyName = auth?.companyName;
-        const currentConfig = companyConfig;
-        if (!companyName || !currentConfig) return;
-        
-        const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
-        const newConfig = { ...currentConfig, companyTips: newCompanyTips };
-        saveCompanyConfig(companyName, newConfig);
-        
-        if (tipSetter) {
-            tipSetter(tipData);
-        }
-        setIsTipFormOpen(false);
-        setIsGuidanceDialogOpen(true);
-    }, [auth?.companyName, companyConfig, saveCompanyConfig, tipSetter]);
-
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentQuestion(question);
-            setIsCreatingNewSection(false);
-            setNewSectionName("");
-            setSuggestedOptionsToAdd([]);
-            setSuggestedOptionsToRemove([]);
-            setAnswerGuidance(question?.answerGuidance || {});
-        }
-    }, [isOpen, question]);
     
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -263,6 +197,83 @@ export default function EditQuestionDialog({
 
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
 
+    // --- EFFECTS ---
+    useEffect(() => {
+        if(auth?.companyName) {
+            setCompanyConfig(getAllCompanyConfigs()[auth.companyName]);
+        }
+    }, [auth?.companyName, getAllCompanyConfigs]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentQuestion(question);
+            setIsCreatingNewSection(false);
+            setNewSectionName("");
+            setSuggestedOptionsToAdd([]);
+            setSuggestedOptionsToRemove([]);
+            setAnswerGuidance(question?.answerGuidance || {});
+        }
+    }, [isOpen, question]);
+    
+    // --- CALLBACKS & HANDLERS ---
+    const onAddNewTask = useCallback(() => {
+        setNewItemCallback(() => (newTask: MasterTask) => {
+            setSelectedTasksForGuidance(prev => [...prev, newTask.id]);
+        });
+        setIsTaskFormOpen(true);
+        setIsGuidanceDialogOpen(false); // Hide guidance while creating task
+    }, []);
+
+    const onAddNewTip = useCallback(() => {
+        setNewItemCallback(() => (newTip: MasterTip) => {
+            setSelectedTipsForGuidance(prev => [...prev, newTip.id]);
+        });
+        setIsTipFormOpen(true);
+        setIsGuidanceDialogOpen(false); // Hide guidance while creating tip
+    }, []);
+
+    const handleSaveNewTask = useCallback((taskData: MasterTask) => {
+        const companyName = auth?.companyName;
+        const currentConfig = companyConfig;
+        if (!companyName || !currentConfig) return;
+
+        const newCompanyTasks = [...(currentConfig.companyTasks || []), taskData];
+        const newConfig = { ...currentConfig, companyTasks: newCompanyTasks };
+        
+        if (saveCompanyConfig) {
+            saveCompanyConfig(companyName, newConfig);
+        }
+        
+        toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
+
+        if (newItemCallback) {
+            newItemCallback(taskData);
+        }
+        setIsTaskFormOpen(false);
+        setIsGuidanceDialogOpen(true);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+
+    const handleSaveNewTip = useCallback((tipData: MasterTip) => {
+        const companyName = auth?.companyName;
+        const currentConfig = companyConfig;
+        if (!companyName || !currentConfig) return;
+        
+        const newCompanyTips = [...(currentConfig.companyTips || []), tipData];
+        const newConfig = { ...currentConfig, companyTips: newCompanyTips };
+
+        if (saveCompanyConfig) {
+            saveCompanyConfig(companyName, newConfig);
+        }
+        
+        toast({ title: 'Tip Added' });
+        
+        if (newItemCallback) {
+            newItemCallback(tipData);
+        }
+        setIsTipFormOpen(false);
+        setIsGuidanceDialogOpen(true);
+    }, [auth?.companyName, companyConfig, saveCompanyConfig, toast, newItemCallback]);
+    
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 

@@ -46,7 +46,7 @@ function MySuggestionsTab() {
         if (!auth?.email || !auth.companyName) return [];
         return reviewQueue
             .filter(item => 
-                item.inputData?.type === 'question_edit_suggestion' &&
+                (item.inputData?.type === 'question_edit_suggestion' || item.inputData?.type === 'custom_question_guidance') &&
                 item.userEmail.toLowerCase() === auth.email!.toLowerCase() &&
                 item.inputData?.companyName === auth.companyName
             )
@@ -90,8 +90,9 @@ function MySuggestionsTab() {
                                 <TableCell className="font-medium">{item.inputData.questionLabel}</TableCell>
                                 <TableCell>
                                     <div className="text-xs space-y-1">
-                                        {item.inputData.suggestions.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
-                                        {item.inputData.suggestions.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
+                                        {item.inputData.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
+                                        {item.inputData.suggestions?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                        {item.inputData.suggestions?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
                                     </div>
                                 </TableCell>
                                 <TableCell>{format(parseISO(item.createdAt), 'PPp')}</TableCell>
@@ -232,7 +233,7 @@ function QuestionEditor({
 
     }, [questionTree, companyConfig, questionType]);
 
-    const generateAndSaveConfig = useCallback((sections: HrOrderedSection[]) => {
+    const generateAndSaveConfig = useCallback((sections: HrOrderedSection[], isAutoApproved: boolean = false) => {
         if (!companyName) return;
         
         const allCompanyConfigs = getAllCompanyConfigs();
@@ -248,7 +249,9 @@ function QuestionEditor({
 
         const processQuestionForSave = (q: Question) => {
             if (q.isCustom) {
-                customQuestions[q.id] = q;
+                if (isAutoApproved) { // Only save if auto-approved (which means it's an admin)
+                    customQuestions[q.id] = q;
+                }
             } else {
                 const masterQ = allMasterQuestions[q.id];
                 if (!masterQ) {
@@ -290,7 +293,9 @@ function QuestionEditor({
         };
 
         saveCompanyConfig(companyName, newConfig);
-        toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+        if (isAutoApproved) {
+            toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
+        }
     }, [companyName, masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
 
 
@@ -310,7 +315,7 @@ function QuestionEditor({
         }
         newSections.forEach((s: HrOrderedSection) => findAndToggle(s.questions));
         setOrderedSections(newSections);
-        generateAndSaveConfig(newSections);
+        generateAndSaveConfig(newSections, true);
     };
     
     const handleEditClick = (question: Question) => {
@@ -351,10 +356,10 @@ function QuestionEditor({
         };
         newSections.forEach((s: HrOrderedSection) => findAndDelete(s.questions));
         setOrderedSections(newSections);
-        generateAndSaveConfig(newSections);
+        generateAndSaveConfig(newSections, true);
     };
 
-    const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any) => {
+    const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved: boolean = false) => {
         if (!questionToSave) return;
         
         if (suggestedEdits) {
@@ -427,6 +432,25 @@ function QuestionEditor({
                     newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
                 }
             }
+             if (!isAutoApproved) {
+                const reviewItem: ReviewQueueItem = {
+                    id: `review-custom-q-${Date.now()}`,
+                    userEmail: auth?.email || 'unknown-hr',
+                    inputData: {
+                        type: 'custom_question_guidance',
+                        companyName: auth?.companyName,
+                        questionLabel: newQuestion.label,
+                        questionId: newQuestion.id,
+                        question: newQuestion,
+                    },
+                    output: {},
+                    status: 'pending',
+                    createdAt: new Date().toISOString(),
+                };
+                addReviewQueueItem(reviewItem);
+                toast({ title: "Custom Question Submitted", description: "Your new question and its guidance have been sent for review."});
+            }
+
         } else { 
             const findAndUpdate = (questions: Question[]) => {
                 for (let i = 0; i < questions.length; i++) {
@@ -446,7 +470,7 @@ function QuestionEditor({
         }
         
         setOrderedSections(newSections);
-        generateAndSaveConfig(newSections);
+        generateAndSaveConfig(newSections, isAutoApproved);
         setIsEditing(false);
         setCurrentQuestion(null);
     };
@@ -461,7 +485,7 @@ function QuestionEditor({
                     const [movedQuestion] = section.questions.splice(index, 1);
                     section.questions.splice(targetIndex, 0, movedQuestion);
                     setOrderedSections(newSections);
-                    generateAndSaveConfig(newSections);
+                    generateAndSaveConfig(newSections, true);
                 }
                 break;
             }
