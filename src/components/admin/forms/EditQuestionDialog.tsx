@@ -287,6 +287,9 @@ export default function EditQuestionDialog({
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
+        // When saving, include the latest guidance overrides.
+        const questionToSave = { ...currentQuestion, answerGuidance: answerGuidanceOverrides };
+
         if (isSuggestionMode) {
              if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && Object.keys(answerGuidanceOverrides).length === 0) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance change.", variant: "destructive" });
@@ -322,7 +325,7 @@ export default function EditQuestionDialog({
             return;
         }
         
-        onSave({ ...currentQuestion, answerGuidance: answerGuidanceOverrides }, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
+        onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
     }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
@@ -511,11 +514,32 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
+                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-4">
-                        <Label>Answer Options &amp; Guidance</Label>
+                        <Label>Answer Options & Guidance</Label>
                         
-                        {isSuggestionMode ? (
+                        {(isAdmin || (isHrEditing && isCustomQuestion)) ? (
+                            <div className="space-y-2">
+                                {(currentQuestion.options || []).map((option, index) => (
+                                     <div key={index} className="flex items-center gap-2">
+                                         <Input value={option} onChange={(e) => setCurrentQuestion(q => {
+                                             if (!q || !q.options) return q;
+                                             const newOptions = [...q.options];
+                                             newOptions[index] = e.target.value;
+                                             return { ...q, options: newOptions };
+                                         })} />
+                                         <Button variant="outline" size="sm" onClick={() => openGuidanceDialog(option)}>
+                                            <Settings className="mr-2 h-4 w-4" />Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
+                                         </Button>
+                                         <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setCurrentQuestion(q => {
+                                             if (!q || !q.options) return q;
+                                             return { ...q, options: q.options.filter((_, i) => i !== index) };
+                                         })}><Trash2 className="h-4 w-4" /></Button>
+                                     </div>
+                                ))}
+                                <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? { ...q, options: [...(q.options || []), ''] } : null)}><PlusCircle className="mr-2"/> Add Option</Button>
+                            </div>
+                        ) : (
                              <div className="space-y-2 rounded-md border p-4">
                                 <Label>Current Answer Options</Label>
                                  {currentQuestion.options?.map(option => (
@@ -523,7 +547,7 @@ export default function EditQuestionDialog({
                                          <Label htmlFor={`remove-${option}`} className="font-normal">{option}</Label>
                                          <div className="flex items-center gap-2">
                                              <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                                 <Settings className="mr-2"/> Manage Guidance
+                                                 <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
                                              </Button>
                                              <Button size="sm" variant={suggestedOptionsToRemove.includes(option) ? "destructive" : "ghost"} className="text-destructive hover:text-destructive" onClick={() => handleToggleRemovalSuggestion(option)}>
                                                  <Trash2 className="mr-2 h-3 w-3" />
@@ -533,36 +557,7 @@ export default function EditQuestionDialog({
                                      </div>
                                  ))}
                              </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {isAdmin && (
-                                     <Textarea id="question-options" value={currentQuestion.options?.join('\n') || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, options: e.target.value.split('\n') } : null)} rows={currentQuestion.options?.length || 3} placeholder="One option per line"/>
-                                )}
-                                {(isHrEditing && isCustomQuestion) && (
-                                    <>
-                                        <div className="space-y-2">
-                                            {currentQuestion.options?.map((option, index) => (
-                                                 <div key={index} className="flex items-center gap-2">
-                                                     <Input value={option} onChange={(e) => setCurrentQuestion(q => {
-                                                         if (!q || !q.options) return q;
-                                                         const newOptions = [...q.options];
-                                                         newOptions[index] = e.target.value;
-                                                         return { ...q, options: newOptions };
-                                                     })} />
-                                                     <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setCurrentQuestion(q => {
-                                                         if (!q || !q.options) return q;
-                                                         return { ...q, options: q.options.filter((_, i) => i !== index) };
-                                                     })}><Trash2 className="h-4 w-4" /></Button>
-                                                 </div>
-                                            ))}
-                                        </div>
-                                         <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? { ...q, options: [...(q.options || []), ''] } : null)}><PlusCircle className="mr-2"/> Add Option</Button>
-                                    </>
-                                )}
-                                 {isHrEditing && !isCustomQuestion && <p className="text-xs text-muted-foreground">Options marked with <Star className="inline h-3 w-3 text-amber-500 fill-current"/> are custom to your company.</p>}
-                            </div>
                         )}
-                        
                         
                         {(isSuggestionMode || (isHrEditing && isCustomQuestion)) && (
                              <div className="space-y-2">
@@ -579,21 +574,6 @@ export default function EditQuestionDialog({
                                     ))}
                                 </div>
                                 <Button variant="outline" size="sm" className="mt-2" onClick={handleAddSuggestion}><PlusCircle className="mr-2"/> Suggest New Option</Button>
-                            </div>
-                        )}
-                        
-                        {(isAdmin || (isHrEditing && isCustomQuestion)) && (
-                            <div className="pt-2 space-y-2 border-t mt-4">
-                                <Label>Guidance for Answers</Label>
-                                <p className="text-xs text-muted-foreground">Map tasks or tips to each answer.</p>
-                                {currentQuestion.options?.filter(Boolean).map(option => (
-                                    <div key={option} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                                        <p>{option}</p>
-                                        <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                            <Settings className="mr-2"/> Manage Guidance
-                                        </Button>
-                                    </div>
-                                ))}
                             </div>
                         )}
                     </div>

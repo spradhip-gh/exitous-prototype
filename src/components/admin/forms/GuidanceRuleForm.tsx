@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
@@ -139,6 +140,7 @@ export function MultiSelectPopover({
                     )}
                  </Tooltip>
             </TooltipProvider>
+            {validSelectedIds.length > 2 && <p className="text-xs text-muted-foreground pl-1">Hover to see all selections.</p>}
         </div>
     );
 }
@@ -267,7 +269,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             return;
         }
         if (calculationType === 'tenure' && (!startDateQuestion || !endDateQuestion)) {
-            toast({ title: 'Date Questions Required', description: 'Please select both a start and end date question for tenure calculation.', variant: 'destructive' });
+            toast({ title: 'Date Questions Required', description: 'Please select both a start and end date question for tenure calculation.', variant: "destructive" });
             return;
         }
 
