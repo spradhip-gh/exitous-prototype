@@ -27,7 +27,7 @@ export default function UserGuidePage() {
                     </p>
                     <ul>
                         <li><strong>Key Dates Timeline:</strong> This visual timeline at the top gives you an at-a-glance overview of your most critical deadlines, like your final day of employment and when benefits coverage ends.</li>
-                        <li><strong>Personalized Next Steps:</strong> This is an AI-generated list of tasks, sorted by urgency, to help you navigate your exit. You can check items off as you complete them to track your progress.</li>
+                        <li><strong>Personalized Next Steps:</strong> This is an AI-generated list of tasks and helpful tips, sorted by urgency, to help you navigate your exit. You can check items off as you complete them to track your progress.</li>
                         <li><strong>Add Custom Dates:</strong> You can add your own personal deadlines or reminders to the timeline, such as "Follow up with recruiter," to keep all your important dates in one place.</li>
                     </ul>
 
