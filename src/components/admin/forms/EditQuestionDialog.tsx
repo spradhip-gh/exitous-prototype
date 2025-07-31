@@ -25,9 +25,17 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
+
+function truncateInMiddle(text: string, maxLength: number) {
+    if (text.length <= maxLength) {
+        return text;
+    }
+    const half = Math.floor((maxLength - 3) / 2);
+    return `${text.slice(0, half)}...${text.slice(text.length - half)}`;
+}
+
 
 function LocalMultiSelectPopover({
     label,
@@ -67,8 +75,9 @@ function LocalMultiSelectPopover({
     
     const displayLabel = useMemo(() => {
         if (validSelectedIds.length === 0) return `0 selected`;
+        const selectedItems = validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean);
         if (validSelectedIds.length <= 2) {
-            return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
+            return truncateInMiddle(selectedItems.join(', '), 40);
         }
         return `${validSelectedIds.length} selected`;
     }, [validSelectedIds, items]);
