@@ -205,7 +205,7 @@ function AnswerGuidanceDialog({
                         />
                         <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
                     </div>
-                     <fieldset disabled={noGuidanceRequired} className="space-y-4">
+                     <fieldset disabled={noGuidanceRequired} className="grid grid-cols-2 gap-4">
                         <LocalMultiSelectPopover
                             label="Tasks to Assign"
                             items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
