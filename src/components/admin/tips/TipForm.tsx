@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -11,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MasterTip } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
+import { reviewContent } from '@/ai/flows/content-review';
+import { Loader2, Wand2 } from 'lucide-react';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -25,6 +25,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
 }) {
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
+    const [isReviewing, setIsReviewing] = React.useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -42,6 +43,24 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
             return;
         }
         onSave({ ...formData, id } as MasterTip);
+    };
+
+    const handleAiReview = async () => {
+        if (!formData.text) {
+            toast({ title: 'No text to review', variant: 'destructive' });
+            return;
+        }
+        setIsReviewing(true);
+        try {
+            const revisedText = await reviewContent(formData.text);
+            setFormData(prev => ({ ...prev, text: revisedText }));
+            toast({ title: 'AI Review Complete', description: 'The tip text has been updated.'});
+        } catch (error) {
+            console.error('AI Review Failed:', error);
+            toast({ title: 'AI Review Failed', description: 'Could not review the text at this time.', variant: 'destructive'});
+        } finally {
+            setIsReviewing(false);
+        }
     };
     
     React.useEffect(() => {
@@ -67,7 +86,13 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                 </DialogHeader>
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="text">Tip Text</Label>
+                        <div className="flex justify-between items-center">
+                            <Label htmlFor="text">Tip Text</Label>
+                            <Button type="button" variant="outline" size="sm" onClick={handleAiReview} disabled={isReviewing}>
+                                {isReviewing ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2" />}
+                                Review with AI
+                            </Button>
+                        </div>
                         <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='e.g., You can rollover your 401k to an IRA...'/>
                     </div>
                      <div className="space-y-2">
