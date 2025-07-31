@@ -27,6 +27,9 @@ As an **HR Manager**, my goal is to efficiently manage exiting employees and cus
 *   **As an** HR Manager, **I want to** send "invitations" to users **so that** I can make them eligible to log in when the time is right.
 *   **As an** HR Manager, **I want to** customize the assessment form by enabling, disabling, or editing questions **so that** the experience is tailored to my company's specific terminology and processes.
 *   **As an** HR Manager, **I want to** add new, company-specific questions to the assessment **so that** I can gather information relevant only to my organization.
+*   **As an** HR Manager, **I want to** suggest edits to locked, platform-wide questions **so that** I can request changes that require Admin approval.
+*   **As an** HR Manager, **I want to** create company-specific tasks and tips **so that** I can provide custom guidance that is relevant only to my company.
+*   **As an** HR Manager, **I want to** map my custom tasks and tips to answers on the assessment **so that** my employees receive the correct custom guidance.
 *   **As an** HR Manager, **I want to** upload and manage company resources like benefits guides and policies **so that** I can provide tailored support to my employees.
 *   **As a** Primary HR Manager, **I want to** manage my own HR team by adding other managers and assigning them granular permissions **so that** I can delegate tasks securely and effectively.
 *   **As an** HR Manager, **I want to** easily switch between the multiple companies I manage **so that** I can efficiently perform my duties across different business units.
@@ -40,6 +43,10 @@ As an **HR Manager**, my goal is to efficiently manage exiting employees and cus
 As a **Platform Admin**, my goal is to manage the entire platform, including all companies and the master configuration.
 
 *   **As a** Platform Admin, **I want to** create and manage the master list of assessment questions, including adding helpful tooltips, **so that** I can provide a standardized, high-quality template for all companies to use.
+*   **As a** Platform Admin, **I want to** create and manage a master list of actionable tasks via a form or bulk CSV upload **so that** this content can be assigned to users.
+*   **As a** Platform Admin, **I want to** create and manage a master list of "Did you know..." tips via a form or bulk CSV upload **so that** this content can be assigned to users.
+*   **As a** Platform Admin, **I want to** create and manage complex guidance rules that assign tasks and tips based on multiple conditions (e.g., specific answers, user tenure, or age) **so that** I can provide deterministic, high-quality guidance for common scenarios.
+*   **As a** Platform Admin, **I want to** review and approve or reject suggestions submitted by HR Managers for locked questions or custom content **so that** I can maintain the quality and consistency of the platform's content.
 *   **As a** Platform Admin, **I want to** onboard new companies by creating their accounts and assigning HR Managers **so that** I can grow the platform's client base.
 *   **As a** Platform Admin, **I want to** manage platform-level users like other Admins and Consultants **so that** I can control access to the platform's administrative functions.
 *   **As a** Platform Admin, **I want to** manage the directory of external professional resources **so that** I can ensure users are connected with high-quality, vetted partners.
