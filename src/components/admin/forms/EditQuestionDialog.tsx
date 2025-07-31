@@ -76,13 +76,15 @@ function LocalMultiSelectPopover({
     const displayLabel = useMemo(() => {
         if (validSelectedIds.length === 0) return `0 selected`;
         const selectedItems = validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean);
+        const fullText = selectedItems.join(', ');
         if (validSelectedIds.length <= 2) {
-            return truncateInMiddle(selectedItems.join(', '), 40);
+            return truncateInMiddle(fullText, 40);
         }
         return `${validSelectedIds.length} selected`;
     }, [validSelectedIds, items]);
 
     const tooltipContent = useMemo(() => {
+        if (validSelectedIds.length === 0) return null;
         return validSelectedIds.map(id => items.find(item => item.id === id)?.name).filter(Boolean).join(', ');
     }, [validSelectedIds, items]);
 
@@ -124,7 +126,7 @@ function LocalMultiSelectPopover({
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </TooltipTrigger>
-                    {validSelectedIds.length > 0 && <TooltipContent><p className="max-w-xs">{tooltipContent}</p></TooltipContent>}
+                    {tooltipContent && <TooltipContent><p className="max-w-xs">{tooltipContent}</p></TooltipContent>}
                  </Tooltip>
             </TooltipProvider>
             {validSelectedIds.length > 2 && <p className="text-xs text-muted-foreground pl-1">Hover to see all selections.</p>}
