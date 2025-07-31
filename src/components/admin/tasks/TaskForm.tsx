@@ -39,10 +39,6 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        if (name === 'name' || name === 'detail') {
-            setHasBeenReviewed(false);
-            setAiSuggestion(null);
-        }
     };
 
     const handleSelectChange = (name: keyof MasterTask, value: string) => {

@@ -35,10 +35,6 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        if (name === 'text') {
-            setHasBeenReviewed(false);
-            setAiSuggestion(null);
-        }
     };
 
     const handleSelectChange = (name: keyof MasterTip, value: string) => {
