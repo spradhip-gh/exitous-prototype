@@ -9,6 +9,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import Handlebars from 'handlebars';
 
 const ReviewContentInputSchema = z.object({
     name: z.string().optional().describe('The short name or title of the content.'),
@@ -19,6 +20,7 @@ type ReviewContentInput = z.infer<typeof ReviewContentInputSchema>;
 const ReviewContentOutputSchema = z.object({
     revisedName: z.string().optional().describe('The revised name/title.'),
     revisedDetail: z.string().describe('The revised detail text.'),
+    debugPrompt: z.string().optional().describe('The full prompt sent to the AI for debugging.'),
 });
 type ReviewContentOutput = z.infer<typeof ReviewContentOutputSchema>;
 
@@ -35,7 +37,7 @@ const reviewContentFlow = ai.defineFlow(
   },
   async (input) => {
     
-    const prompt = `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, and a lawyer. Your primary goal is to review and refine the following text, which will be shown to an individual navigating a difficult job exit.
+    const promptTemplate = `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, and a lawyer. Your primary goal is to review and refine the following text, which will be shown to an individual navigating a difficult job exit.
 
 You will be given a "name" (a short title) and a "detail" (the main body of text).
 
@@ -65,14 +67,16 @@ Return the revised name and detail in the specified output format.
 {{{detail}}}
 ---
     `;
+    
+    const compiledTemplate = Handlebars.compile(promptTemplate);
+    const finalPrompt = compiledTemplate(input);
 
     const { output } = await ai.generate({
-      prompt,
+      prompt: finalPrompt,
       model: 'googleai/gemini-2.0-flash',
       output: { schema: ReviewContentOutputSchema },
-      context: { name: input.name, detail: input.detail },
     });
 
-    return output!;
+    return { ...output!, debugPrompt: finalPrompt };
   }
 );

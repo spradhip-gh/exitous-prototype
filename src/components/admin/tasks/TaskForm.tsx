@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ExternalResource, MasterTask } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -27,7 +28,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
-    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string } | null>(null);
+    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string; debugPrompt?: string } | null>(null);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -73,6 +74,8 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 setAiSuggestion(result);
             } else {
                 toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
+                 // Still show debug info even if no changes
+                setAiSuggestion({ revisedName: formData.name, revisedDetail: formData.detail!, debugPrompt: result.debugPrompt });
             }
         } catch (error) {
             console.error('AI Review Failed:', error);
@@ -153,16 +156,28 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                                             <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedDetail}</p>
                                         </div>
                                     </div>
-                                    <div className="flex justify-end gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
-                                        <Button size="sm" onClick={() => {
-                                            setFormData(prev => ({ 
-                                                ...prev, 
-                                                name: aiSuggestion.revisedName || prev.name,
-                                                detail: aiSuggestion.revisedDetail 
-                                            }));
-                                            setAiSuggestion(null);
-                                        }}>Accept Suggestions</Button>
+                                    <div className="flex justify-between items-center gap-2">
+                                        <Collapsible>
+                                            <CollapsibleTrigger asChild>
+                                                <Button variant="ghost" size="sm"><Terminal className="mr-2"/>View Prompt</Button>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <pre className="text-xs mt-2 p-2 bg-background rounded-md border max-h-60 overflow-auto whitespace-pre-wrap">
+                                                    {aiSuggestion.debugPrompt}
+                                                </pre>
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
+                                            <Button size="sm" onClick={() => {
+                                                setFormData(prev => ({ 
+                                                    ...prev, 
+                                                    name: aiSuggestion.revisedName || prev.name,
+                                                    detail: aiSuggestion.revisedDetail 
+                                                }));
+                                                setAiSuggestion(null);
+                                            }}>Accept Suggestions</Button>
+                                        </div>
                                     </div>
                                 </AlertDescription>
                             </Alert>
