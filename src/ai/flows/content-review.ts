@@ -52,7 +52,7 @@ You will be given a "name" (a short title) and a "detail" (the main body of text
 
 **CRITICAL INSTRUCTIONS:**
 - **Preserve Core Facts:** It is absolutely critical that you DO NOT change the core meaning, facts, or instructions of the text. Do not add new steps. Do not invent details like FedEx account numbers unless they are present in the original text. Your role is to improve the delivery, not to alter the message or add new information.
-- **No Conversational Filler:** Avoid conversational pleasantries like "Thank you" or "Please note." The tone should be helpful and direct, but not overly conversational.
+- **No Conversational Filler:** Avoid conversational pleasantries like "Thank you," "Please note," or "We appreciate your cooperation." The tone should be helpful and direct, but not overly conversational.
 - **Return Original if Unchanged:** If you believe a field does not need any changes, return the original text for that field.
 
 Return the revised name and detail in the specified output format.
