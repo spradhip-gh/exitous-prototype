@@ -27,7 +27,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
-    const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
+    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string } | null>(null);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -54,16 +54,23 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     };
 
     const handleAiReview = async () => {
-        if (!formData.detail) {
+        if (!formData.name && !formData.detail) {
             toast({ title: 'No text to review', variant: 'destructive' });
             return;
         }
         setIsReviewing(true);
         setAiSuggestion(null);
         try {
-            const revisedText = await reviewContent(formData.detail);
-            if (revisedText.trim() !== formData.detail.trim()) {
-                setAiSuggestion(revisedText);
+            const result = await reviewContent({
+                name: formData.name || '',
+                detail: formData.detail || '',
+            });
+
+            const hasNameChanged = result.revisedName && result.revisedName.trim() !== formData.name?.trim();
+            const hasDetailChanged = result.revisedDetail && result.revisedDetail.trim() !== formData.detail?.trim();
+
+            if (hasNameChanged || hasDetailChanged) {
+                setAiSuggestion(result);
             } else {
                 toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
             }
@@ -119,29 +126,48 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                      <div className="space-y-2 md:col-span-2">
                          <div className="flex justify-between items-center">
                             <Label htmlFor="detail">Task Detail (Markdown)</Label>
-                            <Button type="button" variant="outline" size="sm" onClick={handleAiReview} disabled={isReviewing}>
-                                {isReviewing ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2" />}
-                                Review with AI
-                            </Button>
                          </div>
                         <Textarea id="detail" name="detail" value={formData.detail || ''} onChange={handleInputChange} placeholder="Provide a detailed description of the task..." rows={5}/>
-                        {aiSuggestion && (
+                    </div>
+                     <div className="md:col-span-2">
+                        <Button type="button" variant="outline" size="sm" onClick={handleAiReview} disabled={isReviewing}>
+                            {isReviewing ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2" />}
+                            Review with AI
+                        </Button>
+                    </div>
+                    {aiSuggestion && (
+                        <div className="md:col-span-2">
                             <Alert className="mt-2">
                                 <Wand2 className="h-4 w-4" />
-                                <AlertTitle>AI Suggestion</AlertTitle>
+                                <AlertTitle>AI Suggestions</AlertTitle>
                                 <AlertDescription>
-                                    <p className="mb-4 text-base">{aiSuggestion}</p>
+                                    <div className="space-y-4 my-4">
+                                        {aiSuggestion.revisedName && aiSuggestion.revisedName !== formData.name && (
+                                            <div className="space-y-1">
+                                                <Label className="text-xs text-muted-foreground">Revised Name</Label>
+                                                <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedName}</p>
+                                            </div>
+                                        )}
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">Revised Detail</Label>
+                                            <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedDetail}</p>
+                                        </div>
+                                    </div>
                                     <div className="flex justify-end gap-2">
                                         <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
                                         <Button size="sm" onClick={() => {
-                                            setFormData(prev => ({ ...prev, detail: aiSuggestion }));
+                                            setFormData(prev => ({ 
+                                                ...prev, 
+                                                name: aiSuggestion.revisedName || prev.name,
+                                                detail: aiSuggestion.revisedDetail 
+                                            }));
                                             setAiSuggestion(null);
-                                        }}>Accept Suggestion</Button>
+                                        }}>Accept Suggestions</Button>
                                     </div>
                                 </AlertDescription>
                             </Alert>
-                        )}
-                    </div>
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
                         <Select name="category" value={formData.category} onValueChange={(v) => handleSelectChange('category', v as any)}>

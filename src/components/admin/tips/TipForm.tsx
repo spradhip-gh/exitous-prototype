@@ -27,7 +27,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
-    const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
+    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string } | null>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -55,9 +55,9 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
         setIsReviewing(true);
         setAiSuggestion(null);
         try {
-            const revisedText = await reviewContent(formData.text);
-            if (revisedText.trim() !== formData.text.trim()) {
-                setAiSuggestion(revisedText);
+            const result = await reviewContent({ detail: formData.text });
+            if (result.revisedDetail.trim() !== formData.text.trim()) {
+                setAiSuggestion(result);
             } else {
                 toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
             }
@@ -97,22 +97,22 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                      <div className="space-y-2 md:col-span-2">
                         <div className="flex justify-between items-center">
                             <Label htmlFor="text">Tip Text</Label>
-                            <Button type="button" variant="outline" size="sm" onClick={handleAiReview} disabled={isReviewing}>
-                                {isReviewing ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2" />}
-                                Review with AI
-                            </Button>
                         </div>
                         <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='e.g., You can rollover your 401k to an IRA...'/>
+                         <Button type="button" variant="outline" size="sm" onClick={handleAiReview} disabled={isReviewing}>
+                            {isReviewing ? <Loader2 className="animate-spin mr-2" /> : <Wand2 className="mr-2" />}
+                            Review with AI
+                        </Button>
                         {aiSuggestion && (
                             <Alert className="mt-2">
                                 <Wand2 className="h-4 w-4" />
                                 <AlertTitle>AI Suggestion</AlertTitle>
                                 <AlertDescription>
-                                    <p className="mb-4 text-base">{aiSuggestion}</p>
+                                    <p className="mb-4 text-base">{aiSuggestion.revisedDetail}</p>
                                     <div className="flex justify-end gap-2">
                                         <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
                                         <Button size="sm" onClick={() => {
-                                            setFormData(prev => ({ ...prev, text: aiSuggestion }));
+                                            setFormData(prev => ({ ...prev, text: aiSuggestion.revisedDetail }));
                                             setAiSuggestion(null);
                                         }}>Accept Suggestion</Button>
                                     </div>
