@@ -14,14 +14,14 @@ This document outlines the proposed database schema for the ExitBetter applicati
 6.  [User Assessments](#user_assessments)
 7.  [Master Questions](#master_questions)
 8.  [Company Question Configs](#company_question_configs)
-9.  [Master Tasks](#master_tasks)
-10. [Task Mappings](#task_mappings)
-11. [Master Tips](#master_tips)
-12. [Tip Mappings](#tip_mappings)
-13. [Company Resources](#company_resources)
-14. [External Resources](#external_resources)
-15. [Guidance Rules](#guidance_rules)
-16. [Review Queue](#review_queue)
+9.  [Master Tasks](#master_tasks) **(NEW)**
+10. [Task Mappings](#task_mappings) **(NEW)**
+11. [Master Tips](#master_tips) **(NEW)**
+12. [Tip Mappings](#tip_mappings) **(NEW)**
+13. [Company Resources](#company_resources) **(NEW)**
+14. [External Resources](#external_resources) **(NEW)**
+15. [Guidance Rules](#guidance_rules) **(NEW)**
+16. [Review Queue](#review_queue) **(NEW)**
 
 ---
 
@@ -132,7 +132,7 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
 | `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
 
-### `master_tasks`
+### `master_tasks` (NEW)
 
 Stores the master list of all possible tasks that can be assigned to users based on their answers.
 
@@ -148,7 +148,7 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
-### `task_mappings`
+### `task_mappings` (NEW)
 
 Maps tasks from `master_tasks` to specific question answers. This creates the logic for task generation.
 
@@ -162,7 +162,7 @@ Maps tasks from `master_tasks` to specific question answers. This creates the lo
 
 *Composite unique key on (`question_id`, `answer_value`, `task_id`).*
 
-### `master_tips`
+### `master_tips` (NEW)
 
 Stores the master list of all "Did you know..." tips that can be mapped to answers.
 
@@ -176,7 +176,7 @@ Stores the master list of all "Did you know..." tips that can be mapped to answe
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
 
-### `tip_mappings`
+### `tip_mappings` (NEW)
 
 Maps tips from `master_tips` to specific question answers.
 
@@ -190,7 +190,7 @@ Maps tips from `master_tips` to specific question answers.
 
 *Composite unique key on (`question_id`, `answer_value`, `tip_id`).*
 
-### `company_resources`
+### `company_resources` (NEW)
 
 Stores documents and links uploaded by an HR Manager for their employees.
 
@@ -206,7 +206,7 @@ Stores documents and links uploaded by an HR Manager for their employees.
 | `summary`     | `TEXT`    | Optional AI-generated summary of the document. |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
 
-### `external_resources`
+### `external_resources` (NEW)
 
 Stores the curated directory of professional services and partners that can be recommended to users.
 
@@ -227,7 +227,7 @@ Stores the curated directory of professional services and partners that can be r
 | `created_at`        | `TIMESTAMPTZ`| Timestamp of creation.                                 |
 | `updated_at`        | `TIMESTAMPTZ`| Timestamp of the last update.                          |
 
-### `guidance_rules`
+### `guidance_rules` (NEW)
 
 Stores consultant-created rules to provide deterministic, high-quality guidance when specific conditions are met.
 
@@ -244,7 +244,7 @@ Stores consultant-created rules to provide deterministic, high-quality guidance 
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of creation.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
 
-### `review_queue`
+### `review_queue` (NEW)
 
 A log of AI-generated recommendations for consultants to review, approve, or convert into guidance rules.
 
@@ -258,4 +258,3 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
-```
