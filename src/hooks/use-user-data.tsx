@@ -139,7 +139,9 @@ export interface CompanyConfig {
     resources?: Resource[];
     companyTasks?: MasterTask[];
     companyTips?: MasterTip[];
+    answerGuidanceOverrides?: Record<string, Record<string, AnswerGuidance>>;
 }
+
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
     newPrimaryManagerEmail?: string;
@@ -1042,11 +1044,14 @@ export function useUserData() {
 
     // 2. Process Answer Guidance from Custom Questions
     allQuestions.forEach(q => {
-        if (q.answerGuidance) {
-            const answer = assessmentData[q.id as keyof AssessmentData];
-            const guidance = answer && q.answerGuidance[answer as string];
+        const companyGuidance = companyConfig?.answerGuidanceOverrides?.[q.id];
+        const masterGuidance = q.answerGuidance;
+        const answer = assessmentData[q.id as keyof AssessmentData];
+        
+        if (answer && typeof answer === 'string') {
+            const guidance = (companyGuidance && companyGuidance[answer]) || (masterGuidance && masterGuidance[answer]);
             if (guidance) {
-                const assignments: RangeAssignment = { taskIds: guidance.tasks || [], tipIds: guidance.tips || [] };
+                 const assignments: RangeAssignment = { taskIds: guidance.tasks || [], tipIds: guidance.tips || [] };
                 processAssignments(assignments, true);
             }
         }
@@ -1121,6 +1126,7 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 
 
 

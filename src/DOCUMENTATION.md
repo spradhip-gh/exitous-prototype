@@ -2,9 +2,17 @@
 
 This document provides a detailed, step-by-step guide to building the Exitbetter application from scratch. It assumes a working knowledge of Next.js, React, TypeScript, and Tailwind CSS.
 
-## Recent Updates (Prototype 0.2-20250722)
+## Recent Updates (Since July 14, 2025)
 
-We've significantly enhanced the AI-driven guidance engine and added powerful new administrative tools to provide more accurate, comprehensive, and empathetic support for users.
+We've been hard at work adding new features to make the ExitBetter platform more powerful for HR Managers and more supportive for end-users. Here’s a look at what's new:
+
+### For HR Managers: New Tools for Tailored Support
+
+*   **Bulk User Upload:** You can now add multiple employees at once using the powerful new **CSV Upload** feature on the User Management page. The template allows you to pre-fill key dates and user-specific contact information, dramatically streamlining the onboarding process.
+*   **Resource Center Management:** You can now upload and manage company-specific documents directly through the new **Resources** page in your admin dashboard. Share important files like benefits guides, company policies, and contact lists to provide tailored support for your exiting employees.
+*   **Company Settings Hub:** A dedicated **Company Settings** page has been added. Here, you can view your company's subscription plan, track user license usage, and set default contact aliases and deadline timezones for your employees.
+*   **HR Team Management:** As a Primary HR Manager, you can now manage your own HR team by adding other managers and assigning them specific, granular permissions for each module on a per-company basis.
+*   **New HR Manager Guide:** To help you get the most out of these new features, a comprehensive **Help & Guide** page is now available directly from your admin sidebar.
 
 ### For Admins: Powerful New Content & Rule Management
 
@@ -14,31 +22,24 @@ We've significantly enhanced the AI-driven guidance engine and added powerful ne
 *   **Advanced Guidance Rules:** The **Guidance & Review** page now includes a fully functional "Guidance Rules" tab. This powerful feature allows Admins to create deterministic rules with multiple, complex conditions (e.g., based on tenure, date ranges) to assign specific tasks, overriding the default AI recommendations when necessary.
 *   **Inline Content Creation:** The workflow for mapping content has been streamlined. From the "Map Tasks" dialog in the form editor, Admins can now create a new task or tip on the fly without navigating to a different page.
 
----
+### For End-Users: An Improved & More Empathetic Experience
 
-## 1. Date Handling Standards
+*   **Enhanced Language:** We've updated the platform's language to be more inclusive and empathetic. Terms like "Pre/Post-Layoff" have been changed to **Pre/Post-End Date** to better reflect all types of employment separations.
+*   **Visual Key Dates Timeline:** Your dashboard now features an interactive timeline that visually maps out all your critical deadlines, from your final day to insurance coverage end dates, helping you see what's coming at a glance.
+*   **Start Over Functionality:** You now have the ability to clear your profile and assessment data and start fresh via an option in the user menu.
 
-To prevent regressions and ensure data consistency, the application follows a strict standard for handling date and time values.
+### General Platform Enhancements
 
-| Context                  | Format Required                                      | Implementation Notes                                                                                                                              |
-| ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Data Storage**         | `YYYY-MM-DD` (string)                                | All dates in `src/lib/demo-data.ts` and `localStorage` must be stored in this simple string format. This ensures serializability and consistency. |
-| **React Application State** | JavaScript `Date` object                             | Within the `useUserData` hook and React components, date strings are parsed into `Date` objects. This is required for UI components like `react-day-picker`. |
-| **API/AI Communication**   | Full ISO 8601 String                                 | When sending data to external services like Genkit flows, `Date` objects must be converted to a full ISO string (e.g., `date.toISOString()`).          |
-
-**Key Utilities:**
-- `convertStringsToDates()` in `use-user-data.tsx`: Used when loading data into the app state.
-- `convertDatesToStrings()` in `use-user-data.tsx`: Used when saving data back to `localStorage`.
-
-Adhering to this standard is critical for application stability.
+*   **Sortable User Lists:** The user management table for HR Managers now includes sortable columns, making it easier to organize and find employee records.
+*   **Prototype Status Banner:** A clear banner has been added to all pages to remind users that the application is a prototype and data may be reset.
 
 ---
 
-## 2. Initial Project Setup
+## 1. Initial Project Setup
 
 The foundation of the application is a standard Next.js project.
 
-### 2.1. Initialize Next.js App
+### 1.1. Initialize Next.js App
 
 Start by creating a new Next.js project with TypeScript and Tailwind CSS.
 
@@ -46,7 +47,7 @@ Start by creating a new Next.js project with TypeScript and Tailwind CSS.
 npx create-next-app@latest exitbetter --typescript --tailwind --eslint
 ```
 
-### 2.2. Install Core Dependencies
+### 1.2. Install Core Dependencies
 
 Navigate into your project directory and install the necessary packages for UI components, state management, forms, and drag-and-drop functionality.
 
@@ -65,7 +66,7 @@ npm install \
   @dnd-kit/core @dnd-kit/sortable papaparse
 ```
 
-### 2.3. Install AI Dependencies
+### 1.3. Install AI Dependencies
 
 Install Genkit for handling AI-powered features.
 
@@ -73,9 +74,9 @@ Install Genkit for handling AI-powered features.
 npm install genkit @genkit-ai/googleai @genkit-ai/next
 ```
 
-## 3. UI and Styling Configuration
+## 2. UI and Styling Configuration
 
-### 3.1. Initialize ShadCN UI
+### 2.1. Initialize ShadCN UI
 
 Initialize ShadCN UI to manage your component library. This will create the `components.json` file and set up necessary folders.
 
@@ -84,13 +85,13 @@ npx shadcn-ui@latest init
 ```
 Follow the prompts, selecting `Default` style, `Neutral` for the base color, and confirming your paths for `globals.css` and `tailwind.config.ts`.
 
-### 3.2. Configure Fonts and Theme
+### 2.2. Configure Fonts and Theme
 
 Update `src/app/layout.tsx` to import and use the 'Inter' and 'Space Grotesk' fonts from Google Fonts for body and headline text, respectively. Then, update `src/app/globals.css` and `tailwind.config.ts` to reflect the application's color palette (primary, accent, background) using HSL CSS variables as defined in the project files.
 
-## 4. Core Application Logic
+## 3. Core Application Logic
 
-### 4.1. Authentication (`useAuth`)
+### 3.1. Authentication (`useAuth`)
 
 Create a custom React hook `src/hooks/use-auth.tsx` to manage the user's authentication state globally.
 - **Technology:** Use `React.Context` to provide auth state to the entire application. Wrap the root layout in an `AuthProvider`.
@@ -102,7 +103,7 @@ Create a custom React hook `src/hooks/use-auth.tsx` to manage the user's authent
   - `startUserView()`: For HR Managers, saves current auth state as "original" and creates a temporary "end-user" auth state for previewing the user experience.
   - `stopUserView()`: Restores the original HR Manager auth state from `localStorage`.
 
-### 4.2. Data Management (`useUserData`)
+### 3.2. Data Management (`useUserData`)
 
 Create a central data management hook `src/hooks/use-user-data.tsx`. This hook is the single source of truth for all application data, abstracting away the underlying storage mechanism.
 
@@ -117,16 +118,16 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
   - **Data Mutators:** Create functions to save changes back to the in-memory store (e.g., `saveCompanyConfig(name, config)`, `saveMasterQuestions(questions)`). This pattern makes it easy to swap the in-memory store for a real database later.
   - **Derived Data:** Implement logic like `getCompanyConfig(companyName)` which intelligently merges the `masterQuestions` with company-specific `overrides` and `customQuestions` to produce the final form for that company.
 
-## 5. Building Pages and Components
+## 4. Building Pages and Components
 
-### 5.1. Create App Structure and Layouts
+### 4.1. Create App Structure and Layouts
 
 -   `src/app/layout.tsx`: Root layout that includes the `AuthProvider`, `Toaster`, and global font definitions.
 -   `src/app/page.tsx`: The main landing page, which contains the multi-role `Login` component. It includes logic to redirect authenticated users to their respective dashboards.
 -   `src/app/dashboard/layout.tsx`: Layout for the end-user dashboard, including the `DashboardNav` sidebar.
 -   `src/app/admin/layout.tsx`: Layout for all administrative roles (Admin, HR), including the collapsible admin sidebar with role-based navigation links.
 
-### 5.2. End-User Flow Pages
+### 4.2. End-User Flow Pages
 
 -   **Profile (`/dashboard/profile`):**
     -   Create a `ProfileForm` component that uses `react-hook-form` and a `zod` schema (`src/lib/schemas.ts`) for robust validation.
@@ -136,13 +137,12 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Create an `AssessmentForm` component.
     -   Dynamically build the form and its validation schema using the questions provided by `useUserData.getCompanyConfig()`. This ensures company-specific customizations are applied.
     -   Implement conditional logic to show/hide sub-questions based on the parent question's answer (e.g., show "relocation date" only if "relocation paid" is "Yes").
-    -   For date fields within sub-questions, provide an "I'm not sure" checkbox that allows users to bypass date selection if they don't have the information.
     -   The form should automatically populate with any data pre-filled by an HR manager (e.g., final employment date).
 -   **Dashboard (`/dashboard`):**
     -   Create a `ProgressTracker` component to show before both the profile and assessment are complete. It should disable the "Exit Details" button until the profile is done.
     -   Create the `TimelineDashboard` component to display the AI-generated recommendations after both forms are complete. This component fetches data from the Genkit flow.
 
-### 5.3. Admin & HR Flow Pages
+### 4.3. Admin & HR Flow Pages
 
 -   **Form Editor (`/admin/forms`):**
     -   Build a dual-mode page that renders either the `AdminFormEditor` or `HrFormEditor` based on the user's role.
@@ -161,9 +161,9 @@ Create a central data management hook `src/hooks/use-user-data.tsx`. This hook i
     -   Display key user statuses, such as invitation status, profile completion, and assessment completion. For the Admin view, show a simplified "Past" or "Future" indicator for notification dates.
     -   Provide an "Export to CSV" function that generates and triggers a download of the user list.
 
-## 6. AI Integration with Genkit
+## 5. AI Integration with Genkit
 
-### 6.1. Create Genkit Flow
+### 5.1. Create Genkit Flow
 
 In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that generates a personalized action plan for the user.
 -   **Input/Output Schemas:** Use `zod` to define strongly-typed input and output schemas.
@@ -177,4 +177,3 @@ In `src/ai/flows/personalized-recommendations.ts`, define a Genkit flow that gen
     -   **Resiliency:** Implement a retry mechanism within the flow to handle temporary "503 Service Unavailable" errors from the AI model, making the feature more robust. This function will be used by the `TimelineDashboard` component to fetch the recommendations.
 
 This guide provides a comprehensive roadmap to recreate the core functionality of the Exitbetter application. Each step involves creating components, defining logic, and styling according to the project's design guidelines.
-```
