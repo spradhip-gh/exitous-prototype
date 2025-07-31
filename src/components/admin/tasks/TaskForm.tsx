@@ -12,6 +12,7 @@ import { ExternalResource, MasterTask } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -26,6 +27,8 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
+    const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
+
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -56,10 +59,14 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
             return;
         }
         setIsReviewing(true);
+        setAiSuggestion(null);
         try {
             const revisedText = await reviewContent(formData.detail);
-            setFormData(prev => ({ ...prev, detail: revisedText }));
-            toast({ title: 'AI Review Complete', description: 'The task detail has been updated.'});
+            if (revisedText.trim() !== formData.detail.trim()) {
+                setAiSuggestion(revisedText);
+            } else {
+                toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
+            }
         } catch (error) {
             console.error('AI Review Failed:', error);
             toast({ title: 'AI Review Failed', description: 'Could not review the text at this time.', variant: 'destructive'});
@@ -69,15 +76,18 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     };
     
     React.useEffect(() => {
-        if (task) {
-            setFormData(task);
-        } else {
-            setFormData({
-                id: '',
-                type: 'layoff',
-                category: 'Financial',
-                deadlineType: 'notification_date',
-            });
+        if (isOpen) {
+            setAiSuggestion(null);
+            if (task) {
+                setFormData(task);
+            } else {
+                setFormData({
+                    id: '',
+                    type: 'layoff',
+                    category: 'Financial',
+                    deadlineType: 'notification_date',
+                });
+            }
         }
     }, [task, isOpen]);
 
@@ -115,6 +125,22 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                             </Button>
                          </div>
                         <Textarea id="detail" name="detail" value={formData.detail || ''} onChange={handleInputChange} placeholder="Provide a detailed description of the task..." rows={5}/>
+                        {aiSuggestion && (
+                            <Alert className="mt-2">
+                                <Wand2 className="h-4 w-4" />
+                                <AlertTitle>AI Suggestion</AlertTitle>
+                                <AlertDescription>
+                                    <p className="mb-4 text-base">{aiSuggestion}</p>
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
+                                        <Button size="sm" onClick={() => {
+                                            setFormData(prev => ({ ...prev, detail: aiSuggestion }));
+                                            setAiSuggestion(null);
+                                        }}>Accept Suggestion</Button>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>

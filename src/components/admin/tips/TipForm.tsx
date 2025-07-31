@@ -12,6 +12,7 @@ import { MasterTip } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -26,6 +27,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
+    const [aiSuggestion, setAiSuggestion] = React.useState<string | null>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -37,7 +39,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     };
 
     const handleSubmit = () => {
-        const id = tip?.id || `tip-${Date.now()}`;
+        const id = tip?.id || formData.id || `tip-${Date.now()}`;
         if (!formData.text || !formData.category || !formData.priority || !formData.type) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
             return;
@@ -51,10 +53,14 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
             return;
         }
         setIsReviewing(true);
+        setAiSuggestion(null);
         try {
             const revisedText = await reviewContent(formData.text);
-            setFormData(prev => ({ ...prev, text: revisedText }));
-            toast({ title: 'AI Review Complete', description: 'The tip text has been updated.'});
+            if (revisedText.trim() !== formData.text.trim()) {
+                setAiSuggestion(revisedText);
+            } else {
+                toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
+            }
         } catch (error) {
             console.error('AI Review Failed:', error);
             toast({ title: 'AI Review Failed', description: 'Could not review the text at this time.', variant: 'destructive'});
@@ -64,16 +70,19 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     };
     
     React.useEffect(() => {
-        if (tip) {
-            setFormData(tip);
-        } else {
-            setFormData({
-                id: '',
-                type: 'layoff',
-                category: 'Financial',
-                priority: 'Medium',
-                text: '',
-            });
+        if (isOpen) {
+            setAiSuggestion(null);
+            if (tip) {
+                setFormData(tip);
+            } else {
+                setFormData({
+                    id: '',
+                    type: 'layoff',
+                    category: 'Financial',
+                    priority: 'Medium',
+                    text: '',
+                });
+            }
         }
     }, [tip, isOpen]);
 
@@ -94,6 +103,22 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                             </Button>
                         </div>
                         <Textarea id="text" name="text" value={formData.text || ''} onChange={handleInputChange} placeholder='e.g., You can rollover your 401k to an IRA...'/>
+                        {aiSuggestion && (
+                            <Alert className="mt-2">
+                                <Wand2 className="h-4 w-4" />
+                                <AlertTitle>AI Suggestion</AlertTitle>
+                                <AlertDescription>
+                                    <p className="mb-4 text-base">{aiSuggestion}</p>
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
+                                        <Button size="sm" onClick={() => {
+                                            setFormData(prev => ({ ...prev, text: aiSuggestion }));
+                                            setAiSuggestion(null);
+                                        }}>Accept Suggestion</Button>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
@@ -121,6 +146,10 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                                 {tipTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="id">Unique ID</Label>
+                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={!!tip?.id} />
                     </div>
                 </div>
                 <DialogFooter>
