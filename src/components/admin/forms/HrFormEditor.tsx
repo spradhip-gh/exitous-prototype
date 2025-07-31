@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
+import TaskForm from "../tasks/TaskForm";
+import TipForm from "../tips/TipForm";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface HrOrderedSection {
     id: string;
@@ -129,7 +132,6 @@ function MySuggestionsTab() {
         </Card>
     );
 }
-
 
 function QuestionEditor({
     questionType,
@@ -549,13 +551,145 @@ function QuestionEditor({
     );
 }
 
+function CompanyContentTabs({ companyConfig, canWrite }: { companyConfig: CompanyConfig, canWrite: boolean }) {
+    const { toast } = useToast();
+    const { auth } = useAuth();
+    const companyName = auth!.companyName!;
+    const { saveCompanyConfig, externalResources } = useUserData();
+
+    const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [isTipFormOpen, setIsTipFormOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
+    const [editingTip, setEditingTip] = useState<Partial<MasterTip> | null>(null);
+    
+    const companyTasks = companyConfig.companyTasks || [];
+    const companyTips = companyConfig.companyTips || [];
+
+    const handleSaveTask = (task: MasterTask) => {
+        const newTasks = [...companyTasks];
+        const existingIndex = newTasks.findIndex(t => t.id === task.id);
+        if (existingIndex > -1) {
+            newTasks[existingIndex] = task;
+        } else {
+            newTasks.push(task);
+        }
+        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
+        toast({ title: "Company Task Saved" });
+        setIsTaskFormOpen(false);
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        const newTasks = companyTasks.filter(t => t.id !== taskId);
+        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
+        toast({ title: "Company Task Deleted" });
+    };
+
+    const handleSaveTip = (tip: MasterTip) => {
+        const newTips = [...companyTips];
+        const existingIndex = newTips.findIndex(t => t.id === tip.id);
+        if (existingIndex > -1) {
+            newTips[existingIndex] = tip;
+        } else {
+            newTips.push(tip);
+        }
+        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
+        toast({ title: "Company Tip Saved" });
+        setIsTipFormOpen(false);
+    };
+
+    const handleDeleteTip = (tipId: string) => {
+        const newTips = companyTips.filter(t => t.id !== tipId);
+        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
+        toast({ title: "Company Tip Deleted" });
+    };
+
+    return (
+        <>
+            <TabsContent value="company-tasks">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Company-Specific Tasks</CardTitle>
+                        <CardDescription>Manage custom tasks that can be assigned via guidance on your custom questions.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {companyTasks.map(task => (
+                                    <TableRow key={task.id}>
+                                        <TableCell>{task.name}</TableCell>
+                                        <TableCell><Badge variant="outline">{task.category}</Badge></TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => { setEditingTask(task); setIsTaskFormOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteTask(task.id)}><Trash2 className="h-4 w-4" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="outline" onClick={() => { setEditingTask(null); setIsTaskFormOpen(true); }}><PlusCircle className="mr-2" /> Add Company Task</Button>
+                    </CardFooter>
+                </Card>
+            </TabsContent>
+            <TabsContent value="company-tips">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Company-Specific Tips</CardTitle>
+                        <CardDescription>Manage custom tips that can be assigned via guidance on your custom questions.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Table>
+                            <TableHeader><TableRow><TableHead>Text</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {companyTips.map(tip => (
+                                    <TableRow key={tip.id}>
+                                        <TableCell className="max-w-md truncate">{tip.text}</TableCell>
+                                        <TableCell><Badge variant="outline">{tip.category}</Badge></TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => { setEditingTip(tip); setIsTipFormOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteTip(tip.id)}><Trash2 className="h-4 w-4" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="outline" onClick={() => { setEditingTip(null); setIsTipFormOpen(true); }}><PlusCircle className="mr-2" /> Add Company Tip</Button>
+                    </CardFooter>
+                </Card>
+            </TabsContent>
+
+            <TaskForm 
+                isOpen={isTaskFormOpen}
+                onOpenChange={setIsTaskFormOpen}
+                task={editingTask}
+                onSave={(task) => handleSaveTask({ ...task, isCompanySpecific: true })}
+                allResources={externalResources}
+            />
+            <TipForm
+                isOpen={isTipFormOpen}
+                onOpenChange={setIsTipFormOpen}
+                tip={editingTip}
+                onSave={(tip) => handleSaveTip({ ...tip, isCompanySpecific: true })}
+            />
+        </>
+    )
+}
+
 export default function HrFormEditor() {
     const { auth } = useAuth();
-    const { companyAssignmentForHr, isLoading } = useUserData();
+    const { companyAssignmentForHr, isLoading, getAllCompanyConfigs } = useUserData();
     const companyName = auth?.companyName;
     const canWrite = auth?.permissions?.formEditor === 'write';
 
-    if (isLoading || companyAssignmentForHr === undefined) {
+    const companyConfig = useMemo(() => {
+        return companyName ? getAllCompanyConfigs()[companyName] : undefined;
+    }, [companyName, getAllCompanyConfigs]);
+
+    if (isLoading || companyAssignmentForHr === undefined || !companyConfig) {
         return <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8"><Skeleton className="h-64 w-full" /></div></div>;
     }
     if (!companyName || !companyAssignmentForHr) {
@@ -572,18 +706,21 @@ export default function HrFormEditor() {
                     <h1 className="font-headline text-3xl font-bold">Form Editor</h1>
                     <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
-                 <Tabs defaultValue="assessment">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
-                        <TabsTrigger value="profile">Profile Questions</TabsTrigger>
+                 <Tabs defaultValue="assessment-questions">
+                    <TabsList className="grid w-full grid-cols-5">
+                        <TabsTrigger value="assessment-questions">Assessment Questions</TabsTrigger>
+                        <TabsTrigger value="profile-questions">Profile Questions</TabsTrigger>
+                        <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
+                        <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="assessment" className="mt-6">
+                    <TabsContent value="assessment-questions" className="mt-6">
                        <QuestionEditor questionType="assessment" canWrite={canWrite} />
                     </TabsContent>
-                    <TabsContent value="profile" className="mt-6">
+                    <TabsContent value="profile-questions" className="mt-6">
                         <QuestionEditor questionType="profile" canWrite={canWrite} />
                     </TabsContent>
+                    <CompanyContentTabs companyConfig={companyConfig} canWrite={canWrite} />
                     <TabsContent value="suggestions" className="mt-6">
                        <MySuggestionsTab />
                     </TabsContent>

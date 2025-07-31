@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -50,7 +51,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     }
 
     const handleSubmit = () => {
-        const id = task?.id || formData.id || `task-${Date.now()}`;
+        const id = task?.id || formData.id || `custom-task-${Date.now()}`;
         if (!id || !formData.name || !formData.category || !formData.detail || !formData.deadlineType) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
             return;
@@ -114,7 +115,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>{task?.id ? 'Edit Master Task' : 'Add New Master Task'}</DialogTitle>
+                    <DialogTitle>{task?.id ? 'Edit Task' : 'Add New Task'}</DialogTitle>
                     <DialogDescription>Fill in the details for the task. This task will be available to map to questions.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
