@@ -47,9 +47,13 @@ You will be given a "name" (a short title) and a "detail" (the main body of text
 **Detail Text Instructions:**
 - **Correct Spelling and Grammar:** Meticulously fix any and all spelling mistakes or grammatical errors to ensure the text is professional and clear.
 - **Enhance for Empathy and Kindness:** Adjust the tone to be exceptionally supportive, empathetic, and kind. The user is in a vulnerable state, and the language must be gentle and encouraging. Avoid corporate jargon or overly blunt phrasing.
-- **Preserve Core Facts:** It is absolutely critical that you DO NOT change the core meaning, facts, or instructions of the text. Your role is to improve the delivery, not alter the message.
+- **Keep it Concise:** Keep the revised detail text clear and concise, ideally under 100 words.
 
-Return the revised name and detail in the specified output format. If you believe a field does not need any changes, return the original text for that field.
+**CRITICAL INSTRUCTIONS:**
+- **Preserve Core Facts:** It is absolutely critical that you DO NOT change the core meaning, facts, or instructions of the text. Do not add new steps. Do not invent details like FedEx account numbers unless they are present in the original text. Your role is to improve the delivery, not to alter the message or add new information.
+- **Return Original if Unchanged:** If you believe a field does not need any changes, return the original text for that field.
+
+Return the revised name and detail in the specified output format.
 
 **Original Name:**
 ---
