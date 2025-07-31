@@ -28,7 +28,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
-    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string; debugPrompt?: string } | null>(null);
+    const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string; } | null>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -61,7 +61,6 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                 setAiSuggestion(result);
             } else {
                 toast({ title: 'No Changes Suggested', description: 'The AI found no improvements to suggest.'});
-                setAiSuggestion({ revisedDetail: formData.text, debugPrompt: result.debugPrompt });
             }
         } catch (error) {
             console.error('AI Review Failed:', error);
@@ -116,24 +115,12 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                                             <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedDetail}</p>
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-center gap-2">
-                                         <Collapsible>
-                                            <CollapsibleTrigger asChild>
-                                                <Button variant="ghost" size="sm"><Terminal className="mr-2"/>View Prompt</Button>
-                                            </CollapsibleTrigger>
-                                            <CollapsibleContent>
-                                                <pre className="text-xs mt-2 p-2 bg-background rounded-md border max-h-60 overflow-auto whitespace-pre-wrap">
-                                                    {aiSuggestion.debugPrompt}
-                                                </pre>
-                                            </CollapsibleContent>
-                                        </Collapsible>
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
-                                            <Button size="sm" onClick={() => {
-                                                setFormData(prev => ({ ...prev, text: aiSuggestion.revisedDetail }));
-                                                setAiSuggestion(null);
-                                            }}>Accept Suggestion</Button>
-                                        </div>
+                                    <div className="flex justify-end items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
+                                        <Button size="sm" onClick={() => {
+                                            setFormData(prev => ({ ...prev, text: aiSuggestion.revisedDetail }));
+                                            setAiSuggestion(null);
+                                        }}>Accept Suggestion</Button>
                                     </div>
                                 </AlertDescription>
                             </Alert>
