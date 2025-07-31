@@ -10,10 +10,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-const ContentReviewInputSchema = z.string();
-
-const ContentReviewOutputSchema = z.string();
-
 export async function reviewContent(text: string): Promise<string> {
     return reviewContentFlow(text);
 }
@@ -21,24 +17,24 @@ export async function reviewContent(text: string): Promise<string> {
 const reviewContentFlow = ai.defineFlow(
   {
     name: 'reviewContentFlow',
-    inputSchema: ContentReviewInputSchema,
-    outputSchema: ContentReviewOutputSchema,
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (text) => {
     
-    const prompt = `You are an expert editor specializing in compassionate and clear communication. Your task is to review the following text.
+    const prompt = `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, and a lawyer. Your primary goal is to review and refine the following text, which will be shown to an individual navigating a difficult job exit.
 
-    Your goals are:
-    1.  **Correct Spelling and Grammar:** Fix any spelling mistakes or grammatical errors.
-    2.  **Improve Tone:** Adjust the tone to be more empathetic, supportive, and kind. The user is likely going through a difficult time.
-    3.  **Preserve Facts:** DO NOT change the core meaning, facts, or instructions of the text. The fundamental information must remain the same.
+Your task is to edit the text with three core goals in mind:
+1.  **Correct Spelling and Grammar:** Meticulously fix any and all spelling mistakes or grammatical errors to ensure the text is professional and clear.
+2.  **Enhance for Empathy and Kindness:** Adjust the tone to be exceptionally supportive, empathetic, and kind. The user is in a vulnerable state, and the language must be gentle and encouraging. Avoid corporate jargon or overly blunt phrasing.
+3.  **Preserve Core Facts:** It is absolutely critical that you DO NOT change the core meaning, facts, or instructions of the text. The fundamental information must remain the same. Your role is to improve the delivery, not alter the message.
 
-    Return only the revised text.
+Return only the revised text, ready to be shown to the user.
 
-    Original Text:
-    ---
-    {{{text}}}
-    ---
+Original Text:
+---
+{{{text}}}
+---
     `;
 
     const { output } = await ai.generate({
@@ -50,3 +46,4 @@ const reviewContentFlow = ai.defineFlow(
     return output || text;
   }
 );
+
