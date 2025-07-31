@@ -29,11 +29,15 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string; } | null>(null);
-
+    const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'name' || name === 'detail') {
+            setHasBeenReviewed(false);
+            setAiSuggestion(null);
+        }
     };
 
     const handleSelectChange = (name: keyof MasterTask, value: string) => {
@@ -49,6 +53,10 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         const id = task?.id || formData.id || `task-${Date.now()}`;
         if (!id || !formData.name || !formData.category || !formData.detail || !formData.deadlineType) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
+            return;
+        }
+        if (!hasBeenReviewed) {
+            toast({ title: 'Review Required', description: 'Please review the content with AI before saving.', variant: 'destructive' });
             return;
         }
         onSave({ ...formData, id } as MasterTask);
@@ -80,6 +88,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
             toast({ title: 'AI Review Failed', description: 'Could not review the text at this time.', variant: 'destructive'});
         } finally {
             setIsReviewing(false);
+            setHasBeenReviewed(true);
         }
     };
     
@@ -88,6 +97,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
             setAiSuggestion(null);
             if (task) {
                 setFormData(task);
+                setHasBeenReviewed(true); // Existing tasks are considered "reviewed"
             } else {
                 setFormData({
                     id: '',
@@ -95,6 +105,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                     category: 'Financial',
                     deadlineType: 'notification_date',
                 });
+                setHasBeenReviewed(false);
             }
         }
     }, [task, isOpen]);
@@ -205,7 +216,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Save Task</Button>
+                    <Button onClick={handleSubmit} disabled={!hasBeenReviewed}>Save Task</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

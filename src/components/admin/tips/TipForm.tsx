@@ -29,10 +29,15 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string; } | null>(null);
+    const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'text') {
+            setHasBeenReviewed(false);
+            setAiSuggestion(null);
+        }
     };
 
     const handleSelectChange = (name: keyof MasterTip, value: string) => {
@@ -43,6 +48,10 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
         const id = tip?.id || formData.id || `tip-${Date.now()}`;
         if (!formData.text || !formData.category || !formData.priority || !formData.type) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
+            return;
+        }
+         if (!hasBeenReviewed) {
+            toast({ title: 'Review Required', description: 'Please review the content with AI before saving.', variant: 'destructive' });
             return;
         }
         onSave({ ...formData, id } as MasterTip);
@@ -67,6 +76,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
             toast({ title: 'AI Review Failed', description: 'Could not review the text at this time.', variant: 'destructive'});
         } finally {
             setIsReviewing(false);
+            setHasBeenReviewed(true);
         }
     };
     
@@ -75,6 +85,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
             setAiSuggestion(null);
             if (tip) {
                 setFormData(tip);
+                setHasBeenReviewed(true); // Existing tips are considered "reviewed"
             } else {
                 setFormData({
                     id: '',
@@ -83,6 +94,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                     priority: 'Medium',
                     text: '',
                 });
+                setHasBeenReviewed(false);
             }
         }
     }, [tip, isOpen]);
@@ -160,7 +172,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Save Tip</Button>
+                    <Button onClick={handleSubmit} disabled={!hasBeenReviewed}>Save Tip</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
