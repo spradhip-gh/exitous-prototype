@@ -23,6 +23,8 @@ import { v4 as uuidv4 } from 'uuid';
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
 import { Pencil, Trash2 } from "lucide-react";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 
 interface HrOrderedSection {
     id: string;
@@ -617,7 +619,18 @@ function CompanyContentTabs({ companyConfig, canWrite }: { companyConfig: Compan
                             <TableBody>
                                 {companyTasks.map(task => (
                                     <TableRow key={task.id}>
-                                        <TableCell>{task.name}</TableCell>
+                                        <TableCell className="max-w-md">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="truncate">{task.name}</p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{task.name}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
                                         <TableCell><Badge variant="outline">{task.category}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => { setEditingTask(task); setIsTaskFormOpen(true); }}><Pencil className="h-4 w-4" /></Button>
@@ -645,7 +658,18 @@ function CompanyContentTabs({ companyConfig, canWrite }: { companyConfig: Compan
                             <TableBody>
                                 {companyTips.map(tip => (
                                     <TableRow key={tip.id}>
-                                        <TableCell className="max-w-md truncate">{tip.text}</TableCell>
+                                        <TableCell className="max-w-md">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="truncate">{tip.text}</p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="max-w-xs">{tip.text}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
                                         <TableCell><Badge variant="outline">{tip.category}</Badge></TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => { setEditingTip(tip); setIsTipFormOpen(true); }}><Pencil className="h-4 w-4" /></Button>
