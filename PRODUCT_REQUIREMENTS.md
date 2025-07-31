@@ -196,4 +196,3 @@ Stores the curated directory of professional services and partners.
 | `website`           | `TEXT`  | The URL to the resource's website.                     |
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `related_task_ids`  | `JSONB` | An array of `taskId`s that this resource can help with. |
-```
