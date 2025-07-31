@@ -15,6 +15,7 @@ import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2, Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { useAuth } from '@/hooks/use-auth';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -27,10 +28,13 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     allResources: ExternalResource[];
 }) {
     const { toast } = useToast();
+    const { auth } = useAuth();
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string; } | null>(null);
     const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
+    
+    const isAdmin = auth?.role === 'admin';
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -204,16 +208,18 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                         <Label htmlFor="deadlineDays">Deadline Days After Event</Label>
                         <Input id="deadlineDays" name="deadlineDays" type="number" value={formData.deadlineDays || ''} onChange={(e) => handleNumberChange('deadlineDays', e.target.value)} placeholder="e.g., 30"/>
                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="linkedResourceId">Linked Resource (Optional)</Label>
-                        <Select name="linkedResourceId" value={formData.linkedResourceId} onValueChange={(v) => handleSelectChange('linkedResourceId', v === 'none' ? '' : v)}>
-                            <SelectTrigger id="linkedResourceId"><SelectValue placeholder="Select a resource..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                {(allResources || []).map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {isAdmin && (
+                         <div className="space-y-2">
+                            <Label htmlFor="linkedResourceId">Linked Resource (Optional)</Label>
+                            <Select name="linkedResourceId" value={formData.linkedResourceId} onValueChange={(v) => handleSelectChange('linkedResourceId', v === 'none' ? '' : v)}>
+                                <SelectTrigger id="linkedResourceId"><SelectValue placeholder="Select a resource..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {(allResources || []).map(res => <SelectItem key={res.id} value={res.id}>{res.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

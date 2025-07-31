@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -397,7 +398,10 @@ export default function EditQuestionDialog({
         if (!currentQuestion) return;
 
         // When saving, include the latest guidance overrides.
-        const questionToSave = { ...currentQuestion, answerGuidance: answerGuidanceOverrides };
+        const questionToSave: Partial<Question> = { 
+            ...currentQuestion, 
+            answerGuidance: Object.keys(answerGuidanceOverrides).length > 0 ? answerGuidanceOverrides : undefined 
+        };
 
         if (isSuggestionMode) {
              if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && Object.keys(answerGuidanceOverrides).length === 0) {
@@ -434,7 +438,29 @@ export default function EditQuestionDialog({
             return;
         }
         
-        onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isHrEditing && isNew);
+        const isAutoApproved = isHrEditing && isNew;
+
+        if (isAutoApproved) {
+             const reviewItem: ReviewQueueItem = {
+                id: `review-custom-q-${Date.now()}`,
+                userEmail: auth?.email || 'unknown-hr',
+                inputData: {
+                    type: 'custom_question_guidance',
+                    companyName: auth?.companyName,
+                    questionLabel: questionToSave.label,
+                    questionId: questionToSave.id,
+                    question: questionToSave as Question,
+                },
+                output: {},
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            };
+            addReviewQueueItem(reviewItem);
+            toast({ title: "Custom Question Added", description: "Your new question is live and has been sent for administrative review." });
+        }
+
+
+        onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
     }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
