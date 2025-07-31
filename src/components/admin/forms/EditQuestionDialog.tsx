@@ -28,14 +28,13 @@ import { cn } from "@/lib/utils";
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 
-function truncateInMiddle(text: string, maxLength: number) {
+function truncateInMiddle(text: string, maxLength: number): string {
     if (text.length <= maxLength) {
         return text;
     }
     const half = Math.floor((maxLength - 3) / 2);
     return `${text.slice(0, half)}...${text.slice(text.length - half)}`;
 }
-
 
 function LocalMultiSelectPopover({
     label,
