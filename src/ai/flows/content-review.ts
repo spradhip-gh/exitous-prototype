@@ -47,6 +47,6 @@ const reviewContentFlow = ai.defineFlow(
       context: { text },
     });
 
-    return output() || text;
+    return output || text;
   }
 );
