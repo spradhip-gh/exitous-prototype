@@ -3,7 +3,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,9 +23,9 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Dialog } from "@/components/ui/dialog";
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -449,15 +449,15 @@ export default function EditQuestionDialog({
         <>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                 <DialogTitle>{isHrEditing ? 'Suggest Edits to Question' : (isNew ? 'Add New Master Question' : 'Edit Question')}</DialogTitle>
+                 <DialogTitle>{isNew ? (isAdmin ? 'Add New Master Question' : 'Add New Custom Question') : 'Edit Question'}</DialogTitle>
                 <DialogDescription>
-                    {isHrEditing 
+                    {isHrEditing && !isCustomQuestion
                         ? 'Suggest changes to this locked master question. Your suggestions will be sent for review.'
-                        : (isNew ? 'Create a new question that will be available to all companies.' : 'Modify the question text, answer options, and default value.')}
+                        : (isNew ? (isAdmin ? 'Create a new question that will be available to all companies.' : 'Create a new custom question for your company.') : 'Modify the question text, answer options, and default value.')}
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isHrEditing && !isCustomQuestion} className="space-y-6 py-4">
+            <fieldset disabled={isHrEditing && !isCustomQuestion && !isNew} className="space-y-6 py-4">
                  {isHrEditing && isCustomQuestion && (
                     <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800">
                         <HelpCircle className="h-4 w-4 !text-blue-600"/>
@@ -519,17 +519,7 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {currentQuestion.isCustom && !currentQuestion.parentId && existingSections && (
-                    <div className="space-y-2">
-                        <Label htmlFor="question-section">Section</Label>
-                        <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, section: v as any } : null)} value={currentQuestion.section || ''}>
-                            <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
-                            <SelectContent>{existingSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                )}
-
-                {!currentQuestion.parentId && !currentQuestion.isCustom && existingSections && (
+                {!currentQuestion.parentId && existingSections && (
                     <div className="space-y-2">
                         <Label htmlFor="question-section">Section</Label>
                         <Select
@@ -561,21 +551,19 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {currentQuestion.isCustom && (
-                    <div className="space-y-2">
-                        <Label htmlFor="question-type">Question Type</Label>
-                        <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, type: v as any, options: [] } : null)} value={currentQuestion.type}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="text">Text</SelectItem>
-                                <SelectItem value="select">Select</SelectItem>
-                                <SelectItem value="radio">Radio</SelectItem>
-                                <SelectItem value="checkbox">Checkbox</SelectItem>
-                                <SelectItem value="date">Date</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
+                <div className="space-y-2">
+                    <Label htmlFor="question-type">Question Type</Label>
+                    <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, type: v as any, options: [] } : null)} value={currentQuestion.type}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="select">Select</SelectItem>
+                            <SelectItem value="radio">Radio</SelectItem>
+                            <SelectItem value="checkbox">Checkbox</SelectItem>
+                            <SelectItem value="date">Date</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
 
                  {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                     <div className="space-y-4">
@@ -602,56 +590,83 @@ export default function EditQuestionDialog({
                 
                 <Separator />
                 
-                <div className="space-y-4 rounded-md border border-dashed p-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2"><Link className="text-muted-foreground"/>Conditional Logic (Optional)</h3>
-                    <p className="text-xs text-muted-foreground">Only show this question if another question has a specific answer.</p>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Source Form</Label>
-                            <Select value={currentQuestion.dependencySource || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependencySource: v as any, dependsOn: '', dependsOnValue: '' } : null)}>
-                                <SelectTrigger><SelectValue placeholder="Select Source..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="profile">Profile Form</SelectItem>
-                                    <SelectItem value="assessment">Assessment Form</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Source Question</Label>
-                             <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: [] } : null)} disabled={!currentQuestion.dependencySource}>
-                                <SelectTrigger><SelectValue placeholder="Select Question..." /></SelectTrigger>
-                                <SelectContent>
-                                    {(currentQuestion.dependencySource && dependencyQuestions[currentQuestion.dependencySource])?.map(q => (
-                                        <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                {(currentQuestion.options && currentQuestion.options.length > 0) && (
+                     <div className="space-y-4">
+                        <Label>Answer Guidance</Label>
+                         <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
+                        <div className="space-y-2 rounded-md border p-4">
+                             {optionsText.split('\n').filter(o => o.trim()).map(option => (
+                                 <div key={option} className="flex items-center justify-between">
+                                     <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
+                                     <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                         <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
+                                     </Button>
+                                 </div>
+                             ))}
                         </div>
                     </div>
-                    {sourceQuestionOptions.length > 0 && (
-                        <div className="space-y-2">
-                            <Label>Trigger Answer(s)</Label>
-                            <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
-                                {sourceQuestionOptions.map(option => {
-                                    const isChecked = Array.isArray(currentQuestion.dependsOnValue) && currentQuestion.dependsOnValue.includes(option);
-                                    return (
-                                        <div key={option} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`trigger-${option}`}
-                                                checked={isChecked}
-                                                onCheckedChange={(checked) => handleDependsOnValueChange(option, !!checked)}
-                                            />
-                                            <Label htmlFor={`trigger-${option}`} className="font-normal">{option}</Label>
-                                        </div>
-                                    );
-                                })}
+                )}
+                
+                <Collapsible>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="link" className="p-0 h-auto flex items-center gap-2">
+                           <Link className="text-muted-foreground"/> Show Advanced Conditional Logic <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <div className="space-y-4 rounded-md border border-dashed p-4 mt-2">
+                            <h3 className="text-sm font-semibold">Conditional Logic (Optional)</h3>
+                            <p className="text-xs text-muted-foreground">Only show this question if another question has a specific answer.</p>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Source Form</Label>
+                                    <Select value={currentQuestion.dependencySource || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependencySource: v as any, dependsOn: '', dependsOnValue: '' } : null)}>
+                                        <SelectTrigger><SelectValue placeholder="Select Source..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="profile">Profile Form</SelectItem>
+                                            <SelectItem value="assessment">Assessment Form</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Source Question</Label>
+                                    <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: [] } : null)} disabled={!currentQuestion.dependencySource}>
+                                        <SelectTrigger><SelectValue placeholder="Select Question..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {(currentQuestion.dependencySource && dependencyQuestions[currentQuestion.dependencySource])?.map(q => (
+                                                <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">The answer(s) that will make this question appear.</p>
+                            {sourceQuestionOptions.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label>Trigger Answer(s)</Label>
+                                    <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                        {sourceQuestionOptions.map(option => {
+                                            const isChecked = Array.isArray(currentQuestion.dependsOnValue) && currentQuestion.dependsOnValue.includes(option);
+                                            return (
+                                                <div key={option} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`trigger-${option}`}
+                                                        checked={isChecked}
+                                                        onCheckedChange={(checked) => handleDependsOnValueChange(option, !!checked)}
+                                                    />
+                                                    <Label htmlFor={`trigger-${option}`} className="font-normal">{option}</Label>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">The answer(s) that will make this question appear.</p>
+                                </div>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
                         </div>
-                    )}
-                      <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
-                </div>
+                    </CollapsibleContent>
+                </Collapsible>
+
 
                 {isAdmin && !isNew && !currentQuestion.parentId && (
                     <div className="space-y-4 rounded-md border border-dashed p-4">
@@ -670,22 +685,6 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {currentQuestion.options && currentQuestion.options.length > 0 && (
-                     <div className="space-y-4">
-                        <Label>Answer Guidance</Label>
-                         <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
-                        <div className="space-y-2 rounded-md border p-4">
-                             {currentQuestion.options.filter(Boolean).map(option => (
-                                 <div key={option} className="flex items-center justify-between">
-                                     <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
-                                     <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                         <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
-                                     </Button>
-                                 </div>
-                             ))}
-                        </div>
-                    </div>
-                )}
             </fieldset>
 
             <DialogFooter>
