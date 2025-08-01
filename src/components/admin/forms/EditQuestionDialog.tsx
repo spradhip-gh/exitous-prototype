@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -247,11 +246,12 @@ interface EditQuestionDialogProps {
     onAddNewTip: (callback: (item: any) => void) => void;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
+    formType?: 'assessment' | 'profile';
 }
 
 export default function EditQuestionDialog({
     isNew, question, existingSections, onSave, onClose, masterQuestionForEdit,
-    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips
+    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType
 }: EditQuestionDialogProps) {
     
     // --- HOOKS ---
@@ -449,7 +449,11 @@ export default function EditQuestionDialog({
         <>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-                 <DialogTitle>{isNew ? (isAdmin ? 'Add New Master Question' : 'Add New Custom Question') : 'Edit Question'}</DialogTitle>
+                 <DialogTitle>
+                    {isNew 
+                        ? (isAdmin ? 'Add New Master Question' : 'Add New Custom Question') 
+                        : 'Edit Question'}
+                </DialogTitle>
                 <DialogDescription>
                     {isHrEditing && !isCustomQuestion
                         ? 'Suggest changes to this locked master question. Your suggestions will be sent for review.'
@@ -519,8 +523,8 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {!currentQuestion.parentId && existingSections && (
-                    <div className="space-y-2">
+                {!currentQuestion.parentId && (isNew || (!isNew && currentQuestion.isCustom)) && (
+                     <div className="space-y-2">
                         <Label htmlFor="question-section">Section</Label>
                         <Select
                             onValueChange={(v) => {
@@ -536,20 +540,25 @@ export default function EditQuestionDialog({
                         >
                             <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
                             <SelectContent>
-                                {existingSections.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                <Separator className="my-1" />
-                                <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
+                                {existingSections?.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                {formType === 'assessment' && (
+                                    <>
+                                        <Separator className="my-1" />
+                                        <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
+                                    </>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
                 )}
-
+                
                 {isCreatingNewSection && (
                     <div className="space-y-2">
                         <Label htmlFor="new-section-name">New Section Name</Label>
                         <Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" />
                     </div>
                 )}
+
 
                 <div className="space-y-2">
                     <Label htmlFor="question-type">Question Type</Label>
@@ -590,23 +599,21 @@ export default function EditQuestionDialog({
                 
                 <Separator />
                 
-                {(currentQuestion.options && currentQuestion.options.length > 0) && (
-                     <div className="space-y-4">
-                        <Label>Answer Guidance</Label>
-                         <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
-                        <div className="space-y-2 rounded-md border p-4">
-                             {optionsText.split('\n').filter(o => o.trim()).map(option => (
-                                 <div key={option} className="flex items-center justify-between">
-                                     <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
-                                     <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                         <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
-                                     </Button>
-                                 </div>
-                             ))}
-                        </div>
+                 <div className="space-y-4">
+                    <Label>Answer Guidance</Label>
+                     <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
+                    <div className="space-y-2 rounded-md border p-4">
+                         {optionsText.split('\n').filter(o => o.trim()).map(option => (
+                             <div key={option} className="flex items-center justify-between">
+                                 <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
+                                 <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                     <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
+                                 </Button>
+                             </div>
+                         ))}
                     </div>
-                )}
-                
+                </div>
+
                 <Collapsible>
                     <CollapsibleTrigger asChild>
                         <Button variant="link" className="p-0 h-auto flex items-center gap-2">

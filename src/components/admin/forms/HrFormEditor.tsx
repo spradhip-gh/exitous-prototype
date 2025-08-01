@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PlusCircle, ShieldAlert, Star, FilePenLine } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
@@ -401,6 +401,10 @@ function QuestionEditor({
                 finalQuestion.id = `custom-${uuidv4()}`;
             }
 
+            if(newSectionName) {
+                finalQuestion.section = newSectionName;
+            }
+
             if (!finalConfig.customQuestions) {
                 finalConfig.customQuestions = {};
             }
@@ -499,6 +503,7 @@ function QuestionEditor({
                     onAddNewTip={onAddNewTip}
                     allCompanyTasks={companyConfig?.companyTasks || []}
                     allCompanyTips={companyConfig?.companyTips || []}
+                    formType={questionType}
                 />
             </Dialog>
         </>
@@ -766,4 +771,3 @@ export default function HrFormEditor() {
         </div>
     );
 }
-
