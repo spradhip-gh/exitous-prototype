@@ -674,7 +674,7 @@ export default function EditQuestionDialog({
                 </Collapsible>
 
 
-                {isAdmin && !isNew && !currentQuestion.parentId && (
+                {isAdmin && !currentQuestion.parentId && (
                     <div className="space-y-4 rounded-md border border-dashed p-4">
                         <div className="flex items-center justify-between">
                             <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
