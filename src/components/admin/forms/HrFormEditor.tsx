@@ -138,12 +138,16 @@ function QuestionEditor({
     questionType,
     canWrite,
     onAddNewTask,
-    onAddNewTip
+    onAddNewTip,
+    companyConfig,
+    companyName
 }: {
     questionType: 'profile' | 'assessment';
     canWrite: boolean;
     onAddNewTask: (callback: (item: any) => void) => void;
     onAddNewTip: (callback: (item: any) => void) => void;
+    companyConfig?: CompanyConfig;
+    companyName: string;
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -157,19 +161,13 @@ function QuestionEditor({
         addReviewQueueItem
     } = useUserData();
 
-    const companyName = auth?.companyName;
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
-
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
-    const companyConfig = useMemo(() => {
-        return companyName ? getAllCompanyConfigs()[companyName] : undefined;
-    }, [companyName, getAllCompanyConfigs]);
-
     const questionTree = useMemo(() => {
-        if (companyName && !isLoading) {
+        if (!isLoading) {
             return getCompanyConfig(companyName, false, questionType);
         }
         return [];
@@ -367,9 +365,15 @@ function QuestionEditor({
     };
 
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved: boolean = false) => {
-        if (!questionToSave) return;
+        if (!questionToSave || !companyName) return;
 
-        if (suggestedEdits) {
+        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(getAllCompanyConfigs()[companyName]));
+        
+        const masterQuestion = masterQuestions[questionToSave.id!] || masterProfileQuestions[questionToSave.id!];
+        
+        const isSuggestionMode = !questionToSave.isCustom && !isNewCustom;
+
+        if (isSuggestionMode) {
             const reviewItem = {
                 id: `review-suggestion-${Date.now()}`,
                 userEmail: auth?.email || 'unknown-hr',
@@ -377,100 +381,42 @@ function QuestionEditor({
                     type: 'question_edit_suggestion',
                     companyName: auth?.companyName,
                     questionId: questionToSave.id,
-                    questionLabel: questionToSave.label,
-                    suggestions: suggestedEdits
+                    questionLabel: masterQuestion.label,
+                    suggestions: {
+                        optionsToAdd: suggestedEdits?.optionsToAdd || [],
+                        optionsToRemove: suggestedEdits?.optionsToRemove || [],
+                    }
                 },
-                output: {}, // Not applicable here
+                output: {},
                 status: 'pending',
                 createdAt: new Date().toISOString(),
             } as unknown as ReviewQueueItem;
 
             addReviewQueueItem(reviewItem);
-            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review." });
+            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
 
-            setIsEditing(false);
-            setCurrentQuestion(null);
-            return;
+        } else { // HR is editing a custom question or adding a new one
+            let finalQuestion: Question = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
+            if (!finalQuestion.id) {
+                finalQuestion.id = `custom-${uuidv4()}`;
+            }
+
+            if (!finalConfig.customQuestions) {
+                finalConfig.customQuestions = {};
+            }
+             finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
+             saveCompanyConfig(companyName, finalConfig);
+             toast({ title: "Custom Question Saved" });
+        }
+        
+        // Save guidance overrides
+        if (questionToSave.answerGuidance && Object.keys(questionToSave.answerGuidance).length > 0) {
+            if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
+            finalConfig.answerGuidanceOverrides[questionToSave.id!] = questionToSave.answerGuidance;
+            saveCompanyConfig(companyName, finalConfig);
+            toast({ title: "Guidance Mapped", description: "Your task and tip mappings have been saved for this question."})
         }
 
-        let newQuestion = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
-        let newSections = JSON.parse(JSON.stringify(orderedSections));
-
-        if (isNewCustom) {
-            if (!companyName || !newQuestion.label || (!newQuestion.parentId && !newQuestion.section)) {
-                toast({ title: "Missing Fields", description: "Label and Section are required.", variant: "destructive" });
-                return;
-            }
-            if (newQuestion.parentId && !newQuestion.triggerValue) {
-                toast({ title: "Missing Trigger", description: "Sub-questions must have a trigger value.", variant: "destructive" });
-                return;
-            }
-
-            if (!newQuestion.id) {
-                newQuestion.id = `custom-${uuidv4()}`;
-            }
-
-            if (newQuestion.parentId) {
-                const findAndAdd = (questions: Question[]) => {
-                    for (const q of questions) {
-                        if (q.id === newQuestion.parentId) {
-                            if (!q.subQuestions) q.subQuestions = [];
-                            q.subQuestions.push(newQuestion);
-                            return true;
-                        }
-                        if (q.subQuestions && findAndAdd(q.subQuestions)) return true;
-                    }
-                    return false;
-                }
-                newSections.forEach((s: HrOrderedSection) => findAndAdd(s.questions));
-            } else {
-                let section = newSections.find((s: HrOrderedSection) => s.id === newQuestion.section);
-                if (section) {
-                    section.questions.push(newQuestion);
-                } else {
-                    newSections.push({ id: newQuestion.section!, questions: [newQuestion] });
-                }
-            }
-
-            // A new custom question is saved immediately and enters the review queue for audit.
-            const reviewItem: ReviewQueueItem = {
-                id: `review-custom-q-${Date.now()}`,
-                userEmail: auth?.email || 'unknown-hr',
-                inputData: {
-                    type: 'custom_question_guidance',
-                    companyName: auth?.companyName,
-                    questionLabel: newQuestion.label,
-                    questionId: newQuestion.id,
-                    question: newQuestion,
-                },
-                output: {},
-                status: 'pending', // Pending Admin review
-                createdAt: new Date().toISOString(),
-            };
-            addReviewQueueItem(reviewItem);
-            toast({ title: "Custom Question Added", description: "Your new question is live and has been sent for administrative review." });
-
-
-        } else {
-            const findAndUpdate = (questions: Question[]) => {
-                for (let i = 0; i < questions.length; i++) {
-                    if (questions[i].id === newQuestion.id) {
-                        const subs = questions[i].subQuestions;
-                        questions[i] = newQuestion;
-                        if (subs) questions[i].subQuestions = subs;
-                        return true;
-                    }
-                    if (questions[i].subQuestions && findAndUpdate(questions[i].subQuestions!)) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-            newSections.forEach((s: HrOrderedSection) => findAndUpdate(s.questions));
-        }
-
-        setOrderedSections(newSections);
-        generateAndSaveConfig(newSections, isAutoApproved);
         setIsEditing(false);
         setCurrentQuestion(null);
     };
@@ -559,55 +505,19 @@ function QuestionEditor({
     );
 }
 
-function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip }: {
+function CompanyContentTabs({ companyConfig, canWrite, onTaskEdit, onTipEdit, onTaskDelete, onTipDelete, onAddNewTask, onAddNewTip }: {
     companyConfig: CompanyConfig,
     canWrite: boolean,
-    onAddNewTask: (callback: (item: any) => void) => void;
-    onAddNewTip: (callback: (item: any) => void) => void;
+    onTaskEdit: (task: MasterTask) => void;
+    onTipEdit: (tip: MasterTip) => void;
+    onTaskDelete: (taskId: string) => void;
+    onTipDelete: (tipId: string) => void;
+    onAddNewTask: () => void;
+    onAddNewTip: () => void;
 }) {
-    const { toast } = useToast();
-    const { auth } = useAuth();
-    const companyName = auth!.companyName!;
-    const { saveCompanyConfig, externalResources } = useUserData();
 
     const companyTasks = companyConfig.companyTasks || [];
     const companyTips = companyConfig.companyTips || [];
-
-    const handleSaveTask = (task: MasterTask) => {
-        const newTasks = [...companyTasks];
-        const existingIndex = newTasks.findIndex(t => t.id === task.id);
-        if (existingIndex > -1) {
-            newTasks[existingIndex] = task;
-        } else {
-            newTasks.push(task);
-        }
-        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
-        toast({ title: "Company Task Saved" });
-    };
-
-    const handleDeleteTask = (taskId: string) => {
-        const newTasks = companyTasks.filter(t => t.id !== taskId);
-        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
-        toast({ title: "Company Task Deleted" });
-    };
-
-    const handleSaveTip = (tip: MasterTip) => {
-        const newTips = [...companyTips];
-        const existingIndex = newTips.findIndex(t => t.id === tip.id);
-        if (existingIndex > -1) {
-            newTips[existingIndex] = tip;
-        } else {
-            newTips.push(tip);
-        }
-        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
-        toast({ title: "Company Tip Saved" });
-    };
-
-    const handleDeleteTip = (tipId: string) => {
-        const newTips = companyTips.filter(t => t.id !== tipId);
-        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
-        toast({ title: "Company Tip Deleted" });
-    };
 
     return (
         <>
@@ -637,8 +547,8 @@ function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip
                                         </TableCell>
                                         <TableCell><Badge variant="outline">{task.category}</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => onAddNewTask((item) => handleSaveTask({ ...item, ...task }))}><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteTask(task.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => onTaskEdit(task)}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onTaskDelete(task.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -646,7 +556,7 @@ function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip
                         </Table>
                     </CardContent>
                     <CardFooter>
-                        <Button variant="outline" onClick={() => onAddNewTask(handleSaveTask)}><PlusCircle className="mr-2" /> Add Company Task</Button>
+                        <Button variant="outline" onClick={onAddNewTask}><PlusCircle className="mr-2" /> Add Company Task</Button>
                     </CardFooter>
                 </Card>
             </TabsContent>
@@ -676,8 +586,8 @@ function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip
                                         </TableCell>
                                         <TableCell><Badge variant="outline">{tip.category}</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => onAddNewTip((item) => handleSaveTip({ ...item, ...tip }))}><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteTip(tip.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => onTipEdit(tip)}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onTipDelete(tip.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -685,7 +595,7 @@ function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip
                         </Table>
                     </CardContent>
                     <CardFooter>
-                        <Button variant="outline" onClick={() => onAddNewTip(handleSaveTip)}><PlusCircle className="mr-2" /> Add Company Tip</Button>
+                        <Button variant="outline" onClick={onAddNewTip}><PlusCircle className="mr-2" /> Add Company Tip</Button>
                     </CardFooter>
                 </Card>
             </TabsContent>
@@ -696,9 +606,15 @@ function CompanyContentTabs({ companyConfig, canWrite, onAddNewTask, onAddNewTip
 export default function HrFormEditor() {
     const { auth } = useAuth();
     const { companyAssignmentForHr, isLoading, getAllCompanyConfigs, saveCompanyConfig, externalResources } = useUserData();
+    const { toast } = useToast();
+    
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
+    const [taskCallback, setTaskCallback] = useState<((item: any) => void) | null>(null);
+
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
-    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
+    const [editingTip, setEditingTip] = useState<Partial<MasterTip> | null>(null);
+    const [tipCallback, setTipCallback] = useState<((item: any) => void) | null>(null);
 
     const companyName = auth?.companyName;
     const canWrite = auth?.permissions?.formEditor === 'write';
@@ -708,36 +624,85 @@ export default function HrFormEditor() {
     }, [companyName, getAllCompanyConfigs]);
 
     const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setNewItemCallback(() => callback);
+        setEditingTask(null); // Ensure we're adding a new one
+        setTaskCallback(() => callback);
         setIsTaskFormOpen(true);
     }, []);
 
+    const handleEditTask = useCallback((task: MasterTask) => {
+        setEditingTask(task);
+        setIsTaskFormOpen(true);
+    }, []);
+
+    const handleSaveTask = (task: MasterTask) => {
+        if (!companyConfig || !companyName) return;
+        const companyTasks = companyConfig.companyTasks || [];
+        const newTasks = [...companyTasks];
+        const existingIndex = newTasks.findIndex(t => t.id === task.id);
+        if (existingIndex > -1) {
+            newTasks[existingIndex] = task;
+        } else {
+            task.id = task.id || `ctask-${uuidv4()}`;
+            newTasks.push(task);
+        }
+        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
+        toast({ title: "Company Task Saved" });
+
+        if(taskCallback) {
+            taskCallback(task);
+        }
+        setIsTaskFormOpen(false);
+        setEditingTask(null);
+        setTaskCallback(null);
+    };
+
+    const handleDeleteTask = (taskId: string) => {
+        if (!companyConfig || !companyName) return;
+        const newTasks = (companyConfig.companyTasks || []).filter(t => t.id !== taskId);
+        saveCompanyConfig(companyName, { ...companyConfig, companyTasks: newTasks });
+        toast({ title: "Company Task Deleted" });
+    };
+
     const handleAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
-        setNewItemCallback(() => callback);
+        setEditingTip(null);
+        setTipCallback(() => callback);
+        setIsTipFormOpen(true);
+    }, []);
+    
+    const handleEditTip = useCallback((tip: MasterTip) => {
+        setEditingTip(tip);
         setIsTipFormOpen(true);
     }, []);
 
-    const handleSaveNewTask = (taskData: MasterTask) => {
-        if (!companyConfig) return;
-        const newTasks = [...(companyConfig.companyTasks || []), { ...taskData, isCompanySpecific: true }];
-        saveCompanyConfig(companyName!, { ...companyConfig, companyTasks: newTasks });
-        if (newItemCallback) {
-            newItemCallback(taskData);
+    const handleSaveTip = (tip: MasterTip) => {
+        if (!companyConfig || !companyName) return;
+        const companyTips = companyConfig.companyTips || [];
+        const newTips = [...companyTips];
+        const existingIndex = newTips.findIndex(t => t.id === tip.id);
+        if (existingIndex > -1) {
+            newTips[existingIndex] = tip;
+        } else {
+            tip.id = tip.id || `ctip-${uuidv4()}`;
+            newTips.push(tip);
         }
-        setIsTaskFormOpen(false);
-        setNewItemCallback(null);
-    };
+        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
+        toast({ title: "Company Tip Saved" });
 
-    const handleSaveNewTip = (tipData: MasterTip) => {
-        if (!companyConfig) return;
-        const newTips = [...(companyConfig.companyTips || []), { ...tipData, isCompanySpecific: true }];
-        saveCompanyConfig(companyName!, { ...companyConfig, companyTips: newTips });
-        if (newItemCallback) {
-            newItemCallback(tipData);
+        if(tipCallback) {
+            tipCallback(tip);
         }
         setIsTipFormOpen(false);
-        setNewItemCallback(null);
+        setEditingTip(null);
+        setTipCallback(null);
     };
+
+    const handleDeleteTip = (tipId: string) => {
+        if (!companyConfig || !companyName) return;
+        const newTips = (companyConfig.companyTips || []).filter(t => t.id !== tipId);
+        saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
+        toast({ title: "Company Tip Deleted" });
+    };
+
 
     if (isLoading || companyAssignmentForHr === undefined || !companyConfig) {
         return <div className="p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-8"><Skeleton className="h-64 w-full" /></div></div>;
@@ -765,12 +730,21 @@ export default function HrFormEditor() {
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
-                        <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} />
+                        <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
                     </TabsContent>
                     <TabsContent value="profile-questions" className="mt-6">
-                        <QuestionEditor questionType="profile" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} />
+                        <QuestionEditor questionType="profile" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
                     </TabsContent>
-                    <CompanyContentTabs companyConfig={companyConfig} canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} />
+                    <CompanyContentTabs 
+                        companyConfig={companyConfig} 
+                        canWrite={canWrite} 
+                        onTaskEdit={handleEditTask}
+                        onTipEdit={handleEditTip}
+                        onTaskDelete={handleDeleteTask}
+                        onTipDelete={handleDeleteTip}
+                        onAddNewTask={() => handleAddNewTask(() => {})}
+                        onAddNewTip={() => handleAddNewTip(() => {})}
+                    />
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
                     </TabsContent>
@@ -778,17 +752,18 @@ export default function HrFormEditor() {
                 <TaskForm
                     isOpen={isTaskFormOpen}
                     onOpenChange={setIsTaskFormOpen}
-                    task={null}
-                    onSave={handleSaveNewTask}
+                    task={editingTask}
+                    onSave={handleSaveTask}
                     allResources={externalResources}
                 />
                 <TipForm
                     isOpen={isTipFormOpen}
                     onOpenChange={setIsTipFormOpen}
-                    tip={null}
-                    onSave={handleSaveNewTip}
+                    tip={editingTip}
+                    onSave={handleSaveTip}
                 />
             </div>
         </div>
     );
 }
+

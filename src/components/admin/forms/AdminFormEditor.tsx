@@ -3,11 +3,11 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { PlusCircle } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
@@ -263,7 +263,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         }
 
         if (!finalQuestion.id && isNewQuestion) {
-            finalQuestion.id = finalQuestion.label.toLowerCase().replace(/\s+/g, '-').replace(/[?]/g, '');
+            finalQuestion.id = finalQuestion.label?.toLowerCase().replace(/\s+/g, '-').replace(/[?]/g, '') || `q-${Date.now()}`;
         }
 
         if (!finalQuestion.id || (!finalQuestion.section && !finalQuestion.parentId)) {
@@ -386,3 +386,4 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
+
