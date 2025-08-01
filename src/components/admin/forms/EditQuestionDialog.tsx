@@ -395,6 +395,7 @@ export default function EditQuestionDialog({
                     questionLabel: questionToSave.label,
                     questionId: questionToSave.id,
                     question: questionToSave as Question,
+                    newSectionName: isCreatingNewSection ? newSectionName : undefined,
                 },
                 output: {},
                 status: 'pending',
@@ -597,9 +598,7 @@ export default function EditQuestionDialog({
                     </div>
                 )}
                 
-                <Separator />
-                
-                 <div className="space-y-4">
+                <div className="space-y-4">
                     <Label>Answer Guidance</Label>
                      <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
                     <div className="space-y-2 rounded-md border p-4">

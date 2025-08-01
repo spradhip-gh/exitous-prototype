@@ -122,7 +122,7 @@ export interface AnswerGuidance {
 export interface ReviewQueueItem {
     id: string;
     userEmail: string;
-    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> & { type?: string, questionLabel?: string, suggestions?: any, question?: Question };
+    inputData: Omit<PersonalizedRecommendationsInput, 'userEmail'> & { type?: string, questionLabel?: string, suggestions?: any, question?: Question, newSectionName?: string };
     output: PersonalizedRecommendationsOutput;
     status: 'pending' | 'approved' | 'rejected' | 'reviewed';
     createdAt: string; // ISO string
@@ -1126,6 +1126,7 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 
 
 

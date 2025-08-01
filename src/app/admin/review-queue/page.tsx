@@ -360,7 +360,7 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
     }
 
     if (isCustomQuestion) {
-        const { companyName, question } = item.inputData as { companyName: string, question: Question };
+        const { companyName, question, newSectionName } = item.inputData as { companyName: string, question: Question, newSectionName?: string };
         return (
              <Card className="bg-muted/50">
                 <CardHeader>
@@ -376,6 +376,9 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
                          <div>
                             <p className="text-sm font-semibold">"{question.label}"</p>
                             <p className="text-xs text-muted-foreground">{question.section} | Type: {question.type}</p>
+                             {newSectionName && (
+                                <p className="text-xs text-blue-600 font-medium mt-1">Added to new section: "{newSectionName}"</p>
+                            )}
                         </div>
                         {question.options && question.options.length > 0 && (
                             <div>
