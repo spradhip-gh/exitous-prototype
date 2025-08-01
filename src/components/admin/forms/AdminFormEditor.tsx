@@ -51,7 +51,11 @@ export default function AdminFormEditor() {
     } = useUserData();
 
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
+
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
+    const [editingTip, setEditingTip] = useState<Partial<MasterTip> | null>(null);
+
     const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
 
     const allQuestions = useMemo(() => {
@@ -61,11 +65,13 @@ export default function AdminFormEditor() {
     }, [masterProfileQuestions, masterQuestions]);
 
     const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
+        setEditingTask(null);
         setNewItemCallback(() => callback);
         setIsTaskFormOpen(true);
     }, []);
 
     const handleAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
+        setEditingTip(null);
         setNewItemCallback(() => callback);
         setIsTipFormOpen(true);
     }, []);
@@ -386,4 +392,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
-
