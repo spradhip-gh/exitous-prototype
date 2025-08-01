@@ -542,7 +542,7 @@ export default function EditQuestionDialog({
                             <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
                             <SelectContent>
                                 {existingSections?.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                {formType === 'assessment' && (
+                                {(isAdmin || (isHrEditing && formType === 'assessment')) && (
                                     <>
                                         <Separator className="my-1" />
                                         <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
@@ -723,3 +723,5 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
+    
