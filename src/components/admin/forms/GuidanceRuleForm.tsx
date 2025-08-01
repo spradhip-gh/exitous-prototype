@@ -2,7 +2,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation } from "@/hooks/use-user-data";
+import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation, ExternalResource } from "@/hooks/use-user-data";
 import { tenureOptions } from '@/lib/guidance-helpers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,7 @@ export function MultiSelectPopover({
 }
 
 
-export default function GuidanceRuleForm({ question, allQuestions, existingRules, onSave, onDelete, masterTasks, masterTips, onAddNewTask, onAddNewTip, allResources }: {
+export default function GuidanceRuleForm({ question, allQuestions, existingRules, onSave, onDelete, masterTasks, masterTips, onAddNewTask, onAddNewTip, allResources, pendingItem, onPendingItemConsumed }: {
     question: Question | null;
     allQuestions: Question[];
     existingRules: GuidanceRule[];
@@ -156,9 +156,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     onDelete: (ruleId: string) => void;
     masterTasks: MasterTask[];
     masterTips: MasterTip[];
-    onAddNewTask: (callback: (newTask: MasterTask) => void) => void;
-    onAddNewTip: (callback: (newTip: MasterTip) => void) => void;
-    allResources: any[];
+    onAddNewTask: () => void;
+    onAddNewTip: () => void;
+    allResources: ExternalResource[];
+    pendingItem: { type: 'task' | 'tip'; item: MasterTask | MasterTip } | null;
+    onPendingItemConsumed: () => void;
 }) {
     const { toast } = useToast();
     const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
@@ -223,6 +225,17 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             resetForm();
         }
     }, [selectedRuleId, existingRules]);
+
+    useEffect(() => {
+        if (pendingItem) {
+            if (pendingItem.type === 'task') {
+                setDirectTasks(prev => [...prev, pendingItem.item.id]);
+            } else if (pendingItem.type === 'tip') {
+                setDirectTips(prev => [...prev, pendingItem.item.id]);
+            }
+            onPendingItemConsumed(); // Clear the pending item
+        }
+    }, [pendingItem, onPendingItemConsumed]);
     
     if (!question) return null;
 
@@ -421,7 +434,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                                         selectedIds={directTasks}
                                         onSelectionChange={setDirectTasks}
-                                        onAddNew={() => onAddNewTask((newTask) => setDirectTasks(prev => [...prev, newTask.id]))}
+                                        onAddNew={onAddNewTask}
                                         categories={taskCategories}
                                     />
                                     <MultiSelectPopover
@@ -429,7 +442,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                                         selectedIds={directTips}
                                         onSelectionChange={setDirectTips}
-                                        onAddNew={() => onAddNewTip((newTip) => setDirectTips(prev => [...prev, newTip.id]))}
+                                        onAddNew={onAddNewTip}
                                         categories={tipCategories}
                                     />
                                 </fieldset>
@@ -505,7 +518,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                             items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
                                                             selectedIds={range.tasks}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tasks', newIds)}
-                                                            onAddNew={() => onAddNewTask((newTask) => handleUpdateRange(index, 'tasks', [...range.tasks, newTask.id]))}
+                                                            onAddNew={() => onAddNewTask()}
                                                             categories={taskCategories}
                                                         />
                                                          <MultiSelectPopover
@@ -513,7 +526,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                             items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
                                                             selectedIds={range.tips}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tips', newIds)}
-                                                            onAddNew={() => onAddNewTip((newTip) => handleUpdateRange(index, 'tips', [...range.tips, newTip.id]))}
+                                                            onAddNew={() => onAddNewTip()}
                                                             categories={tipCategories}
                                                         />
                                                     </fieldset>

@@ -2,7 +2,7 @@
 
 'use client';
 import { useState, useMemo, useCallback } from "react";
-import { useUserData, Question, MasterTask, MasterTip, GuidanceRule } from "@/hooks/use-user-data";
+import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, ExternalResource } from "@/hooks/use-user-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,17 +17,19 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
     saveGuidanceRules: (rules: GuidanceRule[]) => void;
     masterTasks: MasterTask[];
     masterTips: MasterTip[];
-    externalResources: any[];
+    externalResources: ExternalResource[];
     saveMasterTasks: (tasks: MasterTask[]) => void;
     saveMasterTips: (tips: MasterTip[]) => void;
 }) {
     const { toast } = useToast();
     const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
     const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
-
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
     const [isTipFormOpen, setIsTipFormOpen] = useState(false);
-    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
+
+    // State to manage passing a newly created item back to the rule form
+    const [pendingItemForGuidance, setPendingItemForGuidance] = useState<{ type: 'task' | 'tip'; item: MasterTask | MasterTip } | null>(null);
+
 
     const handleManageGuidance = (question: Question) => {
         setSelectedQuestion(question);
@@ -73,38 +75,39 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         });
         return counts;
     }, [questions, guidanceRules]);
+
+    const handleAddNewTask = useCallback(() => {
+        setIsRuleFormOpen(false); // Close the rule form
+        setIsTaskFormOpen(true);   // Open the task form
+    }, []);
+
+    const handleAddNewTip = useCallback(() => {
+        setIsRuleFormOpen(false); // Close the rule form
+        setIsTipFormOpen(true);    // Open the tip form
+    }, []);
     
-    const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setNewItemCallback(() => callback);
-        setIsTaskFormOpen(true);
-    }, []);
-
-    const handleAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
-        setNewItemCallback(() => callback);
-        setIsTipFormOpen(true);
-    }, []);
-
     const handleSaveNewTask = (taskData: MasterTask) => {
         const newTasks = [...masterTasks, taskData];
         saveMasterTasks(newTasks);
         toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
-        if (newItemCallback) {
-            newItemCallback(taskData);
-        }
+        setPendingItemForGuidance({ type: 'task', item: taskData });
         setIsTaskFormOpen(false);
-        setNewItemCallback(null);
+        setIsRuleFormOpen(true); // Re-open the rule form
     };
 
     const handleSaveNewTip = (tipData: MasterTip) => {
         const newTips = [...masterTips, tipData];
         saveMasterTips(newTips);
         toast({ title: 'Tip Added' });
-        if (newItemCallback) {
-            newItemCallback(tipData);
-        }
+        setPendingItemForGuidance({ type: 'tip', item: tipData });
         setIsTipFormOpen(false);
-        setNewItemCallback(null);
+        setIsRuleFormOpen(true); // Re-open the rule form
     };
+    
+    const handleCloseRuleForm = () => {
+        setIsRuleFormOpen(false);
+        setPendingItemForGuidance(null); // Clear pending item when dialog is manually closed
+    }
 
     return (
         <>
@@ -131,7 +134,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                 </CardContent>
             </Card>
 
-            <Dialog open={isRuleFormOpen} onOpenChange={setIsRuleFormOpen}>
+            <Dialog open={isRuleFormOpen} onOpenChange={handleCloseRuleForm}>
                 <DialogContent className="max-w-4xl">
                      <DialogHeader>
                         <DialogTitle>Manage Guidance for "{selectedQuestion?.label}"</DialogTitle>
@@ -150,13 +153,18 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                         onAddNewTask={handleAddNewTask}
                         onAddNewTip={handleAddNewTip}
                         allResources={externalResources}
+                        pendingItem={pendingItemForGuidance}
+                        onPendingItemConsumed={() => setPendingItemForGuidance(null)}
                     />
                 </DialogContent>
             </Dialog>
             
             <TaskForm 
                 isOpen={isTaskFormOpen}
-                onOpenChange={setIsTaskFormOpen}
+                onOpenChange={(open) => {
+                    setIsTaskFormOpen(open);
+                    if (!open) setIsRuleFormOpen(true); // Re-open rule form if task form is cancelled
+                }}
                 onSave={handleSaveNewTask}
                 task={null}
                 allResources={externalResources}
@@ -164,11 +172,13 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
 
              <TipForm 
                 isOpen={isTipFormOpen}
-                onOpenChange={setIsTipFormOpen}
+                onOpenChange={(open) => {
+                    setIsTipFormOpen(open);
+                    if (!open) setIsRuleFormOpen(true); // Re-open rule form if tip form is cancelled
+                }}
                 onSave={handleSaveNewTip}
                 tip={null}
             />
         </>
     );
 }
-
