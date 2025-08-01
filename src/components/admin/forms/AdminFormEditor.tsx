@@ -1,5 +1,4 @@
 
-
 'use client';
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
@@ -38,8 +37,8 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
 
 export default function AdminFormEditor() {
     const {
-        masterQuestions, 
-        saveMasterQuestions, 
+        masterQuestions,
+        saveMasterQuestions,
         masterProfileQuestions,
         saveMasterProfileQuestions,
         guidanceRules,
@@ -51,11 +50,46 @@ export default function AdminFormEditor() {
         saveMasterTips,
     } = useUserData();
 
+    const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+    const [isTipFormOpen, setIsTipFormOpen] = useState(false);
+    const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
+
     const allQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
         return [...profileQs, ...assessmentQs];
     }, [masterProfileQuestions, masterQuestions]);
+
+    const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTaskFormOpen(true);
+    }, []);
+
+    const handleAddNewTip = useCallback((callback: (newTip: MasterTip) => void) => {
+        setNewItemCallback(() => callback);
+        setIsTipFormOpen(true);
+    }, []);
+    
+    const handleSaveNewTask = (taskData: MasterTask) => {
+        const newTasks = [...masterTasks, taskData];
+        saveMasterTasks(newTasks);
+        if (newItemCallback) {
+            newItemCallback(taskData);
+        }
+        setIsTaskFormOpen(false);
+        setNewItemCallback(null);
+    };
+
+    const handleSaveNewTip = (tipData: MasterTip) => {
+        const newTips = [...masterTips, tipData];
+        saveMasterTips(newTips);
+        if (newItemCallback) {
+            newItemCallback(tipData);
+        }
+        setIsTipFormOpen(false);
+        setNewItemCallback(null);
+    };
+
 
     return (
         <div className="p-4 md:p-8">
@@ -76,6 +110,10 @@ export default function AdminFormEditor() {
                             questions={masterProfileQuestions}
                             saveFn={saveMasterProfileQuestions}
                             defaultQuestionsFn={getDefaultProfileQuestions}
+                            onAddNewTask={handleAddNewTask}
+                            onAddNewTip={handleAddNewTip}
+                            masterTasks={masterTasks}
+                            masterTips={masterTips}
                         />
                     </TabsContent>
                     <TabsContent value="assessment" className="mt-6">
@@ -84,6 +122,10 @@ export default function AdminFormEditor() {
                             questions={masterQuestions}
                             saveFn={saveMasterQuestions}
                             defaultQuestionsFn={getDefaultQuestions}
+                            onAddNewTask={handleAddNewTask}
+                            onAddNewTip={handleAddNewTip}
+                            masterTasks={masterTasks}
+                            masterTips={masterTips}
                         />
                     </TabsContent>
                     <TabsContent value="guidance" className="mt-6">
@@ -100,18 +142,36 @@ export default function AdminFormEditor() {
                     </TabsContent>
                 </Tabs>
             </div>
+             <TaskForm 
+                isOpen={isTaskFormOpen}
+                onOpenChange={setIsTaskFormOpen}
+                onSave={handleSaveNewTask}
+                task={null}
+                allResources={externalResources}
+            />
+
+             <TipForm 
+                isOpen={isTipFormOpen}
+                onOpenChange={setIsTipFormOpen}
+                onSave={handleSaveNewTip}
+                tip={null}
+            />
         </div>
     );
 }
 
-function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }: { 
+function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
     saveFn: (questions: Record<string, Question>) => void;
     defaultQuestionsFn: () => Question[];
+    onAddNewTask: (callback: (item: any) => void) => void;
+    onAddNewTip: (callback: (item: any) => void) => void;
+    masterTasks: MasterTask[];
+    masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
-    const { 
+    const {
         isLoading,
     } = useUserData();
 
@@ -155,7 +215,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         setIsNewQuestion(false);
         setIsEditing(true);
     };
-    
+
     const handleAddNewClick = (parentId?: string) => {
         let section = '';
         if (parentId) {
@@ -220,7 +280,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
         setIsEditing(false);
         setCurrentQuestion(null);
     };
-    
+
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
         let newMaster = JSON.parse(JSON.stringify(questions));
         const questionsArray = Object.values(newMaster).filter((q: any) => !q.parentId);
@@ -265,7 +325,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
             toast({ title: "Master Configuration Saved" });
         }
     };
-    
+
     const existingSections = useMemo(() => [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))], [questions]);
 
     return (
@@ -274,7 +334,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
                 <CardHeader>
                     <CardTitle>{questionType === 'profile' ? 'Profile' : 'Assessment'} Question List</CardTitle>
                     <CardDescription>
-                        {questionType === 'profile' 
+                        {questionType === 'profile'
                             ? 'These questions appear in the initial "Create Your Profile" step.'
                             : 'These questions appear in the main "Exit Details" assessment.'
                         } Use arrows to reorder.
@@ -312,12 +372,15 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn }:
             </Card>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <EditQuestionDialog
-                    isOpen={isEditing}
                     isNew={isNewQuestion}
                     question={currentQuestion}
                     existingSections={existingSections}
                     onSave={handleSaveEdit}
                     onClose={() => setIsEditing(false)}
+                    onAddNewTask={onAddNewTask}
+                    onAddNewTip={onAddNewTip}
+                    allCompanyTasks={masterTasks}
+                    allCompanyTips={masterTips}
                 />
             </Dialog>
         </>
