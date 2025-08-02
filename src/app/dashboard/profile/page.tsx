@@ -8,7 +8,7 @@ export default function ProfilePage() {
         <div>
           <h1 className="font-headline text-3xl font-bold">Create Your Profile</h1>
           <p className="text-muted-foreground">
-            Exits can be challenging and we are here to help. Your Answers help us create a personalized roadmap for you. All information entered in confidential and personal info is never shared
+            Exits can be challenging and we are here to help. Your answers help us create a personalized roadmap for you. All information entered in confidential and personal info is never shared
           </p>
         </div>
         <ProfileForm />
