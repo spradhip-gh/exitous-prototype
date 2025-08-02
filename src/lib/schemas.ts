@@ -19,8 +19,10 @@ const profileBaseShape = {
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
-    // New fields for account settings
+    // Fields moved from Account Settings to be part of the core profile
+    personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
     phone: z.string().optional(),
+    // Notification settings remain separate conceptually but are part of the same data object
     notificationEmail: z.string().email().optional(),
     notificationSettings: z.object({
         email: z.object({
@@ -90,6 +92,14 @@ export function buildProfileSchema(questions: Question[]) {
             path: ['genderSelfDescribe'],
         });
     }
+    
+    // Add the account fields to the dynamic schema as well
+    schema = schema.extend({
+        personalEmail: profileBaseShape.personalEmail,
+        phone: profileBaseShape.phone,
+        notificationEmail: profileBaseShape.notificationEmail,
+        notificationSettings: profileBaseShape.notificationSettings,
+    });
     
     return schema;
 }

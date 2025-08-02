@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,9 +17,7 @@ import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 
 const accountSettingsSchema = z.object({
-  personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
-  phone: z.string().optional(),
-  notificationEmail: z.string().optional(),
+  notificationEmail: z.string().email().optional(),
   notificationSettings: z.object({
     email: z.object({
       all: z.boolean().optional(),
@@ -45,8 +44,6 @@ export default function AccountSettingsForm() {
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      personalEmail: profileData?.personalEmail || '',
-      phone: profileData?.phone || '',
       notificationEmail: profileData?.notificationEmail || auth?.email,
       notificationSettings: {
         email: {
@@ -76,53 +73,18 @@ export default function AccountSettingsForm() {
 
     toast({
       title: 'Settings Saved',
-      description: 'Your account settings have been updated.',
+      description: 'Your notification preferences have been updated.',
     });
   }
 
   const emailOptions = [auth?.email];
-  if(form.watch('personalEmail')) {
-    emailOptions.push(form.watch('personalEmail'));
+  if(profileData?.personalEmail) {
+    emailOptions.push(profileData?.personalEmail);
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>Update your contact details for notifications.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="personalEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Personal Email Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="your.name@personal.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number (for SMS alerts)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="(555) 123-4567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
         <Card>
             <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
