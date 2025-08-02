@@ -11,7 +11,7 @@ import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, Reco
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb, Star } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb, Star, AlertCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ import { type ExternalResource } from '@/lib/external-resources';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
+import Link from 'next/link';
 
 const categoryIcons: { [key: string]: React.ElementType } = {
   "Healthcare": Stethoscope,
@@ -81,6 +82,31 @@ function ResourceDialog({ resource, open, onOpenChange }: { resource: ExternalRe
     )
 }
 
+function UnsureAnswersAlert({ count, firstSection }: { count: number; firstSection: string | null }) {
+    if (count === 0 || !firstSection) {
+        return null;
+    }
+    
+    const href = `/dashboard/assessment?section=${encodeURIComponent(firstSection)}`;
+
+    return (
+        <Alert variant="default" className="border-amber-300 bg-amber-50">
+            <AlertCircle className="h-4 w-4 !text-amber-600" />
+            <AlertTitle className="text-amber-900">Information Needed</AlertTitle>
+            <AlertDescription className="text-amber-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <span>
+                    You have {count} question{count > 1 ? 's' : ''} answered with "I'm not sure". Completing these will improve your recommendations.
+                </span>
+                <Link href={href}>
+                    <Button variant="outline" size="sm" className="bg-amber-100 border-amber-300 hover:bg-amber-200 text-amber-900 shrink-0">
+                        Complete Your Answers
+                    </Button>
+                </Link>
+            </AlertDescription>
+        </Alert>
+    );
+}
+
 export default function TimelineDashboard({ isPreview = false }: { isPreview?: boolean }) {
   const router = useRouter();
   const { auth } = useAuth();
@@ -102,6 +128,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     saveRecommendations,
     clearRecommendations,
     getMappedRecommendations,
+    getUnsureAnswers,
   } = useUserData();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -115,6 +142,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const [selectedResource, setSelectedResource] = useState<ExternalResource | null>(null);
 
   const userTimezone = getTargetTimezone();
+  const unsureAnswers = getUnsureAnswers();
   
   const companyVersion = useMemo(() => {
     if (!auth?.companyName) return 'basic';
@@ -335,6 +363,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
     <>
       <ResourceDialog resource={selectedResource} open={!!selectedResource} onOpenChange={(open) => !open && setSelectedResource(null)} />
       <div className="space-y-8">
+        <UnsureAnswersAlert count={unsureAnswers.count} firstSection={unsureAnswers.firstSection} />
         {(tasks.length > 0 || tips.length > 0) && (
             <Card className="shadow-lg">
                 <CardHeader>
@@ -618,4 +647,3 @@ function Timeline({ recommendations, completedTasks, toggleTaskCompletion, taskD
     </div>
   );
 }
-

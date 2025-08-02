@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ProfileData, profileSchema, AssessmentData, buildAssessmentSchema, buildProfileSchema } from '@/lib/schemas';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
@@ -1089,6 +1090,86 @@ export function useUserData() {
 
   }, [assessmentData, guidanceRules, masterTasks, masterTips, auth?.companyName, companyConfigs, getCompanyConfig]);
 
+  const getUnsureAnswers = useCallback(() => {
+    if (!assessmentData) {
+        return { count: 0, firstSection: null };
+    }
+
+    const activeQuestions = getCompanyConfig(auth?.companyName, true);
+    if (!activeQuestions) {
+        return { count: 0, firstSection: null };
+    }
+
+    const allQuestionsFlat: Question[] = [];
+    const flatten = (questions: Question[]) => {
+        for (const q of questions) {
+            allQuestionsFlat.push(q);
+            if (q.subQuestions) {
+                flatten(q.subQuestions);
+            }
+        }
+    };
+    flatten(activeQuestions);
+
+    let count = 0;
+    let firstSection: string | null = null;
+    
+    // Create a set of question IDs that should be visible based on their parent's answer
+    const visibleQuestionIds = new Set<string>();
+    const processVisibility = (questions: Question[]) => {
+      for (const q of questions) {
+        if (!q.parentId) {
+          visibleQuestionIds.add(q.id);
+        }
+        if (q.subQuestions) {
+          const parentAnswer = (assessmentData as any)[q.id];
+          let parentTriggered = false;
+          if (q.type === 'checkbox') {
+            parentTriggered = Array.isArray(parentAnswer) && parentAnswer.length > 0;
+          } else {
+            parentTriggered = !!parentAnswer;
+          }
+
+          if (parentTriggered) {
+             q.subQuestions.forEach(subQ => {
+                let isTriggered = false;
+                if (q.type === 'checkbox') {
+                  if (subQ.triggerValue === 'NOT_NONE') {
+                    isTriggered = Array.isArray(parentAnswer) && parentAnswer.length > 0 && !parentAnswer.includes('None of the above');
+                  } else {
+                    isTriggered = Array.isArray(parentAnswer) && parentAnswer.includes(subQ.triggerValue);
+                  }
+                } else {
+                  isTriggered = parentAnswer === subQ.triggerValue;
+                }
+
+                if(isTriggered) {
+                    visibleQuestionIds.add(subQ.id);
+                    if(subQ.subQuestions) processVisibility([subQ]);
+                }
+             });
+          }
+        }
+      }
+    };
+    processVisibility(activeQuestions);
+
+    for (const question of allQuestionsFlat) {
+        if (visibleQuestionIds.has(question.id)) {
+            const answer = (assessmentData as any)[question.id];
+            if (answer === 'Unsure') {
+                count++;
+                if (!firstSection) {
+                    firstSection = question.section;
+                }
+            }
+        }
+    }
+    
+    return { count, firstSection };
+  }, [assessmentData, getCompanyConfig, auth?.companyName]);
+
+
 
   return {
     profileData,
@@ -1101,6 +1182,7 @@ export function useUserData() {
     saveUserTimezone,
     getProfileCompletion,
     getAssessmentCompletion,
+    getUnsureAnswers,
     completedTasks,
     taskDateOverrides,
     customDeadlines,
