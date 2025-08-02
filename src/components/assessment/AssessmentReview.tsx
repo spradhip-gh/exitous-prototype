@@ -5,7 +5,7 @@ import { useUserData } from '@/hooks/use-user-data';
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
-import { Question } from '@/lib/questions';
+import type { Question } from '@/lib/questions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
@@ -171,7 +171,11 @@ export default function AssessmentReview() {
                                 {section === 'Work & Employment Details' && (
                                     <AnswerDisplay label="Tenure" value={tenure} />
                                 )}
-                                {sectionQuestions.map(q => getGroupedAnswer(q))}
+                                {sectionQuestions.map(q => (
+                                    <div key={q.id}>
+                                        {getGroupedAnswer(q)}
+                                    </div>
+                                ))}
                             </dl>
                         </CardContent>
                     </Card>
