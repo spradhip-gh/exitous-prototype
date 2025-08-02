@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 import type { Question } from './questions';
 
@@ -83,25 +82,27 @@ export function buildProfileSchema(questions: Question[]) {
     };
     buildShape(questions);
 
-    let schema: any = z.object(shape);
-
-    const genderQuestion = questions.find(q => q.id === 'gender');
-    if (genderQuestion) {
-         schema = schema.refine((data: any) => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
-            message: 'Please specify your gender identity.',
-            path: ['genderSelfDescribe'],
-        });
-    }
-    
-    // Add the account fields to the dynamic schema as well
-    schema = schema.extend({
+    // First, create the full object with all fields, including the static account ones.
+    const fullShape = {
+        ...shape,
         personalEmail: profileBaseShape.personalEmail,
         phone: profileBaseShape.phone,
         notificationEmail: profileBaseShape.notificationEmail,
         notificationSettings: profileBaseShape.notificationSettings,
-    });
+    };
     
-    return schema;
+    let baseSchema = z.object(fullShape);
+
+    // Now, apply refinements to the complete object schema.
+    const genderQuestion = questions.find(q => q.id === 'gender');
+    if (genderQuestion) {
+         baseSchema = baseSchema.refine((data: any) => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
+            message: 'Please specify your gender identity.',
+            path: ['genderSelfDescribe'],
+        }) as any;
+    }
+    
+    return baseSchema;
 }
 
 const optionalDateOrString = z.union([z.date(), z.string().refine(val => val === "Unsure", { message: "Invalid input" })]).optional();
