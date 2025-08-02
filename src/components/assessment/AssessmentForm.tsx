@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +11,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
+import { useFormState } from '@/hooks/use-form-state';
 
 
 import { Button } from '@/components/ui/button';
@@ -266,13 +266,19 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     const { saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
+    const { setIsDirty } = useFormState();
     
     const form = useForm<AssessmentData>({
         resolver: zodResolver(dynamicSchema),
         values: initialData,
     });
 
-    const { watch, setValue, getValues, reset } = form;
+    const { watch, setValue, getValues, reset, formState: { isDirty } } = form;
+
+    useEffect(() => {
+        setIsDirty(isDirty);
+        return () => setIsDirty(false); // Cleanup on unmount
+    }, [isDirty, setIsDirty]);
     
     useEffect(() => {
         reset(initialData);

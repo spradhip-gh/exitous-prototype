@@ -1,20 +1,97 @@
 
-
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, User, FileText, Library, Users2, HelpCircle, Settings } from 'lucide-react';
 import { useUserData } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { TooltipContent } from '@radix-ui/react-tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import { useFormState } from '@/hooks/use-form-state';
+import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+function NavLink({ href, label, icon: Icon, disabled }: { href: string; label: string; icon: React.ElementType; disabled?: boolean }) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const { isDirty, setIsDirty } = useFormState();
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [nextPath, setNextPath] = useState('');
+
+    const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (isDirty) {
+            e.preventDefault();
+            setNextPath(href);
+            setIsDialogOpen(true);
+        }
+    };
+    
+    const handleLeave = () => {
+        setIsDirty(false); // Assume user wants to discard changes
+        router.push(nextPath);
+        setIsDialogOpen(false);
+    };
+
+    const button = (
+        <Button 
+            variant={pathname === href ? 'default' : 'ghost'} 
+            className="w-full justify-start"
+            disabled={disabled}
+        >
+            <Icon className="mr-2" />
+            {label}
+        </Button>
+    );
+
+    return (
+        <>
+            <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to leave this page? Any changes you made will be lost.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Stay on Page</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleLeave}>Leave without Saving</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+             <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className={cn(disabled && "pointer-events-none w-full")}>
+                           <Link href={href} onClick={handleClick}>
+                                {button}
+                            </Link>
+                        </span>
+                    </TooltipTrigger>
+                    {disabled && (
+                        <TooltipContent>
+                            <p>Please complete your profile first.</p>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            </TooltipProvider>
+        </>
+    )
+}
 
 export default function DashboardNav() {
-  const pathname = usePathname();
   const { profileData } = useUserData();
-
   const isProfileComplete = !!profileData;
 
   const navItems = [
@@ -28,39 +105,7 @@ export default function DashboardNav() {
 
   return (
     <nav className="grid items-start gap-2">
-        <TooltipProvider>
-            {navItems.map(({ href, label, icon: Icon, disabled }) => {
-                const button = (
-                     <Button 
-                        variant={pathname === href ? 'default' : 'ghost'} 
-                        className="w-full justify-start"
-                        disabled={disabled}
-                    >
-                        <Icon className="mr-2" />
-                        {label}
-                    </Button>
-                );
-
-                if (disabled) {
-                    return (
-                        <Tooltip key={href}>
-                            <TooltipTrigger asChild>
-                                <div className="w-full">{button}</div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Please complete your profile first.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    )
-                }
-
-                return (
-                    <Link key={href} href={href} aria-disabled={disabled} className={cn(disabled && "pointer-events-none")}>
-                       {button}
-                    </Link>
-                )
-            })}
-        </TooltipProvider>
+        {navItems.map((item) => <NavLink key={item.href} {...item} />)}
         <Link href="/help/user-guide" target="_blank" rel="noopener noreferrer">
              <Button variant='ghost' className="w-full justify-start mt-4">
                 <HelpCircle className="mr-2" />

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +12,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
+import { useFormState } from '@/hooks/use-form-state';
 
 
 import { Button } from '@/components/ui/button';
@@ -221,6 +221,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
     const { saveProfileData } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
+    const { setIsDirty } = useFormState();
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
@@ -231,12 +232,21 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
         },
     });
 
+    const { formState: { isDirty } } = form;
+
+    useEffect(() => {
+        setIsDirty(isDirty);
+        // On unmount, reset the dirty state
+        return () => setIsDirty(false);
+    }, [isDirty, setIsDirty]);
+
     function onSubmit(data: ProfileData) {
         saveProfileData(data);
         toast({
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
         });
+        setIsDirty(false);
         router.push('/dashboard/assessment');
     }
 
