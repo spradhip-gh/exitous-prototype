@@ -58,7 +58,7 @@ function AnswerDisplay({ label, value, subDetails, isUnsure }: { label: string; 
                         <span>{displayValue}</span>
                     </div>
                 )}
-                {subDetails && (
+                {subDetails && subDetails.length > 0 && (
                     <dl className="mt-2 space-y-1">
                         {subDetails.map(detail => (
                             <div key={detail.label} className="grid grid-cols-3">
@@ -111,26 +111,24 @@ export default function AssessmentReview() {
         const value = assessmentData?.[question.id as keyof typeof assessmentData];
         let subDetails: { label: string, value: string }[] = [];
 
-        // Grouping logic for specific questions
-        if (question.id.includes('Insurance') || question.id.includes('hadEAP')) {
-            const baseId = question.id.replace('had', '').replace('Insurance', '').toLowerCase();
-            const coverageKey = `${baseId}Coverage` as keyof typeof assessmentData;
-            const endDateKey = `${baseId}CoverageEndDate` as keyof typeof assessmentData;
+        if (question.subQuestions && question.subQuestions.length > 0) {
+            question.subQuestions.forEach(subQ => {
+                const parentValue = assessmentData?.[question.id as keyof typeof assessmentData];
+                let isTriggered = false;
 
-            const coverageDisplay = getDisplayValue(assessmentData?.[coverageKey]);
-            const endDateDisplay = getDisplayValue(assessmentData?.[endDateKey]);
-            
-            if (coverageDisplay) subDetails.push({ label: 'Coverage', value: coverageDisplay });
-            if (endDateDisplay) subDetails.push({ label: 'Ends On', value: endDateDisplay });
-            
-        } else if (question.id === 'accessSystems' && Array.isArray(value)) {
-            value.forEach(system => {
-                 const key = system.split(' ')[0].toLowerCase().replace('/', '');
-                 const endDateKey = `${key}AccessEndDate` as keyof typeof assessmentData;
-                 const endDateValue = getDisplayValue(assessmentData?.[endDateKey]);
-                 if (endDateValue) {
-                     subDetails.push({ label: `${system} ends`, value: endDateValue });
-                 }
+                if (Array.isArray(parentValue)) {
+                    isTriggered = parentValue.includes(subQ.triggerValue);
+                } else {
+                    isTriggered = parentValue === subQ.triggerValue;
+                }
+                
+                if (isTriggered) {
+                    const subValue = assessmentData?.[subQ.id as keyof typeof assessmentData];
+                    const displayValue = getDisplayValue(subValue);
+                    if (displayValue) {
+                        subDetails.push({ label: subQ.label, value: displayValue });
+                    }
+                }
             });
         }
         
@@ -157,13 +155,16 @@ export default function AssessmentReview() {
                 }
                 sections[sectionName].push(q);
             }
-
-            if (q.subQuestions) {
-                q.subQuestions.forEach(processQuestion);
-            }
         };
 
-        questions.forEach(processQuestion);
+        questions.forEach(q => {
+            processQuestion(q);
+            if (q.subQuestions) {
+                // We don't recursively call processQuestion here because the parent question's rendering handles sub-questions.
+                // We just need to make sure the root questions are added to their sections.
+            }
+        });
+
         return sections;
     }, [questions, assessmentData]);
     
