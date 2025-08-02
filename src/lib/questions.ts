@@ -12,6 +12,7 @@ export interface Question {
     isCustom?: boolean;
     defaultValue?: string | string[];
     options?: string[];
+    exclusiveOption?: string; // For checkboxes, the value of the option that is mutually exclusive
     placeholder?: string;
     description?: string;
     lastUpdated?: string; // ISO date string
@@ -150,6 +151,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
             'Marriage / separation / divorce', 'Serious mental or physical illness or accident (affecting you, a dependent, or a loved one)',
             'Death of a family member or loved one', 'Taking on elder care', 'None of the above', 'Prefer not to answer'
         ],
+        exclusiveOption: 'None of the above',
     }
 ];
 
@@ -295,6 +297,7 @@ export const getDefaultQuestions = (): Question[] => [
             'Short- / long-term disability leave', 'Bereavement leave', 'Sabbatical leave',
             'Witness leave', 'Jury duty leave', 'Military leave', 'Other leave', 'None of the above'
         ],
+        exclusiveOption: 'None of the above',
         subQuestions: [
             { 
                 id: 'usedLeaveManagement', 

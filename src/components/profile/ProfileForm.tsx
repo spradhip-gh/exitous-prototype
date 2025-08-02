@@ -116,8 +116,26 @@ const renderFormControl = (question: Question, field: any, form: any) => {
                         const isCustom = !question.isCustom && !masterOptionsSet.has(item);
                         return (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
                             <FormControl><Checkbox checked={f.value?.includes(item)} onCheckedChange={(checked) => {
-                                const value = f.value || [];
-                                return checked ? f.onChange([...value, item]) : f.onChange(value?.filter((v) => v !== item));
+                                const exclusiveOption = question.exclusiveOption;
+                                let newValue = [...(f.value || [])];
+
+                                if (checked) {
+                                    if (item === exclusiveOption) {
+                                        // If exclusive is checked, set array to only be exclusive
+                                        newValue = [exclusiveOption];
+                                    } else {
+                                        // If another item is checked, add it and remove exclusive
+                                        newValue.push(item);
+                                        if (exclusiveOption) {
+                                            newValue = newValue.filter(v => v !== exclusiveOption);
+                                        }
+                                    }
+                                } else {
+                                    // Just remove the item if unchecked
+                                    newValue = newValue.filter(v => v !== item);
+                                }
+                                return f.onChange(newValue);
+                                
                             }} /></FormControl>
                              <div className="flex items-center gap-2">
                                 <FormLabel className="font-normal">{item}</FormLabel>

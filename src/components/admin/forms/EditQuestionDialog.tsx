@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -311,6 +312,7 @@ export default function EditQuestionDialog({
     }, [masterQuestionForEdit]);
 
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
+    const currentOptions = useMemo(() => optionsText.split('\n').map(o => o.trim()).filter(Boolean), [optionsText]);
 
     // --- EFFECTS ---
     useEffect(() => {
@@ -344,7 +346,7 @@ export default function EditQuestionDialog({
         // When saving, include the latest guidance overrides.
         const questionToSave: Partial<Question> = { 
             ...currentQuestion, 
-            options: optionsText.split('\n').map(o => o.trim()).filter(Boolean),
+            options: currentOptions,
             answerGuidance: Object.keys(answerGuidanceOverrides).length > 0 ? answerGuidanceOverrides : undefined 
         };
 
@@ -407,7 +409,7 @@ export default function EditQuestionDialog({
 
 
         onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose, optionsText]);
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -435,7 +437,7 @@ export default function EditQuestionDialog({
         setCurrentGuidance(answerGuidanceOverrides[answer] || { tasks: [], tips: [], noGuidanceRequired: false });
         setIsGuidanceDialogOpen(true);
     }, [answerGuidanceOverrides]);
-    
+
     const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
         const guidance = answerGuidanceOverrides[answer];
         if (!guidance) return false;
@@ -582,14 +584,20 @@ export default function EditQuestionDialog({
                             <p className="text-xs text-muted-foreground">Enter one option per line.</p>
                              <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} rows={5}/>
                         </div>
-
+                        {currentQuestion.type === 'checkbox' && (
+                             <div className="space-y-2">
+                                <Label htmlFor="exclusive-option">Exclusive Option</Label>
+                                <Input id="exclusive-option" value={currentQuestion.exclusiveOption || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, exclusiveOption: e.target.value } : null)} placeholder="e.g., None of the above"/>
+                                <p className="text-xs text-muted-foreground">If a user selects this option, all other options will be deselected.</p>
+                            </div>
+                        )}
                          <div className="space-y-2">
                              <Label>Default Value</Label>
                              <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, defaultValue: v as any } : null)} value={currentQuestion.defaultValue as string || ''}>
                                 <SelectTrigger><SelectValue placeholder="Select a default value..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="NO_DEFAULT">No Default</SelectItem>
-                                    {optionsText.split('\n').filter(o => o.trim()).map(option => (
+                                    {currentOptions.map(option => (
                                         <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -602,14 +610,16 @@ export default function EditQuestionDialog({
                     <Label>Answer Guidance</Label>
                      <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
                     <div className="space-y-2 rounded-md border p-4">
-                         {optionsText.split('\n').filter(o => o.trim()).map(option => (
+                         {currentOptions.length > 0 ? currentOptions.map(option => (
                              <div key={option} className="flex items-center justify-between">
                                  <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
                                  <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
                                      <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
                                  </Button>
                              </div>
-                         ))}
+                         )) : (
+                            <p className="text-center text-muted-foreground text-sm py-4">Add answer options above to set guidance.</p>
+                         )}
                     </div>
                 </div>
 
