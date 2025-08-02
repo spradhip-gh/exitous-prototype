@@ -354,6 +354,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
 
     function onSubmit(data: AssessmentData) {
         saveAssessmentData({ ...data, companyName: auth?.companyName });
+        setIsDirty(false);
         router.push('/dashboard');
     }
 
@@ -371,6 +372,17 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
             }
         }, 100);
     };
+
+    const handleSaveForLater = () => {
+        const data = getValues();
+        saveAssessmentData({ ...data, companyName: auth?.companyName });
+        setIsDirty(false);
+        toast({
+            title: "Progress Saved",
+            description: "Your answers have been saved. You can return later to complete the assessment."
+        });
+        router.push('/dashboard');
+    }
     
     const companyName = auth?.companyName || "your previous company";
 
@@ -424,9 +436,14 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                 ))}
                 
                 {questions.length > 0 &&
-                    <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? 'Saving...' : 'See My Timeline'}
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="secondary" onClick={handleSaveForLater} className="w-full">
+                            Save for Later
+                        </Button>
+                        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                            {form.formState.isSubmitting ? 'Saving...' : 'See My Timeline'}
+                        </Button>
+                    </div>
                 }
             </form>
         </Form>

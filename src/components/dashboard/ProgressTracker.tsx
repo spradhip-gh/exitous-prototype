@@ -26,10 +26,9 @@ export default function ProgressTracker() {
   const { toast } = useToast();
 
   const { percentage: profileProgress, remaining: remainingProfile } = getProfileCompletion();
-  const { percentage: assessmentProgress, remaining: remainingAssessment } = getAssessmentCompletion();
+  const { percentage: assessmentOverallProgress, sections: assessmentSections, isComplete: isAssessmentComplete } = getAssessmentCompletion();
   const isProfileComplete = profileProgress === 100;
-  const isAssessmentComplete = assessmentProgress === 100;
-
+  
   const handleDateSet = (id: string, label: string, date: Date | undefined) => {
     if (date) {
       addCustomDeadline(id, { label, date: format(date, 'yyyy-MM-dd') });
@@ -133,27 +132,29 @@ export default function ProgressTracker() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-muted-foreground mb-4">
-            {isAssessmentComplete
-              ? 'Your exit details are saved. You can edit them if needed.'
-              : `Answer ${remainingAssessment} more question${remainingAssessment === 1 ? '' : 's'}.`}
-          </div>
-          {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
-              <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline']?.date)}</p>
-          )}
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium">Status</span>
-            {isAssessmentComplete ? (
-              <span className="flex items-center gap-1 text-sm text-green-600">
-                <CheckCircle className="h-4 w-4" /> Complete
-              </span>
-            ) : (
-              <span className="text-sm text-amber-600">{assessmentProgress.toFixed(0)}% Complete</span>
+           <div className="text-sm text-muted-foreground mb-4">
+              {isAssessmentComplete
+                ? 'Your exit details are saved. You can edit them if needed.'
+                : 'Complete all sections to unlock your personalized timeline.'}
+            </div>
+            {customDeadlines['assessment-deadline'] && !isAssessmentComplete && (
+                <p className="text-xs text-muted-foreground mb-4">Goal: Complete by {getDisplayDate(customDeadlines['assessment-deadline']?.date)}</p>
             )}
-          </div>
-          <Progress value={assessmentProgress} className="w-full mb-4" />
+
+            <div className="space-y-4">
+              {assessmentSections.map(section => (
+                <div key={section.name}>
+                   <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium">{section.name}</span>
+                      <span className="text-sm text-muted-foreground">{section.completed}/{section.total}</span>
+                   </div>
+                   <Progress value={section.percentage} className="w-full" />
+                </div>
+              ))}
+            </div>
+          
           <Link href="/dashboard/assessment" passHref>
-            <Button className="w-full" disabled={!isProfileComplete} variant={isProfileComplete ? "default" : "secondary"}>
+            <Button className="w-full mt-6" disabled={!isProfileComplete} variant={isProfileComplete ? "default" : "secondary"}>
               {isAssessmentComplete ? 'Edit Details' : 'Continue Adding Details'}
             </Button>
           </Link>

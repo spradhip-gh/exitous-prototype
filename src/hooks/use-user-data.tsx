@@ -518,7 +518,8 @@ export function useUserData() {
       // Update state with the Date objects to keep it consistent for the app
       setAssessmentData(data); 
 
-      if (auth?.role === 'end-user' && auth.email && !auth.isPreview) {
+      // Only mark assessment as complete if the final submit button is hit (workStatus is a proxy for this)
+      if (data.workStatus && auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
         saveAssessmentCompletionsToDb(newCompletions);
         setAssessmentCompletionsState(newCompletions);
@@ -852,21 +853,32 @@ export function useUserData() {
   const getAssessmentCompletion = useCallback(() => {
     const activeQuestions = getCompanyConfig(auth?.companyName, true);
     if (!activeQuestions || activeQuestions.length === 0) {
-      return { total: 0, completed: 0, remaining: 0, percentage: 0 };
+      return { percentage: 0, sections: [], isComplete: false };
     }
 
-    let totalRequired = 0;
-    let completedCount = 0;
     const data = assessmentData || {};
+    const sections: Record<string, { total: number; completed: number; name: string; }> = {};
+
+    let grandTotal = 0;
+    let grandCompleted = 0;
 
     const countQuestions = (questions: Question[]) => {
       questions.forEach(q => {
-        totalRequired++;
+        if (!q.section) return;
+
+        if (!sections[q.section]) {
+            sections[q.section] = { total: 0, completed: 0, name: q.section };
+        }
+
+        sections[q.section].total++;
+        grandTotal++;
+
         const value = (data as any)[q.id];
         const isAnswered = value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         
         if (isAnswered) {
-          completedCount++;
+          sections[q.section].completed++;
+          grandCompleted++;
           
           if (q.subQuestions) {
             q.subQuestions.forEach(subQ => {
@@ -892,9 +904,19 @@ export function useUserData() {
 
     countQuestions(activeQuestions);
 
-    const remaining = totalRequired - completedCount;
-    const percentage = totalRequired > 0 ? (completedCount / totalRequired) * 100 : 0;
-    return { total: totalRequired, completed: completedCount, remaining, percentage: Math.round(percentage) };
+    const sectionArray = Object.values(sections).map(s => ({
+        ...s,
+        percentage: s.total > 0 ? (s.completed / s.total) * 100 : 0,
+    }));
+
+    const overallPercentage = grandTotal > 0 ? (grandCompleted / grandTotal) * 100 : 0;
+    
+    return {
+        percentage: overallPercentage,
+        sections: sectionArray,
+        isComplete: assessmentData?.workStatus !== undefined && overallPercentage === 100
+    };
+
   }, [auth?.companyName, assessmentData, getCompanyConfig]);
 
 
@@ -1126,6 +1148,7 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
+
 
 
 
