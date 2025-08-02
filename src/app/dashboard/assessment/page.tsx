@@ -1,15 +1,18 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useUserData } from '@/hooks/use-user-data';
 import AssessmentForm from '@/components/assessment/AssessmentForm';
 import AssessmentReview from '@/components/assessment/AssessmentReview';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-export default function AssessmentPage() {
+function AssessmentPageContent() {
     const { isAssessmentComplete, isLoading } = useUserData();
+    const searchParams = useSearchParams();
+    const isEditingSection = searchParams.has('section');
 
     const Content = useMemo(() => {
         if (isLoading) {
@@ -28,13 +31,26 @@ export default function AssessmentPage() {
             );
         }
 
+        // If a specific section is requested for editing, always show the form.
+        if (isEditingSection) {
+            return <AssessmentForm />;
+        }
+
         if (isAssessmentComplete) {
             return <AssessmentReview />;
         }
         
         return <AssessmentForm />;
 
-    }, [isAssessmentComplete, isLoading]);
+    }, [isAssessmentComplete, isLoading, isEditingSection]);
     
     return Content;
+}
+
+export default function AssessmentPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <AssessmentPageContent />
+        </Suspense>
+    );
 }
