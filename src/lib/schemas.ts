@@ -19,6 +19,23 @@ const profileBaseShape = {
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
+    // New fields for account settings
+    phone: z.string().optional(),
+    notificationEmail: z.string().email().optional(),
+    notificationSettings: z.object({
+        email: z.object({
+            all: z.boolean().optional(),
+            taskReminders: z.boolean().optional(),
+            unsureReminders: z.boolean().optional(),
+            criticalDateReminders: z.boolean().optional(),
+        }).optional(),
+        sms: z.object({
+            all: z.boolean().optional(),
+            taskReminders: z.boolean().optional(),
+            unsureReminders: z.boolean().optional(),
+            criticalDateReminders: z.boolean().optional(),
+        }).optional(),
+    }).optional(),
 };
 const profileBaseSchema = z.object(profileBaseShape);
 

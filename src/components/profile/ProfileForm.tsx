@@ -206,7 +206,10 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
-        values: initialData,
+        values: {
+            ...initialData,
+            personalEmail: initialData?.personalEmail || '' // ensure personalEmail is controlled
+        },
     });
 
     function onSubmit(data: ProfileData) {

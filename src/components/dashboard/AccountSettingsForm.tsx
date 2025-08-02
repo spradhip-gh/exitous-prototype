@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,47 +12,77 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { timezones } from '@/lib/timezones';
-import { useRouter } from 'next/navigation';
+import { Checkbox } from '../ui/checkbox';
+import { Separator } from '../ui/separator';
 
-const accountSchema = z.object({
-  email: z.string().email('Please enter a valid email address.'),
-  timezone: z.string().min(1, 'Please select a timezone.'),
+const accountSettingsSchema = z.object({
+  personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
+  phone: z.string().optional(),
+  notificationEmail: z.string().optional(),
+  notificationSettings: z.object({
+    email: z.object({
+      all: z.boolean().optional(),
+      taskReminders: z.boolean().optional(),
+      unsureReminders: z.boolean().optional(),
+      criticalDateReminders: z.boolean().optional(),
+    }),
+    sms: z.object({
+      all: z.boolean().optional(),
+      taskReminders: z.boolean().optional(),
+      unsureReminders: z.boolean().optional(),
+      criticalDateReminders: z.boolean().optional(),
+    }),
+  }),
 });
 
-type AccountFormData = z.infer<typeof accountSchema>;
+type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
 export default function AccountSettingsForm() {
-  const { auth, updateEmail } = useAuth();
-  const { userTimezone, saveUserTimezone } = useUserData();
+  const { auth } = useAuth();
+  const { profileData, saveProfileData } = useUserData();
   const { toast } = useToast();
-  const router = useRouter();
 
-  const form = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
+  const form = useForm<AccountSettingsFormData>({
+    resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      email: auth?.email || '',
-      timezone: userTimezone || 'America/Los_Angeles',
+      personalEmail: profileData?.personalEmail || '',
+      phone: profileData?.phone || '',
+      notificationEmail: profileData?.notificationEmail || auth?.email,
+      notificationSettings: {
+        email: {
+          all: profileData?.notificationSettings?.email?.all ?? true,
+          taskReminders: profileData?.notificationSettings?.email?.taskReminders ?? false,
+          unsureReminders: profileData?.notificationSettings?.email?.unsureReminders ?? false,
+          criticalDateReminders: profileData?.notificationSettings?.email?.criticalDateReminders ?? false,
+        },
+        sms: {
+          all: profileData?.notificationSettings?.sms?.all ?? false,
+          taskReminders: profileData?.notificationSettings?.sms?.taskReminders ?? false,
+          unsureReminders: profileData?.notificationSettings?.sms?.unsureReminders ?? false,
+          criticalDateReminders: profileData?.notificationSettings?.sms?.criticalDateReminders ?? false,
+        },
+      },
     },
   });
 
-  function onSubmit(data: AccountFormData) {
-    if (!auth) return;
-    
-    // Check if email is different and needs to be updated
-    if (data.email.toLowerCase() !== auth.email?.toLowerCase()) {
-        updateEmail(data.email);
+  function onSubmit(data: AccountSettingsFormData) {
+    if (!profileData) {
+        toast({ title: 'Profile not found', description: 'Please complete your profile first.', variant: 'destructive'});
+        return;
     }
-    
-    saveUserTimezone(data.timezone);
+
+    const updatedProfile = { ...profileData, ...data };
+    saveProfileData(updatedProfile);
 
     toast({
       title: 'Settings Saved',
       description: 'Your account settings have been updated.',
     });
-    
-    // Refresh to ensure all components have the latest data
-    router.refresh();
+  }
+
+  const emailOptions = [auth?.email];
+  if(form.watch('personalEmail')) {
+    emailOptions.push(form.watch('personalEmail'));
   }
 
   return (
@@ -59,18 +90,18 @@ export default function AccountSettingsForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Your Details</CardTitle>
-            <CardDescription>Update your primary email address and timezone preference.</CardDescription>
+            <CardTitle>Contact Information</CardTitle>
+            <CardDescription>Update your contact details for notifications.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <FormField
               control={form.control}
-              name="email"
+              name="personalEmail"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
+                  <FormLabel>Personal Email Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="your.email@example.com" {...field} />
+                    <Input placeholder="your.name@personal.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -78,30 +109,72 @@ export default function AccountSettingsForm() {
             />
             <FormField
               control={form.control}
-              name="timezone"
+              name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Timezone</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your timezone" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {timezones.map(tz => (
-                        <SelectItem key={tz} value={tz}>
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Phone Number (for SMS alerts)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="(555) 123-4567" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </CardContent>
-          <CardFooter className="border-t bg-muted/50 px-6 py-3">
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>Choose how and when you want to be notified.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="notificationEmail"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Send Notifications To</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select an email" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {emailOptions.map(email => email && <SelectItem key={email} value={email}>{email}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 className="font-medium mb-2">Email Notifications</h4>
+                        <div className="space-y-3">
+                            <FormField control={form.control} name="notificationSettings.email.all" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">All Notifications</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.email.taskReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Task Due Reminders</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.email.unsureReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Reminders to Complete Unsure Answers</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.email.criticalDateReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Critical Date Reminders</FormLabel></FormItem>)} />
+                        </div>
+                    </div>
+                     <div>
+                        <h4 className="font-medium mb-2">SMS Text Alerts</h4>
+                        <div className="space-y-3">
+                            <FormField control={form.control} name="notificationSettings.sms.all" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">All Notifications</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.sms.taskReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Task Due Reminders</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.sms.unsureReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Reminders to Complete Unsure Answers</FormLabel></FormItem>)} />
+                            <FormField control={form.control} name="notificationSettings.sms.criticalDateReminders" render={({field}) => (<FormItem className="flex items-center space-x-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="font-normal">Critical Date Reminders</FormLabel></FormItem>)} />
+                        </div>
+                    </div>
+                </div>
+
+            </CardContent>
+             <CardFooter className="border-t bg-muted/50 px-6 py-3">
               <div className="flex w-full justify-end">
                 <Button type="submit">Save Changes</Button>
               </div>

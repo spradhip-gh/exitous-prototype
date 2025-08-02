@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, User, FileText, Library, Users2, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, User, FileText, Library, Users2, HelpCircle, Settings } from 'lucide-react';
 import { useUserData } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -22,6 +23,7 @@ export default function DashboardNav() {
     { href: '/dashboard/assessment', label: 'Edit Assessment', icon: FileText, disabled: !isProfileComplete },
     { href: '/dashboard/resources', label: 'Company Resources', icon: Library },
     { href: '/dashboard/external-resources', label: 'External Resources', icon: Users2 },
+    { href: '/dashboard/account', label: 'Account Settings', icon: Settings },
   ];
 
   return (

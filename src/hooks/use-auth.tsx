@@ -3,7 +3,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { HrPermissions, CompanyAssignment } from './use-user-data';
+import type { HrPermissions, CompanyAssignment, ProfileData } from './use-user-data';
 import { getCompanyAssignments as getCompanyAssignmentsFromDb, getCompanyConfigs as getCompanyConfigsFromDb, getPlatformUsers as getPlatformUsersFromDb } from '@/lib/demo-data';
 
 
@@ -166,8 +166,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateEmail = useCallback((newEmail: string) => {
     if (auth) {
         const newAuth = { ...auth, email: newEmail };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-        setAuthState(newAuth);
+        const key = auth.isPreview ? `exitbetter-profile-hr-preview` : `exitbetter-profile`;
+        
+        try {
+            const profileJson = localStorage.getItem(key);
+            if (profileJson) {
+                const profile = JSON.parse(profileJson) as ProfileData;
+                profile.personalEmail = newEmail;
+                localStorage.setItem(key, JSON.stringify(profile));
+            }
+        } catch (e) {
+            console.error('Failed to update personalEmail in profile', e);
+        }
     }
   }, [auth]);
 
