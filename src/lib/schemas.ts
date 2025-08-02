@@ -38,6 +38,28 @@ const profileBaseShape = {
         }).optional(),
     }).optional(),
 };
+
+export const accountSettingsSchema = z.object({
+  personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
+  phone: z.string().optional(),
+  notificationEmail: z.string().email().optional(),
+  notificationSettings: z.object({
+    email: z.object({
+      all: z.boolean().optional(),
+      taskReminders: z.boolean().optional(),
+      unsureReminders: z.boolean().optional(),
+      criticalDateReminders: z.boolean().optional(),
+    }),
+    sms: z.object({
+      all: z.boolean().optional(),
+      taskReminders: z.boolean().optional(),
+      unsureReminders: z.boolean().optional(),
+      criticalDateReminders: z.boolean().optional(),
+    }),
+  }),
+});
+
+
 const profileBaseSchema = z.object(profileBaseShape);
 
 export const profileSchema = profileBaseSchema.refine(data => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {

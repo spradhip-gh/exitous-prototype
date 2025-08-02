@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,24 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
-
-const accountSettingsSchema = z.object({
-  notificationEmail: z.string().email().optional(),
-  notificationSettings: z.object({
-    email: z.object({
-      all: z.boolean().optional(),
-      taskReminders: z.boolean().optional(),
-      unsureReminders: z.boolean().optional(),
-      criticalDateReminders: z.boolean().optional(),
-    }),
-    sms: z.object({
-      all: z.boolean().optional(),
-      taskReminders: z.boolean().optional(),
-      unsureReminders: z.boolean().optional(),
-      criticalDateReminders: z.boolean().optional(),
-    }),
-  }),
-});
+import { accountSettingsSchema } from '@/lib/schemas';
 
 type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
@@ -44,6 +26,8 @@ export default function AccountSettingsForm() {
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
+      personalEmail: profileData?.personalEmail || '',
+      phone: profileData?.phone || '',
       notificationEmail: profileData?.notificationEmail || auth?.email,
       notificationSettings: {
         email: {
@@ -73,18 +57,53 @@ export default function AccountSettingsForm() {
 
     toast({
       title: 'Settings Saved',
-      description: 'Your notification preferences have been updated.',
+      description: 'Your account settings have been updated.',
     });
   }
 
   const emailOptions = [auth?.email];
   if(profileData?.personalEmail) {
-    emailOptions.push(profileData?.personalEmail);
+    emailOptions.push(profileData.personalEmail);
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+            <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+                <CardDescription>Manage the contact details we use to communicate with you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <FormField
+                    control={form.control}
+                    name="personalEmail"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Personal Email Address</FormLabel>
+                        <FormControl>
+                            <Input placeholder="your.name@personal.com" {...field} />
+                        </FormControl>
+                         <FormDescription>This is where we'll send important updates after your access to your work email ends.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Phone Number (for SMS alerts)</FormLabel>
+                        <FormControl>
+                            <Input placeholder="(555) 123-4567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
         <Card>
             <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
