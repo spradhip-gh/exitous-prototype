@@ -15,7 +15,7 @@ import { useFormState } from '@/hooks/use-form-state';
 
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -356,9 +356,11 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     }, [profileData, watchedFinalDate, watchedHadMedical, watchedHadDental, watchedHadVision, watchedHadEAP, getValues, setValue]);
 
     function onSubmit(data: AssessmentData) {
+        const isEditingSection = searchParams.has('section');
         saveAssessmentData({ ...data, companyName: auth?.companyName });
         setIsDirty(false);
-        router.push('/dashboard');
+        // If editing, go back to review page. Otherwise, go to dashboard timeline.
+        router.push(isEditingSection ? '/dashboard/assessment' : '/dashboard');
     }
 
     const onInvalid = (errors: any) => {
@@ -388,10 +390,17 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     }
     
     const companyName = auth?.companyName || "your previous company";
+    const editingSection = searchParams.get('section');
 
     const groupedQuestions = useMemo(() => {
         const sections: Record<string, Question[]> = {};
-        questions.forEach(q => {
+        
+        // If editing a specific section, only include that section's questions.
+        const questionsToProcess = editingSection 
+            ? questions.filter(q => q.section === editingSection)
+            : questions;
+        
+        questionsToProcess.forEach(q => {
             if (q.parentId) return;
 
             // Handle cross-form dependencies
@@ -413,7 +422,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
             sections[sectionName].push(q);
         });
         return sections;
-    }, [questions, profileData]);
+    }, [questions, profileData, editingSection]);
     
      useEffect(() => {
         const section = searchParams.get('section');
@@ -427,14 +436,17 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         }
     }, [searchParams]);
 
+    const pageTitle = editingSection ? `Edit: ${editingSection}` : 'Exit Details';
+    const pageDescription = editingSection 
+        ? 'Update your answers below and save your changes.'
+        : 'Please provide details about your exit. This will help us create a personalized timeline and resource list for you.';
+
     return (
          <div className="p-4 md:p-8">
             <div className="mx-auto max-w-2xl space-y-6">
                  <div>
-                    <h1 className="font-headline text-3xl font-bold">Exit Details</h1>
-                    <p className="text-muted-foreground">
-                        Please provide details about your exit. This will help us create a personalized timeline and resource list for you.
-                    </p>
+                    <h1 className="font-headline text-3xl font-bold">{pageTitle}</h1>
+                    <p className="text-muted-foreground">{pageDescription}</p>
                 </div>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
@@ -454,10 +466,17 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                                     />
                                 ))}
                                 </CardContent>
+                                {editingSection && (
+                                     <CardFooter className="border-t pt-6">
+                                        <Button type="submit" disabled={form.formState.isSubmitting}>
+                                            {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                                        </Button>
+                                    </CardFooter>
+                                )}
                             </Card>
                         ))}
                         
-                        {questions.length > 0 &&
+                        {questions.length > 0 && !editingSection &&
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button type="button" variant="secondary" onClick={handleSaveForLater} className="w-full">
                                     Save for Later
