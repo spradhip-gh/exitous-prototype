@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -395,28 +394,36 @@ export function useUserData() {
       const assessmentJson = localStorage.getItem(assessmentKey);
       
       let finalProfileData = profileJson ? JSON.parse(profileJson) : null;
-      let finalAssessmentData = assessmentJson ? JSON.parse(assessmentJson) : {};
 
-      if (auth?.email) {
-          const seeded = getSeededDataForUser(auth.email);
-          const companyUser = loadedCompanyConfigs[auth.companyName as string]?.users?.find(u => u.email === auth.email);
-          const hrPrefilledData = companyUser?.prefilledAssessmentData || {};
-          const notificationDate = companyUser?.notificationDate ? { notificationDate: companyUser.notificationDate } : {};
-          
-          if (seeded && !profileJson) {
-              finalProfileData = seeded.profile;
-          }
-
-          finalAssessmentData = {
-              ...(assessmentJson ? JSON.parse(assessmentJson) : {}),
-              ...(seeded?.assessment || {}),
-              ...hrPrefilledData,
-              ...notificationDate,
-          };
+      // The logic for assessment data is now smarter.
+      // If there's already saved data in localStorage, we use that as the primary source.
+      // Seeded/HR data is only used to populate the *initial* form, not to overwrite edits.
+      let finalAssessmentData;
+      if (assessmentJson) {
+        finalAssessmentData = JSON.parse(assessmentJson);
+      } else {
+        // No saved data, so let's build the initial state.
+        finalAssessmentData = {};
+        if (auth?.email) {
+            const seeded = getSeededDataForUser(auth.email);
+            const companyUser = loadedCompanyConfigs[auth.companyName as string]?.users?.find(u => u.email === auth.email);
+            const hrPrefilledData = companyUser?.prefilledAssessmentData || {};
+            const notificationDate = companyUser?.notificationDate ? { notificationDate: companyUser.notificationDate } : {};
+            
+            Object.assign(finalAssessmentData, seeded?.assessment || {}, hrPrefilledData, notificationDate);
+        }
       }
       
       if(finalProfileData) {
         setProfileData(convertStringsToDates(finalProfileData));
+      } else if (auth?.email) {
+        // If no profile, check for seeded profile data
+        const seeded = getSeededDataForUser(auth.email);
+        if (seeded?.profile) {
+            setProfileData(convertStringsToDates(seeded.profile));
+        } else {
+            setProfileData(null);
+        }
       } else {
         setProfileData(null);
       }
@@ -512,13 +519,12 @@ export function useUserData() {
 
   const saveAssessmentData = useCallback((data: AssessmentData) => {
     try {
-      // Ensure all Date objects are converted to 'YYYY-MM-DD' strings before saving
-      const dataWithStrings = convertDatesToStrings(data);
+      const existingData = assessmentData || {};
+      const mergedData = { ...existingData, ...data };
+      const dataWithStrings = convertDatesToStrings(mergedData);
       localStorage.setItem(assessmentKey, JSON.stringify(dataWithStrings));
-      // Update state with the Date objects to keep it consistent for the app
-      setAssessmentData(data); 
+      setAssessmentData(mergedData); 
 
-      // Only mark assessment as complete if the final submit button is hit (workStatus is a proxy for this)
       if (data.workStatus && auth?.role === 'end-user' && auth.email && !auth.isPreview) {
         const newCompletions = { ...assessmentCompletions, [auth.email!]: true };
         saveAssessmentCompletionsToDb(newCompletions);
@@ -526,7 +532,7 @@ export function useUserData() {
       }
       clearRecommendations();
     } catch (error) { console.error('Failed to save assessment data', error); }
-  }, [auth, assessmentKey, assessmentCompletions, clearRecommendations]);
+  }, [auth, assessmentKey, assessmentCompletions, clearRecommendations, assessmentData]);
 
   const saveRecommendations = useCallback((data: PersonalizedRecommendationsOutput) => {
       try {
@@ -1148,14 +1154,3 @@ export function useUserData() {
     getMappedRecommendations,
   };
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -11,34 +11,49 @@ import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import { format, parseISO, differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
 
-function AnswerDisplay({ label, value }: { label: string; value: any }) {
-    let displayValue = 'N/A';
+function getDisplayValue(value: any): string | null {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+        return null;
+    }
     if (Array.isArray(value)) {
-        displayValue = value.join(', ');
-    } else if (value instanceof Date) {
-        displayValue = format(value, 'PPP');
-    } else if (typeof value === 'string' && value) {
+        return value.join(', ');
+    }
+    if (value instanceof Date) {
+        return format(value, 'PPP');
+    }
+    if (typeof value === 'string') {
         // Check if it's an ISO date string
         try {
             const parsedDate = parseISO(value);
-            if (!isNaN(parsedDate.getTime())) {
-                displayValue = format(parsedDate, 'PPP');
-            } else {
-                displayValue = value;
+            if (!isNaN(parsedDate.getTime()) && value.includes('T')) {
+                 return format(parsedDate, 'PPP');
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                const [year, month, day] = value.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                 if (!isNaN(date.getTime())) {
+                    return format(date, 'PPP');
+                }
             }
-        } catch {
-            displayValue = value;
-        }
+        } catch {}
+        return value;
     }
+    return String(value);
+}
 
-    if (!value || (Array.isArray(value) && value.length === 0)) {
+function AnswerDisplay({ label, value, subText }: { label: string; value: any, subText?: string | null }) {
+    const displayValue = getDisplayValue(value);
+
+    if (displayValue === null) {
         return null;
     }
 
     return (
-        <div className="grid grid-cols-3 gap-4 py-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-1 py-2">
             <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-            <dd className="text-sm col-span-2">{displayValue}</dd>
+            <dd className="text-sm col-span-2">
+                {displayValue}
+                {subText && <span className="ml-2 text-xs text-muted-foreground">({subText})</span>}
+            </dd>
         </div>
     );
 }
@@ -76,13 +91,41 @@ export default function AssessmentReview() {
             return "N/A";
         }
     }, [assessmentData]);
+    
+    const getGroupedAnswer = (question: Question) => {
+        const value = assessmentData?.[question.id as keyof typeof assessmentData];
+        let subText: string | null = null;
+        
+        // This is a special handler for insurance questions to group them nicely.
+        if (question.id.includes('Insurance')) {
+            const baseId = question.id.replace('had', '').replace('Insurance', '').toLowerCase();
+            const coverageKey = `${baseId}Coverage` as keyof typeof assessmentData;
+            const endDateKey = `${baseId}CoverageEndDate` as keyof typeof assessmentData;
+
+            const coverageValue = assessmentData?.[coverageKey];
+            const endDateValue = assessmentData?.[endDateKey];
+
+            const coverageDisplay = getDisplayValue(coverageValue);
+            const endDateDisplay = getDisplayValue(endDateValue);
+            
+            let parts = [];
+            if (coverageDisplay) parts.push(`Coverage: ${coverageDisplay}`);
+            if (endDateDisplay) parts.push(`Ends: ${endDateDisplay}`);
+            subText = parts.join(' | ');
+        }
+        
+        return <AnswerDisplay label={question.label.replace('{companyName}', companyName || 'your company')} value={value} subText={subText} />
+    }
 
     const groupedQuestions = useMemo(() => {
         const sections: Record<string, Question[]> = {};
         const qMap = new Map(questions.map(q => [q.id, q]));
 
         const processQuestion = (q: Question) => {
-            if (!q.parentId) {
+            // Only process top-level questions that have an answer.
+            const hasAnswer = assessmentData?.[q.id as keyof typeof assessmentData] !== undefined;
+
+            if (!q.parentId && hasAnswer) {
                 const sectionName = q.section || "Uncategorized";
                 if (!sections[sectionName]) {
                     sections[sectionName] = [];
@@ -93,30 +136,7 @@ export default function AssessmentReview() {
 
         questions.forEach(processQuestion);
         return sections;
-    }, [questions]);
-    
-    const renderQuestionAndAnswer = (question: Question) => {
-        const value = assessmentData?.[question.id as keyof typeof assessmentData];
-        if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
-            return null;
-        }
-
-        return (
-            <div key={question.id} className="space-y-2">
-                <AnswerDisplay label={question.label.replace('{companyName}', companyName || 'your company')} value={value} />
-                {question.subQuestions && Array.isArray(value) && value.includes(question.triggerValue) && (
-                     <div className="pl-6 border-l-2 ml-4">
-                        {question.subQuestions.map(renderQuestionAndAnswer)}
-                    </div>
-                )}
-                 {question.subQuestions && !Array.isArray(value) && value === question.triggerValue && (
-                     <div className="pl-6 border-l-2 ml-4">
-                        {question.subQuestions.map(renderQuestionAndAnswer)}
-                    </div>
-                )}
-            </div>
-        )
-    };
+    }, [questions, assessmentData]);
     
     const handleEditClick = (sectionId: string) => {
         router.push(`/dashboard/assessment?section=${encodeURIComponent(sectionId)}`);
@@ -148,10 +168,10 @@ export default function AssessmentReview() {
                         </CardHeader>
                         <CardContent>
                              <dl className="divide-y divide-border">
-                                {tenure && section === 'Work & Employment Details' && (
+                                {section === 'Work & Employment Details' && (
                                     <AnswerDisplay label="Tenure" value={tenure} />
                                 )}
-                                {sectionQuestions.map(renderQuestionAndAnswer)}
+                                {sectionQuestions.map(q => getGroupedAnswer(q))}
                             </dl>
                         </CardContent>
                     </Card>
@@ -160,4 +180,3 @@ export default function AssessmentReview() {
         </div>
     );
 }
-
