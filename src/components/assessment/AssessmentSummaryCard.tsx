@@ -29,7 +29,7 @@ export default function AssessmentSummaryCard() {
             const parts = [];
             if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
             if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
-            if (remainingDays > 0) parts.push(`${remainingDays} day${remainingDays > 1 ? 's' : ''}`);
+            if (remainingDays > 0 && years === 0) parts.push(`${remainingDays} day${remainingDays > 1 ? 's' : ''}`);
 
             return parts.length > 0 ? parts.join(', ') : "Less than a day";
 

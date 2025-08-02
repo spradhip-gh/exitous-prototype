@@ -9,8 +9,7 @@ import { Question } from '@/lib/questions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import AssessmentSummaryCard from './AssessmentSummaryCard';
+import { format, parseISO, differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
 
 function AnswerDisplay({ label, value }: { label: string; value: any }) {
     let displayValue = 'N/A';
@@ -54,6 +53,30 @@ export default function AssessmentReview() {
         return companyName ? getCompanyConfig(companyName, true) : [];
     }, [companyName, getCompanyConfig]);
 
+    const tenure = useMemo(() => {
+        if (!assessmentData?.startDate || !assessmentData?.finalDate) return null;
+        try {
+            const start = assessmentData.startDate instanceof Date ? assessmentData.startDate : parseISO(assessmentData.startDate as string);
+            const end = assessmentData.finalDate instanceof Date ? assessmentData.finalDate : parseISO(assessmentData.finalDate as string);
+            
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) return "N/A";
+            
+            const years = differenceInYears(end, start);
+            const months = differenceInMonths(end, start) % 12;
+            const remainingDays = differenceInDays(end, new Date(start.getFullYear() + years, start.getMonth() + months));
+            
+            const parts = [];
+            if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
+            if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+            if (remainingDays > 0 && years === 0) parts.push(`${remainingDays} day${remainingDays > 1 ? 's' : ''}`);
+
+            return parts.length > 0 ? parts.join(', ') : "Less than a day";
+        } catch (e) {
+            console.error("Error calculating tenure", e);
+            return "N/A";
+        }
+    }, [assessmentData]);
+
     const groupedQuestions = useMemo(() => {
         const sections: Record<string, Question[]> = {};
         const qMap = new Map(questions.map(q => [q.id, q]));
@@ -80,7 +103,7 @@ export default function AssessmentReview() {
 
         return (
             <div key={question.id} className="space-y-2">
-                <AnswerDisplay label={question.label} value={value} />
+                <AnswerDisplay label={question.label.replace('{companyName}', companyName || 'your company')} value={value} />
                 {question.subQuestions && Array.isArray(value) && value.includes(question.triggerValue) && (
                      <div className="pl-6 border-l-2 ml-4">
                         {question.subQuestions.map(renderQuestionAndAnswer)}
@@ -113,8 +136,6 @@ export default function AssessmentReview() {
                     </p>
                 </div>
 
-                <AssessmentSummaryCard />
-
                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
                      <Card key={section}>
                         <CardHeader className="flex flex-row items-center justify-between">
@@ -127,6 +148,9 @@ export default function AssessmentReview() {
                         </CardHeader>
                         <CardContent>
                              <dl className="divide-y divide-border">
+                                {tenure && section === 'Work & Employment Details' && (
+                                    <AnswerDisplay label="Tenure" value={tenure} />
+                                )}
                                 {sectionQuestions.map(renderQuestionAndAnswer)}
                             </dl>
                         </CardContent>

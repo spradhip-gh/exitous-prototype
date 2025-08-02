@@ -500,19 +500,19 @@ export default function AssessmentFormWrapper() {
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [dynamicSchema, setDynamicSchema] = useState<z.ZodObject<any> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [initialData, setInitialData] = useState<AssessmentData | null>(null);
+    
+    const initialData = useMemo(() => assessmentData, [assessmentData]);
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
             const companyQuestions = getCompanyConfig(auth.companyName, true);
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions, profileData));
-            setInitialData(assessmentData);
             setIsLoading(false);
         } else if (!isUserDataLoading) {
             setIsLoading(false);
         }
-    }, [isUserDataLoading, getCompanyConfig, auth, assessmentData, profileData]);
+    }, [isUserDataLoading, getCompanyConfig, auth, profileData]);
 
     if (isLoading || !initialData || !questions || !dynamicSchema) {
         return (
