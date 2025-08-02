@@ -3,11 +3,11 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
@@ -263,6 +263,7 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 
 function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileData: any }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
@@ -272,6 +273,8 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         resolver: zodResolver(dynamicSchema),
         values: initialData,
     });
+    
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const { watch, setValue, getValues, reset, formState: { isDirty } } = form;
 
@@ -411,46 +414,67 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         });
         return sections;
     }, [questions, profileData]);
-
+    
+     useEffect(() => {
+        const section = searchParams.get('section');
+        if (section && sectionRefs.current[section]) {
+            setTimeout(() => {
+                sectionRefs.current[section]?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+            }, 100);
+        }
+    }, [searchParams]);
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
-                    <Card key={section}>
-                        <CardHeader>
-                            <CardTitle>{section}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                           {sectionQuestions.map(q => (
-                             <QuestionRenderer 
-                                key={q.id} 
-                                question={q} 
-                                form={form} 
-                                companyName={companyName}
-                                companyDeadline={companyDeadlineTooltip}
-                             />
-                           ))}
-                        </CardContent>
-                    </Card>
-                ))}
-                
-                {questions.length > 0 &&
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" variant="secondary" onClick={handleSaveForLater} className="w-full">
-                            Save for Later
-                        </Button>
-                        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                            {form.formState.isSubmitting ? 'Saving...' : 'See My Timeline'}
-                        </Button>
-                    </div>
-                }
-            </form>
-        </Form>
+         <div className="p-4 md:p-8">
+            <div className="mx-auto max-w-2xl space-y-6">
+                 <div>
+                    <h1 className="font-headline text-3xl font-bold">Exit Details</h1>
+                    <p className="text-muted-foreground">
+                        Please provide details about your exit. This will help us create a personalized timeline and resource list for you.
+                    </p>
+                </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
+                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                            <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
+                                <CardHeader>
+                                    <CardTitle>{section}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                {sectionQuestions.map(q => (
+                                    <QuestionRenderer 
+                                        key={q.id} 
+                                        question={q} 
+                                        form={form} 
+                                        companyName={companyName}
+                                        companyDeadline={companyDeadlineTooltip}
+                                    />
+                                ))}
+                                </CardContent>
+                            </Card>
+                        ))}
+                        
+                        {questions.length > 0 &&
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <Button type="button" variant="secondary" onClick={handleSaveForLater} className="w-full">
+                                    Save for Later
+                                </Button>
+                                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                                    {form.formState.isSubmitting ? 'Saving...' : 'See My Timeline'}
+                                </Button>
+                            </div>
+                        }
+                    </form>
+                </Form>
+            </div>
+        </div>
     );
 }
 
-export default function AssessmentForm() {
+export default function AssessmentFormWrapper() {
     const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData, profileData } = useUserData();
     const { auth } = useAuth();
     
@@ -473,16 +497,18 @@ export default function AssessmentForm() {
 
     if (isLoading || !initialData || !questions || !dynamicSchema) {
         return (
-            <div className="space-y-6">
-                {[...Array(3)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
-                        <CardContent className="space-y-6">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
-                        </CardContent>
-                    </Card>
-                ))}
+            <div className="p-4 md:p-8">
+                <div className="mx-auto max-w-2xl space-y-6">
+                    {[...Array(3)].map((_, i) => (
+                        <Card key={i}>
+                            <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
+                            <CardContent className="space-y-6">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
         )
     }

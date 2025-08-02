@@ -1,17 +1,40 @@
+
+'use client';
+
+import { useMemo } from 'react';
+import { useUserData } from '@/hooks/use-user-data';
 import AssessmentForm from '@/components/assessment/AssessmentForm';
+import AssessmentReview from '@/components/assessment/AssessmentReview';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
 export default function AssessmentPage() {
-  return (
-    <div className="p-4 md:p-8">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div>
-          <h1 className="font-headline text-3xl font-bold">Exit Details</h1>
-          <p className="text-muted-foreground">
-            Please provide details about your exit. This will help us create a personalized timeline and resource list for you.
-          </p>
-        </div>
-        <AssessmentForm />
-      </div>
-    </div>
-  );
+    const { isAssessmentComplete, isLoading } = useUserData();
+
+    const Content = useMemo(() => {
+        if (isLoading) {
+            return (
+                 <div className="space-y-6">
+                    {[...Array(3)].map((_, i) => (
+                        <Card key={i}>
+                            <CardHeader><Skeleton className="h-7 w-1/2" /></CardHeader>
+                            <CardContent className="space-y-6">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            );
+        }
+
+        if (isAssessmentComplete) {
+            return <AssessmentReview />;
+        }
+        
+        return <AssessmentForm />;
+
+    }, [isAssessmentComplete, isLoading]);
+    
+    return Content;
 }
