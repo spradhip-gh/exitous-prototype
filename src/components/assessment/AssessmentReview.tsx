@@ -41,8 +41,14 @@ function getDisplayValue(value: any): string | null {
     return String(value);
 }
 
-function AnswerDisplay({ label, value, subDetails, isUnsure }: { label: string; value: any, subDetails?: {label: string, value: string}[], isUnsure?: boolean }) {
+interface SubDetail {
+    label: string;
+    value: any;
+}
+
+function AnswerDisplay({ label, value, subDetails }: { label: string; value: any, subDetails?: SubDetail[] }) {
     const displayValue = getDisplayValue(value);
+    const isUnsure = value === 'Unsure';
 
     if (displayValue === null && (!subDetails || subDetails.length === 0)) {
         return null;
@@ -60,12 +66,21 @@ function AnswerDisplay({ label, value, subDetails, isUnsure }: { label: string; 
                 )}
                 {subDetails && subDetails.length > 0 && (
                     <dl className="mt-2 space-y-1">
-                        {subDetails.map(detail => (
-                            <div key={detail.label} className="grid grid-cols-3">
-                                <dt className="text-xs text-muted-foreground col-span-1">{detail.label}</dt>
-                                <dd className="text-xs col-span-2">{detail.value}</dd>
-                            </div>
-                        ))}
+                        {subDetails.map(detail => {
+                            const subDisplayValue = getDisplayValue(detail.value);
+                            const isSubUnsure = detail.value === 'Unsure';
+                            if (!subDisplayValue) return null;
+                            
+                            return (
+                                <div key={detail.label} className="grid grid-cols-3">
+                                    <dt className="text-xs text-muted-foreground col-span-1">{detail.label}</dt>
+                                    <dd className={cn("text-xs col-span-2 flex items-center gap-1.5", isSubUnsure && "text-amber-600 font-semibold")}>
+                                       {isSubUnsure && <AlertCircle className="h-3.5 w-3.5" />}
+                                       <span>{subDisplayValue}</span>
+                                    </dd>
+                                </div>
+                            )
+                        })}
                     </dl>
                 )}
             </dd>
@@ -109,7 +124,7 @@ export default function AssessmentReview() {
     
     const getAnswerComponent = (question: Question) => {
         const value = assessmentData?.[question.id as keyof typeof assessmentData];
-        let subDetails: { label: string, value: string }[] = [];
+        let subDetails: SubDetail[] = [];
 
         if (question.subQuestions && question.subQuestions.length > 0) {
             question.subQuestions.forEach(subQ => {
@@ -117,28 +132,30 @@ export default function AssessmentReview() {
                 let isTriggered = false;
 
                 if (Array.isArray(parentValue)) {
-                    isTriggered = parentValue.includes(subQ.triggerValue);
+                    if (subQ.triggerValue === 'NOT_NONE') {
+                        isTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
+                    } else {
+                        isTriggered = parentValue.includes(subQ.triggerValue);
+                    }
                 } else {
                     isTriggered = parentValue === subQ.triggerValue;
                 }
                 
                 if (isTriggered) {
                     const subValue = assessmentData?.[subQ.id as keyof typeof assessmentData];
-                    const displayValue = getDisplayValue(subValue);
-                    if (displayValue) {
-                        subDetails.push({ label: subQ.label, value: displayValue });
-                    }
+                    subDetails.push({ label: subQ.label, value: subValue });
                 }
             });
         }
         
-        return <AnswerDisplay 
-            key={question.id} 
-            label={question.label.replace('{companyName}', companyName || 'your company')} 
-            value={value}
-            subDetails={subDetails}
-            isUnsure={value === 'Unsure'}
-        />
+        return (
+            <AnswerDisplay 
+                key={question.id} 
+                label={question.label.replace('{companyName}', companyName || 'your company')} 
+                value={value}
+                subDetails={subDetails}
+            />
+        )
     }
 
     const groupedQuestions = useMemo(() => {
@@ -159,10 +176,6 @@ export default function AssessmentReview() {
 
         questions.forEach(q => {
             processQuestion(q);
-            if (q.subQuestions) {
-                // We don't recursively call processQuestion here because the parent question's rendering handles sub-questions.
-                // We just need to make sure the root questions are added to their sections.
-            }
         });
 
         return sections;
