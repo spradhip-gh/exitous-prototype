@@ -6,9 +6,6 @@ import { AuthProvider } from '@/hooks/use-auth.tsx';
 export const metadata: Metadata = {
   title: 'ExitBetter',
   description: 'A web application that helps users through layoffs.',
-  icons: {
-    icon: '/favicon.ico',
-  },
   robots: {
     index: false,
     follow: false,
