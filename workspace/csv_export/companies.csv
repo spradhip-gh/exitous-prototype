@@ -1,0 +1,4 @@
+id,name,version,max_users,severance_deadline_time,severance_deadline_timezone,pre_end_date_contact_alias,post_end_date_contact_alias
+c1b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,Globex Corp,pro,50,23:59,America/Los_Angeles,hr@globex.com,alumni-support@globex.com
+c2b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,Initech,basic,10,17:00,America/Chicago,hr@initech.com,alumni-support@initech.com
+c3b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,Globex Software,pro,25,17:00,America/New_York,hr.software@globex.com,alumni-support.software@globex.com

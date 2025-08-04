@@ -1,0 +1,81 @@
+id,type,name,category,detail,deadline_type,deadline_days
+1,layoff,Review budget,Financial,"Take a first pass at identifying expenses that can be cut or reduced.",notification_date,7
+2,layoff,Update professional materials,Career,"Add new roles, skills, accomplishments, education, and certifications to your resume and LinkedIn.",notification_date,14
+12,layoff,Review child support / alimony,Financial,"Meet with legal counsel and / or prior partner to discuss any temporary changes to child support / alimony payments needed.",notification_date,7
+19,layoff,Review childcare arrangements,Financial,"Evaluate costs and explore alternative options",notification_date,7
+21,layoff,Revisit kids' educational plans,Financial,"Reassess savings and financial plans for their education",notification_date,7
+23,layoff,Ensure prenatal / adoption coverage,Health,"Review the details of any health insurance plans you're considering to ensure they cover prenatal care or adoption costs",notification_date,7
+25,layoff,Explore community support for parents,Health,"Feeling supported is critical right now. Look into local groups or programs for expecting parents.",notification_date,14
+26,layoff,"Review Employment Authorization Document (EAD) status",Basics,"Ensure your work authorization is valid and up to date",notification_date,7
+27,layoff,Research benefits eligibility,Financial,"Investigate eligibility for unemployment and other assistance",notification_date,7
+28,layoff,Consult an immigration attorney,Basics,"Discuss how the job loss might affect your residency status",notification_date,7
+31,layoff,Consult an immigration attorney,Basics,"Discuss any potential impacts the job loss may have on your DACA status or immigration process",notification_date,14
+32,layoff,Review visa status and options,Basics,"Understand the timeline and requirements for maintaining status",notification_date,7
+33,layoff,Seek alternative health insurance,Health,"Research health insurance plans for international students / foreign nationals",notification_date,7
+34,layoff,Consult an immigration attorney,Basics,"Discuss visa alternatives or extension possibilities",notification_date,14
+37,layoff,Explore community resources,Career,"Identify local support services for job seekers",notification_date,14
+38,layoff,Update address in HR system,Basics,"Since you recently relocated, ensure HR has your current address",notification_date,1
+39,layoff,Contact mortgage lender,Financial,"Discuss possible payment options or forbearance",notification_date,7
+42,layoff,Contact financial aid office,Financial,"Explore options for additional aid or payment",notification_date,7
+43,layoff,"Download employment verificattion & wage statements",Financial,"Financial aid documentation may require employment verification or wage statements. Make sure to download before access and contacts are limited.",notification_date,1
+44,layoff,Reassess enrollment plans,Financial,"Consider part-time or deferring to manage costs",notification_date,7
+45,layoff,"Explore scholarships/grants",Financial,"Search for additional financial support opportunities",notification_date,14
+48,layoff,Update legal documents,Basics,"Review and update any legal documents (e.g., will, prenup)",notification_date,14
+49,layoff,Explore health insurance options,Health,"Investigate COBRA, ACA marketplace, or Medicaid",notification_date,7
+50,layoff,Contact healthcare providers,Health,"Discuss payment plans or financial assistance",notification_date,7
+51,layoff,Adjust budget for medical costs,Basics,"Reallocate funds to cover essential health expenses",termination_date,
+52,layoff,Look into emotional support options,Health,"If you sense that dealing with multiple losses / life changes is taking a toll, find and engage with a therapist, support group or loved ones -- either online or in person.",notification_date,7
+56,layoff,Research financial help for elder care,Financial,"Explore programs that offer financial support for elder care.",notification_date,7
+58,layoff,Check your benefits eligibility,Basics,"Review your termination paperwork to understand your eligibility for any benefits or severance, given your short tenure. Contact your HR rep if you have questions.",notification_date,2
+68,layoff,Ensure payment for contracted services,Financial,"Invoice any completed work and make note of any outstanding payments so you can follow up.",notification_date,7
+71,layoff,"Apply for unemployment pay, if eligible",Financial,"Submit unemployment application online or through your state’s agency, once you've verified if you're eligible.",termination_date,7
+73,layoff,Update contract portfolio,Career,"While still fresh, note recent project successes and client testimonials and add to portfolio and LinkedIn",notification_date,7
+76,layoff,Contact academic advisor regarding internship,Career,"Prepare any questions & concerns you have about your internship / apprenticeship ending and discuss any impact to your educational goals with your academic advisor.",notification_date,7
+77,layoff,"Request references / recommendations",Career,"Reach out to managers & mentors for LinkedIn recommendations or references while your work is still top of mind for them.",notification_date,7
+81,layoff,Contact union representative,Basics,"Schedule a meeting to discuss the terms of your job loss and any options available to you.",notification_date,7
+82,layoff,"Review collective bargaining agreement (CBA)",Basics,"If you have access to it, review the CBA to get an understanding of your rights and any benefits available to you. Prepare questions to discuss with your union rep.",notification_date,7
+83,layoff,"Check union resources for job placement / training",Career,"Take time to review any union materials (handouts, website) to see what job placement assistance or retraining programs.",notification_date,7
+85,layoff,"Contact HR / relocation coordinator",Basics,"Discuss the terms of your corporate housing arrangement and any eligibility for reimbursement of moving expenses.",notification_date,3
+86,layoff,Research housing options,Basics,"Explore affordable housing options if relocation is required",notification_date,4
+87,layoff,Review relocation package,Basics,"Review your relocation package to understand the terms and any reimbursement eligibility or even just to prepare questions for discussion with your HR / relocation coordinator.",notification_date,2
+90,layoff,Review severance agreement,Financial,"Ensure you understand all terms, including non-compete clauses or confidentiality agreements",termination_date,
+91,layoff,Consult a financial advisor,Financial,"A good financial advisor can help you understand how to manage a severance payout, roll over a 401(k), manage stock, and utilize your Mega Backdoor to minimize tax impact or penalites.",notification_date,14
+93,layoff,Discuss severance options with HR,Financial,"Explore if there are any avenues to negotiate a severance package. Check our Articles section for guidance on approching the conversation.",notification_date,7
+94,layoff,"Research 401(k) rollover options",Financial,"Compare IRA providers or explore a new employer’s plan if applicable. Get assistance from a financial advisor, if needed.",notification_date,14
+96,layoff,"Contact plan administrator re: 401(k) loan",Financial,"401(k) loans can sometimes become fully due upon termination. During the discussion, comfirm the repayment terms and timeline for your 401(k) loan so you stay current.",notification_date,7
+100,layoff,Review stock vesting schedule,Financial,"Determine how much of your stock is vested and what options are available for selling or holding",notification_date,7
+101,layoff,Develop a stock liquidation plan,Financial,"Consult with a financial advisor to create a plan for selling your stock in a tax-efficient manner",notification_date,14
+102,layoff,Check into options to convert life insurance,Financial,"Inquire with HR or life insurance provider about options to convert your group life insurance to an individual plan",notification_date,7
+103,layoff,Review and update beneficiaries,Financial,"Ensure the beneficiary information is current and accurate on all your life insurance policies",notification_date,7
+104,layoff,Check portability of voluntary life insurance,Financial,"Contact your insurance provider to understand if you can continue your voluntary life insurance policy",notification_date,7
+105,layoff,"Purchase individual life insurance, if needed",Financial,"If you won't be converting or porting life insurance from your employer, explore & purchase alternative life insurance policies to replace lost coverage.",notification_date,14
+106,layoff,"Contact your AD&D insurance provider",Financial,"Inquire about converting or continuing your AD&D coverage after your termination date",notification_date,7
+107,layoff,"Purchase AD&D coverage, if needed",Financial,"If you won't be converting or porting your AD&D insurance but have assessed your risk factors and determined you still need it, research and purchase AD&D insurance.",notification_date,14
+108,layoff,Check personal accident insurance options,Financial,"Contact your insurance provider to discuss coversion to an individual policy",notification_date,7
+109,layoff,"Purchase individual personal accident insurance, if needed",Financial,"If not converting personal accident insurance from employer, research coverage & rates and purchase individual personal accident insurance",notification_date,14
+110,layoff,Check pet insurance continuation options,Financial,"Contact pet insurance provider to discuss options for continuing your pet insurance coverage after the job termination date",notification_date,7
+111,layoff,"Purchase new pet insurance, if needed",Financial,"If not continuing pet insurance from employer, research coverage & rates and purchase a new pet insurance plan that meets your budget and needs.",notification_date,14
+114,layoff,Cancel or adjust parking plans,Financial,"If you had a paid parking plan, cancel or adjust it to avoid unnecessary costs",notification_date,7
+121,layoff,Update car rental plan,Basics,"Update the email & payment info for your car rental plan so it's no longer associated with your employer.",notification_date,7
+123,layoff,Audit professional associations,Career,"List the professional associations you belong and identify those worth maintaining based on the benefits they offer.",notification_date,7
+126,layoff,Contact your external career coach,Career,"Discuss the possibility of continuing coaching services at a reduced rate or transitioning to a more affordable relationship.",notification_date,7
+127,layoff,Research alternative coaching resources,Career,"Explore whether there are free or low-cost career counseling and coaching options offered online or by local community groups.",notification_date,14
+129,layoff,Review tuition reimbursement agreement,Financial,"Check for any clauses requiring repayment after layoff",notification_date,7
+130,layoff,"Adjust student loan repayment, if needed",Financial,"If your employer is no longer helping with student loan repayment, contact your loan servicer or go online to adjust your repayment amount or explore deferment / forbearance.",notification_date,7
+131,layoff,Research affordable childcare options,Financial,"Explore community programs, family care options, or part-time childcare to reduce costs",notification_date,7
+132,layoff,Check fertility coverage,Health,"Contact fertility clinic to see if new insurance plans you're considering to cover fertility treatments.",notification_date,14
+133,layoff,Check options for breast milk shipping,Health,"Contact breast milk shipping provider to inquire about continuing the service independently and the associated costs.",notification_date,7
+134,layoff,Research adoption grants and funding,Financial,"With your employer no longer assisting with adoption costs, look into other financial resources that can help.",notification_date,7
+135,layoff,Review internet service plan,Financial,"Evaluate if your current plan is necessary or if you can switch to a more cost-effective option",notification_date,7
+136,layoff,Review phone plan and expenses,Financial,"Assess your current plan and explore more affordable options, if needed",notification_date,7
+137,layoff,Audit current software subscriptions,Financial,"List all software and subscriptions you have and identify those that are essential to continue paying for without your employer's help.",notification_date,7
+138,layoff,Check into legal plan conversion,Financial,"Contact legal provider to inquire about converting your legal plan to an individual plan or extending coverage",notification_date,7
+139,layoff,Consult an immigration attorney,Basics,"Schedule a consultation to discuss the impact of your layoff on your visa status and explore next steps",notification_date,7
+141,layoff,Research affordable fitness options,Health,"Look for community gyms, parks, or online workout programs that fit your budget",notification_date,7
+142,layoff,Check for gym discounts,Financial,"Gym discounts are sometimes available through EAP or medical insurance.",notification_date,7
+143,layoff,Transition perks accounts,Financial,"Some employer perks programs allow you to retain points you've earned by transitioning from an employee account to a personal / alumni account. Check the perks program website.",notification_date,7
+144,layoff,Research local laundry services,Basics,"Find affordable and convenient laundry services near your home to replace the use of your employer's laundry services.",notification_date,7
+289,layoff,"Schedule medical, dental, vision appointments",Health,"Benefits typically only extend to the end of the month in which your termination occurs. Schedule any needed appointments for you and / or your family before the coverage end date.",notification_date,1
+290,layoff,Check balance of pre-tax commuter benefits,Financial,"Some plans may allow for reimbursement of unused funds for eligible expenses incurred before the layoff date.",notification_date,1
+291,layoff,"Request notes from mentor / coach sessions",Career,"If you kept notes or transcripts of mentor sessions, you may be allowed to retrieve them if they don't contain proprietary information.",notification_date,1
+292,layoff,"Make COBRA elections when eligible",Health,"The 60-day election period begins when the qualified beneficiary receives the COBRA election notice or when the coverage would otherwise end, whichever is later. If you miss the 60-day deadline, you may lose your right to enroll in COBRA and will no longer have the option to elect it .",termination_date,60

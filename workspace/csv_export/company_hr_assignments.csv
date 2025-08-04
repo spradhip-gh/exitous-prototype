@@ -1,0 +1,6 @@
+company_id,hr_email,is_primary,permissions
+c1b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,hr@globex.com,true,"{""userManagement"":""write-upload"",""formEditor"":""write"",""resources"":""write"",""companySettings"":""read""}"
+c1b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,testnewhr@globex.com,false,"{""userManagement"":""invite-only"",""formEditor"":""read"",""resources"":""read"",""companySettings"":""read""}"
+c2b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,hr@initech.com,true,"{""userManagement"":""write-upload"",""formEditor"":""write"",""resources"":""write"",""companySettings"":""read""}"
+c3b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,hr@globex.com,true,"{""userManagement"":""write-upload"",""formEditor"":""write"",""resources"":""write"",""companySettings"":""read""}"
+c3b6a3b6-9b9b-4b1e-8b0a-0b5b1b1b1b1b,testnewhr@globex.com,false,"{""userManagement"":""write-upload"",""formEditor"":""write"",""resources"":""write"",""companySettings"":""read""}"
