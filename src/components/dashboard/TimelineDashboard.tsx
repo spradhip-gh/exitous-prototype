@@ -95,7 +95,7 @@ function UnsureAnswersAlert({ count, firstSection }: { count: number; firstSecti
             <AlertTitle className="text-amber-900">Information Needed</AlertTitle>
             <AlertDescription className="text-amber-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <span>
-                    You have {count} question{count > 1 ? 's' : ''} answered with "I'm not sure". Completing these will improve your recommendations.
+                    You have {count} question{count > 1 ? 's' : ''} answered with "I'm not sure". Completing these will further improve your next steps.
                 </span>
                 <Link href={href}>
                     <Button variant="outline" size="sm" className="bg-amber-100 border-amber-300 hover:bg-amber-200 text-amber-900 shrink-0">
