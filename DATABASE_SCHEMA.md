@@ -13,15 +13,16 @@ This document outlines the proposed database schema for the ExitBetter applicati
 5.  [User Profiles](#user_profiles)
 6.  [User Assessments](#user_assessments)
 7.  [Master Questions](#master_questions)
-8.  [Company Question Configs](#company_question_configs) **(UPDATED)**
-9.  [Master Tasks](#master_tasks)
-10. [Task Mappings](#task_mappings)
-11. [Master Tips](#master_tips)
-12. [Tip Mappings](#tip_mappings)
-13. [Company Resources](#company_resources)
-14. [External Resources](#external_resources)
-15. [Guidance Rules](#guidance_rules)
-16. [Review Queue](#review_queue)
+8.  [Master Question Configs](#master_question_configs) **(NEW)**
+9.  [Company Question Configs](#company_question_configs)
+10. [Master Tasks](#master_tasks)
+11. [Task Mappings](#task_mappings)
+12. [Master Tips](#master_tips)
+13. [Tip Mappings](#tip_mappings)
+14. [Company Resources](#company_resources)
+15. [External Resources](#external_resources)
+16. [Guidance Rules](#guidance_rules)
+17. [Review Queue](#review_queue)
 
 ---
 
@@ -119,8 +120,18 @@ Stores the master list of all possible questions for both Profile and Assessment
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
+### `master_question_configs` (NEW)
 
-### `company_question_configs` (UPDATED)
+Stores the global configuration for the forms, such as the display order of sections.
+
+| Column                  | Type    | Description                                                                       |
+| ----------------------- | ------- | --------------------------------------------------------------------------------- |
+| `form_type`             | `TEXT`  | **Primary Key**. The form this configuration applies to ('profile' or 'assessment'). |
+| `section_order`         | `JSONB` | An ordered array of section names (e.g., `["Section A", "Section B"]`).           |
+| `updated_at`            | `TIMESTAMPTZ`| Timestamp of the last update.                                                      |
+
+
+### `company_question_configs`
 
 Stores company-specific customizations for the assessment form. This allows companies to override, disable, or add questions.
 
@@ -130,9 +141,9 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `question_overrides`        | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
 | `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
 | `question_order`            | `JSONB`   | JSON object defining the display order of questions by section.                                           |
-| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. **(NEW)**            |
-| `company_tasks`             | `JSONB`   | A list of company-specific task objects. **(NEW)**                                                        |
-| `company_tips`              | `JSONB`   | A list of company-specific tip objects. **(NEW)**                                                         |
+| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. |
+| `company_tasks`             | `JSONB`   | A list of company-specific task objects. |
+| `company_tips`              | `JSONB`   | A list of company-specific tip objects. |
 | `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
 
 

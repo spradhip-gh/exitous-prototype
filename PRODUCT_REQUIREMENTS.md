@@ -23,7 +23,7 @@ The platform is designed to serve four distinct user roles:
 | ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | **End-User**     | An employee who has been notified of their exit from a company.                                         | - Understand critical deadlines (severance, benefits).<br>- Receive a personalized, step-by-step action plan.<br>- Connect with vetted professional resources.<br>- Securely manage personal and exit-related data. |
 | **HR Manager**   | A human resources professional at a client company.                                                     | - Manage the list of exiting employees for their company.<br>- Customize the assessment questionnaire.<br>- Suggest edits to locked questions.<br>- Create and map company-specific tasks and tips.<br>- Upload company-specific resources.<br>- Analyze assessment data to identify areas of confusion.<br>- Preview the end-user experience. |
-| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions, tasks, and tips.<br>- Create and manage deterministic guidance rules.<br>- Review and approve HR suggestions.<br>- Curate the external professional resources directory.<br>- Oversee all platform users and data. |
+| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions, tasks, and tips.<br>- Manage the default order of form sections.<br>- Create and manage deterministic guidance rules.<br>- Review and approve HR suggestions.<br>- Curate the external professional resources directory.<br>- Oversee all platform users and data. |
 | **Consultant**   | An external or internal expert tasked with quality control.                                             | - Review and approve AI-generated content and recommendations to ensure quality, accuracy, and empathy.<br>- Convert high-quality recommendations into reusable guidance rules. |
 
 ## 3. Key Features & Functionality
@@ -68,6 +68,7 @@ The platform is designed to serve four distinct user roles:
     - Set user limits and subscription tiers (e.g., Basic vs. Pro) for each company.
 - **Content Management:**
     - **Master Form Editor:** Create, edit, and delete questions in the master (default) assessment template.
+    - **Section Ordering:** Set the global display order for the sections within the Profile and Assessment forms.
     - **Task Management:** Create, edit, and bulk-manage (via CSV) the master list of all actionable tasks.
     - **Tips Management:** Create, edit, and bulk-manage (via CSV) a master list of "Did you know..." tips that provide contextual advice.
 - **Guidance & Review:**
@@ -178,6 +179,14 @@ The following tables represent the conceptual data structure for the platform.
 | `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
+
+### `master_question_configs`
+
+| Column                  | Type    | Description                                                                       |
+| ----------------------- | ------- | --------------------------------------------------------------------------------- |
+| `form_type`             | `TEXT`  | **Primary Key**. The form this configuration applies to ('profile' or 'assessment'). |
+| `section_order`         | `JSONB` | An ordered array of section names (e.g., `["Section A", "Section B"]`).           |
+| `updated_at`            | `TIMESTAMPTZ`| Timestamp of the last update.                                                      |
 
 ### `company_question_configs`
 
