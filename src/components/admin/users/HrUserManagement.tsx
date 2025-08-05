@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -34,9 +33,6 @@ const parseDateFromCsv = (dateStr: any): Date | null => {
         return null;
     }
     
-    // The issue is that parse assumes local timezone. If a user enters '2025-01-01'
-    // and they are in a timezone ahead of UTC, it might become '2024-12-31T23:00:00Z'.
-    // We need to parse it as if it's UTC to keep the date consistent.
     const [year, month, day] = trimmedDateStr.split('-').map(Number);
     if (!year || !month || !day) return null;
     const date = new Date(Date.UTC(year, month - 1, day));
@@ -52,7 +48,7 @@ const parseDateFromCsv = (dateStr: any): Date | null => {
 export default function HrUserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignmentForHr, profileCompletions, assessmentCompletions } = useUserData();
+    const { companyAssignmentForHr, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading, saveCompanyUsers } = useUserData();
     
     const companyName = auth?.companyName;
     const permissions = auth?.permissions;
@@ -73,16 +69,28 @@ export default function HrUserManagement() {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notificationDate', direction: 'asc' });
 
     useEffect(() => {
-        if (companyName) {
+      const loadData = async () => {
+        if (companyName && !isUserDataLoading) {
             setIsLoading(true);
-            const configs = getAllCompanyConfigs();
-            const companyUsers = configs[companyName]?.users || [];
-            setUsers(companyUsers);
+            const { data, error } = await supabase
+                .from('company_users')
+                .select('*')
+                .eq('company_id', companyAssignmentForHr?.companyId);
+            
+            if (error) {
+                console.error("Error fetching company users:", error);
+                toast({ title: "Error", description: "Could not fetch user list.", variant: "destructive" });
+            } else {
+                setUsers(data as CompanyUser[]);
+            }
             setIsLoading(false);
         }
-    }, [companyName, getAllCompanyConfigs]);
+      }
+      loadData();
+    }, [companyName, companyAssignmentForHr?.companyId, isUserDataLoading, toast]);
 
     const sortedUsers = useMemo(() => {
+        if (!users) return [];
         const invitedUsers = users.filter(u => u.notified);
         const uninvitedUsers = users.filter(u => !u.notified);
 
@@ -95,7 +103,7 @@ export default function HrUserManagement() {
                     aValue = profileCompletions[a.email] ? 1 : 0;
                     bValue = profileCompletions[b.email] ? 1 : 0;
                 } else if (config.key === 'assessmentStatus') {
-                    aValue = assessmentCompletions[b.email] ? 1 : 0;
+                    aValue = assessmentCompletions[a.email] ? 1 : 0;
                     bValue = assessmentCompletions[b.email] ? 1 : 0;
                 } else {
                     aValue = a[config.key as keyof CompanyUser];
@@ -126,40 +134,50 @@ export default function HrUserManagement() {
         return [...sortedUninvited, ...sortedInvited];
     }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
 
-    const addUser = useCallback((userToAdd: CompanyUser): boolean => {
-        if (!companyName) return false;
+    const addUser = useCallback(async (userToAdd: Partial<CompanyUser>): Promise<boolean> => {
+        if (!companyName || !companyAssignmentForHr?.companyId) return false;
 
         if (companyAssignmentForHr && users.length >= companyAssignmentForHr.maxUsers) {
             toast({ title: "User Limit Reached", description: `Cannot add ${userToAdd.email}. Adding this user would exceed the maximum of ${companyAssignmentForHr.maxUsers} users.`, variant: "destructive" });
             return false;
         }
 
-        if (users.some(u => u.email.toLowerCase() === userToAdd.email.toLowerCase())) {
+        if (users.some(u => u.email.toLowerCase() === userToAdd.email?.toLowerCase())) {
             toast({ title: "User Exists", description: `A user with the email ${userToAdd.email} already exists for this company.`, variant: "destructive" });
             return false;
         }
 
-        const newUsers = [...users, userToAdd];
-        saveCompanyUsers(companyName, newUsers);
-        setUsers(newUsers);
-        return true;
-    }, [companyAssignmentForHr, companyName, saveCompanyUsers, toast, users]);
+        const { data, error } = await supabase
+            .from('company_users')
+            .insert({ ...userToAdd, company_id: companyAssignmentForHr.companyId })
+            .select()
+            .single();
 
-    const handleAddUser = useCallback(() => {
+        if (error || !data) {
+            toast({ title: "Error", description: "Could not add new user.", variant: "destructive" });
+            return false;
+        }
+
+        setUsers(prev => [...prev, data as CompanyUser]);
+        return true;
+    }, [companyAssignmentForHr, companyName, users, toast]);
+
+    const handleAddUser = useCallback(async () => {
         if (!newUserEmail || !newCompanyId || !newNotificationDate) {
             toast({ title: "Required Fields Missing", description: "Please enter Email, Company ID, and a Notification Date.", variant: "destructive" });
             return;
         }
 
-        const newUser: CompanyUser = { 
+        const newUser: Partial<CompanyUser> = { 
             email: newUserEmail, 
-            companyId: newCompanyId,
-            personalEmail: newPersonalEmail || undefined,
-            notificationDate: format(newNotificationDate, 'yyyy-MM-dd'),
+            company_user_id: newCompanyId,
+            personal_email: newPersonalEmail || undefined,
+            notification_date: format(newNotificationDate, 'yyyy-MM-dd'),
             notified: false,
         };
         
-        if (addUser(newUser)) {
+        const success = await addUser(newUser);
+        if (success) {
             setNewUserEmail("");
             setNewCompanyId("");
             setNewPersonalEmail("");
@@ -168,175 +186,113 @@ export default function HrUserManagement() {
         }
     }, [newUserEmail, newCompanyId, newPersonalEmail, newNotificationDate, addUser, toast]);
 
-    const processCsvRow = useCallback((row: any): { userFromCsv?: CompanyUser, error?: string } => {
+    const processCsvRow = useCallback((row: any): { userFromCsv?: Partial<CompanyUser>, error?: string } => {
         const email = String(row["email"] || '').trim();
         const companyId = String(row["companyId"] || '').trim();
         const notificationDateStr = String(row["notificationDate"] || '').trim();
 
-        if (!email) {
-            return { error: "A row was skipped because the 'email' field was missing." };
-        }
-        if (!companyId) {
-            return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
-        }
-        if (!notificationDateStr) {
-            return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
-        }
+        if (!email) return { error: "A row was skipped because the 'email' field was missing." };
+        if (!companyId) return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
+        if (!notificationDateStr) return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
         
         const notificationDate = parseDateFromCsv(notificationDateStr);
-        if (!notificationDate) {
-            return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
-        }
+        if (!notificationDate) return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
 
         const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
-        const prefilledData: CompanyUser['prefilledAssessmentData'] = {};
+        const prefilledData: any = {};
         
         optionalFields.forEach(field => {
             const dateStr = String(row[field] || '').trim();
             if (dateStr) {
                 const dateVal = parseDateFromCsv(dateStr);
-                if (dateVal) {
-                   prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
-                } else {
-                    console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
-                }
+                if (dateVal) prefilledData[field] = format(dateVal, 'yyyy-MM-dd');
+                else console.warn(`Invalid optional date format for ${field} in row for ${email}. Skipping this field.`);
             }
         });
         
-        if (String(row['preEndDateContactAlias'] || '').trim()) {
-            prefilledData.preEndDateContactAlias = String(row['preEndDateContactAlias']).trim();
-        }
-        if (String(row['postEndDateContactAlias'] || '').trim()) {
-            prefilledData.postEndDateContactAlias = String(row['postEndDateContactAlias']).trim();
-        }
+        if (String(row['preEndDateContactAlias'] || '').trim()) prefilledData.preEndDateContactAlias = String(row['preEndDateContactAlias']).trim();
+        if (String(row['postEndDateContactAlias'] || '').trim()) prefilledData.postEndDateContactAlias = String(row['postEndDateContactAlias']).trim();
 
-        const userFromCsv: CompanyUser = {
+        const userFromCsv: Partial<CompanyUser> = {
             email,
-            companyId,
-            personalEmail: String(row["personalEmail"] || '').trim() || undefined,
-            notificationDate: format(notificationDate, 'yyyy-MM-dd'),
+            company_user_id: companyId,
+            personal_email: String(row["personalEmail"] || '').trim() || undefined,
+            notification_date: format(notificationDate, 'yyyy-MM-dd'),
             notified: false,
-            prefilledAssessmentData: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
+            prefilled_assessment_data: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
         };
         return { userFromCsv };
     }, []);
 
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file || !companyName) {
-            return;
-        }
+        if (!file || !companyName) return;
 
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            const text = e.target?.result;
-            if (typeof text !== 'string') {
-                toast({ title: "File Read Error", description: "Could not read file content as text.", variant: "destructive" });
-                return;
-            }
-            
-            Papa.parse(text, {
-                header: true,
-                skipEmptyLines: true,
-                delimiter: "", // Auto-detect delimiter
-                complete: (results: Papa.ParseResult<Record<string, any>>) => {
-                    const requiredHeaders = ["email", "companyid", "notificationdate"];
-                    const fields = results.meta.fields || [];
-                    const lowercasedHeaders = fields.map(h => h.trim().toLowerCase());
-                    if (!requiredHeaders.every(h => lowercasedHeaders.includes(h))) {
-                        toast({ title: "Invalid CSV format", description: `CSV must include columns: email, companyId, notificationDate.`, variant: "destructive"});
-                        return;
-                    }
-                    
-                    let addedCount = 0;
-                    let updatedCount = 0;
-                    let skippedCount = 0;
-                    let errorCount = 0;
-                    let newUsersList = [...users];
-
-                    for (const row of results.data) {
-                        const { userFromCsv, error } = processCsvRow(row);
-                        if (error) {
-                            toast({ title: "Skipping Row", description: error, variant: "destructive" });
-                            errorCount++;
-                            continue;
-                        }
-
-                        if (userFromCsv) {
-                            const existingUserIndex = newUsersList.findIndex(u => u.email.toLowerCase() === userFromCsv.email.toLowerCase());
-                            if (existingUserIndex !== -1) {
-                                const existingUser = newUsersList[existingUserIndex];
-                                if (existingUser.notified) {
-                                    skippedCount++;
-                                    continue;
-                                }
-                                newUsersList[existingUserIndex] = { ...existingUser, ...userFromCsv };
-                                updatedCount++;
-                            } else {
-                                if (companyAssignmentForHr && newUsersList.length >= companyAssignmentForHr.maxUsers) {
-                                    toast({ title: "User Limit Reached", description: `Skipping ${userFromCsv.email} as the user limit has been reached.`, variant: "destructive" });
-                                    continue;
-                                }
-                                addedCount++;
-                                newUsersList.push(userFromCsv);
-                            }
-                        }
-                    }
-                    
-                    saveCompanyUsers(companyName, newUsersList);
-                    setUsers(newUsersList);
-                    
-                    let summary = [];
-                    if (addedCount > 0) summary.push(`${addedCount} new users added.`);
-                    if (updatedCount > 0) summary.push(`${updatedCount} users updated.`);
-                    if (skippedCount > 0) summary.push(`${skippedCount} invited users skipped.`);
-                    if (errorCount > 0) summary.push(`${errorCount} rows had errors.`);
-                    
-                    toast({ 
-                        title: "Upload Complete", 
-                        description: summary.length > 0 ? summary.join(' ') : 'No changes were made.' 
-                    });
-                },
-                error: (error: Papa.ParseError) => {
-                    toast({ title: "Upload Parse Error", description: error.message, variant: "destructive" });
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const requiredHeaders = ["email", "companyid", "notificationdate"];
+                const fileHeaders = results.meta.fields?.map(h => h.trim().toLowerCase()) || [];
+                if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
+                    toast({ title: "Invalid CSV format", description: "CSV must include columns: email, companyId, notificationDate.", variant: "destructive"});
+                    return;
                 }
-            });
-        };
+                
+                let toAdd: Partial<CompanyUser>[] = [];
+                let toUpdate: Partial<CompanyUser>[] = [];
 
-        reader.onerror = (e) => {
-            toast({ title: "File Read Error", description: "An error occurred while reading the file.", variant: "destructive" });
-        };
+                for (const row of results.data as any[]) {
+                    const { userFromCsv, error } = processCsvRow(row);
+                    if (error) {
+                        toast({ title: "Skipping Row", description: error, variant: "destructive" });
+                        continue;
+                    }
+                    if (userFromCsv) {
+                        const existingUser = users.find(u => u.email.toLowerCase() === userFromCsv.email?.toLowerCase());
+                        if (existingUser) {
+                            if (!existingUser.notified) toUpdate.push({ id: existingUser.id, ...userFromCsv });
+                        } else {
+                            toAdd.push({ company_id: companyAssignmentForHr?.companyId, ...userFromCsv });
+                        }
+                    }
+                }
+                
+                let success = true;
+                if (toUpdate.length > 0) {
+                    const { error } = await supabase.from('company_users').upsert(toUpdate);
+                    if (error) {
+                        success = false;
+                        console.error('Update error:', error);
+                    }
+                }
+                if (toAdd.length > 0) {
+                    const { error } = await supabase.from('company_users').insert(toAdd);
+                    if (error) {
+                        success = false;
+                        console.error('Insert error:', error);
+                    }
+                }
+                
+                if (success) {
+                    toast({ title: "Upload Complete", description: `${toAdd.length} users added, ${toUpdate.length} users updated.` });
+                    // Re-fetch data
+                     const { data, error } = await supabase.from('company_users').select('*').eq('company_id', companyAssignmentForHr?.companyId);
+                    if (!error) setUsers(data as CompanyUser[] || []);
+                } else {
+                    toast({ title: "Upload Failed", description: "An error occurred during the database operation.", variant: "destructive" });
+                }
+            }
+        });
         
-        reader.readAsText(file);
-        
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
     }, [companyName, companyAssignmentForHr, saveCompanyUsers, toast, users, processCsvRow]);
 
 
     const handleDownloadTemplate = useCallback(() => {
         const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
-        const sampleRow = [
-            "user@company.com", // email
-            "EMP123", // companyId
-            "2025-12-31", // notificationDate
-            "user@personal.com", // personalEmail
-            "2026-01-31", // finalDate
-            "2026-02-15", // severanceAgreementDeadline
-            "", // medicalCoverageEndDate
-            "", // dentalCoverageEndDate
-            "", // visionCoverageEndDate
-            "", // eapCoverageEndDate
-            "Your HR Business Partner", // preEndDateContactAlias
-            "alumni-support@company.com" // postEndDateContactAlias
-        ];
-        const csvContent = [
-            headers.join(','),
-            sampleRow.join(',')
-        ].join('\n');
-
+        const sampleRow = ["user@company.com", "EMP123", "2025-12-31", "user@personal.com", "2026-01-31", "2026-02-15", "", "", "", "", "Your HR Business Partner", "alumni-support@company.com"];
+        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -354,18 +310,18 @@ export default function HrUserManagement() {
         const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const dataToExport = users.map(user => ({
             email: user.email,
-            companyId: user.companyId,
-            notificationDate: user.notificationDate || '',
+            companyId: user.company_user_id,
+            notificationDate: user.notification_date || '',
             notified: user.notified ? 'Yes' : 'No',
-            personalEmail: user.personalEmail || '',
-            finalDate: user.prefilledAssessmentData?.finalDate || '',
-            severanceAgreementDeadline: user.prefilledAssessmentData?.severanceAgreementDeadline || '',
-            medicalCoverageEndDate: user.prefilledAssessmentData?.medicalCoverageEndDate || '',
-            dentalCoverageEndDate: user.prefilledAssessmentData?.dentalCoverageEndDate || '',
-            visionCoverageEndDate: user.prefilledAssessmentData?.visionCoverageEndDate || '',
-            eapCoverageEndDate: user.prefilledAssessmentData?.eapCoverageEndDate || '',
-            preEndDateContactAlias: user.prefilledAssessmentData?.preEndDateContactAlias || '',
-            postEndDateContactAlias: user.prefilledAssessmentData?.postEndDateContactAlias || '',
+            personalEmail: user.personal_email || '',
+            finalDate: user.prefilled_assessment_data?.finalDate || '',
+            severanceAgreementDeadline: user.prefilled_assessment_data?.severanceAgreementDeadline || '',
+            medicalCoverageEndDate: user.prefilled_assessment_data?.medicalCoverageEndDate || '',
+            dentalCoverageEndDate: user.prefilled_assessment_data?.dentalCoverageEndDate || '',
+            visionCoverageEndDate: user.prefilled_assessment_data?.visionCoverageEndDate || '',
+            eapCoverageEndDate: user.prefilled_assessment_data?.eapCoverageEndDate || '',
+            preEndDateContactAlias: user.prefilled_assessment_data?.preEndDateContactAlias || '',
+            postEndDateContactAlias: user.prefilled_assessment_data?.postEndDateContactAlias || '',
         }));
         const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -385,9 +341,10 @@ export default function HrUserManagement() {
         setSortConfig({ key, direction });
     }, [sortConfig]);
 
-    if (isLoading) {
+    if (isUserDataLoading) {
         return (
             <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-12 w-1/3" />
                 <Skeleton className="h-48 w-full" />
                 <Skeleton className="h-64 w-full" />
             </div>
@@ -397,12 +354,7 @@ export default function HrUserManagement() {
     if (!companyName) {
         return (
             <div className="p-4 md:p-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>No company is assigned to your HR account.</CardDescription>
-                    </CardHeader>
-                </Card>
+                <Card><CardHeader><CardTitle>Error</CardTitle><CardDescription>No company is assigned to your HR account.</CardDescription></CardHeader></Card>
             </div>
         )
     }
@@ -411,9 +363,7 @@ export default function HrUserManagement() {
         <div className="p-4 md:p-8 space-y-8">
              <div className="space-y-2">
                 <h1 className="font-headline text-3xl font-bold">User Management</h1>
-                <p className="text-muted-foreground">
-                    Manage the employee list for {companyName}.
-                </p>
+                <p className="text-muted-foreground">Manage the employee list for {companyName}.</p>
             </div>
             <Card>
                 <fieldset disabled={!canWrite}>
@@ -426,33 +376,14 @@ export default function HrUserManagement() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                            <div className="space-y-2">
-                                <Label htmlFor="newUserEmail">Work Email Address*</Label>
-                                <Input id="newUserEmail" placeholder="employee@work.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="newCompanyId">Company ID*</Label>
-                                <Input id="newCompanyId" placeholder="123456" value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)} />
-                            </div>
+                            <div className="space-y-2"><Label htmlFor="newUserEmail">Work Email Address*</Label><Input id="newUserEmail" placeholder="employee@work.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} /></div>
+                            <div className="space-y-2"><Label htmlFor="newCompanyId">Company ID*</Label><Input id="newCompanyId" placeholder="123456" value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="newNotificationDate">Notification Date*</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newNotificationDate && "text-muted-foreground")}>
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {newNotificationDate ? format(newNotificationDate, "PPP") : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newNotificationDate} onSelect={setNewNotificationDate} initialFocus /></PopoverContent>
-                                </Popover>
+                                <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !newNotificationDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{newNotificationDate ? format(newNotificationDate, "PPP") : <span>Pick a date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={newNotificationDate} onSelect={setNewNotificationDate} initialFocus /></PopoverContent></Popover>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="newPersonalEmail">Personal Email</Label>
-                                <Input id="newPersonalEmail" placeholder="user@personal.com" value={newPersonalEmail} onChange={e => setNewPersonalEmail(e.target.value)} />
-                            </div>
-                            <Button onClick={handleAddUser} className="lg:col-start-4">
-                                <PlusCircle className="mr-2" /> Add User
-                            </Button>
+                            <div className="space-y-2"><Label htmlFor="newPersonalEmail">Personal Email</Label><Input id="newPersonalEmail" placeholder="user@personal.com" value={newPersonalEmail} onChange={e => setNewPersonalEmail(e.target.value)} /></div>
+                            <Button onClick={handleAddUser} className="lg:col-start-4"><PlusCircle className="mr-2" /> Add User</Button>
                         </div>
                     </CardContent>
                     <CardFooter className="border-t pt-6">
@@ -461,14 +392,7 @@ export default function HrUserManagement() {
                                 <Label>Bulk Upload User Data</Label>
                                 <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
                                 <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                <div className="flex items-center gap-2">
-                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                                    <Upload className="mr-2"/> Upload CSV
-                                    </Button>
-                                    <Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground">
-                                        <Download className="mr-2" /> Download Template
-                                    </Button>
-                                </div>
+                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
                             </div>
                         </fieldset>
                     </CardFooter>
@@ -477,31 +401,11 @@ export default function HrUserManagement() {
 
             <Card>
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <CardTitle>Employee List</CardTitle>
-                        <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription>
-                    </div>
-                    <BulkActions 
-                        selectedUsers={selectedUsers}
-                        users={users}
-                        setUsers={setUsers}
-                        setSelectedUsers={setSelectedUsers}
-                        onExport={handleExportUsers}
-                        canWrite={canWrite}
-                        canInvite={canInvite}
-                    />
+                    <div><CardTitle>Employee List</CardTitle><CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription></div>
+                    <BulkActions selectedUsers={selectedUsers} users={users} setUsers={setUsers} setSelectedUsers={setSelectedUsers} onExport={handleExportUsers} canWrite={canWrite} canInvite={canInvite}/>
                 </CardHeader>
                 <CardContent>
-                   <HrUserTable 
-                     users={sortedUsers}
-                     setUsers={setUsers}
-                     selectedUsers={selectedUsers}
-                     setSelectedUsers={setSelectedUsers}
-                     sortConfig={sortConfig}
-                     requestSort={requestSort}
-                     canWrite={canWrite}
-                     canInvite={canInvite}
-                   />
+                   <HrUserTable isLoading={isLoading} users={sortedUsers} setUsers={setUsers} selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} sortConfig={sortConfig} requestSort={requestSort} canWrite={canWrite} canInvite={canInvite}/>
                 </CardContent>
             </Card>
         </div>
