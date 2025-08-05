@@ -73,11 +73,12 @@ export interface HrManager {
 
 export interface CompanyUser {
   id: string; // The UUID from the company_users table
+  company_id: string; // The UUID of the company
   email: string;
   company_user_id: string;
   personal_email?: string;
   notification_date?: string;
-  notified?: boolean;
+  is_invited?: boolean;
   prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
     preEndDateContactAlias?: string;
     postEndDateContactAlias?: string;
@@ -297,7 +298,7 @@ export function useUserData() {
                 return {
                     companyId: c.id,
                     companyName: c.name,
-                    version: c.version,
+                    version: c.version as 'basic' | 'pro',
                     maxUsers: c.max_users,
                     hrManagers: managers,
                     severanceDeadlineTime: c.severance_deadline_time,
@@ -325,10 +326,13 @@ export function useUserData() {
             
             // Organize company users by companyId
             const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
-                if (!acc[user.company_id]) {
-                    acc[user.company_id] = [];
+                const company = companiesData?.find(c => c.id === user.company_id);
+                if (company) {
+                    if (!acc[company.name]) {
+                        acc[company.name] = [];
+                    }
+                    acc[company.name].push(user as CompanyUser);
                 }
-                acc[user.company_id].push(user);
                 return acc;
             }, {} as Record<string, CompanyUser[]>);
 
@@ -336,7 +340,7 @@ export function useUserData() {
             (companiesData || []).forEach(company => {
                 const companyConfigDb = companyConfigsData?.find(c => c.company_id === company.id);
                 configs[company.name] = {
-                    users: usersByCompany[company.id] || [],
+                    users: usersByCompany[company.name] || [],
                     questions: companyConfigDb?.question_overrides || {},
                     customQuestions: companyConfigDb?.custom_questions || {},
                     questionOrderBySection: companyConfigDb?.question_order_by_section || {},
@@ -385,19 +389,104 @@ export function useUserData() {
             console.error("Error saving assessment:", error);
         }
     }, [auth?.userId]);
+    
+     const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions }[] }) => {
+        const { data: companyData, error: companyError } = await supabase
+            .from('companies')
+            .insert({
+                name: newAssignment.companyName,
+                version: newAssignment.version,
+                max_users: newAssignment.maxUsers,
+                severance_deadline_time: newAssignment.severanceDeadlineTime,
+                severance_deadline_timezone: newAssignment.severanceDeadlineTimezone,
+                pre_end_date_contact_alias: newAssignment.preEndDateContactAlias,
+                post_end_date_contact_alias: newAssignment.postEndDateContactAlias,
+            })
+            .select()
+            .single();
 
-    const getAllCompanyConfigs = useCallback(() => {
-        return companyConfigs;
-    }, [companyConfigs]);
+        if (companyError || !companyData) {
+            console.error("Error creating company", companyError);
+            return;
+        }
 
-    // Simplified stubs for other functions for now
+        const hrAssignments = newAssignment.hrManagers.map(hr => ({
+            company_id: companyData.id,
+            hr_email: hr.email,
+            is_primary: hr.isPrimary,
+            permissions: hr.permissions,
+        }));
+
+        const { error: hrError } = await supabase.from('company_hr_assignments').insert(hrAssignments);
+        if (hrError) {
+            console.error("Error assigning HR manager", hrError);
+            // Consider rolling back company creation
+            return;
+        }
+        
+        const finalAssignment: CompanyAssignment = {
+            ...newAssignment,
+            companyId: companyData.id,
+        };
+
+        setCompanyAssignments(prev => [...prev, finalAssignment]);
+        setCompanyConfigs(prev => ({...prev, [finalAssignment.companyName]: { users: [] }}));
+
+    }, []);
+
+    const saveMasterQuestions = useCallback(async (questionsToSave: Record<string, Question>, formType: 'profile' | 'assessment') => {
+        const questions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        const setFn = formType === 'profile' ? setMasterProfileQuestions : setMasterQuestions;
+
+        const upserts = Object.values(questionsToSave).map(q => ({
+            id: q.id,
+            form_type: q.formType,
+            question_data: {
+                ...q,
+                id: undefined, // Don't store id inside the jsonb
+                formType: undefined, // Don't store formType inside the jsonb
+            }
+        }));
+
+        const { error } = await supabase.from('master_questions').upsert(upserts, { onConflict: 'id' });
+
+        if(error) {
+            console.error("Error saving master questions:", error);
+        } else {
+            setFn(questionsToSave);
+        }
+    }, [masterQuestions, masterProfileQuestions]);
+
+
+    const saveCompanyConfig = useCallback(async (companyName: string, config: CompanyConfig) => {
+        const company = companyAssignments.find(c => c.companyName === companyName);
+        if (!company) return;
+
+        const { error } = await supabase.from('company_question_configs').upsert({
+            company_id: company.companyId,
+            question_overrides: config.questions || {},
+            custom_questions: config.customQuestions || {},
+            question_order_by_section: config.questionOrderBySection || {},
+            answer_guidance_overrides: config.answerGuidanceOverrides || {},
+            company_tasks: config.companyTasks || [],
+            company_tips: config.companyTips || [],
+        }, { onConflict: 'company_id' });
+        
+        if (error) {
+            console.error("Error saving company config:", error);
+        } else {
+            setCompanyConfigs(prev => ({
+                ...prev,
+                [companyName]: { ...prev[companyName], ...config }
+            }));
+        }
+    }, [companyAssignments]);
+
+
+    // Placeholder implementations for other write functions
     const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
-        // This needs to be reimplemented to use fetched data
         return [];
     };
-    
-    // ... all other functions from the old useUserData would need to be re-implemented here
-    // to interact with Supabase instead of local state/demo-data.ts
 
     return {
         // --- DATA ---
@@ -412,15 +501,18 @@ export function useUserData() {
         masterProfileQuestions,
         guidanceRules,
         companyAssignments,
+        companyConfigs,
 
         // --- FUNCTIONS ---
         saveProfileData,
         saveAssessmentData,
+        addCompanyAssignment,
+        saveMasterQuestions,
+        saveCompanyConfig,
+        setCompanyConfigs,
+        
         getCompanyConfig,
-        getAllCompanyConfigs,
-        // The rest of the functions need to be implemented here...
-        // For brevity in this example, I'm providing stubs.
-        // In a real implementation, each of these would be a Supabase call.
+        getAllCompanyConfigs: useCallback(() => companyConfigs, [companyConfigs]),
         isAssessmentComplete: !!assessmentData?.workStatus,
         clearRecommendations: () => {},
         saveRecommendations: () => {},
@@ -433,20 +525,17 @@ export function useUserData() {
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
         getMappedRecommendations: () => [],
         getTargetTimezone: () => 'UTC',
-        saveCompanyConfig: async () => {},
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
         addReviewQueueItem: async () => {},
         saveExternalResources: async () => {},
         saveGuidanceRules: async () => {},
-        saveMasterQuestions: async () => {},
         saveMasterProfileQuestions: async () => {},
         saveMasterTasks: async () => {},
         saveMasterTips: async () => {},
         saveReviewQueue: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
-        addCompanyAssignment: async () => {},
         updateCompanyAssignment: async () => {},
         saveCompanyAssignments: async () => {},
         deleteCompanyAssignment: async () => {},
@@ -455,5 +544,8 @@ export function useUserData() {
         getCompaniesForHr: () => [],
         getCompanyUser: () => null,
         getPlatformUserRole: () => null,
+        companyAssignmentForHr: companyAssignments.find(c => c.companyName === auth?.companyName),
+        profileCompletions: {}, // Placeholder
+        assessmentCompletions: {}, // Placeholder
     };
 }

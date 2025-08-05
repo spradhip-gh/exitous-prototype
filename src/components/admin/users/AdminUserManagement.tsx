@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parse } from 'date-fns';
+import { supabase } from "@/lib/supabase-client";
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     isComplete ? (
@@ -26,7 +27,14 @@ const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
 
 export default function AdminUserManagement() {
     const { toast } = useToast();
-    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignments, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading } = useUserData();
+    const { 
+        companyAssignments, 
+        profileCompletions, 
+        assessmentCompletions, 
+        isLoading: isUserDataLoading,
+        companyConfigs,
+        setCompanyConfigs,
+    } = useUserData();
 
     const [selectedCompany, setSelectedCompany] = useState("");
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -36,24 +44,28 @@ export default function AdminUserManagement() {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (selectedCompany) {
+        if (selectedCompany && companyConfigs[selectedCompany]) {
             setIsLoading(true);
-            const configs = getAllCompanyConfigs();
-            const companyUsers = configs[selectedCompany]?.users || [];
+            const companyUsers = companyConfigs[selectedCompany]?.users || [];
             setUsers(companyUsers.sort((a,b) => (a.email > b.email) ? 1 : -1));
             setIsLoading(false);
         } else {
             setUsers([]);
         }
-    }, [selectedCompany, getAllCompanyConfigs]);
+    }, [selectedCompany, companyConfigs]);
     
-    const handleAddUser = () => {
+    const handleAddUser = async () => {
         if (!newUserEmail || !newCompanyId || !newNotificationDate) {
             toast({ title: "All Fields Required", description: "Please enter email, Company ID, and notification date.", variant: "destructive" });
             return;
         }
 
         const assignment = companyAssignments?.find(a => a.companyName === selectedCompany);
+        if (!assignment) {
+            toast({ title: "Error", description: "Could not find company assignment.", variant: "destructive" });
+            return;
+        }
+
         if (assignment && users.length >= assignment.maxUsers) {
             toast({ title: "User Limit Reached", description: `You have reached the maximum of ${assignment.maxUsers} users for this company.`, variant: "destructive" });
             return;
@@ -63,23 +75,56 @@ export default function AdminUserManagement() {
             toast({ title: "User Exists", description: "A user with this email address already exists for this company.", variant: "destructive" });
             return;
         }
+        
+        const newUser: Partial<CompanyUser> = {
+            company_id: assignment.companyId,
+            email: newUserEmail, 
+            company_user_id: newCompanyId, 
+            notification_date: newNotificationDate, 
+            notified: false 
+        };
 
-        const newUsers = [...users, { email: newUserEmail, companyId: newCompanyId, notificationDate: newNotificationDate, notified: false } as CompanyUser];
-        newUsers.sort((a, b) => (a.email > b.email) ? 1 : -1);
+        const { data, error } = await supabase
+            .from('company_users')
+            .insert(newUser)
+            .select()
+            .single();
 
-        setUsers(newUsers);
-        // saveCompanyUsers(selectedCompany, newUsers);
-        setNewUserEmail("");
-        setNewCompanyId("");
-        setNewNotificationDate("");
-        toast({ title: "User Added", description: `${newUserEmail} has been added.` });
+        if (error || !data) {
+            toast({ title: "Error Adding User", description: error?.message || "An unknown error occurred.", variant: "destructive" });
+        } else {
+            const addedUser = data as CompanyUser;
+            setUsers(prev => [...prev, addedUser].sort((a,b) => (a.email > b.email) ? 1 : -1));
+            setCompanyConfigs(prev => ({
+                ...prev,
+                [selectedCompany]: {
+                    ...prev[selectedCompany],
+                    users: [...(prev[selectedCompany]?.users || []), addedUser]
+                }
+            }));
+            setNewUserEmail("");
+            setNewCompanyId("");
+            setNewNotificationDate("");
+            toast({ title: "User Added", description: `${newUserEmail} has been added.` });
+        }
     };
 
-    const handleDeleteUser = (email: string) => {
-        const newUsers = users.filter(u => u.email !== email);
-        setUsers(newUsers);
-        // saveCompanyUsers(selectedCompany, newUsers);
-        toast({ title: "User Removed", description: `${email} has been removed.` });
+    const handleDeleteUser = async (userToDelete: CompanyUser) => {
+        const { error } = await supabase.from('company_users').delete().match({ id: userToDelete.id });
+        if (error) {
+            toast({ title: "Error Removing User", description: error.message, variant: "destructive" });
+        } else {
+            const newUsers = users.filter(u => u.id !== userToDelete.id);
+            setUsers(newUsers);
+            setCompanyConfigs(prev => ({
+                ...prev,
+                [selectedCompany]: {
+                    ...prev[selectedCompany],
+                    users: newUsers,
+                }
+            }));
+            toast({ title: "User Removed", description: `${userToDelete.email} has been removed.` });
+        }
     };
 
     const currentCompanyAssignment = companyAssignments?.find(a => a.companyName === selectedCompany);
@@ -178,7 +223,7 @@ export default function AdminUserManagement() {
                                         <TableCell>
                                             <div className="flex flex-col">
                                                 <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
-                                                {user.notified ? (
+                                                {user.is_invited ? (
                                                     <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge>
                                                 ) : (
                                                     <Badge variant="secondary" className="w-fit">Pending</Badge>
@@ -192,7 +237,7 @@ export default function AdminUserManagement() {
                                             <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.email)}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user)}>
                                                 <Trash2 className="h-4 w-4" />
                                                 <span className="sr-only">Delete</span>
                                             </Button>

@@ -304,7 +304,7 @@ export default function CompanyManagementPage() {
       toast({ title: "Invalid User Limit", description: "Maximum users must be a positive number.", variant: "destructive" });
       return;
     }
-    if (companyAssignments.some(a => a.companyName.toLowerCase() === newCompanyName.toLowerCase())) {
+    if (companyAssignments?.some(a => a.companyName.toLowerCase() === newCompanyName.toLowerCase())) {
         toast({ title: "Company Exists", description: "A company with this name already exists.", variant: "destructive" });
         return;
     }
@@ -348,7 +348,7 @@ export default function CompanyManagementPage() {
         const companyConfig = allConfigs[assignment.companyName];
         const users = companyConfig?.users || [];
         const usersAdded = users.length;
-        const usersInvited = users.filter(u => u.notified).length;
+        const usersInvited = users.filter(u => u.is_invited).length;
         const assessmentsCompleted = 0; // This needs profile/assessment completion data
         const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
 
@@ -400,7 +400,7 @@ export default function CompanyManagementPage() {
     };
 
     const handleRemoveHrFromCompany = (companyName: string, emailToRemove: string) => {
-        const companyToUpdate = companyAssignments.find(a => a.companyName === companyName);
+        const companyToUpdate = companyAssignments?.find(a => a.companyName === companyName);
         const managerToRemove = companyToUpdate?.hrManagers.find(hr => hr.email === emailToRemove);
 
         if (managerToRemove?.isPrimary) {
@@ -431,7 +431,7 @@ export default function CompanyManagementPage() {
     // This effect is needed to refresh the dialog's view of the company data
     // when changes are made to the underlying global state.
     useEffect(() => {
-        if(isEditDialogOpen && editingCompany) {
+        if(isEditDialogOpen && editingCompany && companyAssignments) {
             const freshCompanyData = companyAssignments.find(c => c.companyName === editingCompany.companyName);
             if (freshCompanyData) {
                 setEditingCompany(freshCompanyData);
