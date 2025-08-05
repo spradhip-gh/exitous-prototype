@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const defaultPermissions: HrPermissions = {
     userManagement: 'read',
@@ -263,7 +264,8 @@ function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }:
 export default function CompanyManagementPage() {
   const { toast } = useToast();
   const { 
-    companyAssignments, 
+    companyAssignments,
+    isLoading,
     addCompanyAssignment, 
     updateCompanyAssignment,
     getAllCompanyConfigs,
@@ -341,22 +343,25 @@ export default function CompanyManagementPage() {
   }
 
   const allConfigs = getAllCompanyConfigs();
-  const companyDataWithStats = companyAssignments.map(assignment => {
-      const companyConfig = allConfigs[assignment.companyName];
-      const users = companyConfig?.users || [];
-      const usersAdded = users.length;
-      const usersInvited = users.filter(u => u.notified).length;
-      const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
-      const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
+  const companyDataWithStats = useMemo(() => {
+    if (!companyAssignments) return [];
+    return companyAssignments.map(assignment => {
+        const companyConfig = allConfigs[assignment.companyName];
+        const users = companyConfig?.users || [];
+        const usersAdded = users.length;
+        const usersInvited = users.filter(u => u.notified).length;
+        const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
+        const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
 
-      return {
-          ...assignment,
-          usersAdded,
-          usersInvited,
-          assessmentsCompleted,
-          modifiedQuestionCount
-      };
-  });
+        return {
+            ...assignment,
+            usersAdded,
+            usersInvited,
+            assessmentsCompleted,
+            modifiedQuestionCount
+        };
+    });
+  }, [companyAssignments, allConfigs, assessmentCompletions]);
   
   const handleExportCompanies = () => {
     if (!companyDataWithStats || companyDataWithStats.length === 0) {
@@ -438,6 +443,16 @@ export default function CompanyManagementPage() {
             }
         }
     }, [companyAssignments, editingCompany, isEditDialogOpen]);
+
+  if (isLoading) {
+    return (
+        <div className="p-4 md:p-8 space-y-8">
+            <Skeleton className="h-12 w-1/3" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-64 w-full" />
+        </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-8">
