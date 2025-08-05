@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export interface Question {
     id: string; // Corresponds to a field in AssessmentData or a custom ID
+    formType: 'profile' | 'assessment'; // NEW: Differentiates question type
     label: string;
     section: string;
     type: "select" | "radio" | "checkbox" | "date" | "text";
@@ -29,6 +30,7 @@ export interface Question {
 export const getDefaultProfileQuestions = (): Question[] => [
     { 
         id: 'birthYear', 
+        formType: 'profile',
         label: 'What’s your birth year?', 
         section: 'Basic Information',
         type: 'text',
@@ -38,6 +40,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'state', 
+        formType: 'profile',
         label: 'What state do you live in?', 
         section: 'Basic Information',
         type: 'select',
@@ -48,6 +51,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'gender', 
+        formType: 'profile',
         label: 'Which gender do you identify with?', 
         section: 'Basic Information',
         type: 'select',
@@ -57,7 +61,8 @@ export const getDefaultProfileQuestions = (): Question[] => [
         options: ['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'],
         subQuestions: [
             { 
-                id: 'genderSelfDescribe', 
+                id: 'genderSelfDescribe',
+                formType: 'profile',
                 parentId: 'gender', 
                 triggerValue: 'Prefer to self-describe', 
                 label: 'Self-describe gender', 
@@ -70,6 +75,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'maritalStatus', 
+        formType: 'profile',
         label: 'What’s your marital status?', 
         section: 'Family & Household',
         type: 'select',
@@ -80,6 +86,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'hasChildrenUnder13', 
+        formType: 'profile',
         label: 'Do you have children under age 13?', 
         section: 'Family & Household',
         type: 'radio',
@@ -89,6 +96,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'hasChildrenAges18To26', 
+        formType: 'profile',
         label: 'Do you have children ages 18 - 26?', 
         section: 'Family & Household',
         type: 'radio',
@@ -98,6 +106,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'hasExpectedChildren', 
+        formType: 'profile',
         label: 'Do you have 1 or more children expected (by birth or adoption)?', 
         section: 'Family & Household',
         type: 'radio',
@@ -107,6 +116,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'impactedPeopleCount', 
+        formType: 'profile',
         label: 'Other than yourself, how many other adults or children would be moderately or greatly impacted by income lost through your exit?', 
         section: 'Family & Household',
         type: 'radio',
@@ -116,6 +126,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'livingStatus', 
+        formType: 'profile',
         label: 'Which best describes your living status?', 
         section: 'Circumstances',
         type: 'radio',
@@ -125,6 +136,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'citizenshipStatus', 
+        formType: 'profile',
         label: 'What term best describes your citizenship or residence status?', 
         section: 'Circumstances',
         type: 'select',
@@ -141,6 +153,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
     },
     { 
         id: 'pastLifeEvents', 
+        formType: 'profile',
         label: 'Have you experienced any of these life events in the past 9 months?', 
         section: 'Circumstances',
         type: 'checkbox',
@@ -161,6 +174,7 @@ export const getDefaultQuestions = (): Question[] => [
     // Work & Employment Details
     { 
         id: 'workStatus', 
+        formType: 'assessment',
         label: 'Which best describes your work status at {companyName}?',
         section: "Work & Employment Details",
         type: "select",
@@ -178,6 +192,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'startDate', 
+        formType: 'assessment',
         label: 'What day did you begin work?', 
         section: "Work & Employment Details",
         type: "date",
@@ -187,6 +202,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'notificationDate', 
+        formType: 'assessment',
         label: 'On what date were you notified of your exit?',
         section: "Work & Employment Details",
         type: "date",
@@ -196,6 +212,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'finalDate', 
+        formType: 'assessment',
         label: 'What is your final date of employment (termination or severance date)?',
         section: "Work & Employment Details",
         type: "date",
@@ -205,6 +222,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'workState', 
+        formType: 'assessment',
         label: 'What state was your work based in?', 
         section: "Work & Employment Details",
         type: "select",
@@ -215,6 +233,7 @@ export const getDefaultQuestions = (): Question[] => [
     // Work Circumstances
     { 
         id: 'relocationPaid', 
+        formType: 'assessment',
         label: 'Did {companyName} pay for you to relocate to your current residence?', 
         section: "Work Circumstances",
         type: 'radio',
@@ -223,6 +242,7 @@ export const getDefaultQuestions = (): Question[] => [
         subQuestions: [
             { 
                 id: 'relocationDate', 
+                formType: 'assessment',
                 parentId: 'relocationPaid', 
                 triggerValue: 'Yes', 
                 label: 'Date of your relocation', 
@@ -235,6 +255,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'unionMember', 
+        formType: 'assessment',
         label: 'Did you belong to a union at the time of your exit?', 
         section: "Work Circumstances",
         type: 'radio',
@@ -243,6 +264,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'workArrangement', 
+        formType: 'assessment',
         label: 'Which best describes your work arrangement at the time of your exit?', 
         section: "Work Circumstances",
         type: 'radio',
@@ -251,6 +273,7 @@ export const getDefaultQuestions = (): Question[] => [
         subQuestions: [
             { 
                 id: 'workArrangementOther', 
+                formType: 'assessment',
                 parentId: 'workArrangement', 
                 triggerValue: 'Other', 
                 label: 'Please specify other work arrangement', 
@@ -263,6 +286,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'workVisaStatus', 
+        formType: 'assessment',
         label: 'Were you on any of these work visas at the time of your exit?', 
         section: "Work Circumstances",
         type: 'select',
@@ -287,6 +311,7 @@ export const getDefaultQuestions = (): Question[] => [
     },
     { 
         id: 'onLeave', 
+        formType: 'assessment',
         label: 'Are you currently on any of the following types of leave?',
         section: "Work Circumstances",
         type: 'checkbox',
@@ -301,6 +326,7 @@ export const getDefaultQuestions = (): Question[] => [
         subQuestions: [
             { 
                 id: 'usedLeaveManagement', 
+                formType: 'assessment',
                 parentId: 'onLeave',
                 triggerValue: 'NOT_NONE', // Special case handler
                 label: 'Were you utilizing leave management (e.g., Tilt, Cocoon)?', 
@@ -314,6 +340,7 @@ export const getDefaultQuestions = (): Question[] => [
      // Legal & Agreements
     {
         id: 'severanceAgreementDeadline',
+        formType: 'assessment',
         label: 'What is the deadline to sign your severance agreement, if applicable?',
         section: 'Legal & Agreements',
         type: 'date',
@@ -323,6 +350,7 @@ export const getDefaultQuestions = (): Question[] => [
     // Systems & Benefits Access
     { 
         id: 'accessSystems', 
+        formType: 'assessment',
         label: 'Which of the following internal work systems do you still have access to as of today?',
         section: "Systems & Benefits Access",
         type: 'checkbox',
@@ -332,58 +360,62 @@ export const getDefaultQuestions = (): Question[] => [
             'Network drive & files', 'Special layoff portal', 'HR/Payroll system (e.g., ADP, Workday)'
         ],
         subQuestions: [
-            { id: 'internalMessagingAccessEndDate', parentId: 'accessSystems', triggerValue: 'Internal messaging system (e.g., Slack, Google Chat, Teams)', label: 'Messaging Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
-            { id: 'emailAccessEndDate', parentId: 'accessSystems', triggerValue: 'Email', label: 'Email Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
-            { id: 'networkDriveAccessEndDate', parentId: 'accessSystems', triggerValue: 'Network drive & files', label: 'Network Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
-            { id: 'layoffPortalAccessEndDate', parentId: 'accessSystems', triggerValue: 'Special layoff portal', label: 'Portal Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
-            { id: 'hrPayrollSystemAccessEndDate', parentId: 'accessSystems', triggerValue: 'HR/Payroll system (e.g., ADP, Workday)', label: 'HR/Payroll Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'internalMessagingAccessEndDate', formType: 'assessment', parentId: 'accessSystems', triggerValue: 'Internal messaging system (e.g., Slack, Google Chat, Teams)', label: 'Messaging Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'emailAccessEndDate', formType: 'assessment', parentId: 'accessSystems', triggerValue: 'Email', label: 'Email Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'networkDriveAccessEndDate', formType: 'assessment', parentId: 'accessSystems', triggerValue: 'Network drive & files', label: 'Network Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'layoffPortalAccessEndDate', formType: 'assessment', parentId: 'accessSystems', triggerValue: 'Special layoff portal', label: 'Portal Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
+            { id: 'hrPayrollSystemAccessEndDate', formType: 'assessment', parentId: 'accessSystems', triggerValue: 'HR/Payroll system (e.g., ADP, Workday)', label: 'HR/Payroll Access Ends', type: 'date', isActive: true, section: 'Systems & Benefits Access'},
         ]
     },
     { 
         id: 'hadMedicalInsurance', 
+        formType: 'assessment',
         label: 'Did you have medical insurance through {companyName}?', 
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'medicalCoverage', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Who was covered by medical?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'medicalCoverageEndDate', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Last day of Medical coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'medicalCoverage', formType: 'assessment', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Who was covered by medical?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'medicalCoverageEndDate', formType: 'assessment', parentId: 'hadMedicalInsurance', triggerValue: 'Yes', label: 'Last day of Medical coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
         id: 'hadDentalInsurance', 
+        formType: 'assessment',
         label: 'Did you have dental insurance through {companyName}?', 
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'dentalCoverage', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Who was covered by dental?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'dentalCoverageEndDate', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Last day of Dental coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'dentalCoverage', formType: 'assessment', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Who was covered by dental?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'dentalCoverageEndDate', formType: 'assessment', parentId: 'hadDentalInsurance', triggerValue: 'Yes', label: 'Last day of Dental coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
         id: 'hadVisionInsurance', 
+        formType: 'assessment',
         label: 'Did you have vision insurance through {companyName}?', 
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'visionCoverage', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Who was covered by vision?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
-            { id: 'visionCoverageEndDate', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Last day of Vision coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'visionCoverage', formType: 'assessment', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Who was covered by vision?', type: 'radio', isActive: true, section: 'Systems & Benefits Access', options: ['Only me', 'Me and spouse', 'Me and family', 'Unsure'], description: "This is pre-filled based on your profile. Please verify and update if it's incorrect."},
+            { id: 'visionCoverageEndDate', formType: 'assessment', parentId: 'hadVisionInsurance', triggerValue: 'Yes', label: 'Last day of Vision coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
     { 
         id: 'hadEAP', 
+        formType: 'assessment',
         label: 'Did you have access to the Employee Assistance Program (EAP) through {companyName}?', 
         section: "Systems & Benefits Access",
         type: 'radio',
         isActive: true,
         options: ['Yes', 'No', 'Unsure'],
         subQuestions: [
-            { id: 'eapCoverageEndDate', parentId: 'hadEAP', triggerValue: 'Yes', label: 'Last day of EAP coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
+            { id: 'eapCoverageEndDate', formType: 'assessment', parentId: 'hadEAP', triggerValue: 'Yes', label: 'Last day of EAP coverage?', type: 'date', isActive: true, section: 'Systems & Benefits Access', description: "This date is pre-filled based on your final day of employment. Please verify and update if it's incorrect."},
         ]
     },
 ];

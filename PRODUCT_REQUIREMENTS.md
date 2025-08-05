@@ -175,6 +175,7 @@ The following tables represent the conceptual data structure for the platform.
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
+| `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment'). |
 | `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
