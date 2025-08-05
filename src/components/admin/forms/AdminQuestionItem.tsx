@@ -1,18 +1,17 @@
 
-
 'use client';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Question } from "@/hooks/use-user-data";
-import { PlusCircle, Trash2, Pencil, ArrowUp, ArrowDown, CornerDownRight, Link } from "lucide-react";
+import { PlusCircle, Archive, Pencil, ArrowUp, ArrowDown, CornerDownRight, Link } from "lucide-react";
 
-function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuestion }: { 
+function AdminSubQuestionItem({ question, level, onEdit, onArchive, onAddSubQuestion }: { 
     question: Question, 
     level: number, 
     onEdit: (q: Question) => void, 
-    onDelete: (id: string) => void, 
+    onArchive: (id: string) => void, 
     onAddSubQuestion: (parentId: string) => void,
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
@@ -30,16 +29,16 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
                     <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Archive className="h-4 w-4" /></Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Sub-Question?</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete "{question.label}" and any of its own sub-questions. This cannot be undone.</AlertDialogDescription>
+                                <AlertDialogTitle>Archive Sub-Question?</AlertDialogTitle>
+                                <AlertDialogDescription>This will archive "{question.label}" and any of its own sub-questions. They can be reactivated later.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(question.id)}>Yes, Delete</AlertDialogAction>
+                                <AlertDialogAction onClick={() => onArchive(question.id)}>Yes, Archive</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -53,7 +52,7 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
                             question={subQ}
                             level={level + 1}
                             onEdit={onEdit}
-                            onDelete={onDelete}
+                            onArchive={onArchive}
                             onAddSubQuestion={onAddSubQuestion}
                         />
                     ))}
@@ -63,10 +62,10 @@ function AdminSubQuestionItem({ question, level, onEdit, onDelete, onAddSubQuest
     );
 }
 
-export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSubQuestion, onMove, isFirst, isLast }: { 
+export default function AdminQuestionItem({ question, onEdit, onArchive, onAddSubQuestion, onMove, isFirst, isLast }: { 
     question: Question, 
     onEdit: (q: Question) => void, 
-    onDelete: (id: string) => void, 
+    onArchive: (id: string) => void, 
     onAddSubQuestion: (parentId: string) => void, 
     onMove: (questionId: string, direction: 'up' | 'down') => void,
     isFirst: boolean, 
@@ -91,16 +90,16 @@ export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSub
                     <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Archive className="h-4 w-4" /></Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Question?</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete "{question.label}" and ALL its sub-questions. This action cannot be undone.</AlertDialogDescription>
+                                <AlertDialogTitle>Archive Question?</AlertDialogTitle>
+                                <AlertDialogDescription>This will archive "{question.label}" and ALL its sub-questions. Archived questions can be reactivated later.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDelete(question.id)}>Yes, Delete</AlertDialogAction>
+                                <AlertDialogAction onClick={() => onArchive(question.id)}>Yes, Archive</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -114,7 +113,7 @@ export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSub
                             question={subQ}
                             level={0}
                             onEdit={onEdit}
-                            onDelete={onDelete}
+                            onArchive={onArchive}
                             onAddSubQuestion={onAddSubQuestion}
                          />
                     ))}
@@ -123,3 +122,4 @@ export default function AdminQuestionItem({ question, onEdit, onDelete, onAddSub
         </div>
     );
 }
+

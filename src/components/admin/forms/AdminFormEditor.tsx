@@ -7,15 +7,17 @@ import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTa
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GuidanceEditor from './GuidanceEditor';
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 
 interface OrderedSection {
@@ -151,16 +153,16 @@ export default function AdminFormEditor() {
              <TaskForm 
                 isOpen={isTaskFormOpen}
                 onOpenChange={setIsTaskFormOpen}
-                onSave={handleSaveNewTask}
                 task={null}
+                onSave={handleSaveNewTask}
                 allResources={externalResources}
             />
 
              <TipForm 
                 isOpen={isTipFormOpen}
                 onOpenChange={setIsTipFormOpen}
-                onSave={handleSaveNewTip}
                 tip={null}
+                onSave={handleSaveNewTip}
             />
         </div>
     );
@@ -185,16 +187,33 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
+    const { activeQuestions, archivedQuestions } = useMemo(() => {
+        const active: Question[] = [];
+        const archived: Question[] = [];
+        Object.values(questions).forEach(q => {
+            if (q.isActive) {
+                active.push(q);
+            } else {
+                archived.push(q);
+            }
+        });
+        return { activeQuestions: active, archivedQuestions: archived };
+    }, [questions]);
+
+
     const orderedSections = useMemo(() => {
-        if (isLoading || !questions || Object.keys(questions).length === 0) {
+        if (isLoading || !activeQuestions || activeQuestions.length === 0) {
             return [];
         }
 
-        const rootQuestions = buildQuestionTreeFromMap(questions);
+        const activeQuestionMap: Record<string, Question> = {};
+        activeQuestions.forEach(q => { activeQuestionMap[q.id] = q; });
+        const rootQuestions = buildQuestionTreeFromMap(activeQuestionMap);
+        
         const sectionsMap: Record<string, Question[]> = {};
 
-        const defaultQuestions = defaultQuestionsFn().filter(q => !q.parentId);
-        const defaultSectionOrder = [...new Set(defaultQuestions.map(q => q.section))];
+        const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
+        const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
         const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
 
         const finalSectionOrder = [...defaultSectionOrder];
@@ -213,7 +232,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             id: sectionName,
             questions: sectionsMap[sectionName] || []
         })).filter(s => s.questions.length > 0);
-    }, [isLoading, questions, defaultQuestionsFn]);
+    }, [isLoading, activeQuestions, questions, defaultQuestionsFn]);
 
 
     const handleEditClick = (question: Question) => {
@@ -235,8 +254,22 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         setIsEditing(true);
     };
 
+    const handleArchiveClick = (questionId: string) => {
+        const newMaster = { ...questions };
+        newMaster[questionId].isActive = false;
+        saveFn(newMaster);
+        toast({ title: "Question Archived" });
+    };
+
+    const handleReactivateClick = (questionId: string) => {
+        const newMaster = { ...questions };
+        newMaster[questionId].isActive = true;
+        saveFn(newMaster);
+        toast({ title: "Question Reactivated" });
+    };
+
     const handleDeleteClick = (questionId: string) => {
-        let newMaster = JSON.parse(JSON.stringify(questions));
+        let newMaster = { ...questions };
 
         const deleteRecursive = (idToDelete: string) => {
             const questionToDelete = newMaster[idToDelete];
@@ -247,18 +280,12 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
                     deleteRecursive(q.id);
                 }
             });
-
             delete newMaster[idToDelete];
-            Object.values(newMaster).forEach((q: any) => {
-                if (q.subQuestions) {
-                    q.subQuestions = q.subQuestions.filter((sub: any) => sub.id !== idToDelete);
-                }
-            });
         }
 
         deleteRecursive(questionId);
         saveFn(newMaster);
-        toast({ title: "Master Configuration Saved" });
+        toast({ title: "Question Permanently Deleted" });
     };
 
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string) => {
@@ -277,7 +304,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             return;
         }
 
-        const newMaster = JSON.parse(JSON.stringify(questions));
+        const newMaster = { ...questions };
         newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
 
         saveFn(newMaster);
@@ -289,7 +316,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
         let newMaster = JSON.parse(JSON.stringify(questions));
-        const questionsArray = Object.values(newMaster).filter((q: any) => !q.parentId);
+        const questionsArray = Object.values(newMaster).filter((q: any) => !q.parentId && q.isActive);
         const index = questionsArray.findIndex((q: any) => q.id === questionId);
 
         if (index === -1) return;
@@ -331,51 +358,113 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             toast({ title: "Master Configuration Saved" });
         }
     };
-
+    
     const existingSections = useMemo(() => [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))], [questions]);
 
     return (
-        <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{questionType === 'profile' ? 'Profile' : 'Assessment'} Question List</CardTitle>
-                    <CardDescription>
-                        {questionType === 'profile'
-                            ? 'These questions appear in the initial "Create Your Profile" step.'
-                            : 'These questions appear in the main "Exit Details" assessment.'
-                        } Use arrows to reorder.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {orderedSections.map(section => (
-                        <div key={section.id}>
-                            <h3 className="font-semibold text-lg">{section.id}</h3>
-                            <div className="pl-2 space-y-2 py-2">
-                                {section.questions.map((question, index) => {
-                                    return (
-                                        <AdminQuestionItem
-                                            key={question.id}
-                                            question={question}
-                                            onEdit={handleEditClick}
-                                            onDelete={handleDeleteClick}
-                                            onAddSubQuestion={handleAddNewClick}
-                                            onMove={handleMoveQuestion}
-                                            isFirst={index === 0}
-                                            isLast={index === section.questions.length - 1}
-                                        />
-                                    )
-                                })}
+        <Tabs defaultValue="active">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="active">Active Questions</TabsTrigger>
+                <TabsTrigger value="archived">Archived Questions</TabsTrigger>
+            </TabsList>
+            <TabsContent value="active" className="mt-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{questionType === 'profile' ? 'Profile' : 'Assessment'} Question List</CardTitle>
+                        <CardDescription>
+                            {questionType === 'profile' 
+                                ? 'These questions appear in the initial "Create Your Profile" step.'
+                                : 'These questions appear in the main "Exit Details" assessment.'
+                            } Use arrows to reorder.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {orderedSections.map(section => (
+                            <div key={section.id}>
+                                <h3 className="font-semibold text-lg">{section.id}</h3>
+                                <div className="pl-2 space-y-2 py-2">
+                                    {section.questions.map((question, index) => {
+                                        return (
+                                            <AdminQuestionItem
+                                                key={question.id}
+                                                question={question}
+                                                onEdit={handleEditClick}
+                                                onArchive={handleArchiveClick}
+                                                onAddSubQuestion={handleAddNewClick}
+                                                onMove={handleMoveQuestion}
+                                                isFirst={index === 0}
+                                                isLast={index === section.questions.length - 1}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                                <Separator className="my-6" />
                             </div>
-                            <Separator className="my-6" />
-                        </div>
-                    ))}
-                </CardContent>
-                <CardFooter className="border-t pt-6">
-                    <Button variant="outline" onClick={() => handleAddNewClick()}>
-                        <PlusCircle className="mr-2" />Add New Question
-                    </Button>
-                </CardFooter>
-            </Card>
+                        ))}
+                    </CardContent>
+                    <CardFooter className="border-t pt-6">
+                        <Button variant="outline" onClick={() => handleAddNewClick()}>
+                            <PlusCircle className="mr-2" />Add New Question
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </TabsContent>
+            <TabsContent value="archived" className="mt-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Archived Questions</CardTitle>
+                        <CardDescription>
+                            These questions are inactive and will not appear in any forms. They can be reactivated or permanently deleted.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Question Text</TableHead>
+                                    <TableHead>Section</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {archivedQuestions.length > 0 ? archivedQuestions.map(q => (
+                                    <TableRow key={q.id}>
+                                        <TableCell>{q.label}</TableCell>
+                                        <TableCell>{q.section}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(q.id)}>
+                                                <ArchiveRestore className="mr-2 h-4 w-4" /> Reactivate
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action will permanently delete the question "{q.label}". This cannot be undone.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteClick(q.id)}>Yes, Permanently Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No archived questions.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <EditQuestionDialog
                     isNew={isNewQuestion}
@@ -389,6 +478,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
                     allCompanyTips={masterTips}
                 />
             </Dialog>
-        </>
+        </Tabs>
     );
 }
+
