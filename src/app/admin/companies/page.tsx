@@ -287,6 +287,9 @@ export default function CompanyManagementPage() {
   const [isAddHrDialogOpen, setIsAddHrDialogOpen] = useState(false);
 
   const existingHrEmails = useMemo(() => {
+    if (!companyAssignments) {
+        return [];
+    }
     return [...new Set(companyAssignments.flatMap(a => a.hrManagers.map(hr => hr.email)))];
   }, [companyAssignments]);
 
