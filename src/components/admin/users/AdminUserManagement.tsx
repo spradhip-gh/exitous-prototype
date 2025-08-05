@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from "react";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
@@ -52,7 +53,7 @@ export default function AdminUserManagement() {
             return;
         }
 
-        const assignment = companyAssignments.find(a => a.companyName === selectedCompany);
+        const assignment = companyAssignments?.find(a => a.companyName === selectedCompany);
         if (assignment && users.length >= assignment.maxUsers) {
             toast({ title: "User Limit Reached", description: `You have reached the maximum of ${assignment.maxUsers} users for this company.`, variant: "destructive" });
             return;
@@ -81,7 +82,7 @@ export default function AdminUserManagement() {
         toast({ title: "User Removed", description: `${email} has been removed.` });
     };
 
-    const currentCompanyAssignment = companyAssignments.find(a => a.companyName === selectedCompany);
+    const currentCompanyAssignment = companyAssignments?.find(a => a.companyName === selectedCompany);
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -102,7 +103,7 @@ export default function AdminUserManagement() {
                             <SelectValue placeholder="Select a company..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {companyAssignments.length > 0 ? companyAssignments.map(c => (
+                            {companyAssignments && companyAssignments.length > 0 ? companyAssignments.map(c => (
                                 <SelectItem key={c.companyName} value={c.companyName}>{c.companyName}</SelectItem>
                             )) : <SelectItem value="none" disabled>No companies available</SelectItem>}
                         </SelectContent>
