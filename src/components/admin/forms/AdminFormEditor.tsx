@@ -52,6 +52,7 @@ export default function AdminFormEditor() {
         saveMasterTips,
     } = useUserData();
 
+    const { toast } = useToast();
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<MasterTask> | null>(null);
 
@@ -64,6 +65,14 @@ export default function AdminFormEditor() {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
         const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
         return [...profileQs, ...assessmentQs];
+    }, [masterProfileQuestions, masterQuestions]);
+
+    const { archivedProfileQuestions, archivedAssessmentQuestions } = useMemo(() => {
+        const archivedProfile: Question[] = [];
+        const archivedAssessment: Question[] = [];
+        Object.values(masterProfileQuestions).forEach(q => { if (!q.isActive) archivedProfile.push(q); });
+        Object.values(masterQuestions).forEach(q => { if (!q.isActive) archivedAssessment.push(q); });
+        return { archivedProfileQuestions: archivedProfile, archivedAssessmentQuestions: archivedAssessment };
     }, [masterProfileQuestions, masterQuestions]);
 
     const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
@@ -98,6 +107,34 @@ export default function AdminFormEditor() {
         setNewItemCallback(null);
     };
 
+    const handleReactivateClick = (questionId: string, type: 'profile' | 'assessment') => {
+        const questions = type === 'profile' ? { ...masterProfileQuestions } : { ...masterQuestions };
+        const saveFn = type === 'profile' ? saveMasterProfileQuestions : saveMasterQuestions;
+        questions[questionId].isActive = true;
+        saveFn(questions);
+        toast({ title: "Question Reactivated" });
+    };
+
+    const handleDeleteClick = (questionId: string, type: 'profile' | 'assessment') => {
+        const questions = type === 'profile' ? { ...masterProfileQuestions } : { ...masterQuestions };
+        const saveFn = type === 'profile' ? saveMasterProfileQuestions : saveMasterQuestions;
+        
+        const deleteRecursive = (idToDelete: string, currentQuestions: Record<string, Question>) => {
+            const questionToDelete = currentQuestions[idToDelete];
+            if (!questionToDelete) return;
+
+            Object.values(currentQuestions).forEach((q: any) => {
+                if (q.parentId === idToDelete) {
+                    deleteRecursive(q.id, currentQuestions);
+                }
+            });
+            delete currentQuestions[idToDelete];
+        }
+
+        deleteRecursive(questionId, questions);
+        saveFn(questions);
+        toast({ title: "Question Permanently Deleted" });
+    };
 
     return (
         <div className="p-4 md:p-8">
@@ -107,10 +144,11 @@ export default function AdminFormEditor() {
                     <p className="text-muted-foreground">Add, edit, or delete the default questions for both the Profile and the main Assessment. Changes are saved automatically.</p>
                 </div>
                 <Tabs defaultValue="profile">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="profile">Profile Questions</TabsTrigger>
                         <TabsTrigger value="assessment">Assessment Questions</TabsTrigger>
                         <TabsTrigger value="guidance">Guidance Rules</TabsTrigger>
+                        <TabsTrigger value="archived">Archived</TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile" className="mt-6">
                         <QuestionEditor
@@ -148,6 +186,103 @@ export default function AdminFormEditor() {
                             saveMasterTips={saveMasterTips}
                         />
                     </TabsContent>
+                    <TabsContent value="archived" className="mt-6">
+                       <Card>
+                            <CardHeader>
+                                <CardTitle>Archived Questions</CardTitle>
+                                <CardDescription>
+                                    These questions are inactive and will not appear in any forms. They can be reactivated or permanently deleted.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <h3 className="font-semibold text-lg mb-2">Profile Questions</h3>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Question Text</TableHead>
+                                            <TableHead>Section</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {archivedProfileQuestions.length > 0 ? archivedProfileQuestions.map(q => (
+                                            <TableRow key={q.id}>
+                                                <TableCell>{q.label}</TableCell>
+                                                <TableCell>{q.section}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(q.id, 'profile')}>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Reactivate
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This action will permanently delete the question "{q.label}". This cannot be undone.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteClick(q.id, 'profile')}>Yes, Permanently Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No archived profile questions.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                <Separator className="my-6" />
+                                 <h3 className="font-semibold text-lg mb-2">Assessment Questions</h3>
+                                 <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Question Text</TableHead>
+                                            <TableHead>Section</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {archivedAssessmentQuestions.length > 0 ? archivedAssessmentQuestions.map(q => (
+                                            <TableRow key={q.id}>
+                                                <TableCell>{q.label}</TableCell>
+                                                <TableCell>{q.section}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(q.id, 'assessment')}>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Reactivate
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This action will permanently delete the question "{q.label}". This cannot be undone.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteClick(q.id, 'assessment')}>Yes, Permanently Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No archived assessment questions.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
             </div>
              <TaskForm 
@@ -179,25 +314,14 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
-    const {
-        isLoading,
-    } = useUserData();
+    const { isLoading } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
-    const { activeQuestions, archivedQuestions } = useMemo(() => {
-        const active: Question[] = [];
-        const archived: Question[] = [];
-        Object.values(questions).forEach(q => {
-            if (q.isActive) {
-                active.push(q);
-            } else {
-                archived.push(q);
-            }
-        });
-        return { activeQuestions: active, archivedQuestions: archived };
+    const activeQuestions = useMemo(() => {
+        return Object.values(questions).filter(q => q.isActive);
     }, [questions]);
 
 
@@ -259,33 +383,6 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         newMaster[questionId].isActive = false;
         saveFn(newMaster);
         toast({ title: "Question Archived" });
-    };
-
-    const handleReactivateClick = (questionId: string) => {
-        const newMaster = { ...questions };
-        newMaster[questionId].isActive = true;
-        saveFn(newMaster);
-        toast({ title: "Question Reactivated" });
-    };
-
-    const handleDeleteClick = (questionId: string) => {
-        let newMaster = { ...questions };
-
-        const deleteRecursive = (idToDelete: string) => {
-            const questionToDelete = newMaster[idToDelete];
-            if (!questionToDelete) return;
-
-            Object.values(newMaster).forEach((q: any) => {
-                if (q.parentId === idToDelete) {
-                    deleteRecursive(q.id);
-                }
-            });
-            delete newMaster[idToDelete];
-        }
-
-        deleteRecursive(questionId);
-        saveFn(newMaster);
-        toast({ title: "Question Permanently Deleted" });
     };
 
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string) => {
@@ -362,109 +459,47 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const existingSections = useMemo(() => [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))], [questions]);
 
     return (
-        <Tabs defaultValue="active">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="active">Active Questions</TabsTrigger>
-                <TabsTrigger value="archived">Archived Questions</TabsTrigger>
-            </TabsList>
-            <TabsContent value="active" className="mt-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{questionType === 'profile' ? 'Profile' : 'Assessment'} Question List</CardTitle>
-                        <CardDescription>
-                            {questionType === 'profile' 
-                                ? 'These questions appear in the initial "Create Your Profile" step.'
-                                : 'These questions appear in the main "Exit Details" assessment.'
-                            } Use arrows to reorder.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {orderedSections.map(section => (
-                            <div key={section.id}>
-                                <h3 className="font-semibold text-lg">{section.id}</h3>
-                                <div className="pl-2 space-y-2 py-2">
-                                    {section.questions.map((question, index) => {
-                                        return (
-                                            <AdminQuestionItem
-                                                key={question.id}
-                                                question={question}
-                                                onEdit={handleEditClick}
-                                                onArchive={handleArchiveClick}
-                                                onAddSubQuestion={handleAddNewClick}
-                                                onMove={handleMoveQuestion}
-                                                isFirst={index === 0}
-                                                isLast={index === section.questions.length - 1}
-                                            />
-                                        )
-                                    })}
-                                </div>
-                                <Separator className="my-6" />
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{questionType === 'profile' ? 'Profile' : 'Assessment'} Question List</CardTitle>
+                    <CardDescription>
+                        {questionType === 'profile' 
+                            ? 'These questions appear in the initial "Create Your Profile" step.'
+                            : 'These questions appear in the main "Exit Details" assessment.'
+                        } Use arrows to reorder.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {orderedSections.map(section => (
+                        <div key={section.id}>
+                            <h3 className="font-semibold text-lg">{section.id}</h3>
+                            <div className="pl-2 space-y-2 py-2">
+                                {section.questions.map((question, index) => {
+                                    return (
+                                        <AdminQuestionItem
+                                            key={question.id}
+                                            question={question}
+                                            onEdit={handleEditClick}
+                                            onArchive={handleArchiveClick}
+                                            onAddSubQuestion={handleAddNewClick}
+                                            onMove={handleMoveQuestion}
+                                            isFirst={index === 0}
+                                            isLast={index === section.questions.length - 1}
+                                        />
+                                    )
+                                })}
                             </div>
-                        ))}
-                    </CardContent>
-                    <CardFooter className="border-t pt-6">
-                        <Button variant="outline" onClick={() => handleAddNewClick()}>
-                            <PlusCircle className="mr-2" />Add New Question
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </TabsContent>
-            <TabsContent value="archived" className="mt-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Archived Questions</CardTitle>
-                        <CardDescription>
-                            These questions are inactive and will not appear in any forms. They can be reactivated or permanently deleted.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Question Text</TableHead>
-                                    <TableHead>Section</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {archivedQuestions.length > 0 ? archivedQuestions.map(q => (
-                                    <TableRow key={q.id}>
-                                        <TableCell>{q.label}</TableCell>
-                                        <TableCell>{q.section}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(q.id)}>
-                                                <ArchiveRestore className="mr-2 h-4 w-4" /> Reactivate
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This action will permanently delete the question "{q.label}". This cannot be undone.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteClick(q.id)}>Yes, Permanently Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No archived questions.</TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
+                            <Separator className="my-6" />
+                        </div>
+                    ))}
+                </CardContent>
+                <CardFooter className="border-t pt-6">
+                    <Button variant="outline" onClick={() => handleAddNewClick()}>
+                        <PlusCircle className="mr-2" />Add New Question
+                    </Button>
+                </CardFooter>
+            </Card>
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
                 <EditQuestionDialog
                     isNew={isNewQuestion}
@@ -478,7 +513,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
                     allCompanyTips={masterTips}
                 />
             </Dialog>
-        </Tabs>
+        </>
     );
 }
 
