@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import Papa from 'papaparse';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
 import BulkActions from "./BulkActions";
+import { supabase } from "@/lib/supabase-client";
 
 export type SortConfig = {
     key: keyof CompanyUser | 'profileStatus' | 'assessmentStatus';
@@ -48,7 +50,7 @@ const parseDateFromCsv = (dateStr: any): Date | null => {
 export default function HrUserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { companyAssignmentForHr, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading, saveCompanyUsers } = useUserData();
+    const { companyAssignmentForHr, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading, saveCompanyUsers, companyConfigs } = useUserData();
     
     const companyName = auth?.companyName;
     const permissions = auth?.permissions;
@@ -66,28 +68,19 @@ export default function HrUserManagement() {
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
 
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notificationDate', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
 
     useEffect(() => {
-      const loadData = async () => {
-        if (companyName && !isUserDataLoading) {
-            setIsLoading(true);
-            const { data, error } = await supabase
-                .from('company_users')
-                .select('*')
-                .eq('company_id', companyAssignmentForHr?.companyId);
-            
-            if (error) {
-                console.error("Error fetching company users:", error);
-                toast({ title: "Error", description: "Could not fetch user list.", variant: "destructive" });
-            } else {
-                setUsers(data as CompanyUser[]);
+        const loadData = () => {
+            if (companyName && !isUserDataLoading) {
+                setIsLoading(true);
+                const companyData = companyConfigs[companyName];
+                setUsers(companyData?.users || []);
+                setIsLoading(false);
             }
-            setIsLoading(false);
-        }
-      }
-      loadData();
-    }, [companyName, companyAssignmentForHr?.companyId, isUserDataLoading, toast]);
+        };
+        loadData();
+    }, [companyName, companyConfigs, isUserDataLoading]);
 
     const sortedUsers = useMemo(() => {
         if (!users) return [];
@@ -113,7 +106,7 @@ export default function HrUserManagement() {
                 if (aValue === undefined || aValue === null) aValue = '';
                 if (bValue === undefined || bValue === null) bValue = '';
                 
-                if (config.key === 'notificationDate') {
+                if (config.key === 'notification_date') {
                     const timezone = companyAssignmentForHr?.severanceDeadlineTimezone || 'UTC';
                     const dateA = aValue ? toZonedTime(aValue, timezone).getTime() : 0;
                     const dateB = bValue ? toZonedTime(bValue, timezone).getTime() : 0;

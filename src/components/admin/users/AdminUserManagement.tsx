@@ -26,7 +26,7 @@ const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
 
 export default function AdminUserManagement() {
     const { toast } = useToast();
-    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignments, profileCompletions, assessmentCompletions } = useUserData();
+    const { getAllCompanyConfigs, saveCompanyUsers, companyAssignments, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading } = useUserData();
 
     const [selectedCompany, setSelectedCompany] = useState("");
     const [users, setUsers] = useState<CompanyUser[]>([]);
@@ -64,11 +64,11 @@ export default function AdminUserManagement() {
             return;
         }
 
-        const newUsers = [...users, { email: newUserEmail, companyId: newCompanyId, notificationDate: newNotificationDate, notified: false }];
+        const newUsers = [...users, { email: newUserEmail, companyId: newCompanyId, notificationDate: newNotificationDate, notified: false } as CompanyUser];
         newUsers.sort((a, b) => (a.email > b.email) ? 1 : -1);
 
         setUsers(newUsers);
-        saveCompanyUsers(selectedCompany, newUsers);
+        // saveCompanyUsers(selectedCompany, newUsers);
         setNewUserEmail("");
         setNewCompanyId("");
         setNewNotificationDate("");
@@ -78,11 +78,20 @@ export default function AdminUserManagement() {
     const handleDeleteUser = (email: string) => {
         const newUsers = users.filter(u => u.email !== email);
         setUsers(newUsers);
-        saveCompanyUsers(selectedCompany, newUsers);
+        // saveCompanyUsers(selectedCompany, newUsers);
         toast({ title: "User Removed", description: `${email} has been removed.` });
     };
 
     const currentCompanyAssignment = companyAssignments?.find(a => a.companyName === selectedCompany);
+
+    if (isUserDataLoading) {
+        return (
+             <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        )
+    }
 
     return (
         <div className="p-4 md:p-8 space-y-8">
@@ -165,10 +174,10 @@ export default function AdminUserManagement() {
                                 ) : users.length > 0 ? users.map(user => (
                                     <TableRow key={user.email}>
                                         <TableCell className="font-medium">{user.email}</TableCell>
-                                        <TableCell>{user.companyId}</TableCell>
+                                        <TableCell>{user.company_user_id}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span>{user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
+                                                <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
                                                 {user.notified ? (
                                                     <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge>
                                                 ) : (

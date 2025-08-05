@@ -1,4 +1,5 @@
 
+
 'use client';
 import * as React from 'react';
 import { useState, useMemo, useCallback } from "react";
@@ -18,6 +19,7 @@ import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface OrderedSection {
@@ -50,6 +52,7 @@ export default function AdminFormEditor() {
         externalResources,
         saveMasterTasks,
         saveMasterTips,
+        isLoading,
     } = useUserData();
 
     const { toast } = useToast();
@@ -143,6 +146,9 @@ export default function AdminFormEditor() {
                     <h1 className="font-headline text-3xl font-bold">Master Form Editor</h1>
                     <p className="text-muted-foreground">Add, edit, or delete the default questions for both the Profile and the main Assessment. Changes are saved automatically.</p>
                 </div>
+                 {isLoading ? (
+                    <Skeleton className="h-96 w-full" />
+                ) : (
                 <Tabs defaultValue="profile">
                     <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="profile">Profile Questions</TabsTrigger>
@@ -284,6 +290,7 @@ export default function AdminFormEditor() {
                         </Card>
                     </TabsContent>
                 </Tabs>
+                )}
             </div>
              <TaskForm 
                 isOpen={isTaskFormOpen}
@@ -321,6 +328,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
     const activeQuestions = useMemo(() => {
+        if (!questions) return [];
         return Object.values(questions).filter(q => q.isActive);
     }, [questions]);
 
@@ -516,4 +524,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
-

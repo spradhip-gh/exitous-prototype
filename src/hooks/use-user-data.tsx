@@ -262,6 +262,7 @@ export function useUserData() {
     const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
     const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
     const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
+    const [masterProfileQuestions, setMasterProfileQuestions] = useState<Record<string, Question>>({});
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
@@ -274,11 +275,15 @@ export function useUserData() {
                 { data: hrAssignmentsData },
                 { data: questionsData },
                 { data: rulesData },
+                { data: companyUsersData },
+                { data: companyConfigsData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
                 supabase.from('master_questions').select('*'),
                 supabase.from('guidance_rules').select('*'),
+                supabase.from('company_users').select('*'),
+                supabase.from('company_question_configs').select('*'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -303,12 +308,44 @@ export function useUserData() {
             });
             setCompanyAssignments(assignments);
 
-            const questionsMap: Record<string, Question> = {};
+            const assessmentQuestionsMap: Record<string, Question> = {};
+            const profileQuestionsMap: Record<string, Question> = {};
             questionsData?.forEach(q => {
-                questionsMap[q.id] = { ...(q.question_data as object), id: q.id, formType: q.form_type };
+                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type } as Question;
+                if(question.formType === 'profile') {
+                    profileQuestionsMap[q.id] = question;
+                } else {
+                    assessmentQuestionsMap[q.id] = question;
+                }
             });
-            setMasterQuestions(questionsMap);
+            setMasterQuestions(assessmentQuestionsMap);
+            setMasterProfileQuestions(profileQuestionsMap);
+
             setGuidanceRules(rulesData as GuidanceRule[] || []);
+            
+            // Organize company users by companyId
+            const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
+                if (!acc[user.company_id]) {
+                    acc[user.company_id] = [];
+                }
+                acc[user.company_id].push(user);
+                return acc;
+            }, {} as Record<string, CompanyUser[]>);
+
+            const configs: Record<string, CompanyConfig> = {};
+            (companiesData || []).forEach(company => {
+                const companyConfigDb = companyConfigsData?.find(c => c.company_id === company.id);
+                configs[company.name] = {
+                    users: usersByCompany[company.id] || [],
+                    questions: companyConfigDb?.question_overrides || {},
+                    customQuestions: companyConfigDb?.custom_questions || {},
+                    questionOrderBySection: companyConfigDb?.question_order_by_section || {},
+                    answerGuidanceOverrides: companyConfigDb?.answer_guidance_overrides || {},
+                    companyTasks: companyConfigDb?.company_tasks || [],
+                    companyTips: companyConfigDb?.company_tips || [],
+                };
+            });
+            setCompanyConfigs(configs);
             
             // Fetch user-specific data if authenticated
             if (auth?.userId && auth.role === 'end-user') {
@@ -349,10 +386,7 @@ export function useUserData() {
         }
     }, [auth?.userId]);
 
-    // This function is now stable
     const getAllCompanyConfigs = useCallback(() => {
-        // This should be updated to fetch from Supabase if needed,
-        // but for now, we'll assume it's loaded into the `companyConfigs` state.
         return companyConfigs;
     }, [companyConfigs]);
 
@@ -375,6 +409,7 @@ export function useUserData() {
         recommendations,
         isLoading,
         masterQuestions,
+        masterProfileQuestions,
         guidanceRules,
         companyAssignments,
 
