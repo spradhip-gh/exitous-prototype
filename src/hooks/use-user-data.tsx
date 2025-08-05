@@ -323,6 +323,13 @@ export function useUserData() {
         }
     }, [auth?.userId]);
 
+    // This function is now stable
+    const getAllCompanyConfigs = useCallback(() => {
+        // This should be updated to fetch from Supabase if needed,
+        // but for now, we'll assume it's loaded into the `companyConfigs` state.
+        return companyConfigs;
+    }, [companyConfigs]);
+
     // Simplified stubs for other functions for now
     const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
         // This needs to be reimplemented to use fetched data
@@ -348,6 +355,7 @@ export function useUserData() {
         saveProfileData,
         saveAssessmentData,
         getCompanyConfig,
+        getAllCompanyConfigs,
         // The rest of the functions need to be implemented here...
         // For brevity in this example, I'm providing stubs.
         // In a real implementation, each of these would be a Supabase call.
@@ -383,7 +391,6 @@ export function useUserData() {
         addPlatformUser: async () => {},
         deletePlatformUser: async () => {},
         getCompaniesForHr: () => [],
-        getAllCompanyConfigs: () => ({}),
         getCompanyUser: () => null,
         getPlatformUserRole: () => null,
     };
