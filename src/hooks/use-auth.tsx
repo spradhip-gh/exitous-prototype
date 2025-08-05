@@ -1,11 +1,9 @@
 
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { HrPermissions, CompanyAssignment, ProfileData } from './use-user-data';
-import { getCompanyAssignments as getCompanyAssignmentsFromDb, getCompanyConfigs as getCompanyConfigsFromDb, getPlatformUsers as getPlatformUsersFromDb } from '@/lib/demo-data';
-
+import { supabase } from '@/lib/supabase-client';
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
@@ -15,7 +13,9 @@ const ORIGINAL_AUTH_KEY = 'exitbetter-original-auth';
 export interface AuthState {
   role: UserRole;
   email?: string;
-  companyId?: string;
+  userId?: string; // This will now be the UUID from the database
+  companyId?: string; // This is the company's UUID
+  companyUserId?: string; // The ID of the user within the company_users table
   companyName?: string;
   isPreview?: boolean;
   assignedCompanyNames?: string[];
@@ -25,9 +25,9 @@ export interface AuthState {
 interface AuthContextType {
   auth: AuthState | null;
   loading: boolean;
-  login: (authData: Pick<AuthState, 'role'|'email'|'companyId'>, assignments: CompanyAssignment[]) => void;
+  login: (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string) => Promise<boolean>;
   logout: () => void;
-  startUserView: () => void;
+  startUserView: (user: any) => void;
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
@@ -54,73 +54,137 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, []);
-  
-  const login = useCallback((authData: Pick<AuthState, 'role'|'email'|'companyId'>, assignments: CompanyAssignment[]) => {
-    try {
-      let finalAuthData: AuthState = { ...authData, role: authData.role };
 
-      if (authData.role === 'hr' && authData.email) {
-        const assignedCompanies = assignments.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase()));
-        if (assignedCompanies.length === 0) return;
+  const setPermissions = useCallback((permissions: HrPermissions) => {
+    setAuthState(prev => {
+        if (!prev) return null;
+        if (JSON.stringify(prev.permissions) === JSON.stringify(permissions)) {
+            return prev;
+        }
+        const newAuth = { ...prev, permissions };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        return newAuth;
+    });
+  }, []);
 
-        // Default to a company where the user is primary, if they are primary for only one.
-        const primaryAssignments = assignedCompanies.filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === authData.email!.toLowerCase() && hr.isPrimary));
-        const defaultCompany = primaryAssignments.length === 1 ? primaryAssignments[0] : assignedCompanies[0];
+  const login = useCallback(async (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string): Promise<boolean> => {
+    let finalAuthData: AuthState | null = null;
+
+    if (authData.role === 'end-user' && authData.email && companyIdentifier) {
+        const { data: userData, error } = await supabase
+            .from('company_users')
+            .select(`
+                id,
+                email,
+                company_user_id,
+                is_invited,
+                companies (id, name)
+            `)
+            .eq('email', authData.email)
+            .eq('company_user_id', companyIdentifier)
+            .single();
+
+        if (error || !userData) {
+            console.error('End-user login error:', error);
+            return false;
+        }
+
+        if (!userData.is_invited) {
+            console.warn('User not invited yet:', userData.email);
+            return false;
+        }
+
+        finalAuthData = {
+            role: 'end-user',
+            email: userData.email,
+            userId: userData.id,
+            companyUserId: userData.company_user_id,
+            companyId: userData.companies?.id,
+            companyName: userData.companies?.name
+        };
+
+    } else if (authData.role === 'hr' && authData.email) {
+        const { data: hrAssignments, error } = await supabase
+            .from('company_hr_assignments')
+            .select(`
+                is_primary,
+                permissions,
+                companies (id, name)
+            `)
+            .eq('hr_email', authData.email);
+
+        if (error || !hrAssignments || hrAssignments.length === 0) {
+            console.error('HR login error:', error);
+            return false;
+        }
+
+        const primaryAssignment = hrAssignments.find(a => a.is_primary);
+        const defaultAssignment = primaryAssignment || hrAssignments[0];
+
+        finalAuthData = {
+            role: 'hr',
+            email: authData.email,
+            companyId: defaultAssignment.companies?.id,
+            companyName: defaultAssignment.companies?.name,
+            assignedCompanyNames: hrAssignments.map(a => a.companies?.name || '').filter(Boolean),
+            permissions: defaultAssignment.is_primary 
+                ? { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'write' }
+                : defaultAssignment.permissions as HrPermissions
+        };
+
+    } else if ((authData.role === 'admin' || authData.role === 'consultant') && authData.email) {
+        const { data: platformUser, error } = await supabase
+            .from('platform_users')
+            .select('id, email, role')
+            .eq('email', authData.email)
+            .eq('role', authData.role)
+            .single();
         
-        finalAuthData.companyName = defaultCompany.companyName;
-        finalAuthData.assignedCompanyNames = assignedCompanies.map(c => c.companyName);
+        if(error || !platformUser) {
+            console.error('Platform user login error:', error);
+            return false;
+        }
 
-      } else if (authData.role === 'end-user') {
-          const companyConfigs = getCompanyConfigsFromDb();
-          const assignment = assignments.find(a => companyConfigs[a.companyName]?.users?.some(u => u.email.toLowerCase() === authData.email?.toLowerCase()));
-          if (assignment) {
-            finalAuthData.companyName = assignment.companyName;
-          }
-      }
-
-      localStorage.setItem(AUTH_KEY, JSON.stringify(finalAuthData));
-      setAuthState(finalAuthData);
-      localStorage.removeItem(ORIGINAL_AUTH_KEY);
-    } catch (error) {
-      console.error('Failed to save auth state to local storage', error);
+        finalAuthData = {
+            role: platformUser.role as UserRole,
+            email: platformUser.email,
+            userId: platformUser.id,
+        }
     }
+
+    if (finalAuthData) {
+        localStorage.setItem(AUTH_KEY, JSON.stringify(finalAuthData));
+        setAuthState(finalAuthData);
+        localStorage.removeItem(ORIGINAL_AUTH_KEY);
+        return true;
+    }
+    
+    return false;
   }, []);
 
   const logout = useCallback(() => {
     try {
       localStorage.removeItem(AUTH_KEY);
       localStorage.removeItem(ORIGINAL_AUTH_KEY);
-      // also clear user data on logout
-      localStorage.removeItem('exitbetter-profile');
-      localStorage.removeItem('exitbetter-assessment');
-      localStorage.removeItem('exitbetter-completed-tasks');
-      localStorage.removeItem('exitbetter-task-date-overrides');
-      localStorage.removeItem('exitbetter-custom-deadlines');
-      localStorage.removeItem('exitbetter-recommendations');
-      // and preview data
-      localStorage.removeItem('exitbetter-profile-hr-preview');
-      localStorage.removeItem('exitbetter-assessment-hr-preview');
-      localStorage.removeItem('exitbetter-completed-tasks-hr-preview');
-      localStorage.removeItem('exitbetter-task-date-overrides-hr-preview');
-      localStorage.removeItem('exitbetter-custom-deadlines-hr-preview');
-      localStorage.removeItem('exitbetter-recommendations-hr-preview');
-
-
+      localStorage.clear(); // Clear all localStorage for the site
       setAuthState(null);
     } catch (error) {
       console.error('Failed to clear auth state from local storage', error);
     }
   }, []);
 
-  const startUserView = useCallback(() => {
+  const startUserView = useCallback((user: any) => {
     if (!auth || auth.role !== 'hr') return;
 
     const originalAuth = { ...auth, isPreview: undefined };
     const previewAuth: AuthState = {
-        ...auth,
         role: 'end-user',
+        email: user.email,
+        userId: user.id,
+        companyUserId: user.company_user_id,
+        companyId: user.company_id,
+        companyName: auth.companyName,
         isPreview: true,
-        companyId: `PREVIEW-${auth.email}` 
     };
     
     try {
@@ -141,7 +205,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(ORIGINAL_AUTH_KEY);
         setAuthState(originalAuth);
       } else {
-        // Failsafe in case original auth is lost, just log out.
         logout();
       }
     } catch(e) {
@@ -150,49 +213,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
   
-  const switchCompany = useCallback((companyName: string) => {
-    setAuthState(prev => {
-        if (prev?.role === 'hr' && prev.email && prev.assignedCompanyNames?.includes(companyName)) {
-            // This function now just changes the company name in the auth state and clears permissions.
-            // This forces a re-evaluation in the useUserData hook.
-            const newAuth = { ...prev, companyName, permissions: undefined };
-            localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-            return newAuth;
-        }
-        return prev;
-    });
-  }, []);
+  const switchCompany = useCallback(async (companyName: string) => {
+    if (!auth || auth.role !== 'hr' || !auth.email) return;
 
-  const updateEmail = useCallback((newEmail: string) => {
-    if (auth) {
-        const newAuth = { ...auth, email: newEmail };
-        const key = auth.isPreview ? `exitbetter-profile-hr-preview` : `exitbetter-profile`;
-        
-        try {
-            const profileJson = localStorage.getItem(key);
-            if (profileJson) {
-                const profile = JSON.parse(profileJson) as ProfileData;
-                profile.personalEmail = newEmail;
-                localStorage.setItem(key, JSON.stringify(profile));
-            }
-        } catch (e) {
-            console.error('Failed to update personalEmail in profile', e);
-        }
+    const { data: hrAssignment, error } = await supabase
+        .from('company_hr_assignments')
+        .select('is_primary, permissions, companies (id, name)')
+        .eq('hr_email', auth.email)
+        .eq('companies.name', companyName)
+        .single();
+    
+    if (error || !hrAssignment) {
+        console.error("Error switching company:", error);
+        return;
     }
+    
+    const newPermissions = hrAssignment.is_primary 
+        ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
+        : hrAssignment.permissions as HrPermissions;
+
+    const newAuth = { ...auth, companyName, companyId: hrAssignment.companies?.id, permissions: newPermissions };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+    setAuthState(newAuth);
   }, [auth]);
 
-  const setPermissions = useCallback((permissions: HrPermissions) => {
-    setAuthState(prev => {
-        if (!prev) return null;
-        // Only update if permissions have actually changed to prevent loops
-        if (JSON.stringify(prev.permissions) === JSON.stringify(permissions)) {
-            return prev;
-        }
-        const newAuth = { ...prev, permissions };
-        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
-        return newAuth;
-    });
-  }, []);
+  const updateEmail = useCallback(async (newEmail: string) => {
+    if (!auth || !auth.userId) return;
+
+    const { error } = await supabase
+        .from('user_profiles')
+        .update({ 'data.personalEmail': newEmail })
+        .eq('user_id', auth.userId);
+
+    if (error) {
+        console.error("Error updating email in DB:", error);
+    } else {
+         const newAuth = { ...auth, email: newEmail }; // Assuming personalEmail is what's displayed
+         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+         setAuthState(newAuth);
+    }
+  }, [auth]);
   
   return (
     <AuthContext.Provider value={{ auth, loading, login, logout, startUserView, stopUserView, switchCompany, updateEmail, setPermissions }}>
