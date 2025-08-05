@@ -244,6 +244,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [auth, loading, router]);
 
   const pendingReviewCount = useMemo(() => {
+    if (!reviewQueue) return 0;
     return reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type === 'question_edit_suggestion').length;
   }, [reviewQueue]);
 
