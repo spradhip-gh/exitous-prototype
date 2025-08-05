@@ -1,5 +1,4 @@
 
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -30,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '../ui/badge';
+import { useMemo } from 'react';
 
 const roleNames = {
     'end-user': 'End User',
@@ -76,10 +76,18 @@ export default function Header({ children }: { children?: React.ReactNode }) {
     }
   }
 
-  const companyAssignment = auth?.companyName ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
-  const primaryAssignments = auth?.email ? companyAssignments
-    .filter(c => c.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
-    .map(c => c.companyName) : [];
+  const companyAssignment = useMemo(() => {
+    if (!auth?.companyName || !companyAssignments) return null;
+    return companyAssignments.find(a => a.companyName === auth.companyName);
+  }, [auth?.companyName, companyAssignments]);
+
+  const primaryAssignments = useMemo(() => {
+    if (!auth?.email || !companyAssignments) return [];
+    return companyAssignments
+        .filter(c => c.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
+        .map(c => c.companyName);
+  }, [auth?.email, companyAssignments]);
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
