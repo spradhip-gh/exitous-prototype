@@ -269,7 +269,6 @@ export default function CompanyManagementPage() {
     addCompanyAssignment, 
     updateCompanyAssignment,
     getAllCompanyConfigs,
-    assessmentCompletions 
   } = useUserData();
   
   const [newCompanyName, setNewCompanyName] = useState('');
@@ -350,7 +349,7 @@ export default function CompanyManagementPage() {
         const users = companyConfig?.users || [];
         const usersAdded = users.length;
         const usersInvited = users.filter(u => u.notified).length;
-        const assessmentsCompleted = users.filter(u => assessmentCompletions?.[u.email]).length;
+        const assessmentsCompleted = 0; // This needs profile/assessment completion data
         const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
 
         return {
@@ -361,7 +360,7 @@ export default function CompanyManagementPage() {
             modifiedQuestionCount
         };
     });
-  }, [companyAssignments, allConfigs, assessmentCompletions]);
+  }, [companyAssignments, allConfigs]);
   
   const handleExportCompanies = () => {
     if (!companyDataWithStats || companyDataWithStats.length === 0) {
@@ -444,7 +443,7 @@ export default function CompanyManagementPage() {
         }
     }, [companyAssignments, editingCompany, isEditDialogOpen]);
 
-  if (isLoading) {
+  if (isLoading || !companyAssignments) {
     return (
         <div className="p-4 md:p-8 space-y-8">
             <Skeleton className="h-12 w-1/3" />
@@ -561,7 +560,7 @@ export default function CompanyManagementPage() {
         <Card>
             <CardHeader className="flex flex-row items-start justify-between">
                 <div>
-                    <CardTitle>Assigned Companies</CardTitle>
+                    <CardTitle>Companies</CardTitle>
                     <CardDescription>List of all companies and their designated HR managers.</CardDescription>
                 </div>
                 <Button variant="outline" onClick={handleExportCompanies}>

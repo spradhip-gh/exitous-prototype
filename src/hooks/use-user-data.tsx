@@ -74,11 +74,11 @@ export interface HrManager {
 export interface CompanyUser {
   id: string; // The UUID from the company_users table
   email: string;
-  companyId: string;
-  personalEmail?: string;
-  notificationDate?: string;
+  company_user_id: string;
+  personal_email?: string;
+  notification_date?: string;
   notified?: boolean;
-  prefilledAssessmentData?: Partial<Record<keyof AssessmentData, string | string[]>> & {
+  prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
     preEndDateContactAlias?: string;
     postEndDateContactAlias?: string;
   };
@@ -259,6 +259,7 @@ export function useUserData() {
     const [customDeadlines, setCustomDeadlines] = useState<Record<string, { label: string; date: string }>>({});
     const [recommendations, setRecommendations] = useState<PersonalizedRecommendationsOutput | null>(null);
     
+    const [companyAssignments, setCompanyAssignments] = useState<CompanyAssignment[]>([]);
     const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
     const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
@@ -268,18 +269,43 @@ export function useUserData() {
         const fetchAllData = async () => {
             setIsLoading(true);
 
-            // Fetch all static/shared data
             const [
+                { data: companiesData },
+                { data: hrAssignmentsData },
                 { data: questionsData },
                 { data: rulesData },
             ] = await Promise.all([
+                supabase.from('companies').select('*'),
+                supabase.from('company_hr_assignments').select('*'),
                 supabase.from('master_questions').select('*'),
                 supabase.from('guidance_rules').select('*'),
             ]);
 
+            const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
+                const managers = (hrAssignmentsData || [])
+                    .filter(a => a.company_id === c.id)
+                    .map(a => ({
+                        email: a.hr_email,
+                        isPrimary: a.is_primary,
+                        permissions: a.permissions as HrPermissions
+                    }));
+                return {
+                    companyId: c.id,
+                    companyName: c.name,
+                    version: c.version,
+                    maxUsers: c.max_users,
+                    hrManagers: managers,
+                    severanceDeadlineTime: c.severance_deadline_time,
+                    severanceDeadlineTimezone: c.severance_deadline_timezone,
+                    preEndDateContactAlias: c.pre_end_date_contact_alias,
+                    postEndDateContactAlias: c.post_end_date_contact_alias,
+                };
+            });
+            setCompanyAssignments(assignments);
+
             const questionsMap: Record<string, Question> = {};
             questionsData?.forEach(q => {
-                questionsMap[q.id] = { ...q.question_data, id: q.id, formType: q.form_type };
+                questionsMap[q.id] = { ...(q.question_data as object), id: q.id, formType: q.form_type };
             });
             setMasterQuestions(questionsMap);
             setGuidanceRules(rulesData as GuidanceRule[] || []);
@@ -350,6 +376,7 @@ export function useUserData() {
         isLoading,
         masterQuestions,
         guidanceRules,
+        companyAssignments,
 
         // --- FUNCTIONS ---
         saveProfileData,
