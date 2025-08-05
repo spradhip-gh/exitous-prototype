@@ -12,8 +12,8 @@ This document outlines the proposed database schema for the ExitBetter applicati
 4.  [Company Users](#company_users)
 5.  [User Profiles](#user_profiles)
 6.  [User Assessments](#user_assessments)
-7.  [Master Questions](#master_questions) **(UPDATED)**
-8.  [Company Question Configs](#company_question_configs)
+7.  [Master Questions](#master_questions)
+8.  [Company Question Configs](#company_question_configs) **(UPDATED)**
 9.  [Master Tasks](#master_tasks)
 10. [Task Mappings](#task_mappings)
 11. [Master Tips](#master_tips)
@@ -107,31 +107,34 @@ Stores the assessment (exit details) form data for each end-user. This is a one-
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.                    |
 
 
-### `master_questions` (UPDATED)
+### `master_questions`
 
 Stores the master list of all possible questions for both Profile and Assessment forms, acting as the global template.
 
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
-| `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment'). **(NEW)** |
+| `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment').    |
 | `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
 
-### `company_question_configs`
+### `company_question_configs` (UPDATED)
 
 Stores company-specific customizations for the assessment form. This allows companies to override, disable, or add questions.
 
-| Column                   | Type      | Description                                                |
-| ------------------------ | --------- | ---------------------------------------------------------- |
-| `company_id`             | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.       |
-| `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
-| `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
-| `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
-| `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
-| `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
+| Column                      | Type      | Description                                                                                               |
+| --------------------------- | --------- | --------------------------------------------------------------------------------------------------------- |
+| `company_id`                | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.                                                      |
+| `question_overrides`        | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
+| `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
+| `question_order`            | `JSONB`   | JSON object defining the display order of questions by section.                                           |
+| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. **(NEW)**            |
+| `company_tasks`             | `JSONB`   | A list of company-specific task objects. **(NEW)**                                                        |
+| `company_tips`              | `JSONB`   | A list of company-specific tip objects. **(NEW)**                                                         |
+| `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
+
 
 ### `master_tasks`
 

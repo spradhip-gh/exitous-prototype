@@ -1,4 +1,3 @@
-
 # Product Requirements Document: ExitBetter Platform
 
 **Author:** App Prototyper AI
@@ -182,14 +181,16 @@ The following tables represent the conceptual data structure for the platform.
 
 ### `company_question_configs`
 
-| Column                   | Type      | Description                                                |
-| ------------------------ | --------- | ---------------------------------------------------------- |
-| `company_id`             | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.       |
-| `question_overrides`     | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
-| `custom_questions`       | `JSONB`   | JSON object of new questions specific to this company.     |
-| `question_order`         | `JSONB`   | JSON object defining the display order of questions by section. |
-| `guidance`               | `JSONB`   | Array of `GuidanceRule` objects for this company.          |
-| `updated_at`             | `TIMESTAMPTZ`| Timestamp of the last update.                              |
+| Column                      | Type      | Description                                                                                               |
+| --------------------------- | --------- | --------------------------------------------------------------------------------------------------------- |
+| `company_id`                | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.                                                      |
+| `question_overrides`        | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
+| `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
+| `question_order`            | `JSONB`   | JSON object defining the display order of questions by section.                                           |
+| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`.                      |
+| `company_tasks`             | `JSONB`   | A list of company-specific task objects.                                                                  |
+| `company_tips`              | `JSONB`   | A list of company-specific tip objects.                                                                   |
+| `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
 
 ### `master_tasks`
 
@@ -286,6 +287,8 @@ The following tables represent the conceptual data structure for the platform.
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of last update.                         |
 
 ### `review_queue`
+
+A log of AI-generated recommendations for consultants to review, approve, or convert into guidance rules.
 
 | Column        | Type      | Description                                       |
 | ------------- | --------- | ------------------------------------------------- |
