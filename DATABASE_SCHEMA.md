@@ -1,6 +1,6 @@
 # ExitBetter Platform - Database Schema
 
-This document outlines the proposed database schema for the ExitBetter application. It's designed to support the features and user roles defined in the product requirements, providing a blueprint for backend development.
+This document outlines the proposed database schema for the ExitBetter application, designed to support the features and user roles defined in the product requirements.
 
 ---
 
@@ -13,11 +13,11 @@ This document outlines the proposed database schema for the ExitBetter applicati
 5.  [User Profiles](#user_profiles)
 6.  [User Assessments](#user_assessments)
 7.  [Master Questions](#master_questions)
-8.  [Master Question Configs](#master_question_configs) **(NEW)**
+8.  [Master Question Configs](#master_question_configs)
 9.  [Company Question Configs](#company_question_configs)
 10. [Master Tasks](#master_tasks)
-11. [Task Mappings](#task_mappings)
-12. [Master Tips](#master_tips)
+11. [Master Tips](#master_tips)
+12. [Task Mappings](#task_mappings)
 13. [Tip Mappings](#tip_mappings)
 14. [Company Resources](#company_resources)
 15. [External Resources](#external_resources)
@@ -33,7 +33,7 @@ Stores information about each client company, their assigned HR manager, and def
 | Column                        | Type          | Description                                           |
 | --------------------------- | ------------- | ----------------------------------------------------- |
 | `id`                        | `UUID`        | **Primary Key**. A unique identifier for the company. |
-| `name`                      | `TEXT`        | The unique name of the company (e.g., "Globex Corp"). |
+| `name`                      | `TEXT`        | The unique name of the company.                       |
 | `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
 | `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
 | `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
@@ -53,6 +53,7 @@ Stores users with platform-wide access roles, like administrators and consultant
 | `email`     | `TEXT`    | User's unique email address. Unique.  |
 | `role`      | `TEXT`    | Role ('admin' or 'consultant').       |
 | `created_at`| `TIMESTAMPTZ` | Timestamp of when the user was created. |
+| `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.         |
 
 ### `company_hr_assignments`
 
@@ -63,7 +64,7 @@ Maps HR Managers to the companies they manage and defines their specific permiss
 | `company_id`  | `UUID`    | **Composite PK** and **Foreign Key** to `companies.id`.                   |
 | `hr_email`    | `TEXT`    | **Composite PK**. The email of the assigned HR manager.                   |
 | `is_primary`  | `BOOLEAN` | `true` if this is the primary manager for the company. Default: `false`.  |
-| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write", "formEditor": "read"}`). |
+| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write"}`). |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the assignment was created.                            |
 | `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.                                            |
 
@@ -84,6 +85,7 @@ Stores end-users associated with a specific company. This table tracks who is el
 | `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.        |
 | `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment.     |
 | `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                        |
+| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                |
 
 *Composite unique key on (`company_id`, `email`).*
 
@@ -120,7 +122,7 @@ Stores the master list of all possible questions for both Profile and Assessment
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
-### `master_question_configs` (NEW)
+### `master_question_configs`
 
 Stores the global configuration for the forms, such as the display order of sections.
 
@@ -140,7 +142,7 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `company_id`                | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.                                                      |
 | `question_overrides`        | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
 | `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
-| `question_order`            | `JSONB`   | JSON object defining the display order of questions by section.                                           |
+| `question_order_by_section` | `JSONB`   | JSON object defining the display order of questions by section.                                           |
 | `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. |
 | `company_tasks`             | `JSONB`   | A list of company-specific task objects. |
 | `company_tips`              | `JSONB`   | A list of company-specific tip objects. |
@@ -160,8 +162,25 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `detail`                      | `TEXT`    | A more detailed Markdown description of what the task involves.           |
 | `deadline_type`               | `TEXT`    | The event that triggers the deadline ('notification_date' or 'termination_date'). |
 | `deadline_days`               | `INTEGER` | The number of days from the `deadline_type` event that the task is due.   |
+| `linkedResourceId`            | `TEXT`    | Optional foreign key to `external_resources.id`.                          |
+| `isCompanySpecific`           | `BOOLEAN` | Flag to indicate if this is a company-specific task.                      |
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
+
+### `master_tips`
+
+Stores the master list of all "Did you know..." tips that can be mapped to answers.
+
+| Column          | Type      | Description                                                       |
+| --------------- | --------- | ----------------------------------------------------------------- |
+| `id`            | `TEXT`    | **Primary Key**. A unique, kebab-case identifier for the tip.       |
+| `type`          | `TEXT`    | The workflow type (e.g., 'layoff', 'anxious'). Default: 'layoff'. |
+| `priority`      | `TEXT`    | The display priority ('High', 'Medium', 'Low').                   |
+| `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
+| `text`          | `TEXT`    | The content of the tip.                                           |
+| `isCompanySpecific` | `BOOLEAN` | Flag to indicate if this is a company-specific tip.             |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
+| `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
 
 ### `task_mappings`
 
@@ -176,20 +195,6 @@ Maps tasks from `master_tasks` to specific question answers. This creates the lo
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
 
 *Composite unique key on (`question_id`, `answer_value`, `task_id`).*
-
-### `master_tips`
-
-Stores the master list of all "Did you know..." tips that can be mapped to answers.
-
-| Column          | Type      | Description                                                       |
-| --------------- | --------- | ----------------------------------------------------------------- |
-| `id`            | `TEXT`    | **Primary Key**. A unique, kebab-case identifier for the tip.       |
-| `type`          | `TEXT`    | The workflow type (e.g., 'layoff', 'anxious'). Default: 'layoff'. |
-| `priority`      | `TEXT`    | The display priority ('High', 'Medium', 'Low').                   |
-| `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
-| `text`          | `TEXT`    | The content of the tip.                                           |
-| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
-| `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
 
 ### `tip_mappings`
 
@@ -220,6 +225,7 @@ Stores documents and links uploaded by an HR Manager for their employees.
 | `content`     | `TEXT`    | The text content of the uploaded file.    |
 | `summary`     | `TEXT`    | Optional AI-generated summary of the document. |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
+| `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.               |
 
 ### `external_resources`
 
@@ -227,12 +233,13 @@ Stores the curated directory of professional services and partners that can be r
 
 | Column              | Type    | Description                                            |
 | ------------------- | ------- | ------------------------------------------------------ |
-| `id`                | `UUID`  | **Primary Key**.                                       |
+| `id`                | `TEXT`  | **Primary Key**.                                       |
 | `name`              | `TEXT`  | The name of the resource (e.g., "Momentum Financial"). |
 | `description`       | `TEXT`  | A brief description of the service.                    |
 | `category`          | `TEXT`  | e.g., 'Finances', 'Legal', 'Career', 'Well-being'.     |
 | `website`           | `TEXT`  | The URL to the resource's website.                     |
 | `image_url`         | `TEXT`  | A URL for a representative image.                      |
+| `image_hint`        | `TEXT`  | A hint for AI image generation.                        |
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `availability`      | `JSONB` | Array of tiers this is available to (e.g., `["basic", "pro"]`). |
 | `basic_offer`       | `TEXT`  | Description of a special offer for basic users.        |
@@ -266,7 +273,7 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | Column        | Type      | Description                                       |
 | ------------- | --------- | ------------------------------------------------- |
 | `id`          | `UUID`    | **Primary Key**.                                  |
-| `user_id`     | `UUID`    | **Foreign Key** to `company_users.id`.            |
+| `user_email`  | `TEXT`    | The email of the user whose data was used.        |
 | `input_data`  | `JSONB`   | The user profile/assessment data sent to the AI.  |
 | `output_data` | `JSONB`   | The recommendation list received from the AI.     |
 | `status`      | `TEXT`    | 'pending', 'approved', or 'rejected'.             |

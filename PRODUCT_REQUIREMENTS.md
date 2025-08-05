@@ -101,18 +101,16 @@ The platform is designed to serve four distinct user roles:
 
 ## 5. Data Model / Schema
 
-The following tables represent the conceptual data structure for the platform.
-
 ### `companies`
 
 | Column                        | Type          | Description                                           |
 | --------------------------- | ------------- | ----------------------------------------------------- |
 | `id`                        | `UUID`        | **Primary Key**. A unique identifier for the company. |
-| `name`                      | `TEXT`        | The unique name of the company (e.g., "Globex Corp"). |
+| `name`                      | `TEXT`        | The unique name of the company.                       |
 | `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
 | `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
 | `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
-| `severance_deadline_timezone`| `TEXT`       | Default timezone for deadlines (e.g., 'America/Chicago'). |
+| `severance_deadline_timezone`| `TEXT`       | Default timezone for deadlines.                      |
 | `pre_end_date_contact_alias`| `TEXT`        | Default contact alias before a user's end date.      |
 | `post_end_date_contact_alias`| `TEXT`       | Default contact alias after a user's end date.       |
 | `created_at`                | `TIMESTAMPTZ` | Timestamp of when the company was created.            |
@@ -126,6 +124,7 @@ The following tables represent the conceptual data structure for the platform.
 | `email`     | `TEXT`    | User's unique email address. Unique.  |
 | `role`      | `TEXT`    | Role ('admin' or 'consultant').       |
 | `created_at`| `TIMESTAMPTZ` | Timestamp of when the user was created. |
+| `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.         |
 
 ### `company_hr_assignments`
 
@@ -134,7 +133,7 @@ The following tables represent the conceptual data structure for the platform.
 | `company_id`  | `UUID`    | **Composite PK** and **Foreign Key** to `companies.id`.                   |
 | `hr_email`    | `TEXT`    | **Composite PK**. The email of the assigned HR manager.                   |
 | `is_primary`  | `BOOLEAN` | `true` if this is the primary manager for the company. Default: `false`.  |
-| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write", "formEditor": "read"}`). |
+| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write"}`). |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the assignment was created.                            |
 | `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.                                            |
 
@@ -153,6 +152,7 @@ The following tables represent the conceptual data structure for the platform.
 | `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.        |
 | `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment.     |
 | `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                        |
+| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                |
 
 ### `user_profiles`
 
@@ -175,8 +175,8 @@ The following tables represent the conceptual data structure for the platform.
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
-| `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment'). |
-| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
+| `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment').    |
+| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
@@ -195,8 +195,8 @@ The following tables represent the conceptual data structure for the platform.
 | `company_id`                | `UUID`    | **Primary Key** and **Foreign Key** to `companies.id`.                                                      |
 | `question_overrides`        | `JSONB`   | JSON object of master questions that have been modified (e.g., `{"workStatus": {"label": "Your Status"}}`). |
 | `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
-| `question_order`            | `JSONB`   | JSON object defining the display order of questions by section.                                           |
-| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`.                      |
+| `question_order_by_section` | `JSONB`   | JSON object defining the display order of questions by section.                                           |
+| `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. |
 | `company_tasks`             | `JSONB`   | A list of company-specific task objects.                                                                  |
 | `company_tips`              | `JSONB`   | A list of company-specific tip objects.                                                                   |
 | `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
@@ -215,16 +215,6 @@ The following tables represent the conceptual data structure for the platform.
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
-### `task_mappings`
-
-| Column          | Type      | Description                                                          |
-| --------------- | --------- | -------------------------------------------------------------------- |
-| `id`            | `UUID`    | **Primary Key**.                                                     |
-| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
-| `answer_value`  | `TEXT`    | The specific answer that triggers the task (e.g., "Yes", "Onsite"). |
-| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
-| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
-
 ### `master_tips`
 
 | Column          | Type      | Description                                                       |
@@ -236,6 +226,16 @@ The following tables represent the conceptual data structure for the platform.
 | `text`          | `TEXT`    | The content of the tip.                                           |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
+
+### `task_mappings`
+
+| Column          | Type      | Description                                                          |
+| --------------- | --------- | -------------------------------------------------------------------- |
+| `id`            | `UUID`    | **Primary Key**.                                                     |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`.                            |
+| `answer_value`  | `TEXT`    | The specific answer that triggers the task (e.g., "Yes", "Onsite"). |
+| `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
 
 ### `tip_mappings`
 
@@ -260,17 +260,19 @@ The following tables represent the conceptual data structure for the platform.
 | `content`     | `TEXT`    | The text content of the uploaded file.    |
 | `summary`     | `TEXT`    | Optional AI-generated summary of the document. |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
+| `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.               |
 
 ### `external_resources`
 
 | Column              | Type    | Description                                            |
 | ------------------- | ------- | ------------------------------------------------------ |
-| `id`                | `UUID`  | **Primary Key**.                                       |
+| `id`                | `TEXT`  | **Primary Key**.                                       |
 | `name`              | `TEXT`  | The name of the resource (e.g., "Momentum Financial"). |
 | `description`       | `TEXT`  | A brief description of the service.                    |
 | `category`          | `TEXT`  | e.g., 'Finances', 'Legal', 'Career', 'Well-being'.     |
 | `website`           | `TEXT`  | The URL to the resource's website.                     |
 | `image_url`         | `TEXT`  | A URL for a representative image.                      |
+| `image_hint`        | `TEXT`  | A hint for AI image generation.                        |
 | `is_verified`       | `BOOLEAN`| `true` if this is a verified partner.                  |
 | `availability`      | `JSONB` | Array of tiers this is available to (e.g., `["basic", "pro"]`). |
 | `basic_offer`       | `TEXT`  | Description of a special offer for basic users.        |
@@ -297,12 +299,10 @@ The following tables represent the conceptual data structure for the platform.
 
 ### `review_queue`
 
-A log of AI-generated recommendations for consultants to review, approve, or convert into guidance rules.
-
 | Column        | Type      | Description                                       |
 | ------------- | --------- | ------------------------------------------------- |
 | `id`          | `UUID`    | **Primary Key**.                                  |
-| `user_id`     | `UUID`    | **Foreign Key** to `company_users.id`.            |
+| `user_email`  | `TEXT`    | The email of the user whose data was used.        |
 | `input_data`  | `JSONB`   | The user profile/assessment data sent to the AI.  |
 | `output_data` | `JSONB`   | The recommendation list received from the AI.     |
 | `status`      | `TEXT`    | 'pending', 'approved', or 'rejected'.             |

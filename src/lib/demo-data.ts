@@ -176,6 +176,7 @@ const initializeDb = (): DemoDatabase => {
                 customQuestions: {
                     'globex-corp-custom-1': {
                         id: 'globex-corp-custom-1',
+                        formType: 'assessment',
                         label: 'Have you already booked any future non-refundable business trips?',
                         section: 'Work Circumstances',
                         type: 'radio',
@@ -665,7 +666,7 @@ This checklist is designed to help you manage key tasks during your employment t
             { "id": "50", "type": "layoff", "priority": "Medium", "category": "Health", "text": "A recent major change in your partner relationship status combined with a job loss can be emotionally taxing in ways that aren't always evident immediately. Support from trusted friends, family, or a counselor can make all the difference." },
             { "id": "52", "type": "layoff", "priority": "Medium", "category": "Health", "text": "After employer-provided healthcare ends, there are other insurance options, like COBRA, that ensure continuous coverage." },
             { "id": "53", "type": "layoff", "priority": "Medium", "category": "Finance", "text": "To help manage ongoing medical expenses, some healthcare providers will negotiate a payment plan. You can reach out to your patient advocate for more info." },
-            { "id": "56", "type": "layoff", "priority": "High", "category": "Health", "text": "The emotional toll and added responsibilities of losing a loved one combined with the stress of a job loss can take a toll in ways that aren't immediately evident. Stay open to support from trusted friends, family, counselors, and community support groups to help you take time and space to heal." },
+            { "id": "56", "type": "layoff", "priority": "Medium", "category": "Health", "text": "The emotional toll and added responsibilities of losing a loved one combined with the stress of a job loss can take a toll in ways that aren't immediately evident. Stay open to support from trusted friends, family, counselors, and community support groups to help you take time and space to heal." },
             { "id": "60", "type": "layoff", "priority": "Medium", "category": "Financial", "text": "If your ability to contribute to elder care is affected by your job loss, you may qualify for financial aid or assistance programs." },
             { "id": "62", "type": "layoff", "priority": "Medium", "category": "Financial", "text": "With less than 30 days at the company, you may not be eligible for severance or unemployment benefits, but you may have other support options and rights." },
             { "id": "63", "type": "layoff", "priority": "Medium", "category": "Career", "text": "Even with a brief time at the company, mentioning all that you learned during that time may dispel concerns from future employers." },
@@ -843,4 +844,5 @@ export const saveTipMappings = (data: TipMapping[]) => { db.tipMappings = data; 
     
 
     
+
 
