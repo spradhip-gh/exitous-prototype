@@ -118,6 +118,7 @@ Stores the master list of all possible questions for both Profile and Assessment
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
 | `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment').    |
+| `sort_order`    | `INTEGER` | An integer to define the display order of the question within its section. |
 | `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
@@ -282,4 +283,3 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
-```
