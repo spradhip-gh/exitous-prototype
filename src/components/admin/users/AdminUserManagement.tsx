@@ -13,7 +13,7 @@ import { PlusCircle, Trash2, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, parse } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 import { supabase } from "@/lib/supabase-client";
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
@@ -81,7 +81,7 @@ export default function AdminUserManagement() {
             email: newUserEmail, 
             company_user_id: newCompanyId, 
             notification_date: newNotificationDate, 
-            notified: false 
+            is_invited: false 
         };
 
         const { data, error } = await supabase

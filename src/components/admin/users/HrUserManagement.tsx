@@ -84,8 +84,8 @@ export default function HrUserManagement() {
 
     const sortedUsers = useMemo(() => {
         if (!users) return [];
-        const invitedUsers = users.filter(u => u.notified);
-        const uninvitedUsers = users.filter(u => !u.notified);
+        const invitedUsers = users.filter(u => u.is_invited);
+        const uninvitedUsers = users.filter(u => !u.is_invited);
 
         const sortArray = (array: CompanyUser[], config: SortConfig) => {
             return [...array].sort((a, b) => {
@@ -166,7 +166,7 @@ export default function HrUserManagement() {
             company_user_id: newCompanyId,
             personal_email: newPersonalEmail || undefined,
             notification_date: format(newNotificationDate, 'yyyy-MM-dd'),
-            notified: false,
+            is_invited: false,
         };
         
         const success = await addUser(newUser);
@@ -191,7 +191,7 @@ export default function HrUserManagement() {
         const notificationDate = parseDateFromCsv(notificationDateStr);
         if (!notificationDate) return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
 
-        const optionalFields: (keyof CompanyUser['prefilledAssessmentData'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
+        const optionalFields: (keyof CompanyUser['prefilled_assessment_data'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
         const prefilledData: any = {};
         
         optionalFields.forEach(field => {
@@ -211,7 +211,7 @@ export default function HrUserManagement() {
             company_user_id: companyId,
             personal_email: String(row["personalEmail"] || '').trim() || undefined,
             notification_date: format(notificationDate, 'yyyy-MM-dd'),
-            notified: false,
+            is_invited: false,
             prefilled_assessment_data: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
         };
         return { userFromCsv };
@@ -244,7 +244,7 @@ export default function HrUserManagement() {
                     if (userFromCsv) {
                         const existingUser = users.find(u => u.email.toLowerCase() === userFromCsv.email?.toLowerCase());
                         if (existingUser) {
-                            if (!existingUser.notified) toUpdate.push({ id: existingUser.id, ...userFromCsv });
+                            if (!existingUser.is_invited) toUpdate.push({ id: existingUser.id, ...userFromCsv });
                         } else {
                             toAdd.push({ company_id: companyAssignmentForHr?.companyId, ...userFromCsv });
                         }
@@ -305,7 +305,7 @@ export default function HrUserManagement() {
             email: user.email,
             companyId: user.company_user_id,
             notificationDate: user.notification_date || '',
-            notified: user.notified ? 'Yes' : 'No',
+            notified: user.is_invited ? 'Yes' : 'No',
             personalEmail: user.personal_email || '',
             finalDate: user.prefilled_assessment_data?.finalDate || '',
             severanceAgreementDeadline: user.prefilled_assessment_data?.severanceAgreementDeadline || '',

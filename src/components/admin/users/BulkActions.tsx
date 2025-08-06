@@ -34,8 +34,8 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         let past = 0;
         selectedUsers.forEach(email => {
             const user = users.find(u => u.email === email);
-            if (user && !user.notified) {
-                const notificationDate = user.notificationDate ? new Date(user.notificationDate) : null;
+            if (user && !user.is_invited) {
+                const notificationDate = user.notification_date ? new Date(user.notification_date) : null;
                 if (notificationDate && (isToday(notificationDate) || isPast(notificationDate))) {
                     eligible++;
                 }
@@ -59,7 +59,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         const updatedUsers = users.map(user => {
             if (selectedUsers.has(user.email)) {
                 updatedCount++;
-                return { ...user, notificationDate: format(newBulkNotificationDate, 'yyyy-MM-dd') };
+                return { ...user, notification_date: format(newBulkNotificationDate, 'yyyy-MM-dd') };
             }
             return user;
         });
@@ -77,11 +77,11 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         if (!companyName) return;
         const emailsToNotify = Array.from(selectedUsers).filter(email => {
             const user = users.find(u => u.email === email);
-            return user && !user.notified && user.notificationDate && (isToday(new Date(user.notificationDate)) || isPast(new Date(user.notificationDate)));
+            return user && !user.is_invited && user.notification_date && (isToday(new Date(user.notification_date)) || isPast(new Date(user.notification_date)));
         });
 
         const newUsers = users.map(u =>
-            emailsToNotify.includes(u.email) ? { ...u, notified: true } : u
+            emailsToNotify.includes(u.email) ? { ...u, is_invited: true } : u
         );
         setUsers(newUsers);
         saveCompanyUsers(companyName, newUsers);

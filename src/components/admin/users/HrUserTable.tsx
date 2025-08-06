@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import type { SortConfig } from './HrUserManagement';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/lib/supabase-client';
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     isComplete ? (
@@ -74,12 +76,12 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     const [editedPersonalEmail, setEditedPersonalEmail] = useState('');
     const [editedNotificationDate, setEditedNotificationDate] = useState<Date | undefined>();
 
-    const selectableUserCount = users.filter(u => !u.notified).length;
+    const selectableUserCount = users.filter(u => !u.is_invited).length;
     const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
     const isSomeSelected = selectedUsers.size > 0 && !isAllSelected;
 
     const isNotifyDisabled = (user: CompanyUser): boolean => {
-        if (user.notified || !canInvite) return true;
+        if (user.is_invited || !canInvite) return true;
         if (!user.notification_date) return true;
         const notificationDate = parse(user.notification_date, 'yyyy-MM-dd', new Date());
         return !(isToday(notificationDate) || isPast(notificationDate));
@@ -90,7 +92,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         
         const updates = emailsToNotify.map(email => ({
           id: users.find(u => u.email === email)?.id,
-          notified: true,
+          is_invited: true,
         })).filter(u => u.id);
 
         const { error } = await supabase.from('company_users').upsert(updates);
@@ -98,7 +100,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         if (error) {
             toast({ title: "Error", description: "Could not send invitations.", variant: "destructive" });
         } else {
-             const newUsers = users.map(u => emailsToNotify.includes(u.email) ? { ...u, notified: true } : u);
+             const newUsers = users.map(u => emailsToNotify.includes(u.email) ? { ...u, is_invited: true } : u);
              setUsers(newUsers);
              toast({ title: "Invitations Sent", description: `Invitations sent to ${emailsToNotify.length} users.` });
              setSelectedUsers(new Set());
@@ -109,7 +111,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         setSelectedUsers(prev => {
             const newSelection = new Set(prev);
             const user = users.find(u => u.email === email);
-            if (user?.notified) return newSelection;
+            if (user?.is_invited) return newSelection;
             if (newSelection.has(email)) newSelection.delete(email);
             else newSelection.add(email);
             return newSelection;
@@ -117,7 +119,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     };
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) setSelectedUsers(new Set(users.filter(u => !u.notified).map(u => u.email)));
+        if (checked) setSelectedUsers(new Set(users.filter(u => !u.is_invited).map(u => u.email)));
         else setSelectedUsers(new Set());
     };
 
@@ -182,16 +184,16 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                         ))
                     ) : users.length > 0 ? users.map(user => {
                         const notifyDisabled = isNotifyDisabled(user);
-                        const isSelectionDisabled = user.notified || !canInvite;
+                        const isSelectionDisabled = user.is_invited || !canInvite;
                         return (
-                            <TableRow key={user.id} data-selected={selectedUsers.has(user.email)} className={cn(user.notified && "bg-muted/50 text-muted-foreground")}>
+                            <TableRow key={user.id} data-selected={selectedUsers.has(user.email)} className={cn(user.is_invited && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell><Checkbox checked={selectedUsers.has(user.email)} onCheckedChange={() => handleToggleSelection(user.email)} aria-label={`Select ${user.email}`} disabled={isSelectionDisabled}/></TableCell>
                                 <TableCell className="font-medium">{user.email}</TableCell>
                                 <TableCell>{user.company_user_id}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
                                         <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
-                                        {user.notified ? <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge> : <Badge variant="secondary" className="w-fit">Pending</Badge>}
+                                        {user.is_invited ? <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge> : <Badge variant="secondary" className="w-fit">Pending</Badge>}
                                     </div>
                                 </TableCell>
                                 <TableCell><StatusBadge isComplete={!!profileCompletions[user.email]} /></TableCell>
@@ -200,7 +202,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                                     <div className="flex justify-end items-center gap-1">
                                         <Tooltip>
                                             <TooltipTrigger asChild><span tabIndex={notifyDisabled ? 0 : -1}><AlertDialog><AlertDialogTrigger asChild><Button variant="outline" size="sm" disabled={notifyDisabled}><Send className="mr-2" /> Invite</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Confirm Invitation</AlertDialogTitle><AlertDialogDescription>This will send an invitation to {user.email}.<br /><br /><strong className="text-foreground">Please note:</strong> emails are not currently sent in prototype mode. This action will mark the user as "Invited".</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleNotifyUsers([user.email])}>Confirm & Send</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></span></TooltipTrigger>
-                                            {notifyDisabled && !user.notified && <TooltipContent><p>{!canInvite ? 'You do not have permission to invite users.' : 'Only available on or after the notification date.'}</p></TooltipContent>}
+                                            {notifyDisabled && !user.is_invited && <TooltipContent><p>{!canInvite ? 'You do not have permission to invite users.' : 'Only available on or after the notification date.'}</p></TooltipContent>}
                                         </Tooltip>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" disabled={!canWrite}><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
@@ -226,9 +228,9 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                         <div className="space-y-2"><Label htmlFor="edit-personal-email">Personal Email</Label><Input id="edit-personal-email" value={editedPersonalEmail} onChange={(e) => setEditedPersonalEmail(e.target.value)} placeholder="user@personal.com"/></div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-notification-date">Notification Date</Label>
-                             <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")} disabled={editingUser?.notified}><CalendarIcon className="mr-2 h-4 w-4" />{editedNotificationDate ? format(editedNotificationDate, "PPP") : <span>Pick a date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editedNotificationDate} onSelect={setEditedNotificationDate} initialFocus /></PopoverContent></Popover>
-                             {editingUser?.notified && <p className="text-xs text-muted-foreground">Cannot change date for an invited user.</p>}
-                            {editedNotificationDate && isPast(editedNotificationDate) && !isToday(editedNotificationDate) && !editingUser?.notified && <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md"><AlertCircle className="h-4 w-4" /><div>The Notification Date is in the past. If you are editing the date, ensure this matches the user's actual notification date as it impacts their assessment.</div></div>}
+                             <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")} disabled={editingUser?.is_invited}><CalendarIcon className="mr-2 h-4 w-4" />{editedNotificationDate ? format(editedNotificationDate, "PPP") : <span>Pick a date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editedNotificationDate} onSelect={setEditedNotificationDate} initialFocus /></PopoverContent></Popover>
+                             {editingUser?.is_invited && <p className="text-xs text-muted-foreground">Cannot change date for an invited user.</p>}
+                            {editedNotificationDate && isPast(editedNotificationDate) && !isToday(editedNotificationDate) && !editingUser?.is_invited && <div className="flex items-center gap-2 p-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md"><AlertCircle className="h-4 w-4" /><div>The Notification Date is in the past. If you are editing the date, ensure this matches the user's actual notification date as it impacts their assessment.</div></div>}
                         </div>
                     </div>
                     <DialogFooter><Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveChanges}>Save Changes</Button></DialogFooter>
