@@ -80,14 +80,17 @@ export default function AdminFormEditor() {
     const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
 
     const activeQuestions = useMemo(() => {
-        const allQuestionsMap = { ...masterProfileQuestions, ...masterQuestions };
-        const activeQuestions: Record<string, Question> = {};
-        Object.values(allQuestionsMap).forEach(q => {
-            if (q.isActive) {
-                activeQuestions[q.id] = q;
-            }
-        });
-        return buildQuestionTreeFromMap(activeQuestions);
+        const active: Question[] = [];
+        const processQuestions = (qMap: Record<string, Question>) => {
+            Object.values(qMap).forEach(q => {
+                if (q.isActive) {
+                   active.push(q);
+                }
+            });
+        }
+        processQuestions(masterProfileQuestions);
+        processQuestions(masterQuestions);
+        return buildQuestionTreeFromMap(active.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
     }, [masterProfileQuestions, masterQuestions]);
 
     const { archivedProfileQuestions, archivedAssessmentQuestions } = useMemo(() => {
@@ -609,3 +612,4 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
+
