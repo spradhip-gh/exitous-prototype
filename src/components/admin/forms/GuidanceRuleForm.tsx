@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit, Check } from "lucide-react";
+import { PlusCircle, Trash2, ChevronsUpDown, Wand2, LinkIcon, BrainCircuit, Check, Info } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert } from '@/components/ui/alert';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -252,6 +253,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     if (!question) return null;
 
+    const mappedAnswersInOtherRules = new Set(
+        existingRules
+            .filter(r => r.id !== selectedRuleId)
+            .flatMap(r => r.conditions.map(c => c.answer))
+    );
+
     const handleSaveDirectRule = () => {
         if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
             toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
@@ -260,16 +267,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
 
         const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
 
-        // Check for conflicts
         if (isCatchAll) {
             if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
                 toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
                 return;
             }
         } else {
-            const mappedAnswersInOtherRules = new Set(
-                otherRules.flatMap(r => r.conditions.map(c => c.answer))
-            );
             const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
             if (conflict) {
                 toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
@@ -403,10 +406,18 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         {ruleType === 'direct' && (
                              <div className="space-y-4 p-4 border rounded-md mt-4">
+                                {mappedAnswersInOtherRules.size > 0 && (
+                                    <Alert>
+                                        <Info className="h-4 w-4" />
+                                        <p className="text-xs">
+                                            {mappedAnswersInOtherRules.size} answer(s) already have guidance in other rules and cannot be selected.
+                                        </p>
+                                    </Alert>
+                                )}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
-                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options || [])} disabled={isCatchAll}>Select All</Button>
+                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [])} disabled={isCatchAll}>Select All Available</Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
                                     <div className="flex items-center space-x-2">
@@ -416,18 +427,22 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                     <ScrollArea className="h-40">
                                         <fieldset disabled={isCatchAll}>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
-                                                {question.options?.map(option => (
-                                                    <div key={option} className="flex items-center space-x-2">
-                                                        <Checkbox
-                                                            id={`answer-${option}`}
-                                                            checked={directAnswers.includes(option)}
-                                                            onCheckedChange={(checked) => {
-                                                                setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
-                                                            }}
-                                                        />
-                                                        <Label htmlFor={`answer-${option}`} className="font-normal">{option}</Label>
-                                                    </div>
-                                                ))}
+                                                {question.options?.map(option => {
+                                                    const isMapped = mappedAnswersInOtherRules.has(option);
+                                                    return (
+                                                        <div key={option} className={cn("flex items-center space-x-2", isMapped && "text-muted-foreground")}>
+                                                            <Checkbox
+                                                                id={`answer-${option}`}
+                                                                checked={directAnswers.includes(option)}
+                                                                onCheckedChange={(checked) => {
+                                                                    setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
+                                                                }}
+                                                                disabled={isMapped}
+                                                            />
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal", isMapped && "line-through")}>{option}</Label>
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
                                         </fieldset>
                                     </ScrollArea>

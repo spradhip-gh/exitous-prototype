@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -262,7 +262,8 @@ export default function EditQuestionDialog({
         getAllCompanyConfigs,
         saveCompanyConfig,
         addReviewQueueItem,
-        externalResources,
+        guidanceRules,
+        saveGuidanceRules,
     } = useUserData();
     
     // --- STATE ---
@@ -316,18 +317,25 @@ export default function EditQuestionDialog({
 
     // --- EFFECTS ---
     useEffect(() => {
-        if(auth?.companyName) {
-            const config = getAllCompanyConfigs()[auth.companyName];
-            setCompanyConfig(config);
-             if (question?.id && config?.answerGuidanceOverrides?.[question.id]) {
-                setAnswerGuidanceOverrides(config.answerGuidanceOverrides[question.id]);
-            } else if (question?.answerGuidance) {
-                setAnswerGuidanceOverrides(question.answerGuidance);
-            } else {
-                setAnswerGuidanceOverrides({});
+        if (!question) return;
+
+        const rulesForQuestion = guidanceRules.filter(rule => rule.questionId === question.id && rule.type === 'direct');
+        const guidanceMap: Record<string, AnswerGuidance> = {};
+        rulesForQuestion.forEach(rule => {
+            if (rule.conditions) {
+                rule.conditions.forEach(condition => {
+                    if (condition.answer) {
+                        guidanceMap[condition.answer] = {
+                            tasks: rule.assignments.taskIds,
+                            tips: rule.assignments.tipIds,
+                            noGuidanceRequired: rule.assignments.noGuidanceRequired,
+                        };
+                    }
+                });
             }
-        }
-    }, [auth?.companyName, getAllCompanyConfigs, question]);
+        });
+        setAnswerGuidanceOverrides(guidanceMap);
+    }, [question, guidanceRules]);
 
     useEffect(() => {
         setCurrentQuestion(question);
@@ -343,16 +351,44 @@ export default function EditQuestionDialog({
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
-        // When saving, include the latest guidance overrides.
-        const questionToSave: Partial<Question> = { 
-            ...currentQuestion, 
-            options: currentOptions,
-            answerGuidance: Object.keys(answerGuidanceOverrides).length > 0 ? answerGuidanceOverrides : undefined 
-        };
+        let rulesToUpdate = [...guidanceRules];
+
+        Object.entries(answerGuidanceOverrides).forEach(([answer, guidance]) => {
+            // Find an existing rule for this answer
+            let existingRule = rulesToUpdate.find(r => r.questionId === currentQuestion.id && r.conditions.some(c => c.answer === answer));
+
+            if (existingRule) {
+                // Update existing rule
+                existingRule.assignments = {
+                    taskIds: guidance.tasks,
+                    tipIds: guidance.tips,
+                    noGuidanceRequired: guidance.noGuidanceRequired,
+                };
+            } else {
+                // Create new rule
+                const newRule: GuidanceRule = {
+                    id: uuidv4(),
+                    questionId: currentQuestion.id!,
+                    name: `${currentQuestion.label} - ${answer}`,
+                    type: 'direct',
+                    conditions: [{ type: 'question', questionId: currentQuestion.id!, answer: answer }],
+                    assignments: {
+                        taskIds: guidance.tasks,
+                        tipIds: guidance.tips,
+                        noGuidanceRequired: guidance.noGuidanceRequired,
+                    },
+                };
+                rulesToUpdate.push(newRule);
+            }
+        });
+        
+        saveGuidanceRules(rulesToUpdate);
+
+        const questionToSave: Partial<Question> = { ...currentQuestion, options: currentOptions };
 
         if (isSuggestionMode) {
-             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && Object.keys(answerGuidanceOverrides).length === 0) {
-                toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance change.", variant: "destructive" });
+             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0) {
+                toast({ title: "No Changes Suggested", description: "Please suggest an addition or removal.", variant: "destructive" });
                 return;
             }
              const reviewItem = {
@@ -366,7 +402,6 @@ export default function EditQuestionDialog({
                     suggestions: {
                         optionsToAdd: suggestedOptionsToAdd,
                         optionsToRemove: suggestedOptionsToRemove,
-                        guidanceOverrides: answerGuidanceOverrides,
                     }
                 },
                 output: {},
@@ -409,7 +444,7 @@ export default function EditQuestionDialog({
 
 
         onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions]);
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, guidanceRules, saveGuidanceRules]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -733,5 +768,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
-    
