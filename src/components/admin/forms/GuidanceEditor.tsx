@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import GuidanceRuleForm from "./GuidanceRuleForm";
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
+import { Separator } from "@/components/ui/separator";
 
 export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceRules, masterTasks, masterTips, externalResources, saveMasterTasks, saveMasterTips }: {
     questions: Question[];
@@ -55,6 +56,23 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         toast({ title: "Guidance Rule Deleted" });
     };
 
+    const { profileSections, assessmentSections } = useMemo(() => {
+        const profile: Record<string, Question[]> = {};
+        const assessment: Record<string, Question[]> = {};
+
+        questions.forEach(q => {
+            if (!q.options && q.type !== 'date' && q.id !== 'birthYear') return;
+
+            const target = q.formType === 'profile' ? profile : assessment;
+            if (!target[q.section]) {
+                target[q.section] = [];
+            }
+            target[q.section].push(q);
+        });
+
+        return { profileSections: profile, assessmentSections: assessment };
+    }, [questions]);
+    
     const mappingCounts = useMemo(() => {
         const counts: Record<string, { mapped: number, total: number }> = {};
         questions.forEach(q => {
@@ -109,6 +127,31 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         setPendingItemForGuidance(null); // Clear pending item when dialog is manually closed
     }
 
+    const renderSection = (title: string, sections: Record<string, Question[]>) => (
+         <div className="space-y-4">
+            <h2 className="font-headline text-2xl font-bold tracking-tight">{title}</h2>
+             {Object.entries(sections).map(([sectionName, sectionQuestions]) => (
+                <div key={sectionName}>
+                    <h3 className="font-semibold text-lg">{sectionName}</h3>
+                    <div className="pl-2 space-y-2 py-2">
+                        {sectionQuestions.map(q => {
+                            const count = mappingCounts[q.id];
+                            return (
+                                <div key={q.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                    <span>{q.label}</span>
+                                    <div className="flex items-center gap-2">
+                                        {count && <span className="text-xs text-muted-foreground">{count.mapped} of {count.total} answers mapped</span>}
+                                        <Button variant="outline" size="sm" onClick={() => handleManageGuidance(q)}>Manage Guidance</Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
     return (
         <>
             <Card>
@@ -118,19 +161,10 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                         Manage universal guidance rules. These rules determine which tasks and tips are shown to users based on their answers or calculated values like age and tenure.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                    {questions.filter(q => (q.options && q.options.length > 0) || q.type === 'date' || q.id === 'birthYear').map(q => {
-                        const count = mappingCounts[q.id];
-                        return (
-                            <div key={q.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                                <span>{q.label}</span>
-                                <div className="flex items-center gap-2">
-                                    {count && <span className="text-xs text-muted-foreground">{count.mapped} of {count.total} answers mapped</span>}
-                                    <Button variant="outline" size="sm" onClick={() => handleManageGuidance(q)}>Manage Guidance</Button>
-                                </div>
-                            </div>
-                        )
-                    })}
+                <CardContent className="space-y-8">
+                   {renderSection("Profile Form", profileSections)}
+                   <Separator />
+                   {renderSection("Assessment Form", assessmentSections)}
                 </CardContent>
             </Card>
 
