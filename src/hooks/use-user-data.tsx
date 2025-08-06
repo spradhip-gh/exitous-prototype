@@ -692,9 +692,51 @@ export function useUserData() {
 
 
     // Placeholder implementations for other write functions
-    const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
-        return [];
-    };
+    const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
+        if (!companyName) return [];
+        
+        const companyConfig = companyConfigs[companyName];
+        if (!companyConfig) return [];
+        
+        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+        
+        let applicableMasterQuestions: Record<string, Question>;
+        if (formType === 'all') {
+            applicableMasterQuestions = allMasterQuestions;
+        } else {
+            applicableMasterQuestions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        }
+
+        const finalQuestions: Record<string, Question> = {};
+
+        for (const id in applicableMasterQuestions) {
+            const masterQ = applicableMasterQuestions[id];
+            const override = companyConfig.questions?.[id];
+            
+            const finalQ: Question = {
+                ...masterQ,
+                ...(override || {}),
+                lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
+            };
+
+            // Only include active questions if activeOnly is true
+            if (!activeOnly || finalQ.isActive) {
+                finalQuestions[id] = finalQ;
+            }
+        }
+
+        // Add custom questions
+        for (const id in companyConfig.customQuestions) {
+            const customQ = companyConfig.customQuestions[id];
+            if (formType === 'all' || customQ.formType === formType) {
+                 if (!activeOnly || customQ.isActive) {
+                    finalQuestions[id] = customQ;
+                }
+            }
+        }
+
+        return buildQuestionTreeFromMap(finalQuestions);
+    }, [companyConfigs, masterQuestions, masterProfileQuestions]);
 
     return {
         // --- DATA ---
