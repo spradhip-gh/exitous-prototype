@@ -283,6 +283,7 @@ export function useUserData() {
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
     const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
     const [masterTips, setMasterTips] = useState<MasterTip[]>([]);
+    const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
     useEffect(() => {
@@ -299,6 +300,7 @@ export function useUserData() {
                 { data: masterConfigsData },
                 { data: tasksData },
                 { data: tipsData },
+                { data: platformUsersData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -309,7 +311,10 @@ export function useUserData() {
                 supabase.from('master_question_configs').select('*'),
                 supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('platform_users').select('*'),
             ]);
+            
+            setPlatformUsers((platformUsersData as PlatformUser[]) || []);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -666,6 +671,24 @@ export function useUserData() {
         setGuidanceRules(rules);
 
     }, [guidanceRules]);
+    
+    const addPlatformUser = useCallback(async (user: Omit<PlatformUser, 'id'>) => {
+        const { data, error } = await supabase.from('platform_users').insert(user).select().single();
+        if (error) {
+            console.error("Error adding platform user:", error);
+        } else if (data) {
+            setPlatformUsers(prev => [...prev, data as PlatformUser]);
+        }
+    }, []);
+
+    const deletePlatformUser = useCallback(async (email: string) => {
+        const { error } = await supabase.from('platform_users').delete().eq('email', email);
+        if (error) {
+            console.error("Error deleting platform user:", error);
+        } else {
+            setPlatformUsers(prev => prev.filter(u => u.email !== email));
+        }
+    }, []);
 
 
     // Placeholder implementations for other write functions
@@ -690,6 +713,7 @@ export function useUserData() {
         companyAssignments,
         companyConfigs,
         externalResources: [],
+        platformUsers,
 
         // --- FUNCTIONS ---
         saveProfileData,
@@ -705,6 +729,8 @@ export function useUserData() {
         getCompanyConfig,
         getAllCompanyConfigs: useCallback(() => companyConfigs, [companyConfigs]),
         saveGuidanceRules,
+        addPlatformUser,
+        deletePlatformUser,
         isAssessmentComplete: !!assessmentData?.workStatus,
         clearRecommendations: () => {},
         saveRecommendations: () => {},
@@ -727,8 +753,6 @@ export function useUserData() {
         updateCompanyAssignment: async () => {},
         saveCompanyAssignments: async () => {},
         deleteCompanyAssignment: async () => {},
-        addPlatformUser: async () => {},
-        deletePlatformUser: async () => {},
         getCompaniesForHr: () => [],
         getCompanyUser: () => null,
         getPlatformUserRole: () => null,
@@ -738,7 +762,6 @@ export function useUserData() {
         taskMappings: [], // Placeholder
         tipMappings: [], // Placeholder
         reviewQueue: [], // Placeholder
-        platformUsers: [], // Placeholder
     };
 }
 
