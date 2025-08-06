@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation, ExternalResource } from "@/hooks/use-user-data";
@@ -214,7 +213,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
-                    setIsCatchAll(false); // Can't edit a catch-all directly, it's a concept.
+                    setIsCatchAll(answers.length > 0 && answers.length === (question?.options?.length || 0));
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     setCalculationUnit(rule.calculation?.unit || 'years');
@@ -228,7 +227,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         } else {
             resetForm();
         }
-    }, [selectedRuleId, existingRules]);
+    }, [selectedRuleId, existingRules, question]);
 
     useEffect(() => {
         if (pendingItem) {
@@ -269,35 +268,81 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             });
         return mapped;
     }, [existingRules, selectedRuleId]);
-
-    const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
-        let answersToMap = directAnswers;
-        if (isCatchAll) {
-            answersToMap = question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [];
-        }
-
-        const id = selectedRuleId || uuidv4();
-        const rule: GuidanceRule = {
-            id,
+    
+    const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean, conflictingRuleToUpdate: GuidanceRule | null = null) => {
+        
+        // This is the new or edited rule
+        const newOrUpdatedRule: GuidanceRule = {
+            id: selectedRuleId || uuidv4(),
             questionId: question.id,
             name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
             type: 'direct',
-            conditions: answersToMap.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
+            conditions: directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
             assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
         };
-        onSave(rule);
+        
+        onSave(newOrUpdatedRule);
+
+        if (conflictingRuleToUpdate) {
+            onSave(conflictingRuleToUpdate);
+        }
+
         setSelectedRuleId(null);
         resetForm();
     }
     
     const handleSaveDirectRule = () => {
-        if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
+        if (!isCatchAll && directAnswers.length === 0) {
             toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
 
-        // --- If no conflicts, save directly ---
-        finishSave(directTasks, directTips, isNoGuidanceDirect);
+        // Check for conflicts
+        const conflictingAnswers = directAnswers.filter(ans => mappedAnswersInOtherRules.has(ans));
+        if (conflictingAnswers.length > 0) {
+            const conflictingRuleId = mappedAnswersInOtherRules.get(conflictingAnswers[0]);
+            const rule = existingRules.find(r => r.id === conflictingRuleId);
+            if (rule) {
+                setConflictingRule(rule);
+                setIsMergeDialogOpen(true);
+                return;
+            }
+        }
+
+        // If no conflicts, save directly
+        const answersToMap = isCatchAll ? (question.options || []) : directAnswers;
+        const newRule = {
+            id: selectedRuleId || uuidv4(),
+            questionId: question.id,
+            name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
+            type: 'direct' as const,
+            conditions: answersToMap.map(ans => ({ type: 'question' as const, questionId: question.id, answer: ans })),
+            assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
+        };
+        onSave(newRule);
+        setSelectedRuleId(null);
+        resetForm();
+    }
+    
+    const handleMergeConflict = (strategy: 'merge' | 'replace') => {
+        if (!conflictingRule) return;
+        
+        let finalTasks = directTasks;
+        let finalTips = directTips;
+        
+        if (strategy === 'merge') {
+            finalTasks = [...new Set([...(conflictingRule.assignments.taskIds || []), ...directTasks])];
+            finalTips = [...new Set([...(conflictingRule.assignments.tipIds || []), ...directTips])];
+        }
+
+        const conflictingRuleToUpdate: GuidanceRule = {
+            ...conflictingRule,
+            conditions: conflictingRule.conditions.filter(c => !directAnswers.includes(c.answer!)),
+        };
+        
+        finishSave(finalTasks, finalTips, isNoGuidanceDirect, conflictingRuleToUpdate);
+        setIsMergeDialogOpen(false);
+        setConflictingRule(null);
     }
     
     const handleSaveCalculatedRule = () => {
@@ -424,27 +469,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
-                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [])} disabled={isCatchAll}>Select All Available</Button>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
-                                     <div className="flex items-center space-x-2">
-                                        <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
-                                        <div className="flex items-center gap-2">
-                                            <Label htmlFor="catch-all">Apply this rule to all available answers</Label>
-                                            {isCatchAll && mappedAnswersInOtherRules.size > 0 && (
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Excluding: {[...mappedAnswersInOtherRules].join(', ')}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            )}
+                                         <div className="flex items-center space-x-2">
+                                            <Label htmlFor="catch-all" className="text-sm font-normal">Apply to all available answers</Label>
+                                            <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
                                         </div>
                                     </div>
+                                    <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
                                     <ScrollArea className="h-40">
                                         <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
@@ -453,17 +483,13 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                     const isMappedElsewhere = !!mappedElsewhereRuleId;
                                                     const isChecked = isCatchAll ? !isMappedElsewhere : directAnswers.includes(option);
                                                     
-                                                    // Allow selecting an answer even if mapped elsewhere, to override.
-                                                    // The actual disabling for user action is handled by the isDisabled flag.
-                                                    const isDisabledForSelection = isMappedElsewhere && selectedRuleId !== mappedElsewhereRuleId;
-
                                                     return (
                                                         <div 
                                                             key={option} 
                                                             className={cn(
                                                                 "flex items-center space-x-2 p-2 rounded-md border transition-colors", 
-                                                                !isCatchAll && isDisabledForSelection && "text-muted-foreground bg-muted/50",
-                                                                isChecked && !isDisabledForSelection && "bg-primary/10 border-primary"
+                                                                !isCatchAll && isMappedElsewhere && "text-muted-foreground bg-muted/50",
+                                                                isChecked && "bg-primary/10 border-primary"
                                                             )}
                                                         >
                                                             <Checkbox
@@ -472,9 +498,17 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isCatchAll || isDisabledForSelection}
+                                                                disabled={isCatchAll}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isDisabledForSelection && "line-through")}>{option}</Label>
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isMappedElsewhere && "line-through")}>{option}</Label>
+                                                            {isMappedElsewhere && !isCatchAll && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild><Info className="h-4 w-4" /></TooltipTrigger>
+                                                                        <TooltipContent>This answer is covered by another rule.</TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                         </div>
                                                     )
                                                 })}
@@ -623,24 +657,26 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     <AlertDialogHeader>
                         <AlertDialogTitle>Guidance Conflict Detected</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The answer(s) you selected are already covered by a general "Apply to all answers" rule.
-                            How would you like to handle the tasks and tips for this new, more specific rule?
+                            The answer(s) you selected are already covered by another rule. How would you like to resolve this?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                     <div className="p-4 rounded-md border text-sm">
+                        <p className="font-semibold">Current Guidance (from rule "{conflictingRule?.name}"):</p>
+                        <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                            {(conflictingRule?.assignments.taskIds || []).map(id => <li key={id}>{masterTasks.find(t=>t.id===id)?.name}</li>)}
+                        </ul>
+                         <p className="font-semibold mt-4">New Guidance:</p>
+                        <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                             {directTasks.map(id => <li key={id}>{masterTasks.find(t=>t.id===id)?.name}</li>)}
+                        </ul>
+                    </div>
                     <AlertDialogFooter>
-                        <Button variant="secondary" onClick={() => {
-                            toast({ title: "Not yet implemented" });
-                            setIsMergeDialogOpen(false);
-                        }}>Replace</Button>
-                        <Button onClick={() => {
-                            toast({ title: "Not yet implemented" });
-                            setIsMergeDialogOpen(false);
-                        }}>Merge</Button>
                         <AlertDialogCancel onClick={() => setConflictingRule(null)}>Cancel</AlertDialogCancel>
+                        <Button variant="outline" onClick={() => handleMergeConflict('merge')}>Merge (Keep Old + Add New)</Button>
+                        <AlertDialogAction onClick={() => handleMergeConflict('replace')}>Replace (Use New Only)</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
     )
 }
-
