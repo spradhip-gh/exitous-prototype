@@ -23,6 +23,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
     saveMasterTips: (tips: MasterTip[]) => void;
 }) {
     const { toast } = useToast();
+    const { getMasterQuestionConfig } = useUserData();
     const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
     const [isRuleFormOpen, setIsRuleFormOpen] = useState(false);
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -57,21 +58,27 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
     };
 
     const { profileSections, assessmentSections } = useMemo(() => {
-        const profile: Record<string, Question[]> = {};
-        const assessment: Record<string, Question[]> = {};
+        const profileMap: Record<string, Question[]> = {};
+        const assessmentMap: Record<string, Question[]> = {};
 
         questions.forEach(q => {
             if (!q.options && q.type !== 'date' && q.id !== 'birthYear') return;
 
-            const target = q.formType === 'profile' ? profile : assessment;
+            const target = q.formType === 'profile' ? profileMap : assessmentMap;
             if (!target[q.section]) {
                 target[q.section] = [];
             }
             target[q.section].push(q);
         });
+        
+        const profileOrder = getMasterQuestionConfig('profile')?.section_order || Object.keys(profileMap);
+        const assessmentOrder = getMasterQuestionConfig('assessment')?.section_order || Object.keys(assessmentMap);
 
-        return { profileSections: profile, assessmentSections: assessment };
-    }, [questions]);
+        const sortedProfile = profileOrder.map(sectionName => ({ sectionName, questions: profileMap[sectionName] })).filter(s => s.questions);
+        const sortedAssessment = assessmentOrder.map(sectionName => ({ sectionName, questions: assessmentMap[sectionName] })).filter(s => s.questions);
+
+        return { profileSections: sortedProfile, assessmentSections: sortedAssessment };
+    }, [questions, getMasterQuestionConfig]);
     
     const mappingCounts = useMemo(() => {
         const counts: Record<string, { mapped: number, total: number }> = {};
@@ -127,14 +134,14 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         setPendingItemForGuidance(null); // Clear pending item when dialog is manually closed
     }
 
-    const renderSection = (title: string, sections: Record<string, Question[]>) => (
+    const renderSection = (title: string, sections: { sectionName: string; questions: Question[] }[]) => (
          <div className="space-y-4">
             <h2 className="font-headline text-2xl font-bold tracking-tight">{title}</h2>
-             {Object.entries(sections).map(([sectionName, sectionQuestions]) => (
+             {sections.map(({ sectionName, questions }) => (
                 <div key={sectionName}>
                     <h3 className="font-semibold text-lg">{sectionName}</h3>
                     <div className="pl-2 space-y-2 py-2">
-                        {sectionQuestions.map(q => {
+                        {questions.map(q => {
                             const count = mappingCounts[q.id];
                             return (
                                 <div key={q.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
