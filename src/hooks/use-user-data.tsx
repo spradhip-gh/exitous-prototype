@@ -290,12 +290,12 @@ export function useUserData() {
                 { data: companiesData },
                 { data: hrAssignmentsData },
                 { data: questionsData },
-                { data: rulesData, error: rulesError },
+                { data: rulesData },
                 { data: companyUsersData },
                 { data: companyConfigsData },
                 { data: masterConfigsData },
-                { data: tasksData, error: tasksError },
-                { data: tipsData, error: tipsError },
+                { data: tasksData },
+                { data: tipsData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -304,7 +304,7 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, "deadlineType", "deadlineDays", "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
             ]);
 
@@ -353,7 +353,8 @@ export function useUserData() {
 
             const mappedTasks = (tasksData || []).map(t => ({
                 ...t,
-                deadlineType: t.deadlineType,
+                deadlineType: t.deadline_type,
+                deadlineDays: t.deadline_days,
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
@@ -553,16 +554,11 @@ export function useUserData() {
     const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
         const tasksToSave = tasks.map(t => {
             return {
-                id: t.id,
-                type: t.type,
-                name: t.name,
-                category: t.category,
-                detail: t.detail,
+                ...t,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
                 linkedResourceId: t.linkedResourceId,
-                is_company_specific: t.isCompanySpecific,
-                is_active: t.isActive,
+                isCompanySpecific: t.isCompanySpecific,
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -576,13 +572,8 @@ export function useUserData() {
     const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
         const tipsToSave = tips.map(t => {
             return {
-                id: t.id,
-                type: t.type,
-                priority: t.priority,
-                category: t.category,
-                text: t.text,
-                is_company_specific: t.isCompanySpecific,
-                is_active: t.isActive,
+                ...t,
+                isCompanySpecific: t.isCompanySpecific,
             };
         });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
