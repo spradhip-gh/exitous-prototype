@@ -552,7 +552,7 @@ export function useUserData() {
             return;
         }
 
-        const existingTasksMap = new Map(existingTasksData.map(t => [t.id, t.created_at]));
+        const existingTasksMap = new Map((existingTasksData || []).map(t => [t.id, t.created_at]));
 
         const tasksToSave = tasks.map(t => {
             const existingCreatedAt = existingTasksMap.get(t.id);
@@ -565,7 +565,7 @@ export function useUserData() {
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
                 linked_resource_id: t.linkedResourceId,
-                is_company_specific: t.isCompanySpecific,
+                is_company_specific: t.isCompanySpecific ?? false,
                 is_active: t.isActive,
                 created_at: existingCreatedAt || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -684,5 +684,7 @@ export function useUserData() {
         platformUsers: [], // Placeholder
     };
 }
+
+    
 
     
