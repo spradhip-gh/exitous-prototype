@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -114,7 +113,7 @@ export default function TaskManagementPage() {
 
     const handleSave = (taskData: MasterTask) => {
         let updatedTasks;
-        if (editingTask?.id || (masterTasks || []).some(t => t.id === taskData.id)) {
+        if (taskData.id && (masterTasks || []).some(t => t.id === taskData.id)) {
             // Update existing
             updatedTasks = (masterTasks || []).map(t => t.id === taskData.id ? taskData : t);
             toast({ title: 'Task Updated', description: `Task "${taskData.name}" has been updated.` });
@@ -172,6 +171,7 @@ export default function TaskManagementPage() {
                         deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
                         deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
                         linkedResourceId: row.linkedResourceId || undefined,
+                        isCompanySpecific: false, // Default value
                         isActive: true, // Default to active on import
                     };
                     
@@ -247,6 +247,14 @@ export default function TaskManagementPage() {
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-7xl space-y-8">
+                <Card>
+                    <CardHeader><CardTitle>Debug View: Raw Task Data</CardTitle></CardHeader>
+                    <CardContent>
+                        <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-60">
+                            <code>{JSON.stringify(masterTasks, null, 2)}</code>
+                        </pre>
+                    </CardContent>
+                </Card>
                 <div className="flex items-center justify-between">
                     <div className="space-y-2">
                         <h1 className="font-headline text-3xl font-bold">Master Task Management</h1>
