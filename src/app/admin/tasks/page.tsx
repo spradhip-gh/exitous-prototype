@@ -15,6 +15,7 @@ import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace
 import Papa from 'papaparse';
 import TaskForm from '@/components/admin/tasks/TaskForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TaskManagementPage() {
     const { toast } = useToast();
@@ -40,6 +41,7 @@ export default function TaskManagementPage() {
 
     const taskMappingCounts = useMemo(() => {
         const counts: Record<string, number> = {};
+        if (!taskMappings) return counts;
         taskMappings.forEach(mapping => {
             counts[mapping.taskId] = (counts[mapping.taskId] || 0) + 1;
         });
@@ -58,7 +60,7 @@ export default function TaskManagementPage() {
     };
     
     const handleViewMappings = (taskId: string) => {
-        const mappings = taskMappings.filter(m => m.taskId === taskId);
+        const mappings = (taskMappings || []).filter(m => m.taskId === taskId);
         setViewingMappings(mappings);
     }
 
@@ -70,13 +72,13 @@ export default function TaskManagementPage() {
 
     const handleSave = (taskData: MasterTask) => {
         let updatedTasks;
-        if (editingTask?.id || masterTasks.some(t => t.id === taskData.id)) {
+        if (editingTask?.id || (masterTasks || []).some(t => t.id === taskData.id)) {
             // Update existing
-            updatedTasks = masterTasks.map(t => t.id === taskData.id ? taskData : t);
+            updatedTasks = (masterTasks || []).map(t => t.id === taskData.id ? taskData : t);
             toast({ title: 'Task Updated', description: `Task "${taskData.name}" has been updated.` });
         } else {
             // Add new
-            updatedTasks = [...masterTasks, taskData];
+            updatedTasks = [...(masterTasks || []), taskData];
             toast({ title: 'Task Added', description: `Task "${taskData.name}" has been added.` });
         }
         saveMasterTasks(updatedTasks);
@@ -113,7 +115,7 @@ export default function TaskManagementPage() {
                 
                 let updatedCount = 0;
                 let addedCount = 0;
-                let newMasterTasks = replace ? [] : [...masterTasks];
+                let newMasterTasks = replace ? [] : [...(masterTasks || [])];
 
                 results.data.forEach((row: any) => {
                     const id = row.id?.trim();
@@ -167,6 +169,14 @@ export default function TaskManagementPage() {
         if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
     }, [processCsvFile]);
 
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-12 w-1/3" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 md:p-8">
@@ -224,12 +234,12 @@ export default function TaskManagementPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {masterTasks.map(task => (
+                                {masterTasks && masterTasks.map(task => (
                                     <TableRow key={task.id}>
                                         <TableCell className="font-mono text-xs">{task.id}</TableCell>
                                         <TableCell className="font-medium">{task.name}</TableCell>
                                         <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{task.linkedResourceId ? externalResources.find(r => r.id === task.linkedResourceId)?.name : 'None'}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{(externalResources || []).find(r => r.id === task.linkedResourceId)?.name || 'None'}</TableCell>
                                         <TableCell>
                                             <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
                                                 {taskMappingCounts[task.id] || 0}
@@ -270,7 +280,7 @@ export default function TaskManagementPage() {
                 onOpenChange={setIsFormOpen}
                 onSave={handleSave}
                 task={editingTask}
-                allResources={externalResources}
+                allResources={externalResources || []}
             />
 
             <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>

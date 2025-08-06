@@ -20,6 +20,7 @@ import { PlusCircle, Trash2, Pencil, Download, Upload, Replace } from 'lucide-re
 import Papa from 'papaparse';
 import TipForm from '@/components/admin/tips/TipForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function TipsManagementPage() {
@@ -27,6 +28,7 @@ export default function TipsManagementPage() {
     const { 
         masterTips,
         saveMasterTips,
+        isLoading,
     } = useUserData();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const replaceFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -53,11 +55,11 @@ export default function TipsManagementPage() {
 
     const handleSave = (tipData: MasterTip) => {
         let updatedTips;
-        if (editingTip?.id || masterTips.some(t => t.id === tipData.id)) {
-            updatedTips = masterTips.map(t => t.id === tipData.id ? tipData : t);
+        if (editingTip?.id || (masterTips || []).some(t => t.id === tipData.id)) {
+            updatedTips = (masterTips || []).map(t => t.id === tipData.id ? tipData : t);
             toast({ title: 'Tip Updated'});
         } else {
-            updatedTips = [...masterTips, tipData];
+            updatedTips = [...(masterTips || []), tipData];
             toast({ title: 'Tip Added'});
         }
         saveMasterTips(updatedTips);
@@ -92,7 +94,7 @@ export default function TipsManagementPage() {
                 
                 let updatedCount = 0;
                 let addedCount = 0;
-                let newMasterTips = replace ? [] : [...masterTips];
+                let newMasterTips = replace ? [] : [...(masterTips || [])];
 
                 results.data.forEach((row: any) => {
                     const id = row.id?.trim();
@@ -144,7 +146,14 @@ export default function TipsManagementPage() {
         if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
     }, [processCsvFile]);
 
-
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 space-y-8">
+                <Skeleton className="h-12 w-1/3" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 md:p-8">
@@ -200,7 +209,7 @@ export default function TipsManagementPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {masterTips.map(tip => (
+                                {masterTips && masterTips.map(tip => (
                                     <TableRow key={tip.id}>
                                         <TableCell className="font-medium max-w-lg">
                                             <TooltipProvider>
