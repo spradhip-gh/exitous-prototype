@@ -84,6 +84,9 @@ export interface CompanyUser {
     preEndDateContactAlias?: string;
     postEndDateContactAlias?: string;
   };
+  assessment_completed_at?: string;
+  initial_unsure_answers?: string[];
+  all_answers_resolved_at?: string;
 }
 
 export interface Resource {
@@ -425,16 +428,50 @@ export function useUserData() {
     }, [auth?.userId]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
-        if (!auth?.userId) return;
+        if (!auth?.userId || !auth?.companyUserId) return;
         setAssessmentData(data); // Optimistic update
+        
+        // --- Analytics Logic ---
+        const { data: companyUser, error: userError } = await supabase
+            .from('company_users')
+            .select('assessment_completed_at, initial_unsure_answers')
+            .eq('id', auth.companyUserId)
+            .single();
+
+        if (userError) {
+            console.error("Could not fetch user for analytics", userError);
+            return;
+        }
+
+        const now = new Date().toISOString();
+        const updates: Partial<CompanyUser> = {};
+        const unsureQuestions = Object.entries(data).filter(([, value]) => value === 'Unsure').map(([key]) => key);
+
+        if (!companyUser.assessment_completed_at) {
+            // This is the first time the user is completing the assessment.
+            updates.assessment_completed_at = now;
+            updates.initial_unsure_answers = unsureQuestions;
+        }
+
+        if (companyUser.initial_unsure_answers && unsureQuestions.length === 0) {
+            // This is the moment the user has resolved all their "unsure" answers.
+            updates.all_answers_resolved_at = now;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            await supabase.from('company_users').update(updates).eq('id', auth.companyUserId);
+        }
+        // --- End Analytics Logic ---
+        
         const { error } = await supabase.from('user_assessments').upsert({
             user_id: auth.userId,
             data: convertDatesToStrings(data)
         }, { onConflict: 'user_id' });
+        
         if (error) {
             console.error("Error saving assessment:", error);
         }
-    }, [auth?.userId]);
+    }, [auth?.userId, auth?.companyUserId]);
     
      const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions }[] }) => {
         const { data: companyData, error: companyError } = await supabase
@@ -704,3 +741,5 @@ export function useUserData() {
         platformUsers: [], // Placeholder
     };
 }
+
+    

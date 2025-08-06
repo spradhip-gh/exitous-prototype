@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -24,7 +25,7 @@ interface AnalyticsItem {
 
 export default function AnalyticsPage() {
   const { auth } = useAuth();
-  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading } = useUserData();
+  const { getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, masterQuestions, masterProfileQuestions } = useUserData();
   const companyName = auth?.companyName;
   const isAdmin = auth?.role === 'admin';
   const [selectedQuestion, setSelectedQuestion] = useState<AnalyticsItem | null>(null);
@@ -37,19 +38,7 @@ export default function AnalyticsPage() {
     
     if (companiesToProcess.length === 0) return { overall: [], byCompany: [], companyKeys: [] };
 
-    const questionMap: Map<string, Question> = new Map();
-    // For admins, get all possible questions across all companies. For HR, just their own.
-    const allQuestions = getCompanyConfig(undefined, false);
-    
-    const flattenQuestions = (questions: Question[]) => {
-      for (const q of questions) {
-        questionMap.set(q.id, q);
-        if (q.subQuestions) {
-          flattenQuestions(q.subQuestions);
-        }
-      }
-    };
-    flattenQuestions(allQuestions);
+    const allMasterQuestions: Record<string, Question> = { ...masterQuestions, ...masterProfileQuestions };
 
     const unsureCountsByCompany: Record<string, Record<string, number>> = {};
 
@@ -58,17 +47,13 @@ export default function AnalyticsPage() {
         if (!companyConfig || !companyConfig.users) continue;
         
         for (const user of companyConfig.users) {
-            const assessmentData = user.prefilledAssessmentData;
-            if (assessmentData) {
-                for (const questionId in assessmentData) {
-                    const answer = (assessmentData as any)[questionId];
-                    if (answer === 'Unsure') {
-                        if (!unsureCountsByCompany[questionId]) {
-                            unsureCountsByCompany[questionId] = {};
-                        }
-                        unsureCountsByCompany[questionId][compName] = (unsureCountsByCompany[questionId][compName] || 0) + 1;
+            if (user.initial_unsure_answers) {
+                user.initial_unsure_answers.forEach(questionId => {
+                    if (!unsureCountsByCompany[questionId]) {
+                        unsureCountsByCompany[questionId] = {};
                     }
-                }
+                    unsureCountsByCompany[questionId][compName] = (unsureCountsByCompany[questionId][compName] || 0) + 1;
+                });
             }
         }
     }
@@ -77,7 +62,7 @@ export default function AnalyticsPage() {
         const totalUnsure = Object.values(companyCounts).reduce((sum, count) => sum + count, 0);
         return {
             questionId,
-            questionLabel: questionMap.get(questionId)?.label || questionId,
+            questionLabel: allMasterQuestions[questionId]?.label || questionId,
             count: totalUnsure,
             companyCounts: companyCounts,
         }
@@ -85,7 +70,7 @@ export default function AnalyticsPage() {
 
     return { overall: overallSummary, companyKeys: companiesToProcess };
 
-  }, [companyName, getAllCompanyConfigs, getCompanyConfig, isUserDataLoading, isAdmin]);
+  }, [companyName, getAllCompanyConfigs, isUserDataLoading, isAdmin, masterQuestions, masterProfileQuestions]);
   
   if (isUserDataLoading || !analyticsData) {
       return (
@@ -114,9 +99,9 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top "Unsure" Answers</CardTitle>
+            <CardTitle>Top "Unsure" Answers on First Completion</CardTitle>
             <CardDescription>
-              This shows which questions employees answered "Unsure" to most frequently.
+              This shows which questions employees answered "I'm not sure" to most frequently when they first completed their assessment.
               {isAdmin && " Click a row to see the company breakdown."}
             </CardDescription>
           </CardHeader>
@@ -171,7 +156,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (
                 <div className="text-center text-muted-foreground py-12">
-                    <p>No one has answered "Unsure" to any questions yet.</p>
+                    <p>No "Unsure" answers have been recorded yet.</p>
                     <p className="text-sm">Check back after employees have completed their assessments.</p>
                 </div>
             )}
@@ -205,3 +190,4 @@ export default function AnalyticsPage() {
   );
 }
 
+    

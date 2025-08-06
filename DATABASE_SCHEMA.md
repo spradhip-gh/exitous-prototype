@@ -72,20 +72,22 @@ Maps HR Managers to the companies they manage and defines their specific permiss
 
 Stores end-users associated with a specific company. This table tracks who is eligible to use the platform.
 
-| Column                       | Type      | Description                                                    |
-| ---------------------------- | --------- | -------------------------------------------------------------- |
-| `id`                         | `UUID`    | **Primary Key**.                                               |
-| `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                             |
-| `email`                      | `TEXT`    | The end-user's primary (work) email.                           |
-| `company_user_id`            | `TEXT`    | The user's ID within their company's system.                   |
-| `personal_email`             | `TEXT`    | Optional personal email for the user.                          |
-| `notification_date`          | `DATE`    | The date the user was notified of their exit.                  |
-| `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.       |
-| `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.      |
-| `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.        |
-| `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment.     |
-| `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                        |
-| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                |
+| Column                       | Type      | Description                                                                    |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------ |
+| `id`                         | `UUID`    | **Primary Key**.                                                               |
+| `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                                             |
+| `email`                      | `TEXT`    | The end-user's primary (work) email.                                           |
+| `company_user_id`            | `TEXT`    | The user's ID within their company's system.                                   |
+| `personal_email`             | `TEXT`    | Optional personal email for the user.                                          |
+| `notification_date`          | `DATE`    | The date the user was notified of their exit.                                  |
+| `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.                       |
+| `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.                      |
+| `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.                          |
+| `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment for the first time.      |
+| `initial_unsure_answers`     | `JSONB`   | An array of question IDs that were marked "Unsure" upon first completion.      |
+| `all_answers_resolved_at`    | `TIMESTAMPTZ` | Timestamp for when the last "Unsure" answer was updated to a definitive value. |
+| `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                                          |
+| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                                  |
 
 *Composite unique key on (`company_id`, `email`).*
 
@@ -283,3 +285,5 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+
+    
