@@ -333,7 +333,7 @@ export function useUserData() {
             const assessmentQuestionsMap: Record<string, Question> = {};
             const profileQuestionsMap: Record<string, Question> = {};
             questionsData?.forEach(q => {
-                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type } as Question;
+                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type, sortOrder: q.sort_order } as Question;
                 if(question.formType === 'profile') {
                     profileQuestionsMap[q.id] = question;
                 } else {
@@ -483,13 +483,25 @@ export function useUserData() {
     const saveMasterQuestions = useCallback(async (questionsToSave: Record<string, Question>, formType: 'profile' | 'assessment') => {
         const setFn = formType === 'profile' ? setMasterProfileQuestions : setMasterQuestions;
 
-        const upserts = Object.values(questionsToSave).map(q => ({
+        const questionList = Object.values(questionsToSave);
+
+        // This ensures that any question without a sortOrder gets one before saving.
+        // This handles the backfill case seamlessly.
+        questionList.forEach((q, index) => {
+            if (q.sortOrder === undefined || q.sortOrder === null) {
+                q.sortOrder = index;
+            }
+        });
+
+        const upserts = questionList.map(q => ({
             id: q.id,
             form_type: q.formType,
+            sort_order: q.sortOrder,
             question_data: {
                 ...q,
                 id: undefined, // Don't store id inside the jsonb
                 formType: undefined, // Don't store formType inside the jsonb
+                sortOrder: undefined, // Don't store sortOrder inside the jsonb
             }
         }));
 

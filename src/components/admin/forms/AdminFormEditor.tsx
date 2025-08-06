@@ -433,7 +433,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         
         const sections = finalSectionOrder.map(sectionName => ({
             id: sectionName,
-            questions: sectionsMap[sectionName] || []
+            questions: (sectionsMap[sectionName] || []).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         })).filter(s => s.questions.length > 0);
         
         setOrderedSections(sections);
@@ -455,7 +455,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         } else {
             section = orderedSections[0]?.id || '';
         }
-        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '', formType: questionType });
+        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '', formType: questionType, sortOrder: 999 });
         setIsNewQuestion(true);
         setIsEditing(true);
     };
@@ -509,58 +509,40 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
-        let newMaster = JSON.parse(JSON.stringify(questions));
-        const questionsArray = Object.values(newMaster).filter((q: any) => !q.parentId && q.isActive);
-        const index = questionsArray.findIndex((q: any) => q.id === questionId);
+        const newMaster = { ...questions };
+        let questionSection = '';
+        let questionParentId: string | undefined = undefined;
 
-        if (index === -1) return;
-
-        const question = questionsArray[index] as Question;
-        const questionsInSection = questionsArray.filter((q: any) => q.section === question.section);
-        const sectionIndex = questionsInSection.findIndex((q: any) => q.id === questionId);
-
-        const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
-
-        if (targetIndex >= 0 && targetIndex < questionsInSection.length) {
-            // Reorder questions within their section
-            const [moved] = questionsInSection.splice(sectionIndex, 1);
-            questionsInSection.splice(targetIndex, 0, moved);
-
-            // Reconstruct the full flat map with the new order
-            const finalMaster: Record<string, Question> = {};
-            const allRootQuestions = [...new Set(questionsArray.map((q: any) => q.section))].flatMap(section => {
-                if (section === question.section) {
-                    return questionsInSection;
-                }
-                return questionsArray.filter((q: any) => q.section === section);
-            });
-
-            const allQuestionsList = Object.values(newMaster) as Question[];
-            
-            // Function to add a question and its descendants to the final map
-            const addWithDescendants = (qId: string) => {
-                const fullQuestion = allQuestionsList.find(q => q.id === qId);
-                if (fullQuestion) {
-                    finalMaster[qId] = fullQuestion;
-                    Object.values(newMaster).forEach((subQ: any) => {
-                        if (subQ.parentId === qId) {
-                            addWithDescendants(subQ.id);
-                        }
-                    });
-                }
-            };
-            
-            // Add root questions in the new order, then all other questions
-            allRootQuestions.forEach(q => addWithDescendants(q.id));
-            allQuestionsList.forEach(q => {
-                if (!finalMaster[q.id]) {
-                    finalMaster[q.id] = q;
-                }
-            });
-
-            saveFn(finalMaster);
-            toast({ title: "Master Configuration Saved" });
+        // Find the question and its context (section or parent)
+        for (const id in newMaster) {
+            if (newMaster[id].id === questionId) {
+                questionSection = newMaster[id].section || '';
+                questionParentId = newMaster[id].parentId;
+                break;
+            }
         }
+        
+        let siblings: Question[];
+        if (questionParentId) {
+             siblings = Object.values(newMaster).filter(q => q.parentId === questionParentId).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        } else {
+             siblings = Object.values(newMaster).filter(q => !q.parentId && q.section === questionSection).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        }
+        
+        const currentIndex = siblings.findIndex(q => q.id === questionId);
+        if (currentIndex === -1) return;
+
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= siblings.length) return;
+        
+        // Swap sort orders
+        const currentSortOrder = siblings[currentIndex].sortOrder || currentIndex;
+        const targetSortOrder = siblings[targetIndex].sortOrder || targetIndex;
+
+        newMaster[siblings[currentIndex].id].sortOrder = targetSortOrder;
+        newMaster[siblings[targetIndex].id].sortOrder = currentSortOrder;
+        
+        saveFn(newMaster);
     };
     
     const handleDragEnd = (event: DragEndEvent) => {
