@@ -258,7 +258,7 @@ Stores consultant-created rules to provide deterministic, high-quality guidance 
 | Column          | Type      | Description                                       |
 | --------------- | --------- | ------------------------------------------------- |
 | `id`            | `UUID`    | **Primary Key**.                                  |
-| `question_id`    | `TEXT`   | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
 | `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
 | `type`          | `TEXT`    | The type of rule: 'direct' (answer-based) or 'calculated' (range-based). |
 | `conditions`    | `JSONB`   | For 'direct' rules, an array of condition objects that must all be true. |
@@ -282,3 +282,4 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+```
