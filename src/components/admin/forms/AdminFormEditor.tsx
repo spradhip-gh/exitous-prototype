@@ -319,6 +319,7 @@ export default function AdminFormEditor() {
                 task={null}
                 onSave={handleSaveNewTask}
                 allResources={externalResources}
+                masterTasks={masterTasks}
             />
 
              <TipForm 
@@ -326,6 +327,7 @@ export default function AdminFormEditor() {
                 onOpenChange={setIsTipFormOpen}
                 tip={null}
                 onSave={handleSaveNewTip}
+                masterTips={masterTips}
             />
         </div>
     );
@@ -520,30 +522,40 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
 
         if (targetIndex >= 0 && targetIndex < questionsInSection.length) {
+            // Reorder questions within their section
             const [moved] = questionsInSection.splice(sectionIndex, 1);
             questionsInSection.splice(targetIndex, 0, moved);
 
-            const allSections = [...new Set(questionsArray.map((q: any) => q.section))];
-            const finalOrderedQuestions: Question[] = [];
-
-            allSections.forEach(section => {
-                if (section === question.section) {
-                    finalOrderedQuestions.push(...questionsInSection as Question[]);
-                } else {
-                    finalOrderedQuestions.push(...questionsArray.filter((q: any) => q.section === section) as Question[]);
-                }
-            });
-
+            // Reconstruct the full flat map with the new order
             const finalMaster: Record<string, Question> = {};
-            const allQuestions = Object.values(newMaster) as Question[];
-
-            finalOrderedQuestions.forEach(q => {
-                const fullQuestion = allQuestions.find(fullQ => fullQ.id === q.id);
-                if (fullQuestion) finalMaster[q.id] = fullQuestion;
+            const allRootQuestions = [...new Set(questionsArray.map((q: any) => q.section))].flatMap(section => {
+                if (section === question.section) {
+                    return questionsInSection;
+                }
+                return questionsArray.filter((q: any) => q.section === section);
             });
 
-            allQuestions.forEach(q => {
-                if (!finalMaster[q.id]) finalMaster[q.id] = q;
+            const allQuestionsList = Object.values(newMaster) as Question[];
+            
+            // Function to add a question and its descendants to the final map
+            const addWithDescendants = (qId: string) => {
+                const fullQuestion = allQuestionsList.find(q => q.id === qId);
+                if (fullQuestion) {
+                    finalMaster[qId] = fullQuestion;
+                    Object.values(newMaster).forEach((subQ: any) => {
+                        if (subQ.parentId === qId) {
+                            addWithDescendants(subQ.id);
+                        }
+                    });
+                }
+            };
+            
+            // Add root questions in the new order, then all other questions
+            allRootQuestions.forEach(q => addWithDescendants(q.id));
+            allQuestionsList.forEach(q => {
+                if (!finalMaster[q.id]) {
+                    finalMaster[q.id] = q;
+                }
             });
 
             saveFn(finalMaster);
@@ -627,3 +639,4 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
+

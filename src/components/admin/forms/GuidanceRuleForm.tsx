@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation, ExternalResource } from "@/hooks/use-user-data";
@@ -255,12 +256,19 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     if (!question) return null;
 
-    const mappedAnswersInOtherRules = useMemo(() => new Set(
+    const mappedAnswersInOtherRules = useMemo(() => {
+        const mapped = new Map<string, string>(); // Map answer to ruleId
         existingRules
             .filter(r => r.id !== selectedRuleId)
-            .flatMap(r => r.conditions.map(c => c.answer))
-            .filter((a): a is string => !!a)
-    ), [existingRules, selectedRuleId]);
+            .forEach(r => {
+                r.conditions.forEach(c => {
+                    if (c.answer) {
+                        mapped.set(c.answer, r.id);
+                    }
+                });
+            });
+        return mapped;
+    }, [existingRules, selectedRuleId]);
 
     const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
         let answersToMap = directAnswers;
@@ -441,17 +449,21 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
-                                                    const isMappedElsewhere = mappedAnswersInOtherRules.has(option);
+                                                    const mappedElsewhereRuleId = mappedAnswersInOtherRules.get(option);
+                                                    const isMappedElsewhere = !!mappedElsewhereRuleId;
                                                     const isChecked = isCatchAll ? !isMappedElsewhere : directAnswers.includes(option);
-                                                    const isDisabled = isMappedElsewhere;
+                                                    
+                                                    // Allow selecting an answer even if mapped elsewhere, to override.
+                                                    // The actual disabling for user action is handled by the isDisabled flag.
+                                                    const isDisabledForSelection = isMappedElsewhere && selectedRuleId !== mappedElsewhereRuleId;
 
                                                     return (
                                                         <div 
                                                             key={option} 
                                                             className={cn(
                                                                 "flex items-center space-x-2 p-2 rounded-md border transition-colors", 
-                                                                isDisabled && "text-muted-foreground bg-muted/50 cursor-not-allowed",
-                                                                isChecked && !isDisabled && "bg-primary/10 border-primary"
+                                                                !isCatchAll && isDisabledForSelection && "text-muted-foreground bg-muted/50",
+                                                                isChecked && !isDisabledForSelection && "bg-primary/10 border-primary"
                                                             )}
                                                         >
                                                             <Checkbox
@@ -460,9 +472,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isDisabled || isCatchAll}
+                                                                disabled={isCatchAll || isDisabledForSelection}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isDisabled && "line-through")}>{option}</Label>
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isDisabledForSelection && "line-through")}>{option}</Label>
                                                         </div>
                                                     )
                                                 })}
@@ -631,3 +643,4 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
+
