@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -173,14 +174,6 @@ export default function TipsManagementPage() {
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-7xl space-y-8">
-                <Card>
-                    <CardHeader><CardTitle>Debug View: Raw Tip Data</CardTitle></CardHeader>
-                    <CardContent>
-                        <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-60">
-                            <code>{JSON.stringify(masterTips, null, 2)}</code>
-                        </pre>
-                    </CardContent>
-                </Card>
                 <div className="flex items-center justify-between">
                     <div className="space-y-2">
                         <h1 className="font-headline text-3xl font-bold">"Did you know..." Tips Management</h1>

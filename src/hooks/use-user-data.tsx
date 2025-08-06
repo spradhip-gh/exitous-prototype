@@ -304,8 +304,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, isCompanySpecific, is_active, created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, isCompanySpecific, is_active, created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, isCompanySpecific, isActive, created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, isCompanySpecific, isActive, created_at, updated_at'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -356,7 +356,7 @@ export function useUserData() {
                 deadlineDays: t.deadline_days,
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific === true,
-                isActive: t.is_active === true,
+                isActive: t.isActive === true,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             }));
@@ -369,8 +369,8 @@ export function useUserData() {
                 priority: t.priority,
                 category: t.category,
                 text: t.text,
-                isCompanySpecific: t.is_company_specific === true,
-                isActive: t.is_active === true,
+                isCompanySpecific: t.isCompanySpecific === true,
+                isActive: t.isActive === true,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             }));
@@ -571,7 +571,7 @@ export function useUserData() {
                 deadline_days: t.deadlineDays,
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific,
-                is_active: t.isActive,
+                isActive: t.isActive,
                 created_at: existingTask?.created_at || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
@@ -593,8 +593,8 @@ export function useUserData() {
                 priority: t.priority,
                 category: t.category,
                 text: t.text,
-                is_company_specific: t.isCompanySpecific,
-                is_active: t.isActive,
+                isCompanySpecific: t.isCompanySpecific,
+                isActive: t.isActive,
                 created_at: existingTip?.created_at || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
