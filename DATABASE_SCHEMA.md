@@ -164,6 +164,7 @@ Stores the master list of all possible tasks that can be assigned to users based
 | `deadline_days`               | `INTEGER` | The number of days from the `deadline_type` event that the task is due.   |
 | `linkedResourceId`            | `TEXT`    | Optional foreign key to `external_resources.id`.                          |
 | `isCompanySpecific`           | `BOOLEAN` | Flag to indicate if this is a company-specific task.                      |
+| `isActive`                    | `BOOLEAN` | Flag to indicate if the task is active and can be used in mappings. Default: `true`. |
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
@@ -179,6 +180,7 @@ Stores the master list of all "Did you know..." tips that can be mapped to answe
 | `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
 | `text`          | `TEXT`    | The content of the tip.                                           |
 | `isCompanySpecific` | `BOOLEAN` | Flag to indicate if this is a company-specific tip.             |
+| `isActive`      | `BOOLEAN` | Flag to indicate if the tip is active and can be used in mappings. Default: `true`. |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
 
