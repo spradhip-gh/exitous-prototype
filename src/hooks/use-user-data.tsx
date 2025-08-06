@@ -304,8 +304,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, is_company_specific, is_active, created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tasks').select('*'),
+                supabase.from('master_tips').select('*'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -354,7 +354,7 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linkedResourceId,
+                linkedResourceId: t.linked_resource_id,
                 isCompanySpecific: t.is_company_specific,
                 isActive: t.is_active,
                 created_at: t.created_at,
@@ -565,7 +565,7 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
+                linked_resource_id: t.linkedResourceId,
                 is_company_specific: t.isCompanySpecific || false,
                 is_active: t.isActive === undefined ? true : t.isActive,
                 created_at: existingTask?.created_at || new Date().toISOString(),
