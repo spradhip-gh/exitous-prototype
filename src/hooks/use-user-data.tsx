@@ -350,7 +350,7 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linked_resource_id,
+                linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.is_company_specific,
                 isActive: t.is_active,
             })) as MasterTask[]);
@@ -548,6 +548,7 @@ export function useUserData() {
     
     const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
         const tasksToSave = tasks.map(t => {
+            const existingTask = masterTasks.find(et => et.id === t.id);
             return {
                 id: t.id,
                 type: t.type,
@@ -556,9 +557,11 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linked_resource_id: t.linkedResourceId,
+                linkedResourceId: t.linkedResourceId,
                 is_company_specific: t.isCompanySpecific || false,
                 is_active: t.isActive === undefined ? true : t.isActive,
+                created_at: existingTask ? existingTask.created_at : new Date().toISOString(),
+                updated_at: new Date().toISOString(),
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -567,25 +570,30 @@ export function useUserData() {
         } else {
             setMasterTasks(tasks);
         }
-    }, []);
+    }, [masterTasks]);
 
     const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
-        const tipsToSave = tips.map(t => ({
-            id: t.id,
-            type: t.type,
-            priority: t.priority,
-            category: t.category,
-            text: t.text,
-            is_company_specific: t.isCompanySpecific || false,
-            is_active: t.isActive === undefined ? true : t.isActive,
-        }));
+        const tipsToSave = tips.map(t => {
+             const existingTip = masterTips.find(et => et.id === t.id);
+            return {
+                id: t.id,
+                type: t.type,
+                priority: t.priority,
+                category: t.category,
+                text: t.text,
+                is_company_specific: t.isCompanySpecific || false,
+                is_active: t.isActive === undefined ? true : t.isActive,
+                created_at: existingTip ? existingTip.created_at : new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
         if (error) {
             console.error("Error saving master tips:", error);
         } else {
             setMasterTips(tips);
         }
-    }, []);
+    }, [masterTips]);
 
 
     // Placeholder implementations for other write functions
