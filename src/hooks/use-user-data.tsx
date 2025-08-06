@@ -694,10 +694,10 @@ export function useUserData() {
     // Placeholder implementations for other write functions
     const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
         if (!companyName) return [];
-        
+
         const companyConfig = companyConfigs[companyName];
-        
         let applicableMasterQuestions: Record<string, Question>;
+
         if (formType === 'all') {
             applicableMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
         } else {
@@ -709,41 +709,36 @@ export function useUserData() {
         // 1. Process master questions and their overrides
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
-            
-            // Skip archived (inactive) master questions entirely if activeOnly is true
-            if (activeOnly && !masterQ.isActive) {
-                continue; 
-            }
-            
-            // Skip questions not matching the form type
-            if (masterQ.formType !== formType && formType !== 'all') {
-                continue;
-            }
 
+            // This is the override from the company's config for this specific question
             const override = companyConfig?.questions?.[id];
-            
+
+            // Merge master with override. The override properties will take precedence.
             const finalQ: Question = {
                 ...masterQ,
                 ...(override || {}),
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
-            
-            // The final check: is the merged question active?
-            // This handles cases where an HR manager has deactivated a question.
-            if (!activeOnly || finalQ.isActive) {
-                 finalQuestions[id] = finalQ;
+
+            // This is the CRITICAL change:
+            // Check for activity *after* the merge. This ensures an Admin archiving a question
+            // (isActive: false) will be respected, even if an HR user had it locally active.
+            if (activeOnly && !finalQ.isActive) {
+                continue;
+            }
+
+            // Also ensure we only include questions for the correct form
+            if (finalQ.formType === formType || formType === 'all') {
+                finalQuestions[id] = finalQ;
             }
         }
         
-        // 2. Add custom questions for the company
+        // 2. Add custom questions for the company, also checking their active status
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
-                // Also apply the formType filter here for custom questions
-                if (customQ.formType === formType || formType === 'all') {
-                    if (!activeOnly || customQ.isActive) {
-                        finalQuestions[id] = customQ;
-                    }
+                if ((customQ.formType === formType || formType === 'all') && (!activeOnly || customQ.isActive)) {
+                    finalQuestions[id] = customQ;
                 }
             }
         }
