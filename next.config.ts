@@ -20,14 +20,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/.git/:path*',
-        destination: '/404',
-      },
-    ];
-  },
 };
 
 export default nextConfig;
