@@ -369,6 +369,7 @@ export default function TaskManagementPage() {
                 onSave={handleSave}
                 task={editingTask}
                 allResources={externalResources || []}
+                masterTasks={masterTasks}
             />
 
             <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>
@@ -404,4 +405,3 @@ export default function TaskManagementPage() {
         </div>
     );
 }
-

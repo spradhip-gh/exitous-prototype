@@ -15,16 +15,18 @@ import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2, Terminal, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
 const tipPriorities = ['High', 'Medium', 'Low'];
 
-export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
+export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (tip: MasterTip) => void;
     tip: Partial<MasterTip> | null;
+    masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
@@ -69,7 +71,12 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
 
             if (isNewTip) {
                 const textForId = result.revisedDetail || formData.text || '';
-                const suggestedId = textForId.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
+                let suggestedId = textForId.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
+
+                if (masterTips.some(t => t.id === suggestedId)) {
+                    suggestedId += `-${format(new Date(), 'MMddyy')}`;
+                }
+
                 setFormData(prev => ({...prev, id: suggestedId}));
             }
 
@@ -181,7 +188,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                                         <TooltipTrigger asChild>
                                             <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                         </TooltipTrigger>
-                                        <TooltipContent>
+                                        <TooltipContent side="right" sideOffset={5}>
                                             <p>The ID is auto-generated after AI review.</p>
                                         </TooltipContent>
                                     </Tooltip>

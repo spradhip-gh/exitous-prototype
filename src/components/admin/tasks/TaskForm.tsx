@@ -16,16 +16,18 @@ import { Loader2, Wand2, Terminal, Info, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
 
-export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResources }: {
+export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResources, masterTasks }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (task: MasterTask) => void;
     task: Partial<MasterTask> | null;
     allResources: ExternalResource[];
+    masterTasks: MasterTask[];
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -78,10 +80,15 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 detail: formData.detail || '',
             });
 
-            // If it's a new task, generate an ID from the AI's suggested name.
             if (isNewTask) {
                 const nameForId = result.revisedName || formData.name || '';
-                const suggestedId = nameForId.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                let suggestedId = nameForId.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+                // Check for uniqueness and append date if necessary
+                if (masterTasks.some(t => t.id === suggestedId)) {
+                    suggestedId += `-${format(new Date(), 'MMddyy')}`;
+                }
+                
                 setFormData(prev => ({...prev, id: suggestedId}));
             }
 
@@ -137,7 +144,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                                         <TooltipTrigger asChild>
                                             <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                         </TooltipTrigger>
-                                        <TooltipContent>
+                                        <TooltipContent side="right" sideOffset={5}>
                                             <p>The ID is auto-generated after AI review.</p>
                                         </TooltipContent>
                                     </Tooltip>

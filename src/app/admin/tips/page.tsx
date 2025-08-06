@@ -341,8 +341,8 @@ export default function TipsManagementPage() {
                 onOpenChange={setIsFormOpen}
                 onSave={handleSave}
                 tip={editingTip}
+                masterTips={masterTips}
             />
         </div>
     );
 }
-
