@@ -706,10 +706,14 @@ export function useUserData() {
 
         const finalQuestions: Record<string, Question> = {};
 
-        // 1. Process master questions and their overrides
+        // 1. Process master questions, filtering by active status first.
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
 
+            if (activeOnly && !masterQ.isActive) {
+                continue; // Skip inactive master questions entirely.
+            }
+            
             // This is the override from the company's config for this specific question
             const override = companyConfig?.questions?.[id];
 
@@ -719,12 +723,14 @@ export function useUserData() {
                 ...(override || {}),
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
-
+            
             // This is the CRITICAL change:
-            // Check for activity *after* the merge. This ensures an Admin archiving a question
-            // (isActive: false) will be respected, even if an HR user had it locally active.
-            if (activeOnly && !finalQ.isActive) {
-                continue;
+            // The final question is only active if the HR has explicitly enabled it in their overrides,
+            // OR if there is no override for its active status (in which case it inherits from master).
+            const isCompanyActive = override?.isActive === undefined ? finalQ.isActive : override.isActive;
+
+            if (activeOnly && !isCompanyActive) {
+                 continue; // Skip if the final merged state is inactive.
             }
 
             // Also ensure we only include questions for the correct form
