@@ -181,6 +181,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     const [endDateQuestion, setEndDateQuestion] = useState<string>('');
     const [ranges, setRanges] = useState<({ from: number, to: number, tasks:string[], tips:string[], noGuidanceRequired?: boolean})[]>([{ from: 0, to: 5, tasks:[], tips:[] }]);
     const [ruleName, setRuleName] = useState('');
+    
+    const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+    const [conflictingRule, setConflictingRule] = useState<GuidanceRule | null>(null);
 
     const dateQuestions = useMemo(() => allQuestions.filter(q => q.type === 'date'), [allQuestions]);
 
@@ -259,27 +262,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             .flatMap(r => r.conditions.map(c => c.answer))
     );
 
-    const handleSaveDirectRule = () => {
-        if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
-            toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
-            return;
-        }
-
-        const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
-
-        if (isCatchAll) {
-            if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
-                toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
-                return;
-            }
-        } else {
-            const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
-            if (conflict) {
-                toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
-                return;
-            }
-        }
-        
+    const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
         const id = selectedRuleId || uuidv4();
         const rule: GuidanceRule = {
             id,
@@ -287,11 +270,65 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             name: ruleName || `${question.label} - ${isCatchAll ? 'All Answers' : directAnswers.join(', ')}`,
             type: 'direct',
             conditions: isCatchAll ? [{ type: 'question', questionId: question.id }] : directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
-            assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
+            assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
         };
         onSave(rule);
         setSelectedRuleId(null);
         resetForm();
+    }
+    
+    const handleSaveDirectRule = () => {
+        if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
+            toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
+            return;
+        }
+
+        const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
+        
+        // --- CHECK FOR CONFLICTS ---
+        // 1. Check if trying to create a catch-all when one already exists.
+        if (isCatchAll) {
+            if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
+                toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
+                return;
+            }
+        } else {
+        // 2. Check if a specific answer is already mapped in another rule.
+            const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
+            if (conflict) {
+                toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
+                return;
+            }
+        }
+
+        // 3. Check if any selected answer is already covered by a catch-all rule
+        const catchAllRule = otherRules.find(r => r.conditions.some(c => c.answer === undefined));
+        if (catchAllRule && !isCatchAll && directAnswers.length > 0) {
+            setConflictingRule(catchAllRule);
+            setIsMergeDialogOpen(true);
+            return;
+        }
+        
+        // --- If no conflicts, save directly ---
+        finishSave(directTasks, directTips, isNoGuidanceDirect);
+    }
+    
+    const handleMergeDecision = (decision: 'merge' | 'replace') => {
+        if (!conflictingRule) return;
+
+        let finalTasks = directTasks;
+        let finalTips = directTips;
+
+        if (decision === 'merge') {
+            const baseTasks = conflictingRule.assignments?.taskIds || [];
+            const baseTips = conflictingRule.assignments?.tipIds || [];
+            finalTasks = [...new Set([...baseTasks, ...directTasks])];
+            finalTips = [...new Set([...baseTips, ...directTips])];
+        }
+        
+        finishSave(finalTasks, finalTips, isNoGuidanceDirect);
+        setIsMergeDialogOpen(false);
+        setConflictingRule(null);
     }
     
     const handleSaveCalculatedRule = () => {
@@ -363,9 +400,18 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         <ScrollArea className="h-96">
                             <div className="space-y-1 pr-2">
                                 {existingRules.map(rule => (
-                                    <Button key={rule.id} variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
-                                        {rule.name}
-                                    </Button>
+                                    <TooltipProvider key={rule.id}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
+                                                    <span className="truncate">{rule.name}</span>
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" align="start">
+                                                <p className="max-w-xs">{rule.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 ))}
                             </div>
                         </ScrollArea>
@@ -582,6 +628,23 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     </div>
                 </div>
             </CardContent>
+            
+             <AlertDialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Guidance Conflict Detected</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            The answer(s) you selected are already covered by a general "Apply to all answers" rule.
+                            How would you like to handle the tasks and tips for this new, more specific rule?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction variant="secondary" onClick={() => handleMergeDecision('replace')}>Replace</AlertDialogAction>
+                        <AlertDialogAction onClick={() => handleMergeDecision('merge')}>Merge</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setConflictingRule(null)}>Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
