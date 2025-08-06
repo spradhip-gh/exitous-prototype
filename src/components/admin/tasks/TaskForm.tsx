@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ExternalResource, MasterTask } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
-import { Loader2, Wand2, Terminal, Info } from 'lucide-react';
+import { Loader2, Wand2, Terminal, Info, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -129,21 +129,22 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 </DialogHeader>
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="id">Unique ID</Label>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="block w-full" tabIndex={isNewTask ? 0 : -1}>
-                                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={isNewTask} />
-                                    </span>
-                                </TooltipTrigger>
-                                {isNewTask && (
-                                <TooltipContent>
-                                    <p>The ID is auto-generated after AI review.</p>
-                                </TooltipContent>
-                                )}
-                            </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="id">Unique ID</Label>
+                             {isNewTask && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>The ID is auto-generated after AI review.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
+                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={isNewTask} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="type">Type</Label>

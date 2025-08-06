@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MasterTip } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
-import { Loader2, Wand2, Terminal } from 'lucide-react';
+import { Loader2, Wand2, Terminal, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -173,21 +173,22 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="id">Unique ID</Label>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="block w-full" tabIndex={isNewTip ? 0 : -1}>
-                                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={isNewTip} />
-                                    </span>
-                                </TooltipTrigger>
-                                {isNewTip && (
-                                <TooltipContent>
-                                    <p>The ID is auto-generated after AI review.</p>
-                                </TooltipContent>
-                                )}
-                            </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="id">Unique ID</Label>
+                             {isNewTip && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>The ID is auto-generated after AI review.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
+                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={isNewTip} />
                     </div>
                 </div>
                 <DialogFooter>
