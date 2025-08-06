@@ -8,7 +8,7 @@ import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '../lib/external-resources';
 import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
-import { useToast } from './use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { addDays } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
 
@@ -142,6 +142,7 @@ export interface MasterTask {
     deadlineDays?: number;
     linkedResourceId?: string;
     isCompanySpecific?: boolean;
+    isActive?: boolean; // New field for archiving
 }
 
 export interface TaskMapping {
@@ -158,6 +159,7 @@ export interface MasterTip {
     category: 'Financial' | 'Career' | 'Health' | 'Basics';
     text: string;
     isCompanySpecific?: boolean;
+    isActive?: boolean; // New field for archiving
 }
 
 export interface TipMapping {
@@ -272,6 +274,8 @@ export function useUserData() {
     const [masterProfileQuestions, setMasterProfileQuestions] = useState<Record<string, Question>>({});
     const [masterQuestionConfigs, setMasterQuestionConfigs] = useState<MasterQuestionConfig[]>([]);
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
+    const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
+    const [masterTips, setMasterTips] = useState<MasterTip[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
     useEffect(() => {
@@ -286,6 +290,8 @@ export function useUserData() {
                 { data: companyUsersData },
                 { data: companyConfigsData },
                 { data: masterConfigsData },
+                { data: tasksData },
+                { data: tipsData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -294,6 +300,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
+                supabase.from('master_tasks').select('*'),
+                supabase.from('master_tips').select('*'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -333,6 +341,8 @@ export function useUserData() {
             
             setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
             setGuidanceRules(rulesData as GuidanceRule[] || []);
+            setMasterTasks(tasksData as MasterTask[] || []);
+            setMasterTips(tipsData as MasterTip[] || []);
             
             // Organize company users by companyId
             const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
@@ -514,6 +524,25 @@ export function useUserData() {
     const getMasterQuestionConfig = useCallback((formType: 'profile' | 'assessment') => {
         return masterQuestionConfigs.find(c => c.form_type === formType);
     }, [masterQuestionConfigs]);
+    
+    const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
+        const { error } = await supabase.from('master_tasks').upsert(tasks);
+        if (error) {
+            console.error("Error saving master tasks:", error);
+        } else {
+            setMasterTasks(tasks);
+        }
+    }, []);
+
+    const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
+        const { error } = await supabase.from('master_tips').upsert(tips);
+        if (error) {
+            console.error("Error saving master tips:", error);
+        } else {
+            setMasterTips(tips);
+        }
+    }, []);
+
 
     // Placeholder implementations for other write functions
     const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
@@ -532,6 +561,8 @@ export function useUserData() {
         masterQuestions,
         masterProfileQuestions,
         guidanceRules,
+        masterTasks,
+        masterTips,
         companyAssignments,
         companyConfigs,
         externalResources: [],
@@ -543,6 +574,8 @@ export function useUserData() {
         saveMasterQuestions,
         saveMasterQuestionConfig,
         saveCompanyConfig,
+        saveMasterTasks,
+        saveMasterTips,
         setCompanyConfigs,
         getMasterQuestionConfig,
         getCompanyConfig,
@@ -564,8 +597,6 @@ export function useUserData() {
         addReviewQueueItem: async () => {},
         saveExternalResources: async () => {},
         saveGuidanceRules: async () => {},
-        saveMasterTasks: async () => {},
-        saveMasterTips: async () => {},
         saveReviewQueue: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
