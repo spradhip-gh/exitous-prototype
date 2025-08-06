@@ -460,9 +460,24 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
 
     const handleArchiveClick = (questionId: string) => {
         const newMaster = { ...questions };
-        newMaster[questionId].isActive = false;
+
+        const archiveRecursive = (idToArchive: string) => {
+            if (newMaster[idToArchive]) {
+                newMaster[idToArchive].isActive = false;
+                
+                // Find sub-questions and archive them too
+                Object.values(newMaster).forEach(q => {
+                    if (q.parentId === idToArchive) {
+                        archiveRecursive(q.id);
+                    }
+                });
+            }
+        };
+
+        archiveRecursive(questionId);
+        
         saveFn(newMaster);
-        toast({ title: "Question Archived" });
+        toast({ title: "Question Archived", description: "The question and all its sub-questions have been archived." });
     };
 
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string) => {
@@ -612,4 +627,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
-
