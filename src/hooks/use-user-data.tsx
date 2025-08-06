@@ -293,8 +293,8 @@ export function useUserData() {
                 { data: companyUsersData },
                 { data: companyConfigsData },
                 { data: masterConfigsData },
-                { data: tasksData },
-                { data: tipsData },
+                { data: tasksData, error: tasksError },
+                { data: tipsData, error: tipsError },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -303,9 +303,19 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, is_company_specific, is_active, created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tasks').select('*'),
+                supabase.from('master_tips').select('*'),
             ]);
+
+            console.log('--- DEBUG: Raw tasksData from Supabase ---', tasksData);
+            if (tasksError) {
+                console.error('--- DEBUG: Supabase tasksError ---', tasksError);
+            }
+            console.log('--- DEBUG: Raw tipsData from Supabase ---', tipsData);
+            if (tipsError) {
+                console.error('--- DEBUG: Supabase tipsError ---', tipsError);
+            }
+
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -345,7 +355,7 @@ export function useUserData() {
             setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
             setGuidanceRules(rulesData as GuidanceRule[] || []);
             
-            setMasterTasks((tasksData || []).map(t => ({
+            const mappedTasks = (tasksData || []).map(t => ({
                 id: t.id,
                 type: t.type,
                 name: t.name,
@@ -353,14 +363,17 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linkedResourceId,
+                linkedResourceId: t.linked_resource_id,
                 isCompanySpecific: t.is_company_specific === true,
                 isActive: t.is_active === true,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
-            })));
+            }));
+            setMasterTasks(mappedTasks);
+            console.log('--- DEBUG: Mapped Tasks state ---', mappedTasks);
 
-            setMasterTips((tipsData || []).map(t => ({
+
+            const mappedTips = (tipsData || []).map(t => ({
                 id: t.id,
                 type: t.type,
                 priority: t.priority,
@@ -370,7 +383,10 @@ export function useUserData() {
                 isActive: t.is_active === true,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
-            })));
+            }));
+            setMasterTips(mappedTips);
+            console.log('--- DEBUG: Mapped Tips state ---', mappedTips);
+
             
             // Organize company users by companyId
             const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
@@ -564,7 +580,7 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
+                linked_resource_id: t.linkedResourceId,
                 is_company_specific: t.isCompanySpecific,
                 is_active: t.isActive,
                 created_at: existingTask?.created_at || new Date().toISOString(),
