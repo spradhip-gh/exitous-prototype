@@ -181,8 +181,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="profile"
                             questions={masterProfileQuestions}
-                            saveFn={(q) => saveMasterQuestions(q, 'profile')}
-                            defaultQuestionsFn={getDefaultProfileQuestions}
+                            saveMasterQuestions={saveMasterQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
                             masterTasks={masterTasks}
@@ -193,8 +192,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="assessment"
                             questions={masterQuestions}
-                            saveFn={(q) => saveMasterQuestions(q, 'assessment')}
-                            defaultQuestionsFn={getDefaultQuestions}
+                            saveMasterQuestions={saveMasterQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
                             masterTasks={masterTasks}
@@ -357,11 +355,10 @@ function SortableSection({ section, children }: { section: OrderedSection, child
     );
 }
 
-function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
+function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
-    saveFn: (questions: Record<string, Question>) => void;
-    defaultQuestionsFn: () => Question[];
+    saveMasterQuestions: (questions: Record<string, Question>, type: 'profile' | 'assessment') => void;
     onAddNewTask: (callback: (item: any) => void) => void;
     onAddNewTip: (callback: (item: any) => void) => void;
     masterTasks: MasterTask[];
@@ -378,6 +375,10 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const sensors = useSensors(
         useSensor(PointerSensor)
     );
+    const defaultQuestionsFn = useMemo(() => {
+        return questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
+    }, [questionType]);
+
 
     const activeQuestions = useMemo(() => {
         if (!questions) return {};
@@ -398,13 +399,11 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         }
 
         const rootQuestions = buildQuestionTreeFromMap(activeQuestions);
-        
         const sectionsMap: Record<string, Question[]> = {};
         
         const masterQuestionConfig = getMasterQuestionConfig(questionType);
         const savedSectionOrder = masterQuestionConfig?.section_order;
-
-        const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
+        
         let finalSectionOrder: string[];
 
         if (savedSectionOrder) {
@@ -416,6 +415,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             });
 
         } else {
+             const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
              const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
              const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
              finalSectionOrder = [...defaultSectionOrder];
@@ -478,7 +478,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
 
         archiveRecursive(questionId);
         
-        saveFn(newMaster);
+        saveMasterQuestions(newMaster, questionType);
         toast({ title: "Question Archived", description: "The question and all its sub-questions have been archived." });
     };
 
@@ -501,7 +501,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         const newMaster = { ...questions };
         newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
 
-        saveFn(newMaster);
+        saveMasterQuestions(newMaster, questionType);
         toast({ title: "Master Configuration Saved" });
 
         setIsEditing(false);
@@ -542,7 +542,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         newMaster[siblings[currentIndex].id].sortOrder = targetSortOrder;
         newMaster[siblings[targetIndex].id].sortOrder = currentSortOrder;
         
-        saveFn(newMaster);
+        saveMasterQuestions(newMaster, questionType);
     };
     
     const handleDragEnd = (event: DragEndEvent) => {
@@ -621,4 +621,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
-
