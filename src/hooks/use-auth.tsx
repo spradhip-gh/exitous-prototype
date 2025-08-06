@@ -219,13 +219,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: hrAssignment, error } = await supabase
         .from('company_hr_assignments')
-        .select('is_primary, permissions, companies (id, name)')
+        .select(`
+            is_primary,
+            permissions,
+            companies!inner (id, name)
+        `)
         .eq('hr_email', auth.email)
         .eq('companies.name', companyName)
         .single();
     
     if (error || !hrAssignment) {
-        console.error("Error switching company:", error);
+        console.error("Error switching company:", error?.message || 'Assignment not found.');
         return;
     }
     
