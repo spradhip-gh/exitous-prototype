@@ -142,7 +142,7 @@ export interface MasterTask {
     deadlineDays?: number;
     linkedResourceId?: string;
     isCompanySpecific?: boolean;
-    isActive?: boolean; // New field for archiving
+    isActive?: boolean;
     created_at?: string;
     updated_at?: string;
 }
@@ -161,7 +161,7 @@ export interface MasterTip {
     category: 'Financial' | 'Career' | 'Health' | 'Basics';
     text: string;
     isCompanySpecific?: boolean;
-    isActive?: boolean; // New field for archiving
+    isActive?: boolean;
     created_at?: string;
     updated_at?: string;
 }
@@ -304,7 +304,7 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linked_resource_id, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, is_company_specific, is_active, created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
             ]);
 
@@ -354,12 +354,12 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linked_resource_id,
+                linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.is_company_specific,
                 isActive: t.is_active,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
-            })) as MasterTask[]);
+            })));
 
             setMasterTips((tipsData || []).map(t => ({
                 id: t.id,
@@ -371,7 +371,7 @@ export function useUserData() {
                 isActive: t.is_active,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
-            })) as MasterTip[]);
+            })));
             
             // Organize company users by companyId
             const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
@@ -565,7 +565,7 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linked_resource_id: t.linkedResourceId,
+                linkedResourceId: t.linkedResourceId,
                 is_company_specific: t.isCompanySpecific || false,
                 is_active: t.isActive === undefined ? true : t.isActive,
                 created_at: existingTask?.created_at || new Date().toISOString(),
