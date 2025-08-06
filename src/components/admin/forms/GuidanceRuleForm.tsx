@@ -431,7 +431,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                 <fieldset disabled={isNoGuidanceDirect} className="grid grid-cols-2 gap-4">
                                      <MultiSelectPopover
                                         label="Tasks to Assign"
-                                        items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
+                                        items={(masterTasks || []).map(t => ({id: t.id, name: t.name, category: t.category}))}
                                         selectedIds={directTasks}
                                         onSelectionChange={setDirectTasks}
                                         onAddNew={onAddNewTask}
@@ -439,7 +439,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                     />
                                     <MultiSelectPopover
                                         label="Tips to Show"
-                                        items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
+                                        items={(masterTips || []).map(t => ({id: t.id, name: t.text, category: t.category}))}
                                         selectedIds={directTips}
                                         onSelectionChange={setDirectTips}
                                         onAddNew={onAddNewTip}
@@ -515,7 +515,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                     <fieldset disabled={range.noGuidanceRequired} className="col-span-2 grid grid-cols-2 gap-2">
                                                          <MultiSelectPopover
                                                             label="Tasks to Assign"
-                                                            items={masterTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
+                                                            items={(masterTasks || []).map(t => ({id: t.id, name: t.name, category: t.category}))}
                                                             selectedIds={range.tasks}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tasks', newIds)}
                                                             onAddNew={() => onAddNewTask()}
@@ -523,7 +523,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                         />
                                                          <MultiSelectPopover
                                                             label="Tips to Show"
-                                                            items={masterTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
+                                                            items={(masterTips || []).map(t => ({id: t.id, name: t.text, category: t.category}))}
                                                             selectedIds={range.tips}
                                                             onSelectionChange={(newIds) => handleUpdateRange(index, 'tips', newIds)}
                                                             onAddNew={() => onAddNewTip()}
@@ -554,3 +554,4 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
+
