@@ -143,6 +143,8 @@ export interface MasterTask {
     linkedResourceId?: string;
     isCompanySpecific?: boolean;
     isActive?: boolean; // New field for archiving
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface TaskMapping {
@@ -160,6 +162,8 @@ export interface MasterTip {
     text: string;
     isCompanySpecific?: boolean;
     isActive?: boolean; // New field for archiving
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface TipMapping {
@@ -350,9 +354,11 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linkedResourceId,
+                linkedResourceId: t.linked_resource_id,
                 isCompanySpecific: t.is_company_specific,
                 isActive: t.is_active,
+                created_at: t.created_at,
+                updated_at: t.updated_at,
             })) as MasterTask[]);
 
             setMasterTips((tipsData || []).map(t => ({
@@ -363,6 +369,8 @@ export function useUserData() {
                 text: t.text,
                 isCompanySpecific: t.is_company_specific,
                 isActive: t.is_active,
+                created_at: t.created_at,
+                updated_at: t.updated_at,
             })) as MasterTip[]);
             
             // Organize company users by companyId
@@ -557,10 +565,10 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
+                linked_resource_id: t.linkedResourceId,
                 is_company_specific: t.isCompanySpecific || false,
                 is_active: t.isActive === undefined ? true : t.isActive,
-                created_at: existingTask ? existingTask.created_at : new Date().toISOString(),
+                created_at: existingTask?.created_at || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
         });
@@ -583,7 +591,7 @@ export function useUserData() {
                 text: t.text,
                 is_company_specific: t.isCompanySpecific || false,
                 is_active: t.isActive === undefined ? true : t.isActive,
-                created_at: existingTip ? existingTip.created_at : new Date().toISOString(),
+                created_at: existingTip?.created_at || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
         });
