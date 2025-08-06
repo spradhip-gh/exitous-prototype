@@ -345,3 +345,4 @@ export default function TipsManagementPage() {
         </div>
     );
 }
+
