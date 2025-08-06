@@ -121,6 +121,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                     type: 'layoff',
                     category: 'Financial',
                     deadlineType: 'notification_date',
+                    isActive: true, // Default to active for new tasks
                 });
                 setHasBeenReviewed(false);
             }

@@ -107,6 +107,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                     category: 'Financial',
                     priority: 'Medium',
                     text: '',
+                    isActive: true, // Default to active for new tips
                 });
                 setHasBeenReviewed(false);
             }

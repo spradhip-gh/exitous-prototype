@@ -304,8 +304,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('*'),
-                supabase.from('master_tips').select('*'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linked_resource_id, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
