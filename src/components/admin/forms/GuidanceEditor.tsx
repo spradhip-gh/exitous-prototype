@@ -65,6 +65,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
             if (!q.options && q.type !== 'date' && q.id !== 'birthYear') return;
 
             const target = q.formType === 'profile' ? profileMap : assessmentMap;
+            if (!q.section) return;
             if (!target[q.section]) {
                 target[q.section] = [];
             }
@@ -209,6 +210,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                 onSave={handleSaveNewTask}
                 task={null}
                 allResources={externalResources}
+                masterTasks={masterTasks}
             />
 
              <TipForm 
@@ -219,6 +221,7 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
                 }}
                 onSave={handleSaveNewTip}
                 tip={null}
+                masterTips={masterTips}
             />
         </>
     );

@@ -149,9 +149,9 @@ export interface MasterTask {
 
 export interface TaskMapping {
     id: string;
-    questionId: string;
-    answerValue: string;
-    taskId: string;
+    question_id: string;
+    answer_value: string;
+    task_id: string;
 }
 
 export interface MasterTip {
@@ -168,9 +168,9 @@ export interface MasterTip {
 
 export interface TipMapping {
     id: string;
-    questionId: string;
-    answerValue: string;
-    tipId: string;
+    question_id: string;
+    answer_value: string;
+    tip_id: string;
 }
 
 export interface CompanyAssignment {
@@ -351,7 +351,7 @@ export function useUserData() {
             }));
             setGuidanceRules(mappedRules as GuidanceRule[] || []);
 
-            const mappedTasks = (tasksData || []).map(t => ({
+            const mappedTasks = (tasksData || []).map((t: any) => ({
                 ...t,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
@@ -362,7 +362,7 @@ export function useUserData() {
             setMasterTasks(mappedTasks);
 
 
-            const mappedTips = (tipsData || []).map(t => ({
+            const mappedTips = (tipsData || []).map((t: any) => ({
                 ...t,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
@@ -557,8 +557,9 @@ export function useUserData() {
                 ...t,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
-                isCompanySpecific: t.isCompanySpecific,
+                "linkedResourceId": t.linkedResourceId,
+                "isCompanySpecific": t.isCompanySpecific,
+                "isActive": t.isActive,
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -573,7 +574,8 @@ export function useUserData() {
         const tipsToSave = tips.map(t => {
             return {
                 ...t,
-                isCompanySpecific: t.isCompanySpecific,
+                "isCompanySpecific": t.isCompanySpecific,
+                "isActive": t.isActive,
             };
         });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
@@ -585,20 +587,36 @@ export function useUserData() {
     }, []);
     
     const saveGuidanceRules = useCallback(async (rules: GuidanceRule[]) => {
-        const rulesToSave = rules.map(r => {
-            const { questionId, ...rest } = r;
-            return {
-                ...rest,
-                question_id: questionId
-            };
-        });
-        const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
-        if (error) {
-            console.error("Error saving guidance rules:", error);
-        } else {
-            setGuidanceRules(rules);
+        const existingIds = new Set(guidanceRules.map(r => r.id));
+        const newIds = new Set(rules.map(r => r.id));
+        const idsToDelete = [...existingIds].filter(id => !newIds.has(id));
+
+        if (idsToDelete.length > 0) {
+            const { error: deleteError } = await supabase.from('guidance_rules').delete().in('id', idsToDelete);
+            if (deleteError) {
+                console.error("Error deleting guidance rules:", deleteError);
+                // Don't proceed if delete failed, to avoid inconsistent state
+                return;
+            }
         }
-    }, []);
+
+        if (rules.length > 0) {
+            const rulesToSave = rules.map(r => {
+                const { questionId, ...rest } = r;
+                return { ...rest, question_id: questionId };
+            });
+
+            const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
+            if (error) {
+                console.error("Error saving guidance rules:", error);
+                return; // Exit if upsert fails
+            }
+        }
+        
+        // If all DB operations were successful, update the local state
+        setGuidanceRules(rules);
+
+    }, [guidanceRules]);
 
 
     // Placeholder implementations for other write functions
