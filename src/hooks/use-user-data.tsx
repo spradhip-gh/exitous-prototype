@@ -546,18 +546,31 @@ export function useUserData() {
     }, [masterQuestionConfigs]);
     
     const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
-        const tasksToSave = tasks.map(t => ({
-            id: t.id,
-            type: t.type,
-            name: t.name,
-            category: t.category,
-            detail: t.detail,
-            deadline_type: t.deadlineType,
-            deadline_days: t.deadlineDays,
-            linked_resource_id: t.linkedResourceId,
-            is_company_specific: t.isCompanySpecific,
-            is_active: t.isActive,
-        }));
+        const { data: existingTasksData, error: fetchError } = await supabase.from('master_tasks').select('id, created_at').in('id', tasks.map(t => t.id));
+        if (fetchError) {
+            console.error("Error fetching existing tasks:", fetchError);
+            return;
+        }
+
+        const existingTasksMap = new Map(existingTasksData.map(t => [t.id, t.created_at]));
+
+        const tasksToSave = tasks.map(t => {
+            const existingCreatedAt = existingTasksMap.get(t.id);
+            return {
+                id: t.id,
+                type: t.type,
+                name: t.name,
+                category: t.category,
+                detail: t.detail,
+                deadline_type: t.deadlineType,
+                deadline_days: t.deadlineDays,
+                linkedResourceId: t.linkedResourceId,
+                isCompanySpecific: t.isCompanySpecific,
+                isActive: t.isActive,
+                created_at: existingCreatedAt || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
         if (error) {
             console.error("Error saving master tasks:", error);
@@ -567,15 +580,28 @@ export function useUserData() {
     }, []);
 
     const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
-        const tipsToSave = tips.map(t => ({
-            id: t.id,
-            type: t.type,
-            priority: t.priority,
-            category: t.category,
-            text: t.text,
-            is_company_specific: t.isCompanySpecific,
-            is_active: t.isActive,
-        }));
+         const { data: existingTipsData, error: fetchError } = await supabase.from('master_tips').select('id, created_at').in('id', tips.map(t => t.id));
+        if (fetchError) {
+            console.error("Error fetching existing tips:", fetchError);
+            return;
+        }
+
+        const existingTipsMap = new Map(existingTipsData.map(t => [t.id, t.created_at]));
+
+        const tipsToSave = tips.map(t => {
+            const existingCreatedAt = existingTipsMap.get(t.id);
+            return {
+                id: t.id,
+                type: t.type,
+                priority: t.priority,
+                category: t.category,
+                text: t.text,
+                is_company_specific: t.isCompanySpecific,
+                is_active: t.isActive,
+                created_at: existingCreatedAt || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+        });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
         if (error) {
             console.error("Error saving master tips:", error);
