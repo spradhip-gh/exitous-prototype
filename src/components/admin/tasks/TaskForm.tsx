@@ -51,7 +51,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     }
 
     const handleSubmit = () => {
-        const id = task?.id || formData.id || `custom-task-${Date.now()}`;
+        const id = task?.id || formData.id;
         if (!id || !formData.name || !formData.category || !formData.detail || !formData.deadlineType) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
             return;
@@ -70,6 +70,13 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         }
         setIsReviewing(true);
         setAiSuggestion(null);
+
+        // If it's a new task, generate an ID from the name.
+        if (!task?.id && !formData.id && formData.name) {
+            const suggestedId = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            setFormData(prev => ({...prev, id: suggestedId}));
+        }
+
         try {
             const result = await reviewContent({
                 name: formData.name || '',
@@ -121,7 +128,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="id">Unique ID</Label>
-                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={!!task?.id} />
+                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={!task?.id} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="type">Type</Label>

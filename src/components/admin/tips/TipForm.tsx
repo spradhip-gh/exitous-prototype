@@ -42,8 +42,8 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     };
 
     const handleSubmit = () => {
-        const id = tip?.id || formData.id || `tip-${Date.now()}`;
-        if (!formData.text || !formData.category || !formData.priority || !formData.type) {
+        const id = tip?.id || formData.id;
+        if (!id || !formData.text || !formData.category || !formData.priority || !formData.type) {
             toast({ title: 'All Fields Required', description: 'Please fill in all required fields.', variant: 'destructive' });
             return;
         }
@@ -61,6 +61,13 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
         }
         setIsReviewing(true);
         setAiSuggestion(null);
+
+        // If it's a new tip, generate an ID from the text.
+        if (!tip?.id && !formData.id && formData.text) {
+            const suggestedId = formData.text.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
+            setFormData(prev => ({...prev, id: suggestedId}));
+        }
+
         try {
             const result = await reviewContent({ detail: formData.text });
             if (result.revisedDetail.trim() !== formData.text.trim()) {
@@ -164,7 +171,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="id">Unique ID</Label>
-                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={!!tip?.id} />
+                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={!tip?.id} />
                     </div>
                 </div>
                 <DialogFooter>
