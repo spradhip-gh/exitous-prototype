@@ -304,19 +304,9 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linked_resource_id, is_company_specific, is_active, created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, isCompanySpecific, is_active, created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, isCompanySpecific, is_active, created_at, updated_at'),
             ]);
-
-            console.log('--- DEBUG: Raw tasksData from Supabase ---', tasksData);
-            if (tasksError) {
-                console.error('--- DEBUG: Supabase tasksError ---', tasksError);
-            }
-            console.log('--- DEBUG: Raw tipsData from Supabase ---', tipsData);
-            if (tipsError) {
-                console.error('--- DEBUG: Supabase tipsError ---', tipsError);
-            }
-
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -364,14 +354,13 @@ export function useUserData() {
                 detail: t.detail,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
-                linkedResourceId: t.linked_resource_id,
-                isCompanySpecific: t.is_company_specific === true,
+                linkedResourceId: t.linkedResourceId,
+                isCompanySpecific: t.isCompanySpecific === true,
                 isActive: t.is_active === true,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             }));
             setMasterTasks(mappedTasks);
-            console.log('--- DEBUG: Mapped Tasks state ---', mappedTasks);
 
 
             const mappedTips = (tipsData || []).map(t => ({
@@ -386,7 +375,6 @@ export function useUserData() {
                 updated_at: t.updated_at,
             }));
             setMasterTips(mappedTips);
-            console.log('--- DEBUG: Mapped Tips state ---', mappedTips);
 
             
             // Organize company users by companyId
@@ -581,8 +569,8 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linked_resource_id: t.linkedResourceId,
-                is_company_specific: t.isCompanySpecific,
+                linkedResourceId: t.linkedResourceId,
+                isCompanySpecific: t.isCompanySpecific,
                 is_active: t.isActive,
                 created_at: existingTask?.created_at || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
