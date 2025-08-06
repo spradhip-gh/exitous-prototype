@@ -705,41 +705,39 @@ export function useUserData() {
         }
 
         const finalQuestions: Record<string, Question> = {};
-
-        // 1. Process master questions, filtering by active status first.
+        
+        // 1. Create a base list of active master questions
+        const activeMasterQuestions: Record<string, Question> = {};
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
-
-            if (activeOnly && !masterQ.isActive) {
-                continue; // Skip inactive master questions entirely.
+            if (masterQ.isActive) {
+                 activeMasterQuestions[id] = masterQ;
             }
-            
-            // This is the override from the company's config for this specific question
-            const override = companyConfig?.questions?.[id];
+        }
 
-            // Merge master with override. The override properties will take precedence.
+        // 2. Iterate through the active master list and apply company overrides
+        for (const id in activeMasterQuestions) {
+            const masterQ = activeMasterQuestions[id];
+            const override = companyConfig?.questions?.[id];
+            
             const finalQ: Question = {
                 ...masterQ,
                 ...(override || {}),
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
-            
-            // This is the CRITICAL change:
-            // The final question is only active if the HR has explicitly enabled it in their overrides,
-            // OR if there is no override for its active status (in which case it inherits from master).
-            const isCompanyActive = override?.isActive === undefined ? finalQ.isActive : override.isActive;
+
+            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (activeOnly && !isCompanyActive) {
-                 continue; // Skip if the final merged state is inactive.
+                continue;
             }
 
-            // Also ensure we only include questions for the correct form
             if (finalQ.formType === formType || formType === 'all') {
                 finalQuestions[id] = finalQ;
             }
         }
         
-        // 2. Add custom questions for the company, also checking their active status
+        // 3. Add active custom questions for the company
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
