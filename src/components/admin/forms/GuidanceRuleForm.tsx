@@ -476,19 +476,27 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <fieldset disabled={isCatchAll}>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
+                                                    const isSelected = directAnswers.includes(option);
                                                     const isMappedInAnotherRule = mappedAnswersInOtherRules.has(option);
                                                     const isCoveredByCatchAll = !!catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option);
                                                     return (
-                                                        <div key={option} className={cn("flex items-center space-x-2", isMappedInAnotherRule && "text-muted-foreground")}>
+                                                        <div 
+                                                            key={option} 
+                                                            className={cn(
+                                                                "flex items-center space-x-2 p-2 rounded-md border", 
+                                                                isMappedInAnotherRule && "text-muted-foreground bg-muted/50 cursor-not-allowed",
+                                                                isSelected && "bg-primary/10 border-primary"
+                                                            )}
+                                                        >
                                                             <Checkbox
                                                                 id={`answer-${option}`}
-                                                                checked={directAnswers.includes(option)}
+                                                                checked={isSelected}
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
                                                                 disabled={isMappedInAnotherRule}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal", isMappedInAnotherRule && "line-through")}>{option}</Label>
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isMappedInAnotherRule && "line-through")}>{option}</Label>
                                                             {isCoveredByCatchAll && (
                                                                 <TooltipProvider>
                                                                     <Tooltip>
