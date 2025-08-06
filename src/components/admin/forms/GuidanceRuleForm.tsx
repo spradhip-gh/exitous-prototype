@@ -247,7 +247,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                 setRuleName(`${question?.label} - All Answers`);
             } else if (directAnswers.length > 0) {
                 const answerText = directAnswers.length > 2 ? `${directAnswers.length} answers` : directAnswers.join(', ');
-                setRuleName(`${question?.label} - ${answerText}`);
+                setRuleName(`${answerText} - ${question?.label}`);
             } else {
                 setRuleName('');
             }
@@ -269,7 +269,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         const rule: GuidanceRule = {
             id,
             questionId: question.id,
-            name: ruleName || `${question.label} - ${isCatchAll ? 'All Answers' : directAnswers.join(', ')}`,
+            name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
             type: 'direct',
             conditions: isCatchAll ? [{ type: 'question', questionId: question.id }] : directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
             assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
@@ -473,31 +473,33 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <Label htmlFor="catch-all">Apply this rule to all answers for this question</Label>
                                     </div>
                                     <ScrollArea className="h-40">
-                                        <fieldset disabled={isCatchAll}>
+                                        <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
                                                     const isSelected = directAnswers.includes(option);
                                                     const isMappedInAnotherRule = mappedAnswersInOtherRules.has(option);
                                                     const isCoveredByCatchAll = !!catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option);
+                                                    const isChecked = isCatchAll ? !isMappedInAnotherRule : isSelected;
+                                                    
                                                     return (
                                                         <div 
                                                             key={option} 
                                                             className={cn(
                                                                 "flex items-center space-x-2 p-2 rounded-md border", 
-                                                                isMappedInAnotherRule && "text-muted-foreground bg-muted/50 cursor-not-allowed",
-                                                                isSelected && "bg-primary/10 border-primary"
+                                                                (isMappedInAnotherRule || (isCatchAll && isMappedInAnotherRule)) && "text-muted-foreground bg-muted/50 cursor-not-allowed",
+                                                                isChecked && !isMappedInAnotherRule && "bg-primary/10 border-primary"
                                                             )}
                                                         >
                                                             <Checkbox
                                                                 id={`answer-${option}`}
-                                                                checked={isSelected}
+                                                                checked={isChecked}
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isMappedInAnotherRule}
+                                                                disabled={isMappedInAnotherRule || isCatchAll}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isMappedInAnotherRule && "line-through")}>{option}</Label>
-                                                            {isCoveredByCatchAll && (
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", (isMappedInAnotherRule || (isCatchAll && isMappedInAnotherRule)) && "line-through")}>{option}</Label>
+                                                            {isCoveredByCatchAll && !isCatchAll && (
                                                                 <TooltipProvider>
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
