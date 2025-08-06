@@ -213,7 +213,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
-                    setIsCatchAll(rule.conditions.some(c => c.answer === undefined));
+                    setIsCatchAll(false); // Can't edit a catch-all directly, it's a concept.
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     setCalculationUnit(rule.calculation?.unit || 'years');
@@ -255,23 +255,26 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     if (!question) return null;
 
-    const mappedAnswersInOtherRules = new Set(
+    const mappedAnswersInOtherRules = useMemo(() => new Set(
         existingRules
             .filter(r => r.id !== selectedRuleId)
             .flatMap(r => r.conditions.map(c => c.answer))
             .filter((a): a is string => !!a)
-    );
-
-    const catchAllRuleForQuestion = existingRules.find(r => r.id !== selectedRuleId && r.conditions.some(c => c.answer === undefined));
+    ), [existingRules, selectedRuleId]);
 
     const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
+        let answersToMap = directAnswers;
+        if (isCatchAll) {
+            answersToMap = question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [];
+        }
+
         const id = selectedRuleId || uuidv4();
         const rule: GuidanceRule = {
             id,
             questionId: question.id,
             name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
             type: 'direct',
-            conditions: isCatchAll ? [{ type: 'question', questionId: question.id }] : directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
+            conditions: answersToMap.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
             assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
         };
         onSave(rule);
@@ -281,56 +284,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     const handleSaveDirectRule = () => {
         if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
-            toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
+            toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
 
-        const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
-        
-        // --- CHECK FOR CONFLICTS ---
-        // 1. Check if trying to create a catch-all when one already exists.
-        if (isCatchAll) {
-            if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
-                toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
-                return;
-            }
-        } else {
-        // 2. Check if a specific answer is already mapped in another rule.
-            const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
-            if (conflict) {
-                toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
-                return;
-            }
-        }
-
-        // 3. Check if any selected answer is already covered by a catch-all rule
-        const catchAllRule = otherRules.find(r => r.conditions.some(c => c.answer === undefined));
-        if (catchAllRule && !isCatchAll && directAnswers.length > 0) {
-            setConflictingRule(catchAllRule);
-            setIsMergeDialogOpen(true);
-            return;
-        }
-        
         // --- If no conflicts, save directly ---
         finishSave(directTasks, directTips, isNoGuidanceDirect);
-    }
-    
-    const handleMergeDecision = (decision: 'merge' | 'replace') => {
-        if (!conflictingRule) return;
-
-        let finalTasks = directTasks;
-        let finalTips = directTips;
-
-        if (decision === 'merge') {
-            const baseTasks = conflictingRule.assignments?.taskIds || [];
-            const baseTips = conflictingRule.assignments?.tipIds || [];
-            finalTasks = [...new Set([...baseTasks, ...directTasks])];
-            finalTips = [...new Set([...baseTips, ...directTips])];
-        }
-        
-        finishSave(finalTasks, finalTips, isNoGuidanceDirect);
-        setIsMergeDialogOpen(false);
-        setConflictingRule(null);
     }
     
     const handleSaveCalculatedRule = () => {
@@ -393,11 +352,6 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         }
     };
     
-    const excludedByCatchAll = useMemo(() => {
-        if(!isCatchAll) return [];
-        return question.options?.filter(o => mappedAnswersInOtherRules.has(o)) || [];
-    }, [isCatchAll, question.options, mappedAnswersInOtherRules]);
-
     return (
         <div>
             <CardContent className="space-y-6">
@@ -459,14 +413,6 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         {ruleType === 'direct' && (
                              <div className="space-y-4 p-4 border rounded-md mt-4">
-                                {mappedAnswersInOtherRules.size > 0 && !isCatchAll && (
-                                    <Alert>
-                                        <Info className="h-4 w-4" />
-                                        <p className="text-xs">
-                                            {mappedAnswersInOtherRules.size} answer(s) already have guidance in other rules and cannot be selected.
-                                        </p>
-                                    </Alert>
-                                )}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
@@ -477,14 +423,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
                                         <div className="flex items-center gap-2">
                                             <Label htmlFor="catch-all">Apply this rule to all available answers</Label>
-                                            {isCatchAll && excludedByCatchAll.length > 0 && (
+                                            {isCatchAll && mappedAnswersInOtherRules.size > 0 && (
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p>Excluding: {excludedByCatchAll.join(', ')}</p>
+                                                            <p>Excluding: {[...mappedAnswersInOtherRules].join(', ')}</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
@@ -495,9 +441,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
-                                                    const isMappedInAnotherRule = mappedAnswersInOtherRules.has(option);
-                                                    const isChecked = isCatchAll ? !isMappedInAnotherRule : directAnswers.includes(option);
-                                                    const isDisabled = isMappedInAnotherRule;
+                                                    const isMappedElsewhere = mappedAnswersInOtherRules.has(option);
+                                                    const isChecked = isCatchAll ? !isMappedElsewhere : directAnswers.includes(option);
+                                                    const isDisabled = isMappedElsewhere;
 
                                                     return (
                                                         <div 
@@ -517,18 +463,6 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                                 disabled={isDisabled || isCatchAll}
                                                             />
                                                             <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isDisabled && "line-through")}>{option}</Label>
-                                                            {catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option) && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>This answer is covered by the rule:<br/>"{catchAllRuleForQuestion.name}"</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
                                                         </div>
                                                     )
                                                 })}
@@ -682,8 +616,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogAction variant="secondary" onClick={() => handleMergeDecision('replace')}>Replace</AlertDialogAction>
-                        <AlertDialogAction onClick={() => handleMergeDecision('merge')}>Merge</AlertDialogAction>
+                        <Button variant="secondary" onClick={() => {
+                            toast({ title: "Not yet implemented" });
+                            setIsMergeDialogOpen(false);
+                        }}>Replace</Button>
+                        <Button onClick={() => {
+                            toast({ title: "Not yet implemented" });
+                            setIsMergeDialogOpen(false);
+                        }}>Merge</Button>
                         <AlertDialogCancel onClick={() => setConflictingRule(null)}>Cancel</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
