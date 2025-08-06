@@ -11,12 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace, Archive, ArchiveRestore } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace } from 'lucide-react';
 import Papa from 'papaparse';
 import TaskForm from '@/components/admin/tasks/TaskForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function TaskManagementPage() {
@@ -41,19 +40,6 @@ export default function TaskManagementPage() {
         return {...masterQuestions, ...masterProfileQuestions};
     }, [masterQuestions, masterProfileQuestions]);
     
-    const { activeTasks, archivedTasks } = useMemo(() => {
-        if (!masterTasks) return { activeTasks: [], archivedTasks: [] };
-        return masterTasks.reduce((acc, task) => {
-            if (task.isActive === false) {
-                acc.archivedTasks.push(task);
-            } else {
-                acc.activeTasks.push(task);
-            }
-            return acc;
-        }, { activeTasks: [] as MasterTask[], archivedTasks: [] as MasterTask[] });
-    }, [masterTasks]);
-
-
     const taskMappingCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         if (!taskMappings) return counts;
@@ -79,22 +65,6 @@ export default function TaskManagementPage() {
         setViewingMappings(mappings);
     }
     
-    const handleArchiveClick = (taskId: string) => {
-        const updatedTasks = (masterTasks || []).map(task => 
-            task.id === taskId ? { ...task, isActive: false } : task
-        );
-        saveMasterTasks(updatedTasks);
-        toast({ title: 'Task Archived' });
-    };
-
-    const handleReactivateClick = (taskId: string) => {
-        const updatedTasks = (masterTasks || []).map(task => 
-            task.id === taskId ? { ...task, isActive: true } : task
-        );
-        saveMasterTasks(updatedTasks);
-        toast({ title: 'Task Reactivated' });
-    };
-
     const handleDeleteClick = (taskId: string) => {
         const updatedTasks = (masterTasks || []).filter(r => r.id !== taskId);
         saveMasterTasks(updatedTasks);
@@ -103,7 +73,6 @@ export default function TaskManagementPage() {
 
     const handleSave = (taskData: MasterTask) => {
         let updatedTasks;
-        taskData.isActive = true;
         if (editingTask?.id || (masterTasks || []).some(t => t.id === taskData.id)) {
             // Update existing
             updatedTasks = (masterTasks || []).map(t => t.id === taskData.id ? taskData : t);
@@ -162,7 +131,6 @@ export default function TaskManagementPage() {
                         deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
                         deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
                         linkedResourceId: row.linkedResourceId || undefined,
-                        isActive: true,
                     };
                     
                     const existingIndex = newMasterTasks.findIndex(t => t.id === id);
@@ -223,144 +191,88 @@ export default function TaskManagementPage() {
                     </div>
                     <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add New Task</Button>
                 </div>
-
-                <Tabs defaultValue="active-tasks">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="active-tasks">Active Tasks</TabsTrigger>
-                        <TabsTrigger value="archived-tasks">Archived Tasks</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="active-tasks" className="mt-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Active Task List</CardTitle>
-                                <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
-                                    <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
-                                                    Continue
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>ID</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Category</TableHead>
-                                            <TableHead>Linked Resource</TableHead>
-                                            <TableHead>Mappings</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {activeTasks.map(task => (
-                                            <TableRow key={task.id}>
-                                                <TableCell className="font-mono text-xs">{task.id}</TableCell>
-                                                <TableCell className="font-medium">{task.name}</TableCell>
-                                                <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">{(externalResources || []).find(r => r.id === task.linkedResourceId)?.name || 'None'}</TableCell>
-                                                <TableCell>
-                                                    <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
-                                                        {taskMappingCounts[task.id] || 0}
-                                                    </Button>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end items-center gap-1">
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon"><Archive className="h-4 w-4 text-muted-foreground" /></Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will archive the task "{task.name}". It will no longer be available for new guidance mappings but will remain for existing users.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleArchiveClick(task.id)}>Yes, Archive</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="archived-tasks" className="mt-6">
-                       <Card>
-                            <CardHeader>
-                                <CardTitle>Archived Tasks</CardTitle>
-                                <CardDescription>These tasks are not available for new guidance but are kept for historical data. They can be reactivated.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                 <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Category</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {archivedTasks.map(task => (
-                                            <TableRow key={task.id}>
-                                                <TableCell className="font-medium text-muted-foreground">{task.name}</TableCell>
-                                                <TableCell><Badge variant="outline">{task.category}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(task.id)}>
-                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Reactivate
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Delete Permanently?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This action will permanently delete the task "{task.name}". This cannot be undone.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteClick(task.id)}>Yes, Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                       </Card>
-                    </TabsContent>
-                </Tabs>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Master Task List</CardTitle>
+                        <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+                            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
+                            <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
+                                            Continue
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Linked Resource</TableHead>
+                                    <TableHead>Mappings</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {masterTasks && masterTasks.map(task => (
+                                    <TableRow key={task.id}>
+                                        <TableCell className="font-mono text-xs">{task.id}</TableCell>
+                                        <TableCell className="font-medium">{task.name}</TableCell>
+                                        <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{(externalResources || []).find(r => r.id === task.linkedResourceId)?.name || 'None'}</TableCell>
+                                        <TableCell>
+                                            <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
+                                                {taskMappingCounts[task.id] || 0}
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end items-center gap-1">
+                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>This will permanently delete the task "{task.name}". This action cannot be undone.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteClick(task.id)}>Yes, Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
             
             <TaskForm
