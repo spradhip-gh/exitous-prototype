@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
+import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip, ExternalResource, MasterQuestionConfig } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,6 @@ function findQuestionById(sections: OrderedSection[], id: string): Question | nu
 export default function AdminFormEditor() {
     const {
         masterQuestions,
-        saveMasterQuestions,
         masterProfileQuestions,
         guidanceRules,
         saveGuidanceRules,
@@ -67,6 +66,7 @@ export default function AdminFormEditor() {
         externalResources,
         saveMasterTasks,
         saveMasterTips,
+        saveMasterQuestions,
         isLoading,
     } = useUserData();
 

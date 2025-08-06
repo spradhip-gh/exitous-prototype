@@ -185,6 +185,11 @@ export interface PlatformUser {
     role: 'admin' | 'consultant';
 }
 
+export interface MasterQuestionConfig {
+    form_type: 'profile' | 'assessment';
+    section_order: string[];
+}
+
 export const buildQuestionTreeFromMap = (flatQuestionMap: Record<string, Question>): Question[] => {
     if (!flatQuestionMap || Object.keys(flatQuestionMap).length === 0) {
         return [];
@@ -265,6 +270,7 @@ export function useUserData() {
     const [companyConfigs, setCompanyConfigs] = useState<Record<string, CompanyConfig>>({});
     const [masterQuestions, setMasterQuestions] = useState<Record<string, Question>>({});
     const [masterProfileQuestions, setMasterProfileQuestions] = useState<Record<string, Question>>({});
+    const [masterQuestionConfigs, setMasterQuestionConfigs] = useState<MasterQuestionConfig[]>([]);
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
@@ -279,6 +285,7 @@ export function useUserData() {
                 { data: rulesData },
                 { data: companyUsersData },
                 { data: companyConfigsData },
+                { data: masterConfigsData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -286,6 +293,7 @@ export function useUserData() {
                 supabase.from('guidance_rules').select('*'),
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
+                supabase.from('master_question_configs').select('*'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -322,7 +330,8 @@ export function useUserData() {
             });
             setMasterQuestions(assessmentQuestionsMap);
             setMasterProfileQuestions(profileQuestionsMap);
-
+            
+            setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
             setGuidanceRules(rulesData as GuidanceRule[] || []);
             
             // Organize company users by companyId
@@ -464,6 +473,16 @@ export function useUserData() {
         
         if (error) {
             console.error('Error saving master question config:', error);
+        } else {
+            setMasterQuestionConfigs(prev => {
+                const existingIndex = prev.findIndex(c => c.form_type === formType);
+                if (existingIndex > -1) {
+                    const newConfigs = [...prev];
+                    newConfigs[existingIndex] = { form_type: formType, ...config };
+                    return newConfigs;
+                }
+                return [...prev, { form_type: formType, ...config }];
+            });
         }
     }, []);
 
@@ -492,6 +511,9 @@ export function useUserData() {
         }
     }, [companyAssignments]);
 
+    const getMasterQuestionConfig = useCallback((formType: 'profile' | 'assessment') => {
+        return masterQuestionConfigs.find(c => c.form_type === formType);
+    }, [masterQuestionConfigs]);
 
     // Placeholder implementations for other write functions
     const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
@@ -522,7 +544,7 @@ export function useUserData() {
         saveMasterQuestionConfig,
         saveCompanyConfig,
         setCompanyConfigs,
-        
+        getMasterQuestionConfig,
         getCompanyConfig,
         getAllCompanyConfigs: useCallback(() => companyConfigs, [companyConfigs]),
         isAssessmentComplete: !!assessmentData?.workStatus,
