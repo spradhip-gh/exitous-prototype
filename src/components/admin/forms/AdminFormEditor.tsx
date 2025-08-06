@@ -2,7 +2,7 @@
 
 'use client';
 import * as React from 'react';
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { PlusCircle, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { PlusCircle, Archive, ArchiveRestore, Trash2, GripVertical } from "lucide-react";
 import AdminQuestionItem from "./AdminQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +20,23 @@ import TipForm from '../tips/TipForm';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
 
 interface OrderedSection {
     id: string;
@@ -307,6 +323,30 @@ export default function AdminFormEditor() {
     );
 }
 
+function SortableSection({ section, children }: { section: OrderedSection, children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="space-y-2">
+            <div className="flex items-center gap-2">
+                 <Button variant="ghost" size="icon" {...attributes} {...listeners} className="cursor-grab">
+                    <GripVertical />
+                </Button>
+                <h3 className="font-semibold text-lg">{section.id}</h3>
+            </div>
+            <div className="pl-2 space-y-2 py-2">
+                {children}
+            </div>
+            <Separator className="my-6" />
+        </div>
+    );
+}
+
 function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
@@ -318,11 +358,16 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
-    const { isLoading } = useUserData();
+    const { isLoading, saveMasterQuestionConfig } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+    const [orderedSections, setOrderedSections] = useState<OrderedSection[]>([]);
+    
+    const sensors = useSensors(
+        useSensor(PointerSensor)
+    );
 
     const activeQuestions = useMemo(() => {
         if (!questions) return [];
@@ -330,9 +375,10 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     }, [questions]);
 
 
-    const orderedSections = useMemo(() => {
+    useEffect(() => {
         if (isLoading || !activeQuestions || activeQuestions.length === 0) {
-            return [];
+            setOrderedSections([]);
+            return;
         }
 
         const activeQuestionMap: Record<string, Question> = {};
@@ -356,11 +402,14 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
             sectionsMap[sectionName].push(q);
         });
-
-        return finalSectionOrder.map(sectionName => ({
+        
+        const sections = finalSectionOrder.map(sectionName => ({
             id: sectionName,
             questions: sectionsMap[sectionName] || []
         })).filter(s => s.questions.length > 0);
+        
+        setOrderedSections(sections);
+
     }, [isLoading, activeQuestions, questions, defaultQuestionsFn]);
 
 
@@ -461,6 +510,24 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         }
     };
     
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (active.id !== over?.id) {
+            setOrderedSections((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over?.id);
+                const newOrder = arrayMove(items, oldIndex, newIndex);
+                
+                // Save the new section order
+                saveMasterQuestionConfig(questionType, {
+                    section_order: newOrder.map(s => s.id)
+                });
+                toast({ title: 'Section order saved!' });
+                return newOrder;
+            });
+        }
+    }
+    
     const existingSections = useMemo(() => [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))], [questions]);
 
     return (
@@ -472,16 +539,15 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
                         {questionType === 'profile' 
                             ? 'These questions appear in the initial "Create Your Profile" step.'
                             : 'These questions appear in the main "Exit Details" assessment.'
-                        } Use arrows to reorder.
+                        } Use arrows to reorder individual questions or the handle to reorder entire sections.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {orderedSections.map(section => (
-                        <div key={section.id}>
-                            <h3 className="font-semibold text-lg">{section.id}</h3>
-                            <div className="pl-2 space-y-2 py-2">
-                                {section.questions.map((question, index) => {
-                                    return (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={orderedSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                            {orderedSections.map(section => (
+                                <SortableSection key={section.id} section={section}>
+                                    {section.questions.map((question, index) => (
                                         <AdminQuestionItem
                                             key={question.id}
                                             question={question}
@@ -492,12 +558,11 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
                                             isFirst={index === 0}
                                             isLast={index === section.questions.length - 1}
                                         />
-                                    )
-                                })}
-                            </div>
-                            <Separator className="my-6" />
-                        </div>
-                    ))}
+                                    ))}
+                                </SortableSection>
+                            ))}
+                        </SortableContext>
+                    </DndContext>
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <Button variant="outline" onClick={() => handleAddNewClick()}>
@@ -521,3 +586,4 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
+

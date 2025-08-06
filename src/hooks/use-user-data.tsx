@@ -457,6 +457,16 @@ export function useUserData() {
         }
     }, []);
 
+    const saveMasterQuestionConfig = useCallback(async (formType: 'profile' | 'assessment', config: any) => {
+        const { error } = await supabase
+            .from('master_question_configs')
+            .upsert({ form_type: formType, ...config }, { onConflict: 'form_type' });
+        
+        if (error) {
+            console.error('Error saving master question config:', error);
+        }
+    }, []);
+
 
     const saveCompanyConfig = useCallback(async (companyName: string, config: CompanyConfig) => {
         const company = companyAssignments.find(c => c.companyName === companyName);
@@ -509,6 +519,7 @@ export function useUserData() {
         saveAssessmentData,
         addCompanyAssignment,
         saveMasterQuestions,
+        saveMasterQuestionConfig,
         saveCompanyConfig,
         setCompanyConfigs,
         
