@@ -26,6 +26,7 @@ export interface Question {
     dependencySource?: 'profile' | 'assessment';
     dependsOn?: string; // ID of the question in the source that this question depends on.
     dependsOnValue?: string | string[]; // The value(s) of the dependency that trigger this question.
+    answerGuidance?: Record<string, { tasks?: string[], tips?: string[], noGuidanceRequired?: boolean }>;
 }
 
 export const getDefaultProfileQuestions = (): Question[] => [
