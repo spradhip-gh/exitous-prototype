@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -304,8 +303,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('*'),
-                supabase.from('master_tips').select('*'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linked_resource_id, is_company_specific, is_active, created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, is_company_specific, is_active, created_at, updated_at'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -355,8 +354,8 @@ export function useUserData() {
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
                 linkedResourceId: t.linked_resource_id,
-                isCompanySpecific: t.is_company_specific,
-                isActive: t.is_active,
+                isCompanySpecific: !!t.is_company_specific,
+                isActive: !!t.is_active,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             })));
@@ -367,8 +366,8 @@ export function useUserData() {
                 priority: t.priority,
                 category: t.category,
                 text: t.text,
-                isCompanySpecific: t.is_company_specific,
-                isActive: t.is_active,
+                isCompanySpecific: !!t.is_company_specific,
+                isActive: !!t.is_active,
                 created_at: t.created_at,
                 updated_at: t.updated_at,
             })));
