@@ -165,15 +165,14 @@ function QuestionEditor({
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
-
-    const questionTree = useMemo(() => {
-        if (!isLoading) {
-            return getCompanyConfig(companyName, false, questionType);
-        }
-        return [];
-    }, [companyName, isLoading, getCompanyConfig, questionType]);
-
+    
     useEffect(() => {
+        if (isLoading || !companyName) {
+            setOrderedSections([]);
+            return;
+        }
+
+        const questionTree = getCompanyConfig(companyName, true, questionType);
         if (questionTree.length === 0) {
             setOrderedSections([]);
             return;
@@ -237,7 +236,7 @@ function QuestionEditor({
 
         setOrderedSections(sections);
 
-    }, [questionTree, companyConfig, questionType]);
+    }, [companyName, isLoading, companyConfig, questionType]);
 
     const generateAndSaveConfig = useCallback((sections: HrOrderedSection[], isAutoApproved: boolean = false) => {
         if (!companyName) return;
