@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation, ExternalResource } from "@/hooks/use-user-data";
@@ -209,12 +208,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                 setRuleName(rule.name);
                 setRuleType(rule.type);
                 if (rule.type === 'direct') {
-                    const answers = rule.conditions.map(c => c.answer || '');
+                    const answers = rule.conditions.map(c => c.answer).filter((a): a is string => !!a);
                     setDirectAnswers(answers);
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
-                    setIsCatchAll(answers.length === 0 && rule.conditions.some(c => c.answer === undefined));
+                    setIsCatchAll(rule.conditions.some(c => c.answer === undefined));
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     setCalculationUnit(rule.calculation?.unit || 'years');
@@ -244,7 +243,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     useEffect(() => {
         if (ruleType === 'direct' && !selectedRuleId) {
             if (isCatchAll) {
-                setRuleName(`${question?.label} - All Answers`);
+                setRuleName(`All Answers - ${question?.label}`);
             } else if (directAnswers.length > 0) {
                 const answerText = directAnswers.length > 2 ? `${directAnswers.length} answers` : directAnswers.join(', ');
                 setRuleName(`${answerText} - ${question?.label}`);
@@ -260,6 +259,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         existingRules
             .filter(r => r.id !== selectedRuleId)
             .flatMap(r => r.conditions.map(c => c.answer))
+            .filter((a): a is string => !!a)
     );
 
     const catchAllRuleForQuestion = existingRules.find(r => r.id !== selectedRuleId && r.conditions.some(c => c.answer === undefined));
@@ -359,7 +359,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             ranges: ranges.map(r => ({
                 from: r.from,
                 to: r.to,
-                assignments: { taskIds: r.tasks, tipIds: r.tips, noGuidanceRequired: r.noGuidanceRequired || false }
+                assignments: { taskIds: r.tasks, tips: r.tips, noGuidanceRequired: r.noGuidanceRequired || false }
             })),
             assignments: { taskIds: [], tipIds: [] } // Base assignments not used for calculated rules
         };
@@ -392,6 +392,11 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             resetForm();
         }
     };
+    
+    const excludedByCatchAll = useMemo(() => {
+        if(!isCatchAll) return [];
+        return question.options?.filter(o => mappedAnswersInOtherRules.has(o)) || [];
+    }, [isCatchAll, question.options, mappedAnswersInOtherRules]);
 
     return (
         <div>
@@ -402,7 +407,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         <ScrollArea className="h-96">
                             <div className="space-y-1 pr-2">
                                 {existingRules.map(rule => (
-                                    <TooltipProvider key={rule.id}>
+                                    <TooltipProvider key={rule.id} delayDuration={100}>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Button variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
@@ -454,7 +459,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         {ruleType === 'direct' && (
                              <div className="space-y-4 p-4 border rounded-md mt-4">
-                                {mappedAnswersInOtherRules.size > 0 && (
+                                {mappedAnswersInOtherRules.size > 0 && !isCatchAll && (
                                     <Alert>
                                         <Info className="h-4 w-4" />
                                         <p className="text-xs">
@@ -468,26 +473,39 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [])} disabled={isCatchAll}>Select All Available</Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
-                                    <div className="flex items-center space-x-2">
+                                     <div className="flex items-center space-x-2">
                                         <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
-                                        <Label htmlFor="catch-all">Apply this rule to all answers for this question</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="catch-all">Apply this rule to all available answers</Label>
+                                            {isCatchAll && excludedByCatchAll.length > 0 && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Excluding: {excludedByCatchAll.join(', ')}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
                                     </div>
                                     <ScrollArea className="h-40">
                                         <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
-                                                    const isSelected = directAnswers.includes(option);
                                                     const isMappedInAnotherRule = mappedAnswersInOtherRules.has(option);
-                                                    const isCoveredByCatchAll = !!catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option);
-                                                    const isChecked = isCatchAll ? !isMappedInAnotherRule : isSelected;
-                                                    
+                                                    const isChecked = isCatchAll ? !isMappedInAnotherRule : directAnswers.includes(option);
+                                                    const isDisabled = isMappedInAnotherRule;
+
                                                     return (
                                                         <div 
                                                             key={option} 
                                                             className={cn(
-                                                                "flex items-center space-x-2 p-2 rounded-md border", 
-                                                                (isMappedInAnotherRule || (isCatchAll && isMappedInAnotherRule)) && "text-muted-foreground bg-muted/50 cursor-not-allowed",
-                                                                isChecked && !isMappedInAnotherRule && "bg-primary/10 border-primary"
+                                                                "flex items-center space-x-2 p-2 rounded-md border transition-colors", 
+                                                                isDisabled && "text-muted-foreground bg-muted/50 cursor-not-allowed",
+                                                                isChecked && !isDisabled && "bg-primary/10 border-primary"
                                                             )}
                                                         >
                                                             <Checkbox
@@ -496,10 +514,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isMappedInAnotherRule || isCatchAll}
+                                                                disabled={isDisabled || isCatchAll}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", (isMappedInAnotherRule || (isCatchAll && isMappedInAnotherRule)) && "line-through")}>{option}</Label>
-                                                            {isCoveredByCatchAll && !isCatchAll && (
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isDisabled && "line-through")}>{option}</Label>
+                                                            {catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option) && (
                                                                 <TooltipProvider>
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
@@ -540,9 +558,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         categories={tipCategories}
                                     />
                                 </fieldset>
-                                <div className="space-y-2">
+                                 <div className="space-y-2">
                                     <Label htmlFor="rule-name">Rule Name</Label>
-                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} placeholder="e.g., Tenure-based COBRA advice" />
+                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} />
                                 </div>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
                             </div>
