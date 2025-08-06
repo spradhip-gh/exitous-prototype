@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -435,7 +436,6 @@ export function useUserData() {
     }, []);
 
     const saveMasterQuestions = useCallback(async (questionsToSave: Record<string, Question>, formType: 'profile' | 'assessment') => {
-        const questions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         const setFn = formType === 'profile' ? setMasterProfileQuestions : setMasterQuestions;
 
         const upserts = Object.values(questionsToSave).map(q => ({
@@ -455,7 +455,7 @@ export function useUserData() {
         } else {
             setFn(questionsToSave);
         }
-    }, [masterQuestions, masterProfileQuestions]);
+    }, []);
 
 
     const saveCompanyConfig = useCallback(async (companyName: string, config: CompanyConfig) => {
@@ -502,6 +502,7 @@ export function useUserData() {
         guidanceRules,
         companyAssignments,
         companyConfigs,
+        externalResources: [],
 
         // --- FUNCTIONS ---
         saveProfileData,
@@ -530,7 +531,6 @@ export function useUserData() {
         addReviewQueueItem: async () => {},
         saveExternalResources: async () => {},
         saveGuidanceRules: async () => {},
-        saveMasterProfileQuestions: async () => {},
         saveMasterTasks: async () => {},
         saveMasterTips: async () => {},
         saveReviewQueue: async () => {},
@@ -547,5 +547,9 @@ export function useUserData() {
         companyAssignmentForHr: companyAssignments.find(c => c.companyName === auth?.companyName),
         profileCompletions: {}, // Placeholder
         assessmentCompletions: {}, // Placeholder
+        taskMappings: [], // Placeholder
+        tipMappings: [], // Placeholder
+        reviewQueue: [], // Placeholder
+        platformUsers: [], // Placeholder
     };
 }

@@ -44,7 +44,6 @@ export default function AdminFormEditor() {
         masterQuestions,
         saveMasterQuestions,
         masterProfileQuestions,
-        saveMasterProfileQuestions,
         guidanceRules,
         saveGuidanceRules,
         masterTasks,
@@ -112,15 +111,13 @@ export default function AdminFormEditor() {
 
     const handleReactivateClick = (questionId: string, type: 'profile' | 'assessment') => {
         const questions = type === 'profile' ? { ...masterProfileQuestions } : { ...masterQuestions };
-        const saveFn = type === 'profile' ? saveMasterProfileQuestions : saveMasterQuestions;
         questions[questionId].isActive = true;
-        saveFn(questions);
+        saveMasterQuestions(questions, type);
         toast({ title: "Question Reactivated" });
     };
 
     const handleDeleteClick = (questionId: string, type: 'profile' | 'assessment') => {
         const questions = type === 'profile' ? { ...masterProfileQuestions } : { ...masterQuestions };
-        const saveFn = type === 'profile' ? saveMasterProfileQuestions : saveMasterQuestions;
         
         const deleteRecursive = (idToDelete: string, currentQuestions: Record<string, Question>) => {
             const questionToDelete = currentQuestions[idToDelete];
@@ -135,7 +132,7 @@ export default function AdminFormEditor() {
         }
 
         deleteRecursive(questionId, questions);
-        saveFn(questions);
+        saveMasterQuestions(questions, type);
         toast({ title: "Question Permanently Deleted" });
     };
 
@@ -160,7 +157,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="profile"
                             questions={masterProfileQuestions}
-                            saveFn={saveMasterProfileQuestions}
+                            saveFn={(q) => saveMasterQuestions(q, 'profile')}
                             defaultQuestionsFn={getDefaultProfileQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
@@ -172,7 +169,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="assessment"
                             questions={masterQuestions}
-                            saveFn={saveMasterQuestions}
+                            saveFn={(q) => saveMasterQuestions(q, 'assessment')}
                             defaultQuestionsFn={getDefaultQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
@@ -381,7 +378,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         } else {
             section = orderedSections[0]?.id || '';
         }
-        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '' });
+        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '', formType: questionType });
         setIsNewQuestion(true);
         setIsEditing(true);
     };
