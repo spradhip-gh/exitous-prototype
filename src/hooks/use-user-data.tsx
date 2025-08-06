@@ -351,7 +351,7 @@ export function useUserData() {
                 deadlineDays: t.deadline_days,
                 linkedResourceId: t.linked_resource_id,
                 isCompanySpecific: t.is_company_specific,
-                isActive: t.is_active,
+                isActive: t.isActive,
             })) as MasterTask[]);
 
             setMasterTips((tipsData || []).map(t => ({
@@ -564,9 +564,9 @@ export function useUserData() {
                 detail: t.detail,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
-                isCompanySpecific: t.isCompanySpecific,
-                isActive: t.isActive,
+                linked_resource_id: t.linkedResourceId,
+                is_company_specific: t.isCompanySpecific,
+                is_active: t.isActive,
                 created_at: existingCreatedAt || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };
@@ -684,3 +684,5 @@ export function useUserData() {
         platformUsers: [], // Placeholder
     };
 }
+
+    
