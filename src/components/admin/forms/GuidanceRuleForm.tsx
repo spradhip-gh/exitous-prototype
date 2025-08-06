@@ -243,10 +243,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     useEffect(() => {
         if (ruleType === 'direct' && !selectedRuleId) {
             if (isCatchAll) {
-                setRuleName(`All Answers - ${question?.label}`);
+                 setRuleName(`All Answers - ${question?.label}`);
             } else if (directAnswers.length > 0) {
                 const answerText = directAnswers.length > 2 ? `${directAnswers.length} answers` : directAnswers.join(', ');
-                setRuleName(`${answerText} - ${question?.label}`);
+                 setRuleName(`${answerText} - ${question?.label}`);
             } else {
                 setRuleName('');
             }
@@ -269,16 +269,16 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         return mapped;
     }, [existingRules, selectedRuleId]);
     
-    const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean, conflictingRuleToUpdate: GuidanceRule | null = null) => {
+    const finishSave = (answers: string[], tasks: string[], tips: string[], isNoGuidance: boolean, conflictingRuleToUpdate: GuidanceRule | null = null) => {
         
         // This is the new or edited rule
         const newOrUpdatedRule: GuidanceRule = {
             id: selectedRuleId || uuidv4(),
             questionId: question.id,
-            name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
+            name: ruleName || `${isCatchAll ? 'All Answers' : answers.join(', ')} - ${question.label}`,
             type: 'direct',
-            conditions: directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
-            assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
+            conditions: answers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
+            assignments: { taskIds: tasks, tipIds: tips, noGuidanceRequired: isNoGuidance }
         };
         
         onSave(newOrUpdatedRule);
@@ -292,13 +292,14 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     }
     
     const handleSaveDirectRule = () => {
-        if (!isCatchAll && directAnswers.length === 0) {
+        const answersToMap = isCatchAll ? (question.options || []) : directAnswers;
+        if (answersToMap.length === 0) {
             toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
 
         // Check for conflicts
-        const conflictingAnswers = directAnswers.filter(ans => mappedAnswersInOtherRules.has(ans));
+        const conflictingAnswers = answersToMap.filter(ans => mappedAnswersInOtherRules.has(ans));
         if (conflictingAnswers.length > 0) {
             const conflictingRuleId = mappedAnswersInOtherRules.get(conflictingAnswers[0]);
             const rule = existingRules.find(r => r.id === conflictingRuleId);
@@ -310,11 +311,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         }
 
         // If no conflicts, save directly
-        const answersToMap = isCatchAll ? (question.options || []) : directAnswers;
         const newRule = {
             id: selectedRuleId || uuidv4(),
             questionId: question.id,
-            name: ruleName || `${isCatchAll ? 'All Answers' : directAnswers.join(', ')} - ${question.label}`,
+            name: ruleName || `${isCatchAll ? 'All Answers' : answersToMap.join(', ')} - ${question?.label}`,
             type: 'direct' as const,
             conditions: answersToMap.map(ans => ({ type: 'question' as const, questionId: question.id, answer: ans })),
             assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
@@ -335,6 +335,8 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             finalTips = [...new Set([...(conflictingRule.assignments.tipIds || []), ...directTips])];
         }
 
+        // The rule that was conflicted with needs to be updated to no longer include the answers
+        // that are now being handled by the new, more specific rule.
         const conflictingRuleToUpdate: GuidanceRule = {
             ...conflictingRule,
             conditions: conflictingRule.conditions.filter(c => !directAnswers.includes(c.answer!)),
@@ -498,7 +500,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isCatchAll}
+                                                                disabled={isCatchAll || (!isCatchAll && isMappedElsewhere)}
                                                             />
                                                             <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isMappedElsewhere && "line-through")}>{option}</Label>
                                                             {isMappedElsewhere && !isCatchAll && (
