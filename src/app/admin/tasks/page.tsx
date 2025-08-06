@@ -11,11 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace, Archive, ArchiveRestore } from 'lucide-react';
 import Papa from 'papaparse';
 import TaskForm from '@/components/admin/tasks/TaskForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function TaskManagementPage() {
@@ -28,6 +29,8 @@ export default function TaskManagementPage() {
         masterQuestions, 
         masterProfileQuestions,
         externalResources, 
+        guidanceRules,
+        companyConfigs,
     } = useUserData();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -42,13 +45,33 @@ export default function TaskManagementPage() {
     
     const taskMappingCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        if (!taskMappings) return counts;
-        taskMappings.forEach(mapping => {
-            counts[mapping.taskId] = (counts[mapping.taskId] || 0) + 1;
-        });
+        if (guidanceRules) {
+            guidanceRules.forEach(rule => {
+                rule.assignments?.taskIds?.forEach(taskId => {
+                    counts[taskId] = (counts[taskId] || 0) + 1;
+                });
+                rule.ranges?.forEach(range => {
+                    range.assignments.taskIds.forEach(taskId => {
+                        counts[taskId] = (counts[taskId] || 0) + 1;
+                    });
+                });
+            });
+        }
+        if (companyConfigs) {
+             Object.values(companyConfigs).forEach(config => {
+                if (config.answerGuidanceOverrides) {
+                    Object.values(config.answerGuidanceOverrides).forEach(answerMap => {
+                        Object.values(answerMap).forEach(guidance => {
+                            guidance.tasks?.forEach(taskId => {
+                                counts[taskId] = (counts[taskId] || 0) + 1;
+                            });
+                        });
+                    });
+                }
+            });
+        }
         return counts;
-    }, [taskMappings]);
-
+    }, [guidanceRules, companyConfigs]);
 
     const handleAddClick = () => {
         setEditingTask(null);
@@ -61,8 +84,26 @@ export default function TaskManagementPage() {
     };
     
     const handleViewMappings = (taskId: string) => {
-        const mappings = (taskMappings || []).filter(m => m.taskId === taskId);
-        setViewingMappings(mappings);
+        const directMappings = guidanceRules.filter(rule => rule.assignments.taskIds?.includes(taskId) || rule.ranges?.some(r => r.assignments.taskIds.includes(taskId)));
+        
+        const companyMappings: {companyName: string, questionLabel: string, answer: string}[] = [];
+        Object.entries(companyConfigs).forEach(([companyName, config]) => {
+            if (config.answerGuidanceOverrides) {
+                Object.entries(config.answerGuidanceOverrides).forEach(([questionId, answerMap]) => {
+                     Object.entries(answerMap).forEach(([answer, guidance]) => {
+                        if (guidance.tasks?.includes(taskId)) {
+                            companyMappings.push({
+                                companyName,
+                                questionLabel: allQuestions[questionId]?.label || questionId,
+                                answer,
+                            });
+                        }
+                    });
+                });
+            }
+        });
+
+        setViewingMappings({ direct: directMappings, company: companyMappings });
     }
     
     const handleDeleteClick = (taskId: string) => {
@@ -131,6 +172,7 @@ export default function TaskManagementPage() {
                         deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
                         deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
                         linkedResourceId: row.linkedResourceId || undefined,
+                        isActive: true, // Default to active on import
                     };
                     
                     const existingIndex = newMasterTasks.findIndex(t => t.id === id);
@@ -169,6 +211,29 @@ export default function TaskManagementPage() {
         processCsvFile(file, true);
         if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
     }, [processCsvFile]);
+    
+    const { activeTasks, archivedTasks } = useMemo(() => {
+        const active: MasterTask[] = [];
+        const archived: MasterTask[] = [];
+        (masterTasks || []).forEach(task => {
+            if (task.isActive) active.push(task);
+            else archived.push(task);
+        });
+        return { activeTasks: active, archivedTasks: archived };
+    }, [masterTasks]);
+
+    const handleArchiveToggle = (task: MasterTask) => {
+        const mappingsCount = taskMappingCounts[task.id] || 0;
+        if (task.isActive && mappingsCount > 0) {
+            handleViewMappings(task.id);
+        } else {
+            const updatedTask = { ...task, isActive: !task.isActive };
+            const updatedTasks = masterTasks.map(t => t.id === task.id ? updatedTask : t);
+            saveMasterTasks(updatedTasks);
+            toast({ title: `Task ${updatedTask.isActive ? 'Reactivated' : 'Archived'}` });
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -191,88 +256,108 @@ export default function TaskManagementPage() {
                     </div>
                     <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add New Task</Button>
                 </div>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Master Task List</CardTitle>
-                        <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
-                            <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
-                                            Continue
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>ID</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Linked Resource</TableHead>
-                                    <TableHead>Mappings</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {masterTasks && masterTasks.map(task => (
-                                    <TableRow key={task.id}>
-                                        <TableCell className="font-mono text-xs">{task.id}</TableCell>
-                                        <TableCell className="font-medium">{task.name}</TableCell>
-                                        <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{(externalResources || []).find(r => r.id === task.linkedResourceId)?.name || 'None'}</TableCell>
-                                        <TableCell>
-                                            <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
-                                                {taskMappingCounts[task.id] || 0}
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end items-center gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete the task "{task.name}". This action cannot be undone.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteClick(task.id)}>Yes, Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                 <Tabs defaultValue="active">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="active">Active</TabsTrigger>
+                        <TabsTrigger value="archived">Archived</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="active" className="mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Master Task List</CardTitle>
+                                <CardDescription>The full list of tasks that can be mapped to question answers.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
+                                    <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
+                                                    Continue
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>ID</TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Linked Resource</TableHead>
+                                            <TableHead>Mappings</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {activeTasks && activeTasks.map(task => (
+                                            <TableRow key={task.id}>
+                                                <TableCell className="font-mono text-xs">{task.id}</TableCell>
+                                                <TableCell className="font-medium">{task.name}</TableCell>
+                                                <TableCell><Badge variant="secondary">{task.category}</Badge></TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">{(externalResources || []).find(r => r.id === task.linkedResourceId)?.name || 'None'}</TableCell>
+                                                <TableCell>
+                                                    <Button variant="link" className="p-0 h-auto" onClick={() => handleViewMappings(task.id)}>
+                                                        {taskMappingCounts[task.id] || 0}
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end items-center gap-1">
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(task)}><Pencil className="h-4 w-4" /></Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleArchiveToggle(task)}><Archive className="h-4 w-4 text-muted-foreground" /></Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="archived" className="mt-6">
+                         <Card>
+                            <CardHeader><CardTitle>Archived Tasks</CardTitle><CardDescription>These tasks are not available for new guidance mappings.</CardDescription></CardHeader>
+                             <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {archivedTasks && archivedTasks.map(task => (
+                                            <TableRow key={task.id}>
+                                                <TableCell className="font-medium text-muted-foreground">{task.name}</TableCell>
+                                                <TableCell><Badge variant="outline">{task.category}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleArchiveToggle(task)}><ArchiveRestore className="mr-2" />Reactivate</Button>
+                                                     <AlertDialog>
+                                                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the task "{task.name}". This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteClick(task.id)}>Yes, Delete</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                 </Tabs>
             </div>
             
             <TaskForm
@@ -287,30 +372,45 @@ export default function TaskManagementPage() {
             <Dialog open={!!viewingMappings} onOpenChange={() => setViewingMappings(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Task Mappings</DialogTitle>
+                        <DialogTitle>Task in Use</DialogTitle>
                         <DialogDescription>
-                            This task is triggered by the following question/answer pairs.
+                            This task is currently mapped and cannot be archived. Please either remove it from the following guidance rules or create a new rule to replace it before archiving.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        {viewingMappings && viewingMappings.length > 0 ? (
-                             <Table>
-                                 <TableHeader>
-                                     <TableRow>
-                                        <TableHead>Question</TableHead>
-                                        <TableHead>Answer</TableHead>
-                                    </TableRow>
-                                 </TableHeader>
-                                 <TableBody>
-                                    {viewingMappings.map(mapping => (
-                                        <TableRow key={mapping.id}>
-                                            <TableCell>{allQuestions[mapping.questionId]?.label || 'N/A'}</TableCell>
-                                            <TableCell><Badge variant="outline">{mapping.answerValue}</Badge></TableCell>
-                                        </TableRow>
-                                    ))}
-                                 </TableBody>
-                             </Table>
-                        ) : <p className="text-sm text-muted-foreground text-center">No mappings found for this task.</p>}
+                    <div className="py-4 space-y-4">
+                        {viewingMappings?.direct && viewingMappings.direct.length > 0 && (
+                             <div>
+                                <h4 className="font-semibold text-sm mb-2">Master Guidance Rules:</h4>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Rule Name</TableHead><TableHead>Question</TableHead></TableRow></TableHeader>
+                                     <TableBody>
+                                        {viewingMappings.direct.map((rule: any) => (
+                                            <TableRow key={rule.id}>
+                                                <TableCell>{rule.name}</TableCell>
+                                                <TableCell>{allQuestions[rule.questionId]?.label || 'N/A'}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
+                         {viewingMappings?.company && viewingMappings.company.length > 0 && (
+                             <div>
+                                <h4 className="font-semibold text-sm mb-2">Company-Specific Mappings:</h4>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Question</TableHead><TableHead>Answer</TableHead></TableRow></TableHeader>
+                                     <TableBody>
+                                        {viewingMappings.company.map((mapping: any, i: number) => (
+                                            <TableRow key={i}>
+                                                <TableCell>{mapping.companyName}</TableCell>
+                                                <TableCell>{mapping.questionLabel}</TableCell>
+                                                <TableCell><Badge variant="outline">{mapping.answer}</Badge></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

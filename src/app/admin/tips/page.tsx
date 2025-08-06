@@ -11,11 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2, Pencil, Download, Upload, Replace } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Upload, Replace, Archive, ArchiveRestore } from 'lucide-react';
 import Papa from 'papaparse';
 import TipForm from '@/components/admin/tips/TipForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 export default function TipsManagementPage() {
@@ -101,6 +102,7 @@ export default function TipsManagementPage() {
                         category: ['Financial', 'Career', 'Health', 'Basics'].includes(row.category) ? row.category : 'Basics',
                         priority: ['High', 'Medium', 'Low'].includes(row.priority) ? row.priority : 'Medium',
                         type: ['layoff', 'anxious'].includes(row.type) ? row.type : 'layoff',
+                        isActive: true, // Default to active
                     };
                     
                     const existingIndex = newMasterTips.findIndex(t => t.id === id);
@@ -140,6 +142,24 @@ export default function TipsManagementPage() {
         processCsvFile(file, true);
         if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
     }, [processCsvFile]);
+    
+    const handleArchiveToggle = (tip: MasterTip) => {
+        const updatedTip = { ...tip, isActive: !tip.isActive };
+        const updatedTips = (masterTips || []).map(t => t.id === tip.id ? updatedTip : t);
+        saveMasterTips(updatedTips);
+        toast({ title: `Tip ${updatedTip.isActive ? 'Reactivated' : 'Archived'}` });
+    };
+
+    const { activeTips, archivedTips } = useMemo(() => {
+        const active: MasterTip[] = [];
+        const archived: MasterTip[] = [];
+        (masterTips || []).forEach(tip => {
+            if (tip.isActive) active.push(tip);
+            else archived.push(tip);
+        });
+        return { activeTips: active, archivedTips: archived };
+    }, [masterTips]);
+
 
     if (isLoading) {
         return (
@@ -163,91 +183,111 @@ export default function TipsManagementPage() {
                     <Button onClick={handleAddClick}><PlusCircle className="mr-2" /> Add New Tip</Button>
                 </div>
                 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Master Tip List</CardTitle>
-                        <CardDescription>The full list of tips that can be mapped to question answers.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
-                            <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action will completely delete all current master tips and replace them with the content of your uploaded CSV file. This cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
-                                            Continue
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Text</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Priority</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {masterTips && masterTips.map(tip => (
-                                    <TableRow key={tip.id}>
-                                        <TableCell className="font-medium max-w-lg">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="truncate">{tip.text}</p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p className="max-w-sm">{tip.text}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </TableCell>
-                                        <TableCell><Badge variant="secondary">{tip.category}</Badge></TableCell>
-                                        <TableCell><Badge variant={tip.priority === 'High' ? 'destructive' : 'outline'}>{tip.priority}</Badge></TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end items-center gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(tip)}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete this tip. This action cannot be undone.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteClick(tip.id)}>Yes, Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                <Tabs defaultValue="active">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="active">Active</TabsTrigger>
+                        <TabsTrigger value="archived">Archived</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="active" className="mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Master Tip List</CardTitle>
+                                <CardDescription>The full list of tips that can be mapped to question answers.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
+                                    <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action will completely delete all current master tips and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => replaceFileInputRef.current?.click()}>
+                                                    Continue
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Text</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Priority</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {activeTips && activeTips.map(tip => (
+                                            <TableRow key={tip.id}>
+                                                <TableCell className="font-medium max-w-lg">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <p className="truncate">{tip.text}</p>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="max-w-sm">{tip.text}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </TableCell>
+                                                <TableCell><Badge variant="secondary">{tip.category}</Badge></TableCell>
+                                                <TableCell><Badge variant={tip.priority === 'High' ? 'destructive' : 'outline'}>{tip.priority}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end items-center gap-1">
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(tip)}><Pencil className="h-4 w-4" /></Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleArchiveToggle(tip)}><Archive className="h-4 w-4 text-muted-foreground" /></Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="archived" className="mt-6">
+                        <Card>
+                            <CardHeader><CardTitle>Archived Tips</CardTitle><CardDescription>These tips are not available for new guidance mappings.</CardDescription></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Text</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {archivedTips && archivedTips.map(tip => (
+                                            <TableRow key={tip.id}>
+                                                <TableCell className="font-medium text-muted-foreground">{tip.text}</TableCell>
+                                                <TableCell><Badge variant="outline">{tip.category}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleArchiveToggle(tip)}><ArchiveRestore className="mr-2" />Reactivate</Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this tip. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteClick(tip.id)}>Yes, Delete</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
             
             <TipForm
