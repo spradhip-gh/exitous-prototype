@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -341,8 +340,29 @@ export function useUserData() {
             
             setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
             setGuidanceRules(rulesData as GuidanceRule[] || []);
-            setMasterTasks(tasksData as MasterTask[] || []);
-            setMasterTips(tipsData as MasterTip[] || []);
+            
+            setMasterTasks((tasksData || []).map(t => ({
+                id: t.id,
+                type: t.type,
+                name: t.name,
+                category: t.category,
+                detail: t.detail,
+                deadlineType: t.deadline_type,
+                deadlineDays: t.deadline_days,
+                linkedResourceId: t.linked_resource_id,
+                isCompanySpecific: t.is_company_specific,
+                isActive: t.is_active,
+            })) as MasterTask[]);
+
+            setMasterTips((tipsData || []).map(t => ({
+                id: t.id,
+                type: t.type,
+                priority: t.priority,
+                category: t.category,
+                text: t.text,
+                isCompanySpecific: t.is_company_specific,
+                isActive: t.is_active,
+            })) as MasterTip[]);
             
             // Organize company users by companyId
             const usersByCompany = (companyUsersData || []).reduce((acc, user) => {
@@ -526,7 +546,19 @@ export function useUserData() {
     }, [masterQuestionConfigs]);
     
     const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
-        const { error } = await supabase.from('master_tasks').upsert(tasks);
+        const tasksToSave = tasks.map(t => ({
+            id: t.id,
+            type: t.type,
+            name: t.name,
+            category: t.category,
+            detail: t.detail,
+            deadline_type: t.deadlineType,
+            deadline_days: t.deadlineDays,
+            linked_resource_id: t.linkedResourceId,
+            is_company_specific: t.isCompanySpecific,
+            is_active: t.isActive,
+        }));
+        const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
         if (error) {
             console.error("Error saving master tasks:", error);
         } else {
@@ -535,7 +567,16 @@ export function useUserData() {
     }, []);
 
     const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
-        const { error } = await supabase.from('master_tips').upsert(tips);
+        const tipsToSave = tips.map(t => ({
+            id: t.id,
+            type: t.type,
+            priority: t.priority,
+            category: t.category,
+            text: t.text,
+            is_company_specific: t.isCompanySpecific,
+            is_active: t.isActive,
+        }));
+        const { error } = await supabase.from('master_tips').upsert(tipsToSave);
         if (error) {
             console.error("Error saving master tips:", error);
         } else {
