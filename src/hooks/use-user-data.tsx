@@ -698,19 +698,24 @@ export function useUserData() {
         const companyConfig = companyConfigs[companyName];
         if (!companyConfig) return [];
         
-        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
-        
         let applicableMasterQuestions: Record<string, Question>;
         if (formType === 'all') {
-            applicableMasterQuestions = allMasterQuestions;
+            applicableMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
         } else {
             applicableMasterQuestions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         }
 
         const finalQuestions: Record<string, Question> = {};
 
+        // 1. Process master questions and their overrides
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
+            
+            // This is the fix: ensure we only process questions matching the requested formType
+            if (masterQ.formType !== formType && formType !== 'all') {
+                continue;
+            }
+
             const override = companyConfig.questions?.[id];
             
             const finalQ: Question = {
@@ -719,17 +724,17 @@ export function useUserData() {
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
 
-            // Only include active questions if activeOnly is true
             if (!activeOnly || finalQ.isActive) {
                 finalQuestions[id] = finalQ;
             }
         }
-
-        // Add custom questions
+        
+        // 2. Add custom questions for the company
         for (const id in companyConfig.customQuestions) {
             const customQ = companyConfig.customQuestions[id];
-            if (formType === 'all' || customQ.formType === formType) {
-                 if (!activeOnly || customQ.isActive) {
+            // Also apply the formType filter here for custom questions
+            if (customQ.formType === formType || formType === 'all') {
+                if (!activeOnly || customQ.isActive) {
                     finalQuestions[id] = customQ;
                 }
             }
@@ -737,6 +742,7 @@ export function useUserData() {
 
         return buildQuestionTreeFromMap(finalQuestions);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+
 
     return {
         // --- DATA ---
@@ -806,5 +812,3 @@ export function useUserData() {
         reviewQueue: [], // Placeholder
     };
 }
-
-    

@@ -30,6 +30,29 @@ export interface Question {
 
 export const getDefaultProfileQuestions = (): Question[] => [
     { 
+        id: 'personalEmail',
+        formType: 'profile',
+        label: 'Personal Email Address',
+        section: 'Contact Information',
+        type: 'text',
+        isActive: true,
+        isLocked: true,
+        placeholder: 'your.name@personal.com',
+        description: 'We\'ll use this to send important updates after your access to your work email ends.',
+        sortOrder: 0,
+    },
+    { 
+        id: 'phone',
+        formType: 'profile',
+        label: 'Phone Number (for SMS alerts)',
+        section: 'Contact Information',
+        type: 'text',
+        isActive: true,
+        isLocked: true,
+        placeholder: '(555) 123-4567',
+        sortOrder: 1,
+    },
+    { 
         id: 'birthYear', 
         formType: 'profile',
         label: 'What’s your birth year?', 
@@ -38,7 +61,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         placeholder: 'YYYY',
-        sortOrder: 0,
+        sortOrder: 2,
     },
     { 
         id: 'state', 
@@ -50,7 +73,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isLocked: true,
         placeholder: 'Select a state',
         options: [ 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming' ],
-        sortOrder: 1,
+        sortOrder: 3,
     },
     { 
         id: 'gender', 
@@ -62,7 +85,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isLocked: true,
         placeholder: "Select an option",
         options: ['Nonbinary', 'Male', 'Female', 'Transgender', 'Prefer to self-describe', 'Prefer not to answer'],
-        sortOrder: 2,
+        sortOrder: 4,
         subQuestions: [
             { 
                 id: 'genderSelfDescribe',
@@ -88,7 +111,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isLocked: true,
         options: ['Single', 'Married', 'Domestically partnered', 'Divorced', 'Separated', 'Widowed', 'Prefer not to answer'],
         placeholder: "Select a status",
-        sortOrder: 3,
+        sortOrder: 5,
     },
     { 
         id: 'hasChildrenUnder13', 
@@ -99,7 +122,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
-        sortOrder: 4,
+        sortOrder: 6,
     },
     { 
         id: 'hasChildrenAges18To26', 
@@ -110,7 +133,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
-        sortOrder: 5,
+        sortOrder: 7,
     },
     { 
         id: 'hasExpectedChildren', 
@@ -121,7 +144,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         options: ['Yes, 1 or more', 'No', 'Prefer not to answer'],
-        sortOrder: 6,
+        sortOrder: 8,
     },
     { 
         id: 'impactedPeopleCount', 
@@ -132,7 +155,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         options: ['None', '1 - 3', '4 - 6', '7+', 'Prefer not to answer'],
-        sortOrder: 7,
+        sortOrder: 9,
     },
     { 
         id: 'livingStatus', 
@@ -143,7 +166,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
         isActive: true,
         isLocked: true,
         options: ['Homeowner', 'Renter', 'Corporate housing', 'Other', 'Prefer not to answer'],
-        sortOrder: 8,
+        sortOrder: 10,
     },
     { 
         id: 'citizenshipStatus', 
@@ -161,7 +184,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
             'Other', 'Prefer not to answer'
         ],
         placeholder: "Select a status",
-        sortOrder: 9,
+        sortOrder: 11,
     },
     { 
         id: 'pastLifeEvents', 
@@ -177,7 +200,7 @@ export const getDefaultProfileQuestions = (): Question[] => [
             'Death of a family member or loved one', 'Taking on elder care', 'None of the above', 'Prefer not to answer'
         ],
         exclusiveOption: 'None of the above',
-        sortOrder: 10,
+        sortOrder: 12,
     }
 ];
 

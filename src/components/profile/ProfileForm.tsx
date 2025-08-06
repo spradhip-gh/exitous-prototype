@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -276,43 +277,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Contact Information</CardTitle>
-                        <CardDescription>
-                            Please provide a personal email address. We'll use this to send you important updates and notifications after your access to your work email ends.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <FormField
-                            control={form.control}
-                            name="personalEmail"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Personal Email Address</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="your.name@personal.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        <FormField
-                            control={form.control}
-                            name="phone"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Phone Number (for SMS alerts)</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="(555) 123-4567" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </CardContent>
-                 </Card>
-
                  {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
                     <Card key={section}>
                         <CardHeader>
