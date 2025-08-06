@@ -358,7 +358,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
-    const { isLoading, saveMasterQuestionConfig } = useUserData();
+    const { isLoading, saveMasterQuestionConfig, getMasterQuestionConfig } = useUserData();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isNewQuestion, setIsNewQuestion] = useState(false);
@@ -386,16 +386,30 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         const rootQuestions = buildQuestionTreeFromMap(activeQuestionMap);
         
         const sectionsMap: Record<string, Question[]> = {};
+        
+        const masterQuestionConfig = getMasterQuestionConfig(questionType);
+        const savedSectionOrder = masterQuestionConfig?.section_order;
 
         const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
-        const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
-        const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
+        let finalSectionOrder: string[];
 
-        const finalSectionOrder = [...defaultSectionOrder];
-        masterQuestionOrder.forEach(s => {
-            if (s && !finalSectionOrder.includes(s)) finalSectionOrder.push(s);
-        });
+        if (savedSectionOrder) {
+            finalSectionOrder = [...savedSectionOrder];
+            const savedSet = new Set(savedSectionOrder);
+            const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
+             masterQuestionOrder.forEach(s => {
+                if (s && !savedSet.has(s)) finalSectionOrder.push(s);
+            });
 
+        } else {
+             const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
+             const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
+             finalSectionOrder = [...defaultSectionOrder];
+             masterQuestionOrder.forEach(s => {
+                if (s && !finalSectionOrder.includes(s)) finalSectionOrder.push(s);
+            });
+        }
+        
         finalSectionOrder.forEach(s => sectionsMap[s] = []);
         rootQuestions.forEach(q => {
             const sectionName = q.section || 'Uncategorized';
@@ -410,7 +424,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         
         setOrderedSections(sections);
 
-    }, [isLoading, activeQuestions, questions, defaultQuestionsFn]);
+    }, [isLoading, activeQuestions, questions, defaultQuestionsFn, questionType, getMasterQuestionConfig]);
 
 
     const handleEditClick = (question: Question) => {
@@ -513,18 +527,18 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (active.id !== over?.id) {
+            let newOrder: OrderedSection[] = [];
             setOrderedSections((items) => {
                 const oldIndex = items.findIndex(item => item.id === active.id);
                 const newIndex = items.findIndex(item => item.id === over?.id);
-                const newOrder = arrayMove(items, oldIndex, newIndex);
-                
-                // Save the new section order
-                saveMasterQuestionConfig(questionType, {
-                    section_order: newOrder.map(s => s.id)
-                });
-                toast({ title: 'Section order saved!' });
+                newOrder = arrayMove(items, oldIndex, newIndex);
                 return newOrder;
             });
+
+            saveMasterQuestionConfig(questionType, {
+                section_order: newOrder.map(s => s.id)
+            });
+            toast({ title: 'Section order saved!' });
         }
     }
     
@@ -586,4 +600,3 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         </>
     );
 }
-
