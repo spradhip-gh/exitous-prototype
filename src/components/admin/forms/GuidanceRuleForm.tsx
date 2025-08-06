@@ -236,6 +236,19 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             onPendingItemConsumed(); // Clear the pending item
         }
     }, [pendingItem, onPendingItemConsumed]);
+
+    useEffect(() => {
+        if (ruleType === 'direct' && !selectedRuleId) {
+            if (isCatchAll) {
+                setRuleName(`${question?.label} - All Answers`);
+            } else if (directAnswers.length > 0) {
+                const answerText = directAnswers.length > 2 ? `${directAnswers.length} answers` : directAnswers.join(', ');
+                setRuleName(`${question?.label} - ${answerText}`);
+            } else {
+                setRuleName('');
+            }
+        }
+    }, [directAnswers, isCatchAll, ruleType, question?.label, selectedRuleId]);
     
     if (!question) return null;
 
@@ -356,7 +369,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         <Button variant="outline" className="w-full" onClick={() => setSelectedRuleId(null)}><PlusCircle className="mr-2"/> New Rule</Button>
                     </div>
                     <div className="col-span-3 border-l pl-6">
-                         <div className="flex justify-between items-center mb-2">
+                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-semibold text-lg">{selectedRuleId ? 'Edit Rule' : 'Create New Rule'}</h3>
                              {selectedRuleId && (
                                 <AlertDialog>
@@ -377,12 +390,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                             )}
                         </div>
                         
-                        <div className="space-y-2 mb-4">
-                            <Label htmlFor="rule-name">Rule Name</Label>
-                            <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} placeholder="e.g., Tenure-based COBRA advice" />
-                        </div>
-                        
-                        <div className="my-4">
+                        <div>
                             <Label>Rule Type</Label>
                             <Select value={ruleType} onValueChange={(v) => setRuleType(v as 'direct' | 'calculated')}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -394,7 +402,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         </div>
                         
                         {ruleType === 'direct' && (
-                             <div className="space-y-4 p-4 border rounded-md">
+                             <div className="space-y-4 p-4 border rounded-md mt-4">
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
@@ -446,12 +454,20 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         categories={tipCategories}
                                     />
                                 </fieldset>
+                                <div className="space-y-2">
+                                    <Label htmlFor="rule-name">Rule Name</Label>
+                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} placeholder="e.g., Tenure-based COBRA advice" />
+                                </div>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
                             </div>
                         )}
                         
                         {ruleType === 'calculated' && (
-                            <div className="space-y-4 p-4 border rounded-md">
+                            <div className="space-y-4 p-4 border rounded-md mt-4">
+                                <div className="space-y-2 mb-4">
+                                    <Label htmlFor="rule-name">Rule Name</Label>
+                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} placeholder="e.g., Tenure-based COBRA advice" />
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Calculation Type</Label>
@@ -554,4 +570,3 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         </div>
     )
 }
-

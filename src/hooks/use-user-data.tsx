@@ -290,7 +290,7 @@ export function useUserData() {
                 { data: companiesData },
                 { data: hrAssignmentsData },
                 { data: questionsData },
-                { data: rulesData },
+                { data: rulesData, error: rulesError },
                 { data: companyUsersData },
                 { data: companyConfigsData },
                 { data: masterConfigsData },
@@ -304,7 +304,7 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
             ]);
 
@@ -560,7 +560,6 @@ export function useUserData() {
     
     const saveMasterTasks = useCallback(async (tasks: MasterTask[]) => {
         const tasksToSave = tasks.map(t => {
-            const existingTask = masterTasks.find(et => et.id === t.id);
             return {
                 id: t.id,
                 type: t.type,
@@ -572,8 +571,6 @@ export function useUserData() {
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
-                created_at: existingTask?.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -582,11 +579,10 @@ export function useUserData() {
         } else {
             setMasterTasks(tasks);
         }
-    }, [masterTasks]);
+    }, []);
 
     const saveMasterTips = useCallback(async (tips: MasterTip[]) => {
         const tipsToSave = tips.map(t => {
-             const existingTip = masterTips.find(et => et.id === t.id);
             return {
                 id: t.id,
                 type: t.type,
@@ -595,8 +591,6 @@ export function useUserData() {
                 text: t.text,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
-                created_at: existingTip?.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
             };
         });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
@@ -605,7 +599,16 @@ export function useUserData() {
         } else {
             setMasterTips(tips);
         }
-    }, [masterTips]);
+    }, []);
+    
+    const saveGuidanceRules = useCallback(async (rules: GuidanceRule[]) => {
+        const { error } = await supabase.from('guidance_rules').upsert(rules);
+        if (error) {
+            console.error("Error saving guidance rules:", error);
+        } else {
+            setGuidanceRules(rules);
+        }
+    }, []);
 
 
     // Placeholder implementations for other write functions
@@ -644,6 +647,7 @@ export function useUserData() {
         getMasterQuestionConfig,
         getCompanyConfig,
         getAllCompanyConfigs: useCallback(() => companyConfigs, [companyConfigs]),
+        saveGuidanceRules,
         isAssessmentComplete: !!assessmentData?.workStatus,
         clearRecommendations: () => {},
         saveRecommendations: () => {},
@@ -660,7 +664,6 @@ export function useUserData() {
         saveCompanyResources: async () => {},
         addReviewQueueItem: async () => {},
         saveExternalResources: async () => {},
-        saveGuidanceRules: async () => {},
         saveReviewQueue: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
