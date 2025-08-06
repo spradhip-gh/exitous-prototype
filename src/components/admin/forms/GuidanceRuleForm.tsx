@@ -262,6 +262,8 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             .flatMap(r => r.conditions.map(c => c.answer))
     );
 
+    const catchAllRuleForQuestion = existingRules.find(r => r.id !== selectedRuleId && r.conditions.some(c => c.answer === undefined));
+
     const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
         const id = selectedRuleId || uuidv4();
         const rule: GuidanceRule = {
@@ -474,18 +476,31 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         <fieldset disabled={isCatchAll}>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
-                                                    const isMapped = mappedAnswersInOtherRules.has(option);
+                                                    const isMappedInAnotherRule = mappedAnswersInOtherRules.has(option);
+                                                    const isCoveredByCatchAll = !!catchAllRuleForQuestion && !isMappedInAnotherRule && !directAnswers.includes(option);
                                                     return (
-                                                        <div key={option} className={cn("flex items-center space-x-2", isMapped && "text-muted-foreground")}>
+                                                        <div key={option} className={cn("flex items-center space-x-2", isMappedInAnotherRule && "text-muted-foreground")}>
                                                             <Checkbox
                                                                 id={`answer-${option}`}
                                                                 checked={directAnswers.includes(option)}
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isMapped}
+                                                                disabled={isMappedInAnotherRule}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal", isMapped && "line-through")}>{option}</Label>
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal", isMappedInAnotherRule && "line-through")}>{option}</Label>
+                                                            {isCoveredByCatchAll && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>This answer is covered by the rule:<br/>"{catchAllRuleForQuestion.name}"</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                         </div>
                                                     )
                                                 })}
