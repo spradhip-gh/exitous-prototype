@@ -15,7 +15,6 @@ import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
-  const { getAllCompanyConfigs, getCompaniesForHr, getPlatformUserRole, companyAssignments } = useUserData();
   const { toast } = useToast();
   
   const [endUserEmail, setEndUserEmail] = useState('');
@@ -24,78 +23,46 @@ export default function Login() {
   const [platformUserEmail, setPlatformUserEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleEndUserLogin = (e: React.FormEvent) => {
+  const handleEndUserLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    const allConfigs = getAllCompanyConfigs();
-    let companyNameForUser = '';
-
-    for (const companyName in allConfigs) {
-        const company = allConfigs[companyName];
-        if (company.users) {
-            const user = company.users.find(
-                u => u.email.toLowerCase() === endUserEmail.toLowerCase() && u.companyId === companyId
-            );
-            if (user && user.notified) {
-                companyNameForUser = companyName;
-                break;
-            }
-        }
+    const success = await login({ role: 'end-user', email: endUserEmail }, companyId);
+    setIsLoading(false);
+    if (!success) {
+        toast({
+            title: "Login Failed",
+            description: "Invalid email, Company ID, or you have not been invited yet.",
+            variant: "destructive"
+        });
     }
-
-    setTimeout(() => {
-        setIsLoading(false);
-        if (companyNameForUser) {
-            login({ role: 'end-user', email: endUserEmail, companyId: companyId }, [{ companyName: companyNameForUser, companyConfigs: { [companyNameForUser]: allConfigs[companyNameForUser] } }] as any);
-        } else {
-            toast({
-                title: "Login Failed",
-                description: "Invalid email, Company ID, or you have not been invited yet.",
-                variant: "destructive"
-            });
-        }
-    }, 500);
   };
   
-  const handleHrLogin = (e: React.FormEvent) => {
+  const handleHrLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    const assignedCompanies = getCompaniesForHr(hrEmail);
-
-    setTimeout(() => {
-        setIsLoading(false);
-        if (assignedCompanies.length > 0) {
-            login({ role: 'hr', email: hrEmail }, companyAssignments);
-        } else {
-            toast({
-                title: "Login Failed",
-                description: "This email is not registered as an HR Manager for any company.",
-                variant: "destructive"
-            });
-        }
-    }, 500);
+    const success = await login({ role: 'hr', email: hrEmail });
+    setIsLoading(false);
+    if (!success) {
+        toast({
+            title: "Login Failed",
+            description: "This email is not registered as an HR Manager for any company.",
+            variant: "destructive"
+        });
+    }
   }
 
-  const handlePlatformLogin = (role: 'admin' | 'consultant') => (e: React.FormEvent) => {
+  const handlePlatformLogin = (role: 'admin' | 'consultant') => async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    const validatedRole = getPlatformUserRole(platformUserEmail);
-    
-    setTimeout(() => {
-        setIsLoading(false);
-        if (validatedRole === role) {
-            login({ role: validatedRole, email: platformUserEmail }, []);
-        } else {
-            toast({
-                title: "Login Failed",
-                description: "This email is not registered for this role.",
-                variant: "destructive"
-            });
-        }
-    }, 500);
+    const success = await login({ role, email: platformUserEmail });
+    setIsLoading(false);
+    if (!success) {
+        toast({
+            title: "Login Failed",
+            description: "This email is not registered for this role.",
+            variant: "destructive"
+        });
+    }
   }
 
 
