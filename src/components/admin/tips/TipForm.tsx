@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2, Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -31,6 +31,8 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string; } | null>(null);
     const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
+
+    const isNewTip = !tip?.id;
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -62,14 +64,15 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
         setIsReviewing(true);
         setAiSuggestion(null);
 
-        // If it's a new tip, generate an ID from the text.
-        if (!tip?.id && !formData.id && formData.text) {
-            const suggestedId = formData.text.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
-            setFormData(prev => ({...prev, id: suggestedId}));
-        }
-
         try {
             const result = await reviewContent({ detail: formData.text });
+
+            if (isNewTip) {
+                const textForId = result.revisedDetail || formData.text || '';
+                const suggestedId = textForId.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
+                setFormData(prev => ({...prev, id: suggestedId}));
+            }
+
             if (result.revisedDetail.trim() !== formData.text.trim()) {
                 setAiSuggestion(result);
             } else {
@@ -171,7 +174,20 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip }: {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="id">Unique ID</Label>
-                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={!tip?.id} />
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="block w-full" tabIndex={isNewTip ? 0 : -1}>
+                                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={isNewTip} />
+                                    </span>
+                                </TooltipTrigger>
+                                {isNewTip && (
+                                <TooltipContent>
+                                    <p>The ID is auto-generated after AI review.</p>
+                                </TooltipContent>
+                                )}
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
                 <DialogFooter>

@@ -12,10 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ExternalResource, MasterTask } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
-import { Loader2, Wand2, Terminal } from 'lucide-react';
+import { Loader2, Wand2, Terminal, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useAuth } from '@/hooks/use-auth';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -35,6 +35,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
     
     const isAdmin = auth?.role === 'admin';
+    const isNewTask = !task?.id;
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -71,17 +72,18 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         setIsReviewing(true);
         setAiSuggestion(null);
 
-        // If it's a new task, generate an ID from the name.
-        if (!task?.id && !formData.id && formData.name) {
-            const suggestedId = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-            setFormData(prev => ({...prev, id: suggestedId}));
-        }
-
         try {
             const result = await reviewContent({
                 name: formData.name || '',
                 detail: formData.detail || '',
             });
+
+            // If it's a new task, generate an ID from the AI's suggested name.
+            if (isNewTask) {
+                const nameForId = result.revisedName || formData.name || '';
+                const suggestedId = nameForId.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                setFormData(prev => ({...prev, id: suggestedId}));
+            }
 
             const hasNameChanged = result.revisedName && result.revisedName.trim() !== formData.name?.trim();
             const hasDetailChanged = result.revisedDetail && result.revisedDetail.trim() !== formData.detail?.trim();
@@ -128,7 +130,20 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="id">Unique ID</Label>
-                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={!task?.id} />
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="block w-full" tabIndex={isNewTask ? 0 : -1}>
+                                        <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., apply-for-unemployment" disabled={isNewTask} />
+                                    </span>
+                                </TooltipTrigger>
+                                {isNewTask && (
+                                <TooltipContent>
+                                    <p>The ID is auto-generated after AI review.</p>
+                                </TooltipContent>
+                                )}
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="type">Type</Label>
@@ -162,16 +177,18 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                                 <AlertTitle>AI Suggestions</AlertTitle>
                                 <AlertDescription>
                                     <div className="space-y-4 my-4">
-                                        {aiSuggestion.revisedName && aiSuggestion.revisedName !== formData.name && (
+                                        {aiSuggestion.revisedName && aiSuggestion.revisedName.trim() !== formData.name?.trim() && (
                                             <div className="space-y-1">
                                                 <Label className="text-xs text-muted-foreground">Revised Name</Label>
                                                 <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedName}</p>
                                             </div>
                                         )}
+                                        {aiSuggestion.revisedDetail.trim() !== formData.detail?.trim() && (
                                         <div className="space-y-1">
                                             <Label className="text-xs text-muted-foreground">Revised Detail</Label>
                                             <p className="p-2 bg-background rounded-md border text-sm">{aiSuggestion.revisedDetail}</p>
                                         </div>
+                                        )}
                                     </div>
                                     <div className="flex justify-end items-center gap-2">
                                         <Button variant="outline" size="sm" onClick={() => setAiSuggestion(null)}>Discard</Button>
