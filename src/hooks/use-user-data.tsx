@@ -696,7 +696,6 @@ export function useUserData() {
         if (!companyName) return [];
         
         const companyConfig = companyConfigs[companyName];
-        if (!companyConfig) return [];
         
         let applicableMasterQuestions: Record<string, Question>;
         if (formType === 'all') {
@@ -711,31 +710,40 @@ export function useUserData() {
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
             
-            // This is the fix: ensure we only process questions matching the requested formType
+            // Skip archived (inactive) master questions entirely if activeOnly is true
+            if (activeOnly && !masterQ.isActive) {
+                continue; 
+            }
+            
+            // Skip questions not matching the form type
             if (masterQ.formType !== formType && formType !== 'all') {
                 continue;
             }
 
-            const override = companyConfig.questions?.[id];
+            const override = companyConfig?.questions?.[id];
             
             const finalQ: Question = {
                 ...masterQ,
                 ...(override || {}),
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
-
+            
+            // The final check: is the merged question active?
+            // This handles cases where an HR manager has deactivated a question.
             if (!activeOnly || finalQ.isActive) {
-                finalQuestions[id] = finalQ;
+                 finalQuestions[id] = finalQ;
             }
         }
         
         // 2. Add custom questions for the company
-        for (const id in companyConfig.customQuestions) {
-            const customQ = companyConfig.customQuestions[id];
-            // Also apply the formType filter here for custom questions
-            if (customQ.formType === formType || formType === 'all') {
-                if (!activeOnly || customQ.isActive) {
-                    finalQuestions[id] = customQ;
+        if (companyConfig?.customQuestions) {
+            for (const id in companyConfig.customQuestions) {
+                const customQ = companyConfig.customQuestions[id];
+                // Also apply the formType filter here for custom questions
+                if (customQ.formType === formType || formType === 'all') {
+                    if (!activeOnly || customQ.isActive) {
+                        finalQuestions[id] = customQ;
+                    }
                 }
             }
         }
