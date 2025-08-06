@@ -304,8 +304,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, isCompanySpecific, isActive, created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, isCompanySpecific, isActive, created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, "deadlineType", "deadlineDays", "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -353,7 +353,7 @@ export function useUserData() {
 
             const mappedTasks = (tasksData || []).map(t => ({
                 ...t,
-                deadlineType: t.deadline_type,
+                deadlineType: t.deadlineType,
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
@@ -561,8 +561,8 @@ export function useUserData() {
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
                 linkedResourceId: t.linkedResourceId,
-                isCompanySpecific: t.isCompanySpecific,
-                isActive: t.isActive,
+                is_company_specific: t.isCompanySpecific,
+                is_active: t.isActive,
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -581,8 +581,8 @@ export function useUserData() {
                 priority: t.priority,
                 category: t.category,
                 text: t.text,
-                isCompanySpecific: t.isCompanySpecific,
-                isActive: t.isActive,
+                is_company_specific: t.isCompanySpecific,
+                is_active: t.isActive,
             };
         });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
@@ -594,10 +594,13 @@ export function useUserData() {
     }, []);
     
     const saveGuidanceRules = useCallback(async (rules: GuidanceRule[]) => {
-        const rulesToSave = rules.map(r => ({
-            ...r,
-            question_id: r.questionId
-        }));
+        const rulesToSave = rules.map(r => {
+            const { questionId, ...rest } = r;
+            return {
+                ...rest,
+                question_id: questionId
+            };
+        });
         const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
         if (error) {
             console.error("Error saving guidance rules:", error);
