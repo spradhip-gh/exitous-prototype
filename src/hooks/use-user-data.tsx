@@ -351,7 +351,7 @@ export function useUserData() {
                 deadlineDays: t.deadline_days,
                 linkedResourceId: t.linked_resource_id,
                 isCompanySpecific: t.is_company_specific,
-                isActive: t.isActive,
+                isActive: t.is_active,
             })) as MasterTask[]);
 
             setMasterTips((tipsData || []).map(t => ({
@@ -565,7 +565,7 @@ export function useUserData() {
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
                 linked_resource_id: t.linkedResourceId,
-                is_company_specific: t.isCompanySpecific ?? false,
+                is_company_specific: t.isCompanySpecific,
                 is_active: t.isActive,
                 created_at: existingCreatedAt || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -596,7 +596,7 @@ export function useUserData() {
                 priority: t.priority,
                 category: t.category,
                 text: t.text,
-                is_company_specific: t.isCompanySpecific,
+                is_company_specific: t.isCompanySpecific ?? false,
                 is_active: t.isActive,
                 created_at: existingCreatedAt || new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -684,7 +684,3 @@ export function useUserData() {
         platformUsers: [], // Placeholder
     };
 }
-
-    
-
-    
