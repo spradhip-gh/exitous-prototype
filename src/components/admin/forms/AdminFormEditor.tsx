@@ -79,10 +79,15 @@ export default function AdminFormEditor() {
 
     const [newItemCallback, setNewItemCallback] = useState<((item: any) => void) | null>(null);
 
-    const allQuestions = useMemo(() => {
-        const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
-        const assessmentQs = buildQuestionTreeFromMap(masterQuestions);
-        return [...profileQs, ...assessmentQs];
+    const activeQuestions = useMemo(() => {
+        const allQuestionsMap = { ...masterProfileQuestions, ...masterQuestions };
+        const activeQuestions: Record<string, Question> = {};
+        Object.values(allQuestionsMap).forEach(q => {
+            if (q.isActive) {
+                activeQuestions[q.id] = q;
+            }
+        });
+        return buildQuestionTreeFromMap(activeQuestions);
     }, [masterProfileQuestions, masterQuestions]);
 
     const { archivedProfileQuestions, archivedAssessmentQuestions } = useMemo(() => {
@@ -195,7 +200,7 @@ export default function AdminFormEditor() {
                     </TabsContent>
                     <TabsContent value="guidance" className="mt-6">
                         <GuidanceEditor
-                            questions={allQuestions}
+                            questions={activeQuestions}
                             guidanceRules={guidanceRules}
                             saveGuidanceRules={saveGuidanceRules}
                             masterTasks={masterTasks}
@@ -370,20 +375,24 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     );
 
     const activeQuestions = useMemo(() => {
-        if (!questions) return [];
-        return Object.values(questions).filter(q => q.isActive);
+        if (!questions) return {};
+        const active: Record<string, Question> = {};
+        Object.values(questions).forEach(q => {
+            if (q.isActive) {
+                active[q.id] = q;
+            }
+        });
+        return active;
     }, [questions]);
 
 
     useEffect(() => {
-        if (isLoading || !activeQuestions || activeQuestions.length === 0) {
+        if (isLoading || !activeQuestions || Object.keys(activeQuestions).length === 0) {
             setOrderedSections([]);
             return;
         }
 
-        const activeQuestionMap: Record<string, Question> = {};
-        activeQuestions.forEach(q => { activeQuestionMap[q.id] = q; });
-        const rootQuestions = buildQuestionTreeFromMap(activeQuestionMap);
+        const rootQuestions = buildQuestionTreeFromMap(activeQuestions);
         
         const sectionsMap: Record<string, Question[]> = {};
         
