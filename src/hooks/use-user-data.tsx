@@ -304,8 +304,8 @@ export function useUserData() {
                 supabase.from('company_users').select('*'),
                 supabase.from('company_question_configs').select('*'),
                 supabase.from('master_question_configs').select('*'),
-                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
-                supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, linkedResourceId, isCompanySpecific, isActive, created_at, updated_at'),
+                supabase.from('master_tips').select('id, type, priority, category, text, isCompanySpecific, isActive, created_at, updated_at'),
             ]);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
@@ -344,35 +344,27 @@ export function useUserData() {
             setMasterProfileQuestions(profileQuestionsMap);
             
             setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
-            setGuidanceRules(rulesData as GuidanceRule[] || []);
-            
+
+            const mappedRules = (rulesData || []).map((rule: any) => ({
+                ...rule,
+                questionId: rule.question_id,
+            }));
+            setGuidanceRules(mappedRules as GuidanceRule[] || []);
+
             const mappedTasks = (tasksData || []).map(t => ({
-                id: t.id,
-                type: t.type,
-                name: t.name,
-                category: t.category,
-                detail: t.detail,
+                ...t,
                 deadlineType: t.deadline_type,
-                deadlineDays: t.deadline_days,
                 linkedResourceId: t.linkedResourceId,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
-                created_at: t.created_at,
-                updated_at: t.updated_at,
             }));
             setMasterTasks(mappedTasks);
 
 
             const mappedTips = (tipsData || []).map(t => ({
-                id: t.id,
-                type: t.type,
-                priority: t.priority,
-                category: t.category,
-                text: t.text,
+                ...t,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
-                created_at: t.created_at,
-                updated_at: t.updated_at,
             }));
             setMasterTips(mappedTips);
 
@@ -602,7 +594,11 @@ export function useUserData() {
     }, []);
     
     const saveGuidanceRules = useCallback(async (rules: GuidanceRule[]) => {
-        const { error } = await supabase.from('guidance_rules').upsert(rules);
+        const rulesToSave = rules.map(r => ({
+            ...r,
+            question_id: r.questionId
+        }));
+        const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
         if (error) {
             console.error("Error saving guidance rules:", error);
         } else {
