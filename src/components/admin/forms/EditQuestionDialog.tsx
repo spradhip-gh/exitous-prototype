@@ -263,6 +263,7 @@ export default function EditQuestionDialog({
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
     const [newOption, setNewOption] = useState('');
+    const [suggestedRemovals, setSuggestedRemovals] = useState<string[]>([]);
         
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
@@ -297,6 +298,7 @@ export default function EditQuestionDialog({
     useEffect(() => {
         setCurrentQuestion(question);
         setOptionsText(question?.options?.join('\n') || '');
+        setSuggestedRemovals([]);
         setIsCreatingNewSection(false);
         setNewSectionName("");
         setNewOption('');
@@ -309,9 +311,8 @@ export default function EditQuestionDialog({
 
         if (isSuggestionMode) {
              const suggestedOptionsToAdd = (finalQuestion.options || []).filter(opt => !(masterQuestionForEdit?.options || []).includes(opt));
-             const suggestedOptionsToRemove = (masterQuestionForEdit?.options || []).filter(opt => !(finalQuestion.options || []).includes(opt));
-
-             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && !finalQuestion.answerGuidance) {
+             
+             if (suggestedOptionsToAdd.length === 0 && suggestedRemovals.length === 0 && !finalQuestion.answerGuidance) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance mapping.", variant: "destructive" });
                 return;
             }
@@ -326,7 +327,7 @@ export default function EditQuestionDialog({
                     questionLabel: currentQuestion.label,
                     suggestions: {
                         optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
-                        optionsToRemove: suggestedOptionsToRemove,
+                        optionsToRemove: suggestedRemovals,
                         guidanceOverrides: finalQuestion.answerGuidance,
                     }
                 },
@@ -349,7 +350,7 @@ export default function EditQuestionDialog({
         const isAutoApproved = isHrEditing && isNew;
 
         onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit]);
+    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -390,6 +391,16 @@ export default function EditQuestionDialog({
             setOptionsText(prev => `${prev}\n${newOption}`.trim());
             setNewOption('');
         }
+    };
+
+    const handleToggleRemovalSuggestion = (option: string) => {
+        setSuggestedRemovals(prev => {
+            if (prev.includes(option)) {
+                return prev.filter(item => item !== option);
+            } else {
+                return [...prev, option];
+            }
+        });
     };
     
     if (!currentQuestion) {
@@ -560,9 +571,10 @@ export default function EditQuestionDialog({
                     <div className="space-y-2 rounded-md border p-4 max-h-60 overflow-y-auto">
                         {currentOptions.length > 0 ? currentOptions.map(option => {
                             const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
+                            const isRemovalSuggested = suggestedRemovals.includes(option);
                             return (
                                 <div key={option} className="flex items-center justify-between">
-                                    <Label htmlFor={`guidance-${option}`} className="font-normal flex items-center gap-2">
+                                    <Label htmlFor={`guidance-${option}`} className={cn("font-normal flex items-center gap-2", isRemovalSuggested && "line-through text-destructive")}>
                                         {!isMasterOption && !isSuggestionMode && <Star className="h-4 w-4 text-amber-500 fill-current" />}
                                         {option}
                                     </Label>
@@ -570,6 +582,11 @@ export default function EditQuestionDialog({
                                         <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
                                             <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
                                         </Button>
+                                        {isSuggestionMode && isMasterOption && (
+                                             <Button variant="ghost" size="icon" className={cn("h-8 w-8", isRemovalSuggested ? "text-primary" : "text-destructive")} onClick={() => handleToggleRemovalSuggestion(option)}>
+                                                <Trash2 />
+                                            </Button>
+                                        )}
                                         {isSuggestionMode && !isMasterOption && (
                                             <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOptionsText(prev => prev.split('\n').filter(o => o !== option).join('\n'))}>
                                                 <Trash2 />
