@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -271,7 +272,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig } = useUserData();
+    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig, clearRecommendations } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -365,6 +366,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     function onSubmit(data: AssessmentData) {
         const isEditingSection = searchParams.has('section');
         saveAssessmentData({ ...data, companyName: auth?.companyName });
+        clearRecommendations(); // Clear AI recommendations on save
         setIsDirty(false);
         // If editing, go back to review page. Otherwise, go to dashboard timeline.
         router.push(isEditingSection ? '/dashboard/assessment' : '/dashboard');
@@ -388,6 +390,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     const handleSaveForLater = () => {
         const data = getValues();
         saveAssessmentData({ ...data, companyName: auth?.companyName });
+        clearRecommendations();
         setIsDirty(false);
         toast({
             title: "Progress Saved",
@@ -512,40 +515,49 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                     </form>
                 </Form>
                 {process.env.NODE_ENV !== 'production' && (
-                    <Card className="border-destructive">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Bug className="text-destructive" />
-                                Assessment Debug Info
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <Collapsible className="mt-2">
-                                <CollapsibleTrigger asChild>
-                                    <Button variant="link" className="p-0 h-auto">
-                                        Show Custom Questions from Config <ChevronDown className="ml-1 h-4 w-4"/>
-                                    </Button>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                                        {JSON.stringify(companyConfig?.customQuestions, null, 2)}
-                                    </pre>
-                                </CollapsibleContent>
-                            </Collapsible>
-                             <Collapsible className="mt-2">
-                                <CollapsibleTrigger asChild>
-                                    <Button variant="link" className="p-0 h-auto">
-                                        Show Final Merged Question List ({questions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
-                                    </Button>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                                        {questions.map(q => <li key={q.id}>{q.label} ({q.id}) {q.isCustom && <strong className="text-amber-600">CUSTOM</strong>}</li>)}
-                                    </ul>
-                                </CollapsibleContent>
-                            </Collapsible>
-                        </CardContent>
-                    </Card>
+                     <Collapsible>
+                        <Card className="border-destructive">
+                             <CollapsibleTrigger asChild>
+                                <CardHeader className="cursor-pointer">
+                                    <CardTitle className="flex items-center justify-between">
+                                        <span className="flex items-center gap-2">
+                                            <Bug className="text-destructive" />
+                                            Assessment Debug Info
+                                        </span>
+                                        <ChevronDown className="h-4 w-4" />
+                                    </CardTitle>
+                                </CardHeader>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <CardContent>
+                                     <Collapsible className="mt-2">
+                                        <CollapsibleTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto">
+                                                Show Custom Questions from Config <ChevronDown className="ml-1 h-4 w-4"/>
+                                            </Button>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                            <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                                                {JSON.stringify(companyConfig?.customQuestions, null, 2)}
+                                            </pre>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                     <Collapsible className="mt-2">
+                                        <CollapsibleTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto">
+                                                Show Final Merged Question List ({questions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
+                                            </Button>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                            <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                                {questions.map(q => <li key={q.id}>{q.label} ({q.id}) {q.isCustom && <strong className="text-amber-600">CUSTOM</strong>}</li>)}
+                                            </ul>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                </CardContent>
+                            </CollapsibleContent>
+                        </Card>
+                    </Collapsible>
                 )}
             </div>
         </div>

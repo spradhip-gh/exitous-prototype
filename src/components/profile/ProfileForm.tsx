@@ -31,8 +31,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { CalendarIcon, Info, Star, Bug } from 'lucide-react';
+import { CalendarIcon, Info, Star, Bug, ChevronDown } from 'lucide-react';
 import { convertStringsToDates } from '@/hooks/use-user-data';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     const { masterProfileQuestions } = useUserData();
@@ -225,7 +226,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
     companyConfig?: CompanyConfig
 }) {
     const router = useRouter();
-    const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig } = useUserData();
+    const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig, clearRecommendations } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -256,6 +257,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
 
         // Save the rest of the profile data
         saveProfileData(profileAnswers as ProfileData);
+        clearRecommendations(); // Clear recommendations on profile change
 
         toast({
           title: "Profile Saved",
