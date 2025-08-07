@@ -1079,7 +1079,11 @@ export function useUserData() {
     }, [companyAssignments]);
 
     const processReviewQueueItem = useCallback(async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string): Promise<boolean> => {
-        const reviewerId = auth?.email || 'admin';
+        const reviewerId = auth?.userId; // Correctly use the UUID
+        if (!reviewerId) {
+            console.error("No reviewer ID found, cannot process queue item.");
+            return false;
+        }
 
         if (status === 'approved' && item.type === 'question_edit_suggestion') {
             const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
@@ -1157,7 +1161,7 @@ export function useUserData() {
         
         setReviewQueue(prev => prev.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
         return true;
-    }, [auth?.email, companyAssignments, companyConfigs, masterQuestions, masterProfileQuestions, saveCompanyConfig]);
+    }, [auth?.userId, companyAssignments, companyConfigs, masterQuestions, masterProfileQuestions, saveCompanyConfig]);
 
     return {
         profileData,
