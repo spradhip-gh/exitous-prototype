@@ -833,7 +833,7 @@ export function useUserData() {
         return buildQuestionTreeFromMap(finalQuestions);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
     
-    const getCompanyUser = useMemo(() => (email: string) => {
+    const getCompanyUser = useMemo(() => (email: string | undefined) => {
         if (!email || !companyConfigs) return null;
         for (const companyName in companyConfigs) {
             const user = companyConfigs[companyName]?.users?.find(
@@ -848,10 +848,17 @@ export function useUserData() {
     
      const getProfileCompletion = useCallback(() => {
         const rootQuestions = buildQuestionTreeFromMap(masterProfileQuestions);
-        const applicableQuestions = getApplicableQuestions(rootQuestions, profileData, profileData);
+        const companyUser = getCompanyUser(auth?.email)?.user;
+        const allAnswers = {
+            ...profileData,
+            personalEmail: companyUser?.personal_email,
+            phone: companyUser?.phone,
+        };
+
+        const applicableQuestions = getApplicableQuestions(rootQuestions, allAnswers, profileData);
         
         const isAnswered = (q: Question) => {
-            const value = (profileData as any)?.[q.id];
+            const value = allAnswers[q.id as keyof typeof allAnswers];
             return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         }
 
@@ -867,7 +874,7 @@ export function useUserData() {
             completed: completedQuestions.length,
             incompleteQuestions,
         };
-    }, [profileData, masterProfileQuestions]);
+    }, [profileData, masterProfileQuestions, getCompanyUser, auth?.email]);
 
     const getAssessmentCompletion = useCallback(() => {
         if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
@@ -991,3 +998,5 @@ export function useUserData() {
         reviewQueue: [], // Placeholder
     };
 }
+
+    
