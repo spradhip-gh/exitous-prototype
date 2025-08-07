@@ -20,21 +20,22 @@ import { tenureOptions } from '@/lib/guidance-helpers';
 import type { GuidanceRule } from '@/hooks/use-user-data';
 
 const ProfileDataSchema = z.object({
-  birthYear: z.number().describe("The user's birth year."),
-  state: z.string().describe('The state the user lives in.'),
+  birthYear: z.number().optional().describe("The user's birth year."),
+  state: z.string().optional().describe('The state the user lives in.'),
   gender: z.string().optional().describe('The gender the user identifies with.'),
-  maritalStatus: z.string().describe("The user's marital status."),
-  hasChildrenUnder13: z.boolean().describe('Whether the user has children under 13.'),
-  hasExpectedChildren: z.boolean().describe('Whether the user has expected children.'),
+  maritalStatus: z.string().optional().describe("The user's marital status."),
+  hasChildrenUnder13: z.boolean().optional().describe('Whether the user has children under 13.'),
+  hasExpectedChildren: z.boolean().optional().describe('Whether the user has expected children.'),
   impactedPeopleCount: z
     .string()
+    .optional()
     .describe(
       'The number of other adults or children moderately or greatly impacted by income loss.'
     ),
-  livingStatus: z.string().describe("The user's living status."),
-  citizenshipStatus: z.string().describe("The user's citizenship or residence status."),
-  pastLifeEvents: z.array(z.string()).describe('Life events experienced in the past 9 months.'),
-  hasChildrenAges18To26: z.boolean().describe('Whether the user has children ages 18-26.'),
+  livingStatus: z.string().optional().describe("The user's living status."),
+  citizenshipStatus: z.string().optional().describe("The user's citizenship or residence status."),
+  pastLifeEvents: z.array(z.string()).optional().describe('Life events experienced in the past 9 months.'),
+  hasChildrenAges18To26: z.boolean().optional().describe('Whether the user has children ages 18-26.'),
 });
 
 const LayoffDetailsSchema = z.object({

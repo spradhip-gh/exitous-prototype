@@ -179,11 +179,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         return;
       }
       
-      const effectiveProfileData = profileData || {
-          birthYear: 1990, state: 'N/A', gender: 'N/A', maritalStatus: 'N/A',
-          hasChildrenUnder13: false, hasExpectedChildren: false, impactedPeopleCount: '0',
-          livingStatus: 'N/A', citizenshipStatus: 'N/A', pastLifeEvents: [], hasChildrenAges18To26: false,
-      };
+      const effectiveProfileData = profileData || {};
 
       try {
         setIsLoading(true);
@@ -226,10 +222,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         const result = await getPersonalizedRecommendations({
           userEmail: auth.email,
           companyName: auth.companyName,
-          profileData: {
-            gender: 'Prefer not to say', // Add a default for gender
-            ...transformedProfileData,
-          },
+          profileData: transformedProfileData,
           layoffDetails: stringifiedAssessmentData,
         });
         saveRecommendations(result);

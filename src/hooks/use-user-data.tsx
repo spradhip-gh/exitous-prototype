@@ -9,9 +9,10 @@ import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '../lib/external-resources';
 import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from '@/hooks/use-toast';
-import { addDays, parse, parseISO } from 'date-fns';
+import { addDays, parse, parseISO, differenceInYears } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
 import { v4 as uuidv4 } from 'uuid';
+import { tenureOptions } from '@/lib/guidance-helpers';
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -141,8 +142,6 @@ export interface QuestionOverride {
         add: string[];
         remove: string[];
     };
-    // DEPRECATED:
-    options?: string[];
 }
 
 
@@ -500,21 +499,23 @@ export function useUserData() {
             // --- ONE-TIME DATA MIGRATION ---
             const globexConfig = configs['Globex Corp'];
             let needsSave = false;
-            if (globexConfig?.questions?.['maritalStatus']?.options) {
-                globexConfig.questions['maritalStatus'].optionOverrides = {
-                    add: ['Married (previously divorced)'],
-                    remove: ['Prefer not to answer'],
-                };
-                delete globexConfig.questions['maritalStatus'].options; // Remove incorrect key
-                needsSave = true;
-            }
-             if (globexConfig?.questions?.['state']?.options) {
-                globexConfig.questions['state'].optionOverrides = {
-                    add: ['Puerto Rico'],
-                    remove: [],
-                };
-                delete globexConfig.questions['state'].options;
-                needsSave = true;
+            if (globexConfig) {
+                if (globexConfig.questions?.['maritalStatus'] && 'options' in globexConfig.questions['maritalStatus']) {
+                    globexConfig.questions['maritalStatus'].optionOverrides = {
+                        add: ['Married (previously divorced)'],
+                        remove: ['Prefer not to answer'],
+                    };
+                    delete (globexConfig.questions['maritalStatus'] as any).options; // Remove incorrect key
+                    needsSave = true;
+                }
+                if (globexConfig.questions?.['state'] && 'options' in globexConfig.questions['state']) {
+                    globexConfig.questions['state'].optionOverrides = {
+                        add: ['Puerto Rico'],
+                        remove: [],
+                    };
+                    delete (globexConfig.questions['state'] as any).options;
+                    needsSave = true;
+                }
             }
 
             if (needsSave) {
@@ -1173,14 +1174,14 @@ export function useUserData() {
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
-            delete override.options; 
+            delete (override as any).options; 
 
             const additions = new Set(override.optionOverrides.add || []);
             const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
             newAdditions.forEach(item => additions.add(item));
 
             const removals = new Set(override.optionOverrides.remove || []);
-            optionsToRemove.forEach((item: string) => removals.add(item));
+            (optionsToRemove || []).forEach((item: string) => removals.add(item));
             
             // Ensure no item is in both add and remove
             additions.forEach(a => { if(removals.has(a)) removals.delete(a); });
@@ -1241,6 +1242,85 @@ export function useUserData() {
         }
     }, []);
 
+    const getMappedRecommendations = useCallback(() => {
+        if (!profileData || !assessmentData || !auth?.companyName) return [];
+
+        const allUserAnswers = { ...profileData, ...assessmentData };
+        const companyConfig = companyConfigs[auth.companyName];
+        const recommendations: RecommendationItem[] = [];
+        const addedTaskIds = new Set<string>();
+
+        // 1. Evaluate Guidance Rules
+        guidanceRules.forEach(rule => {
+            let isMatch = false;
+            if (rule.type === 'direct') {
+                isMatch = rule.conditions.every(cond => {
+                    if (cond.type !== 'question' || !cond.questionId || !cond.answer) return false;
+                    const userAnswer = allUserAnswers[cond.questionId as keyof typeof allUserAnswers];
+                    return Array.isArray(userAnswer) ? userAnswer.includes(cond.answer) : userAnswer === cond.answer;
+                });
+            } else if (rule.type === 'calculated') {
+                let calculatedValue: number | null = null;
+                if (rule.calculation?.type === 'age' && profileData.birthYear) {
+                    calculatedValue = new Date().getFullYear() - profileData.birthYear;
+                } else if (rule.calculation?.type === 'tenure' && assessmentData.startDate && assessmentData.finalDate) {
+                     try {
+                        const start = assessmentData.startDate instanceof Date ? assessmentData.startDate : parseISO(assessmentData.startDate as string);
+                        const end = assessmentData.finalDate instanceof Date ? assessmentData.finalDate : parseISO(assessmentData.finalDate as string);
+                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                            calculatedValue = differenceInYears(end, start);
+                        }
+                    } catch {}
+                }
+
+                if (calculatedValue !== null) {
+                    const matchingRange = rule.ranges?.find(range => calculatedValue! >= range.from && calculatedValue! < range.to);
+                    if (matchingRange) {
+                        (matchingRange.assignments.taskIds || []).forEach(taskId => {
+                            if (!addedTaskIds.has(taskId)) {
+                                const task = masterTasks.find(t => t.id === taskId);
+                                if (task) recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail });
+                                addedTaskIds.add(taskId);
+                            }
+                        });
+                        // Tips from calculated rules can be handled here too if needed
+                    }
+                }
+            }
+
+            if (isMatch) {
+                (rule.assignments.taskIds || []).forEach(taskId => {
+                    if (!addedTaskIds.has(taskId)) {
+                        const task = masterTasks.find(t => t.id === taskId);
+                        if (task) recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail });
+                        addedTaskIds.add(taskId);
+                    }
+                });
+            }
+        });
+        
+        // 2. Evaluate Company-specific Answer Guidance
+        Object.entries(allUserAnswers).forEach(([questionId, answer]) => {
+            if (!answer) return;
+            const guidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[answer as string];
+            if (guidance) {
+                (guidance.tasks || []).forEach(taskId => {
+                    if (!addedTaskIds.has(taskId)) {
+                        const companyTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
+                        const task = companyTasks.find(t => t.id === taskId);
+                        if (task) {
+                            recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail, isCompanySpecific: task.isCompanySpecific });
+                            addedTaskIds.add(taskId);
+                        }
+                    }
+                });
+            }
+        });
+
+
+        return recommendations;
+    }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName]);
+
     return {
         profileData,
         assessmentData,
@@ -1280,8 +1360,8 @@ export function useUserData() {
         updateCompanyUserContact,
         saveCompanyAssignments,
         isAssessmentComplete: !!assessmentData?.workStatus,
-        clearRecommendations: () => {},
-        saveRecommendations: () => {},
+        clearRecommendations: () => setRecommendations(null),
+        saveRecommendations: (recs: PersonalizedRecommendationsOutput) => setRecommendations(recs),
         toggleTaskCompletion: () => {},
         updateTaskDate: () => {},
         addCustomDeadline: () => {},
@@ -1289,7 +1369,7 @@ export function useUserData() {
         getProfileCompletion,
         getAssessmentCompletion,
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
-        getMappedRecommendations: () => [],
+        getMappedRecommendations,
         getTargetTimezone: () => 'UTC',
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
@@ -1308,3 +1388,4 @@ export function useUserData() {
         tipMappings: [],
     };
 }
+
