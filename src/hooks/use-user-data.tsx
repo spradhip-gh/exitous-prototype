@@ -946,16 +946,28 @@ export function useUserData() {
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
-                const finalQuestion: Question = {
+                let finalQuestion: Question = {
                     ...masterQ,
                     ...override, // Apply overrides for label, description, etc.
                     isActive: isCompanyActive,
                 };
                 
-                // This is the corrected logic: If an override for options exists, use it exclusively.
-                // Otherwise, fall back to the master question's options.
                 if (override?.options) {
-                    finalQuestion.options = override.options;
+                    const masterOptions = new Set(masterQ.options || []);
+                    const overrideOptions = new Set(override.options);
+                    const finalOptions = new Set([...(masterQ.options || [])]);
+
+                    // Add options from override that are not in master
+                    override.options.forEach(opt => finalOptions.add(opt));
+
+                    // Remove options from master that are not in override
+                    masterQ.options?.forEach(opt => {
+                        if (!overrideOptions.has(opt)) {
+                            finalOptions.delete(opt);
+                        }
+                    });
+                    
+                    finalQuestion.options = Array.from(finalOptions);
                 }
                 
                 finalQuestions.push(finalQuestion);
@@ -1079,7 +1091,7 @@ export function useUserData() {
         }
 
         const payload = { ...item, company_id: companyId, companyName: undefined };
-
+        
         const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
             console.error("Error adding to review queue", error);
@@ -1101,8 +1113,8 @@ export function useUserData() {
             
             const currentConfig = companyConfigs[companyName];
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
-            const { questionId, optionsToAdd } = item.change_details || {};
-            if (!questionId || !optionsToAdd || optionsToAdd.length === 0) return false;
+            const { questionId, optionsToAdd, optionsToRemove } = item.change_details || {};
+            if (!questionId) return false;
 
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
@@ -1110,17 +1122,22 @@ export function useUserData() {
             const masterQ = masterQuestions[questionId] || masterProfileQuestions[questionId];
             let newOptions = [...(override.options || masterQ.options || [])];
 
-            if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
-            if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
-
-            optionsToAdd.forEach((suggestion: { option: string, guidance?: AnswerGuidance }) => {
-                if (!newOptions.includes(suggestion.option)) {
-                    newOptions.push(suggestion.option);
-                }
-                if (suggestion.guidance) {
-                    newConfig.answerGuidanceOverrides[questionId][suggestion.option] = suggestion.guidance;
-                }
-            });
+            if (optionsToAdd) {
+                optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
+                    if (!newOptions.includes(suggestion.option)) {
+                        newOptions.push(suggestion.option);
+                    }
+                    if (suggestion.guidance) {
+                        if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
+                        if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
+                        newConfig.answerGuidanceOverrides[questionId][suggestion.option] = suggestion.guidance;
+                    }
+                });
+            }
+            
+            if (optionsToRemove) {
+                newOptions = newOptions.filter(opt => !optionsToRemove.includes(opt));
+            }
 
             newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
             await saveCompanyConfig(companyName, newConfig);
@@ -1221,3 +1238,5 @@ export function useUserData() {
         tipMappings: [],
     };
 }
+
+    
