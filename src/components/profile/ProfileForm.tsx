@@ -224,7 +224,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
     companyUser: any,
 }) {
     const router = useRouter();
-    const { saveProfileData, updateCompanyUserContact } = useUserData();
+    const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -273,35 +273,40 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
         });
     };
     
-    const groupedQuestions = useMemo(() => {
-        const sections: Record<string, Question[]> = {};
+    const orderedSections = useMemo(() => {
+        const sectionsMap: Record<string, Question[]> = {};
         questions.forEach(q => {
             if (!q.isActive) return;
             if (q.parentId) return;
             const sectionName = q.section || "Uncategorized";
-            if (!sections[sectionName]) {
-                sections[sectionName] = [];
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
             }
-            sections[sectionName].push(q);
+            sectionsMap[sectionName].push(q);
         });
-        return sections;
-    }, [questions]);
+
+        const masterConfig = getMasterQuestionConfig('profile');
+        const sectionOrder = masterConfig?.section_order || Object.keys(sectionsMap);
+        
+        return sectionOrder
+            .map(sectionName => ({
+                name: sectionName,
+                questions: sectionsMap[sectionName]
+            }))
+            .filter(section => section.questions && section.questions.length > 0);
+
+    }, [questions, getMasterQuestionConfig]);
 
 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                 {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
                     <Card key={section}>
                         <CardHeader>
                             <CardTitle>{section}</CardTitle>
-                             {section === 'Basic Information' && (
-                                 <CardDescription>
-                                    Your company is: <span className="font-bold">{auth?.companyName || 'N/A'}</span>
-                                </CardDescription>
-                             )}
-                              {section === 'Contact Information' && (
-                                 <CardDescription>
+                             {section === 'Contact Information' && (
+                                <CardDescription>
                                     This is where we'll send important updates after your access to your work email ends.
                                 </CardDescription>
                              )}
