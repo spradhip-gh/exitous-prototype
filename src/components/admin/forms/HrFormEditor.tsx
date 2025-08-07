@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -716,12 +717,13 @@ export default function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
                 <Tabs defaultValue="assessment-questions">
-                    <TabsList className="grid w-full grid-cols-5">
+                    <TabsList className="grid w-full grid-cols-6">
                         <TabsTrigger value="assessment-questions">Assessment Questions</TabsTrigger>
                         <TabsTrigger value="profile-questions">Profile Questions</TabsTrigger>
                         <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
                         <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
+                        <TabsTrigger value="debug" className="text-destructive"><Bug className="mr-2" /> Debug</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
                         <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
@@ -741,6 +743,19 @@ export default function HrFormEditor() {
                     />
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
+                    </TabsContent>
+                    <TabsContent value="debug" className="mt-6">
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Debug Info</CardTitle>
+                                <CardDescription>Raw JSON configuration for {companyName}.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
+                                    {JSON.stringify(companyConfig.questions, null, 2)}
+                                </pre>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 </Tabs>
                 <TaskForm

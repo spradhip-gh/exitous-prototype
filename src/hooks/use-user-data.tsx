@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -1129,18 +1130,19 @@ export function useUserData() {
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
             
-            // This is the corrected logic.
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
-            delete override.options; // IMPORTANT: Remove the incorrect, legacy 'options' array.
+            delete override.options; 
 
             const additions = new Set(override.optionOverrides.add || []);
-            optionsToAdd.forEach((o: {option: string}) => additions.add(o.option));
+            const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
+            newAdditions.forEach(item => additions.add(item));
 
             const removals = new Set(override.optionOverrides.remove || []);
-            optionsToRemove.forEach((o: string) => removals.add(o));
+            optionsToRemove.forEach((item: string) => removals.add(item));
             
+            // Ensure no item is in both add and remove
             additions.forEach(a => { if(removals.has(a)) removals.delete(a); });
             removals.forEach(r => { if(additions.has(r)) additions.delete(r); });
 
@@ -1257,5 +1259,3 @@ export function useUserData() {
         tipMappings: [],
     };
 }
-
-    
