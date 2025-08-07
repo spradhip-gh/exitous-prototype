@@ -959,20 +959,18 @@ export function useUserData() {
             if (!forEndUser || isCompanyActive) {
                 let finalQuestion: Question = { ...masterQ };
                 
-                 if (override) {
+                if (override) {
+                    if (override.label) finalQuestion.label = override.label;
+                    if (override.description) finalQuestion.description = override.description;
+                    
                     if (override.optionOverrides) {
-                        const masterOptions = [...(masterQ.options || [])];
+                        const baseOptions = masterQ.options || [];
                         const toRemove = new Set(override.optionOverrides.remove || []);
                         const toAdd = override.optionOverrides.add || [];
                         
-                        let newOptions = masterOptions.filter(opt => !toRemove.has(opt));
+                        let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
-
-                    } else if (override.label || override.description) {
-                       // This handles legacy overrides that just changed text.
-                        if (override.label) finalQuestion.label = override.label;
-                        if (override.description) finalQuestion.description = override.description;
                     }
     
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -1131,18 +1129,18 @@ export function useUserData() {
                 override.optionOverrides = { add: [], remove: [] };
             }
             
-            const newAdditions = new Set(override.optionOverrides.add || []);
-            optionsToAdd.forEach((o: {option: string}) => newAdditions.add(o.option));
+            const additions = new Set(override.optionOverrides.add || []);
+            optionsToAdd.forEach((o: {option: string}) => additions.add(o.option));
 
-            const newRemovals = new Set(override.optionOverrides.remove || []);
-            optionsToRemove.forEach((o: string) => newRemovals.add(o));
+            const removals = new Set(override.optionOverrides.remove || []);
+            optionsToRemove.forEach((o: string) => removals.add(o));
             
             // Ensure no item is in both add and remove
-            newAdditions.forEach(item => { if (newRemovals.has(item)) newRemovals.delete(item); });
-            newRemovals.forEach(item => { if (newAdditions.has(item)) newAdditions.delete(item); });
+            additions.forEach(item => { if (removals.has(item)) removals.delete(item); });
+            removals.forEach(item => { if (additions.has(item)) additions.delete(item); });
 
-            override.optionOverrides.add = Array.from(newAdditions);
-            override.optionOverrides.remove = Array.from(newRemovals);
+            override.optionOverrides.add = Array.from(additions);
+            override.optionOverrides.remove = Array.from(removals);
             
             newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
     

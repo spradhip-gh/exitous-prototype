@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Bug } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -704,7 +705,6 @@ export default function HrFormEditor() {
                         <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
                         <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
-                        <TabsTrigger value="debug">Debug</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
                         <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
@@ -724,19 +724,6 @@ export default function HrFormEditor() {
                     />
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
-                    </TabsContent>
-                    <TabsContent value="debug" className="mt-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Bug /> Debug Info</CardTitle>
-                                <CardDescription>Raw JSON configuration for {companyName}.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
-                                    {JSON.stringify(companyConfig, null, 2)}
-                                </pre>
-                            </CardContent>
-                        </Card>
                     </TabsContent>
                 </Tabs>
                 <TaskForm
