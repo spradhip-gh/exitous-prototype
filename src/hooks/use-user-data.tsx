@@ -800,18 +800,22 @@ export function useUserData() {
     }, [companyConfigs]);
     
      const getProfileCompletion = useCallback(() => {
-        const requiredQuestions = Object.values(masterProfileQuestions).filter(q => q.isActive && !q.parentId);
-        if (requiredQuestions.length === 0) {
+        if (!masterProfileQuestions || Object.keys(masterProfileQuestions).length === 0) {
+            return { percentage: 100, remaining: 0, isComplete: true };
+        }
+        const activeQuestions = Object.values(masterProfileQuestions).filter(q => q.isActive && !q.parentId);
+
+        if (activeQuestions.length === 0) {
             return { percentage: 100, remaining: 0, isComplete: true };
         }
         if (!profileData) {
-            return { percentage: 0, remaining: requiredQuestions.length, isComplete: false };
+            return { percentage: 0, remaining: activeQuestions.length, isComplete: false };
         }
 
         let completedCount = 0;
-        for (const q of requiredQuestions) {
+        for (const q of activeQuestions) {
             const value = (profileData as any)[q.id];
-            if (value !== undefined && value !== null && value !== '') {
+            if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
                 // For gender, check if self-describe is filled if needed
                 if (q.id === 'gender' && value === 'Prefer to self-describe') {
                     if ((profileData as any).genderSelfDescribe) {
@@ -822,12 +826,12 @@ export function useUserData() {
                 }
             }
         }
-
-        const percentage = (completedCount / requiredQuestions.length) * 100;
+        
+        const percentage = (completedCount / activeQuestions.length) * 100;
         return {
             percentage,
-            remaining: requiredQuestions.length - completedCount,
-            isComplete: completedCount === requiredQuestions.length,
+            remaining: activeQuestions.length - completedCount,
+            isComplete: completedCount === activeQuestions.length,
         };
     }, [profileData, masterProfileQuestions]);
 
