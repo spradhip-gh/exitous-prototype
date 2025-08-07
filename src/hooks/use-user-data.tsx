@@ -479,7 +479,7 @@ export function useUserData() {
                 return acc;
             }, {} as Record<string, CompanyUser[]>);
 
-            const configs: Record<string, CompanyConfig> = {};
+            let configs: Record<string, CompanyConfig> = {};
             (companiesData || []).forEach(company => {
                 const companyConfigDb = companyConfigsData?.find(c => c.company_id === company.id);
                 configs[company.name] = {
@@ -492,6 +492,43 @@ export function useUserData() {
                     companyTips: companyConfigDb?.company_tips || [],
                 };
             });
+            
+            // --- ONE-TIME DATA MIGRATION ---
+            const globexConfig = configs['Globex Corp'];
+            let needsSave = false;
+            if (globexConfig?.questions?.['maritalStatus']?.options) {
+                globexConfig.questions['maritalStatus'].optionOverrides = {
+                    add: ['Married (previously divorced)'],
+                    remove: ['Prefer not to answer'],
+                };
+                delete globexConfig.questions['maritalStatus'].options; // Remove incorrect key
+                needsSave = true;
+            }
+             if (globexConfig?.questions?.['state']?.options) {
+                globexConfig.questions['state'].optionOverrides = {
+                    add: ['Puerto Rico'],
+                    remove: [],
+                };
+                delete globexConfig.questions['state'].options;
+                needsSave = true;
+            }
+
+            if (needsSave) {
+                const globexAssignment = assignments.find(a => a.companyName === 'Globex Corp');
+                if (globexAssignment) {
+                    await supabase.from('company_question_configs').upsert({
+                        company_id: globexAssignment.companyId,
+                        question_overrides: globexConfig.questions || {},
+                        custom_questions: globexConfig.customQuestions || {},
+                        question_order_by_section: globexConfig.questionOrderBySection || {},
+                        answer_guidance_overrides: globexConfig.answerGuidanceOverrides || {},
+                        company_tasks: globexConfig.companyTasks || [],
+                        company_tips: globexConfig.companyTips || [],
+                    }, { onConflict: 'company_id' });
+                }
+            }
+            // --- END MIGRATION ---
+
             setCompanyConfigs(configs);
             
             // Fetch user-specific data if authenticated
