@@ -266,28 +266,40 @@ export const convertDatesToStrings = (obj: any): any => {
     return obj;
 };
 
-const getApplicableQuestions = (allQuestions: Question[], answers: any): Question[] => {
+const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profileDataForDeps: ProfileData | null): Question[] => {
     const applicable: Question[] = [];
 
     const traverse = (questions: Question[]) => {
         for (const q of questions) {
             if (!q.isActive) continue;
 
-            let parentIsTriggered = true;
+            let isParentTriggered = true;
             if (q.parentId) {
-                const parentValue = answers[q.parentId];
+                const parentValue = allAnswers[q.parentId];
+                isParentTriggered = false; // Default to false unless explicitly triggered
                 if (Array.isArray(parentValue)) {
                     if (q.triggerValue === 'NOT_NONE') {
-                        parentIsTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
+                        isParentTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
                     } else {
-                        parentIsTriggered = parentValue.includes(q.triggerValue);
+                        isParentTriggered = parentValue.includes(q.triggerValue);
                     }
                 } else {
-                    parentIsTriggered = parentValue === q.triggerValue;
+                    isParentTriggered = parentValue === q.triggerValue;
                 }
             }
             
-            if (parentIsTriggered) {
+            let isDependencyMet = true;
+            if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
+                const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
+                isDependencyMet = false; // Default to false
+                if (Array.isArray(q.dependsOnValue)) {
+                    isDependencyMet = q.dependsOnValue.includes(dependencyValue as string);
+                } else {
+                    isDependencyMet = dependencyValue === q.dependsOnValue;
+                }
+            }
+
+            if (isParentTriggered && isDependencyMet) {
                 applicable.push(q);
                 if (q.subQuestions) {
                     traverse(q.subQuestions);
@@ -836,42 +848,45 @@ export function useUserData() {
     
      const getProfileCompletion = useCallback(() => {
         const rootQuestions = buildQuestionTreeFromMap(masterProfileQuestions);
-        const applicableQuestions = getApplicableQuestions(rootQuestions, profileData);
-
-        if (applicableQuestions.length === 0) {
-            return { percentage: 100, remaining: 0, isComplete: true };
-        }
-        if (!profileData) {
-            return { percentage: 0, remaining: applicableQuestions.length, isComplete: false };
-        }
-
-        let completedCount = 0;
-        for (const q of applicableQuestions) {
-            const value = (profileData as any)[q.id];
-            if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
-                completedCount++;
-            }
-        }
+        const applicableQuestions = getApplicableQuestions(rootQuestions, profileData, profileData);
         
-        const percentage = (completedCount / applicableQuestions.length) * 100;
+        const isAnswered = (q: Question) => {
+            const value = (profileData as any)?.[q.id];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        }
+
+        const completedQuestions = applicableQuestions.filter(isAnswered);
+        const incompleteQuestions = applicableQuestions.filter(q => !isAnswered(q));
+        
+        const percentage = applicableQuestions.length > 0 ? (completedQuestions.length / applicableQuestions.length) * 100 : 100;
+        
         return {
             percentage,
-            remaining: applicableQuestions.length - completedCount,
-            isComplete: completedCount === applicableQuestions.length,
+            isComplete: completedQuestions.length === applicableQuestions.length,
+            totalApplicable: applicableQuestions.length,
+            completed: completedQuestions.length,
+            incompleteQuestions,
         };
     }, [profileData, masterProfileQuestions]);
 
     const getAssessmentCompletion = useCallback(() => {
-        if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false };
+        if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
         
         const allCompanyQuestions = getCompanyConfig(auth.companyName, true, 'assessment');
-        if (allCompanyQuestions.length === 0) return { percentage: 100, sections: [], isComplete: true };
+        if (allCompanyQuestions.length === 0) return { percentage: 100, sections: [], isComplete: true, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
 
         const rootQuestions = allCompanyQuestions.filter(q => !q.parentId);
 
-        const applicableQuestions = getApplicableQuestions(rootQuestions, { ...profileData, ...assessmentData });
+        const applicableQuestions = getApplicableQuestions(rootQuestions, { ...profileData, ...assessmentData }, profileData);
         
         const sectionsMap: Record<string, { total: number, completed: number }> = {};
+
+         const isAnswered = (q: Question) => {
+            const value = (assessmentData as any)?.[q.id];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        }
+        
+        const incompleteQuestions = applicableQuestions.filter(q => !isAnswered(q));
 
         for (const q of applicableQuestions) {
             if (!q.section) continue;
@@ -879,24 +894,19 @@ export function useUserData() {
                 sectionsMap[q.section] = { total: 0, completed: 0 };
             }
             sectionsMap[q.section].total++;
-            const value = (assessmentData as any)?.[q.id];
-            if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+            if (isAnswered(q)) {
                 sectionsMap[q.section].completed++;
             }
         }
         
-        let totalQuestions = 0;
-        let totalCompleted = 0;
+        let totalQuestions = applicableQuestions.length;
+        let totalCompleted = totalQuestions - incompleteQuestions.length;
         
-        const sectionsArray = Object.entries(sectionsMap).map(([name, counts]) => {
-            totalQuestions += counts.total;
-            totalCompleted += counts.completed;
-            return {
-                name,
-                ...counts,
-                percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
-            };
-        });
+        const sectionsArray = Object.entries(sectionsMap).map(([name, counts]) => ({
+            name,
+            ...counts,
+            percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
+        }));
 
         const overallPercentage = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 100;
 
@@ -904,6 +914,9 @@ export function useUserData() {
             percentage: overallPercentage,
             sections: sectionsArray,
             isComplete: overallPercentage === 100,
+            totalApplicable: totalQuestions,
+            completed: totalCompleted,
+            incompleteQuestions,
         };
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
