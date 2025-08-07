@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -323,24 +324,21 @@ export default function EditQuestionDialog({
                 return;
             }
 
-             const reviewItem: ReviewQueueItem = {
-                id: `review-suggestion-${Date.now()}`,
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'createdAt'> = {
                 userEmail: auth?.email || 'unknown-hr',
+                type: 'question_edit_suggestion',
                 inputData: { 
-                    type: 'question_edit_suggestion',
                     companyName: auth?.companyName,
+                },
+                change_details: {
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
-                    suggestions: {
-                        reason: suggestionReason,
-                        optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
-                        optionsToRemove: suggestedRemovals,
-                        guidanceOverrides: finalQuestion.answerGuidance,
-                    }
+                    reason: suggestionReason,
+                    optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
+                    optionsToRemove: suggestedRemovals,
                 },
-                output: {},
+                output: {}, // Not used for this type
                 status: 'pending',
-                createdAt: new Date().toISOString(),
             };
 
             addReviewQueueItem(reviewItem);
@@ -354,9 +352,7 @@ export default function EditQuestionDialog({
             return;
         }
         
-        const isAutoApproved = isHrEditing && isNew;
-
-        onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
+        onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined);
     }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals, suggestionReason, formType]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {

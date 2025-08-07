@@ -108,7 +108,7 @@ function GuidanceRulesTab() {
                                     </ul>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{masterTasks.find(t => t.id === rule.taskId)?.name || rule.taskId}</Badge>
+                                    <Badge variant="outline">{masterTasks.find(t => t.id === rule.assignments?.taskIds?.[0])?.name || rule.assignments?.taskIds?.[0]}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                      <AlertDialog>

@@ -111,7 +111,7 @@ export interface ReviewQueueItem {
     userEmail: string;
     inputData: any;
     output: PersonalizedRecommendationsOutput;
-    status: 'pending' | 'approved' | 'rejected' | 'reviewed' | 'withdrawn';
+    status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
     createdAt: string;
     reviewedAt?: string;
     reviewerId?: string;
@@ -333,7 +333,6 @@ const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profi
     return applicable;
 };
 
-
 export function useUserData() {
     const { auth } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
@@ -354,6 +353,7 @@ export function useUserData() {
     const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
     const [masterTips, setMasterTips] = useState<MasterTip[]>([]);
     const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+    const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
     useEffect(() => {
@@ -371,6 +371,7 @@ export function useUserData() {
                 { data: tasksData },
                 { data: tipsData },
                 { data: platformUsersData },
+                { data: reviewQueueData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -382,9 +383,11 @@ export function useUserData() {
                 supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('platform_users').select('*'),
+                supabase.from('review_queue').select('*'),
             ]);
             
             setPlatformUsers((platformUsersData as PlatformUser[]) || []);
+            setReviewQueue((reviewQueueData as ReviewQueueItem[]) || []);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -936,18 +939,16 @@ export function useUserData() {
             const masterQ = masterSource[id];
             if (masterQ.formType !== formType) continue;
 
-            // This is the fix: ALWAYS check if the master question is active.
             if (!masterQ.isActive) continue;
 
             const override = companyConfig?.questions?.[id];
-            // For HR view, we show it even if they have it disabled. For user view, we don't.
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
                  finalQuestions.push({
                     ...masterQ,
                     ...(override || {}),
-                    isActive: isCompanyActive, // Ensure company's preference is the final state
+                    isActive: isCompanyActive, 
                 });
             }
         }
@@ -1061,6 +1062,24 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'createdAt'>) => {
+        const company = companyAssignments.find(c => c.companyName === auth?.companyName);
+        if (!company) return;
+
+        const newItem = {
+            ...item,
+            company_id: company.companyId,
+            user_email: auth?.email,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+        };
+        const { data, error } = await supabase.from('review_queue').insert(newItem).select().single();
+        if (error) {
+            console.error("Error adding to review queue", error);
+        } else if(data) {
+            setReviewQueue(prev => [...prev, data as ReviewQueueItem]);
+        }
+    }, [auth?.email, auth?.companyName, companyAssignments]);
 
     return {
         profileData,
@@ -1079,6 +1098,7 @@ export function useUserData() {
         companyConfigs,
         externalResources: [],
         platformUsers,
+        reviewQueue,
         saveProfileData,
         saveAssessmentData,
         addCompanyAssignment,
@@ -1112,9 +1132,9 @@ export function useUserData() {
         getTargetTimezone: () => 'UTC',
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
-        addReviewQueueItem: async () => {},
+        addReviewQueueItem,
+        saveReviewQueue: setReviewQueue,
         saveExternalResources: async () => {},
-        saveReviewQueue: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
         deleteCompanyAssignment: async () => {},
@@ -1125,6 +1145,5 @@ export function useUserData() {
         assessmentCompletions: {},
         taskMappings: [],
         tipMappings: [],
-        reviewQueue: [],
     };
 }

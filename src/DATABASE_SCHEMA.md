@@ -1,3 +1,4 @@
+
 # ExitBetter Platform - Database Schema
 
 This document outlines the proposed database schema for the ExitBetter application, designed to support the features and user roles defined in the product requirements.
