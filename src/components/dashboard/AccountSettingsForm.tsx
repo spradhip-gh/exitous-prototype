@@ -30,22 +30,12 @@ export default function AccountSettingsForm() {
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      personalEmail: companyUser?.user.personal_email || '',
-      phone: companyUser?.user.phone || '',
-      notificationEmail: profileData?.notificationEmail || auth?.email,
+      personalEmail: '',
+      phone: '',
+      notificationEmail: auth?.email,
       notificationSettings: {
-        email: {
-          all: profileData?.notificationSettings?.email?.all ?? true,
-          taskReminders: profileData?.notificationSettings?.email?.taskReminders ?? false,
-          unsureReminders: profileData?.notificationSettings?.email?.unsureReminders ?? false,
-          criticalDateReminders: profileData?.notificationSettings?.email?.criticalDateReminders ?? false,
-        },
-        sms: {
-          all: profileData?.notificationSettings?.sms?.all ?? false,
-          taskReminders: profileData?.notificationSettings?.sms?.taskReminders ?? false,
-          unsureReminders: profileData?.notificationSettings?.sms?.unsureReminders ?? false,
-          criticalDateReminders: profileData?.notificationSettings?.sms?.criticalDateReminders ?? false,
-        },
+        email: { all: true },
+        sms: { all: false },
       },
     },
   });
@@ -62,7 +52,7 @@ export default function AccountSettingsForm() {
             },
         });
     }
-  }, [companyUser, profileData, auth?.email, form]);
+  }, [companyUser, profileData, auth?.email, form.reset]);
 
   function onSubmit(data: AccountSettingsFormData) {
     if (!companyUser) {
