@@ -1,13 +1,14 @@
 
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Question, ReviewQueueItem } from "@/hooks/use-user-data";
+import { Question, ReviewQueueItem, CompanyConfig } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
@@ -68,7 +69,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite, isFirstCustom, isLastCustom, pendingSuggestion }: {
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite, isFirstCustom, isLastCustom, pendingSuggestion, companyConfig }: {
     question: Question, 
     onToggleActive: (id: string, parentId?: string) => void, 
     onEdit: (q: Question) => void, 
@@ -80,9 +81,13 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     isFirstCustom: boolean,
     isLastCustom: boolean,
     pendingSuggestion?: ReviewQueueItem,
+    companyConfig?: CompanyConfig,
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
+
+    const override = companyConfig?.questions?.[question.id];
+    const isModified = !!override?.label || !!override?.description || !!override?.optionOverrides;
 
     const SuggestionTooltipContent = () => {
         if (!pendingSuggestion || !pendingSuggestion.change_details) return null;
@@ -103,6 +108,23 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                 )}
             </div>
         );
+    };
+    
+    const ModifiedTooltipContent = () => {
+        if (!isModified || !override) return null;
+        return (
+            <div className="space-y-2 text-xs p-1">
+                <p className="font-bold">Your Company's Modifications:</p>
+                {override.label && <p><strong>Label:</strong> "{override.label}"</p>}
+                {override.description && <p><strong>Tooltip:</strong> "{override.description}"</p>}
+                {override.optionOverrides?.add && override.optionOverrides.add.length > 0 && (
+                    <div className="text-green-600"><strong>Added:</strong> {override.optionOverrides.add.join(', ')}</div>
+                )}
+                {override.optionOverrides?.remove && override.optionOverrides.remove.length > 0 && (
+                     <div className="text-red-600"><strong>Removed:</strong> {override.optionOverrides.remove.join(', ')}</div>
+                )}
+            </div>
+        )
     };
 
     return (
@@ -133,6 +155,18 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     )}
                     {hasBeenUpdated && !question.isCustom && <BellDot className="h-4 w-4 text-primary flex-shrink-0" />}
                     {question.isCustom && <Star className="h-4 w-4 text-amber-500 flex-shrink-0" />}
+                    {isModified && !question.isCustom && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Edit className="h-4 w-4 text-blue-600" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <ModifiedTooltipContent />
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
                 </div>
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} disabled={!canWrite || isLocked} />
                 <Label htmlFor={question.id} className={cn("font-normal text-sm flex-1", isLocked && "text-muted-foreground")}>{question.label}</Label>

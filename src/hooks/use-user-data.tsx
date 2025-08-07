@@ -962,6 +962,7 @@ export function useUserData() {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
+                    finalQuestion.isModified = true; // Mark as modified for the UI
                     if (override.label) finalQuestion.label = override.label;
                     if (override.description) finalQuestion.description = override.description;
                     
@@ -973,9 +974,6 @@ export function useUserData() {
                         let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
-                    } else if (override.options) {
-                        // LEGACY: Handle old flat list override
-                        finalQuestion.options = override.options;
                     }
     
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -1132,11 +1130,10 @@ export function useUserData() {
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
             
-            // This is the new, correct logic
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
-            delete override.options; // Remove the legacy flat list if it exists
+             delete override.options; // Ensure legacy flat list is removed.
 
             const additions = new Set(override.optionOverrides.add || []);
             optionsToAdd.forEach((o: {option: string}) => additions.add(o.option));
@@ -1153,7 +1150,6 @@ export function useUserData() {
             
             newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
     
-            // Handle guidance for new options
             if (optionsToAdd.length > 0) {
                 optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
                     if (suggestion.guidance) {
