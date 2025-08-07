@@ -357,7 +357,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
             ...prev,
             [companyName]: {
                 ...prev[companyName],
-                permissions: { ...prev[companyName].permissions, [key]: value }
+                permissions: { ...prev[companyName].permissions, [key]: value as any }
             }
         }));
     };
@@ -593,16 +593,7 @@ export default function HrManagementPage() {
     };
     
     const handleSaveAssignments = (email: string, updatedAssignments: CompanyAssignment[]) => {
-        const fullAssignmentList = [...companyAssignments];
-
-        updatedAssignments.forEach(updatedAssignment => {
-            const index = fullAssignmentList.findIndex(a => a.companyName === updatedAssignment.companyName);
-            if(index !== -1) {
-                fullAssignmentList[index] = updatedAssignment;
-            }
-        });
-
-        saveCompanyAssignments(fullAssignmentList);
+        saveCompanyAssignments(updatedAssignments);
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
 
         // If the current user's primary status for the current company has changed, refresh auth.
