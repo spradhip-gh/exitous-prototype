@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { HrPermissions, CompanyAssignment, ProfileData } from './use-user-data';
 import { supabase } from '@/lib/supabase-client';
+import { v4 as uuidv4 } from 'uuid';
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
@@ -27,7 +28,7 @@ interface AuthContextType {
   loading: boolean;
   login: (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string) => Promise<boolean>;
   logout: () => void;
-  startUserView: (user: any) => void;
+  startUserView: () => void;
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
@@ -193,16 +194,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const startUserView = useCallback((user: any) => {
+  const startUserView = useCallback(() => {
     if (!auth || auth.role !== 'hr') return;
 
     const originalAuth = { ...auth, isPreview: undefined };
+    
+    // Create a temporary, generic user session for the preview
     const previewAuth: AuthState = {
         role: 'end-user',
-        email: user.email,
-        userId: user.id,
-        companyUserId: user.company_user_id,
-        companyId: user.company_id,
+        email: 'hr-preview@exitbetter.com',
+        userId: `preview-${uuidv4()}`,
+        companyUserId: 'PREVIEW_USER',
+        companyId: auth.companyId,
         companyName: auth.companyName,
         isPreview: true,
     };

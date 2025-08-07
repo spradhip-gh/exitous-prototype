@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronsUpDown, Trash2, Eye, ShieldCheck, Key, Crown } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData, CompanyUser } from '@/hooks/use-user-data';
+import { useUserData } from '@/hooks/use-user-data';
 import { useRouter } from 'next/navigation';
 import {
   AlertDialog,
@@ -29,11 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '../ui/badge';
-import { useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
-import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 
 const roleNames = {
     'end-user': 'End User',
@@ -49,70 +45,10 @@ const permissionLabels: Record<string, string> = {
     'invite-only': 'Invite Only',
 };
 
-function UserPreviewDialog({ open, onOpenChange, onStartView }: { open: boolean, onOpenChange: (open: boolean) => void, onStartView: (user: CompanyUser) => void }) {
-    const { auth } = useAuth();
-    const { companyConfigs } = useUserData();
-    const [selectedUser, setSelectedUser] = useState<CompanyUser | null>(null);
-
-    const users = useMemo(() => {
-        if (!auth?.companyName) return [];
-        return companyConfigs[auth.companyName]?.users || [];
-    }, [auth?.companyName, companyConfigs]);
-
-    const handleSelectAndStart = () => {
-        if (selectedUser) {
-            onStartView(selectedUser);
-            onOpenChange(false);
-        }
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Select User to Preview</DialogTitle>
-                    <DialogDescription>
-                        Choose which user's dashboard and experience you would like to preview.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                     <Command>
-                        <CommandInput placeholder="Search user by email..." />
-                        <CommandList>
-                            <CommandEmpty>No users found for this company.</CommandEmpty>
-                            <CommandGroup>
-                                {users.map((user) => (
-                                    <CommandItem
-                                        key={user.id}
-                                        value={user.email}
-                                        onSelect={() => {
-                                            setSelectedUser(user);
-                                        }}
-                                    >
-                                        <Check className={cn("mr-2 h-4 w-4", selectedUser?.id === user.id ? "opacity-100" : "opacity-0")} />
-                                        {user.email}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSelectAndStart} disabled={!selectedUser}>
-                        <Eye className="mr-2" /> Start Preview
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
 export default function Header({ children }: { children?: React.ReactNode }) {
   const { auth, logout, startUserView, stopUserView, switchCompany } = useAuth();
   const { clearData, companyAssignments } = useUserData();
   const router = useRouter();
-  const [isUserViewDialogOpen, setIsUserViewDialogOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -124,8 +60,8 @@ export default function Header({ children }: { children?: React.ReactNode }) {
     window.location.reload(); // Reload to force state reset and redirect to progress tracker
   };
 
-  const handleStartUserView = (user: CompanyUser) => {
-    startUserView(user);
+  const handleStartUserView = () => {
+    startUserView();
     router.push('/dashboard');
   };
 
@@ -267,7 +203,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                  )}
                  
                  {auth.role === 'hr' && !auth.isPreview && (
-                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsUserViewDialogOpen(true); }}>
+                    <DropdownMenuItem onSelect={handleStartUserView}>
                         <Eye className="mr-2" />
                         <span>View as User</span>
                     </DropdownMenuItem>
@@ -289,11 +225,6 @@ export default function Header({ children }: { children?: React.ReactNode }) {
 
       </div>
     </header>
-    <UserPreviewDialog 
-        open={isUserViewDialogOpen} 
-        onOpenChange={setIsUserViewDialogOpen}
-        onStartView={handleStartUserView}
-    />
     </>
   );
 }
