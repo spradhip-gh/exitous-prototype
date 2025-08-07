@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -573,6 +572,27 @@ export default function EditQuestionDialog({
                             <Label htmlFor="exclusive-option">Exclusive Option</Label>
                             <Input id="exclusive-option" value={currentQuestion.exclusiveOption || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, exclusiveOption: e.target.value } : null)} placeholder="e.g., None of the above"/>
                             <p className="text-xs text-muted-foreground">If a user selects this option, all other options will be deselected.</p>
+                        </div>
+                    )}
+
+                    {isCustomQuestion && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length > 0 && (
+                        <div className="space-y-2">
+                            <Label htmlFor="default-value">Default Value (Optional)</Label>
+                            <Select
+                                value={currentQuestion.defaultValue as string || ''}
+                                onValueChange={(value) => setCurrentQuestion(q => q ? { ...q, defaultValue: value } : null)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a default answer..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">None</SelectItem>
+                                    {currentOptions.map(option => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Pre-select an answer for the user.</p>
                         </div>
                     )}
 
