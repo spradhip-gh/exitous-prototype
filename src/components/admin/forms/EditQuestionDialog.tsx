@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -309,7 +310,11 @@ export default function EditQuestionDialog({
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
-        let finalQuestion = { ...currentQuestion, options: currentOptions };
+        let finalQuestion = { 
+            ...currentQuestion,
+            options: currentOptions,
+            formType: currentQuestion.formType || formType
+        };
 
         if (isSuggestionMode) {
              const suggestedOptionsToAdd = (finalQuestion.options || []).filter(opt => !(masterQuestionForEdit?.options || []).includes(opt));
@@ -353,7 +358,7 @@ export default function EditQuestionDialog({
         const isAutoApproved = isHrEditing && isNew;
 
         onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals, suggestionReason]);
+    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals, suggestionReason, formType]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
