@@ -946,22 +946,26 @@ export function useUserData() {
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
-                // Correctly merge options
+                let finalOptions = masterQ.options ? [...masterQ.options] : [];
                 if (override?.options) {
-                    const masterOptions = masterQ.options || [];
-                    const overrideOptions = override.options || [];
-                    const combinedOptions = [...masterOptions];
-                    overrideOptions.forEach(opt => {
-                        if (!combinedOptions.includes(opt)) {
-                            combinedOptions.push(opt);
+                    const masterOptionsSet = new Set(masterQ.options || []);
+                    const overrideOptionsSet = new Set(override.options);
+                    
+                    // Remove options from master that are not in override
+                    finalOptions = finalOptions.filter(opt => overrideOptionsSet.has(opt));
+
+                    // Add options from override that are not in master
+                    override.options.forEach(opt => {
+                        if (!masterOptionsSet.has(opt)) {
+                            finalOptions.push(opt);
                         }
                     });
-                    masterQ.options = combinedOptions;
                 }
                 
                 finalQuestions.push({
                     ...masterQ,
                     ...(override || {}),
+                    options: finalOptions,
                     isActive: isCompanyActive,
                 });
             }
@@ -1063,7 +1067,7 @@ export function useUserData() {
             percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
         }));
 
-        const overallPercentage = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 100;
+        const overallPercentage = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
 
         return {
             percentage: overallPercentage,
@@ -1110,9 +1114,9 @@ export function useUserData() {
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
             
-            // Ensure options is an array before using it
-            const currentOptions = override.options || masterQuestions[questionId]?.options || masterProfileQuestions[questionId]?.options || [];
-            let newOptions = [...currentOptions];
+            const masterQ = masterQuestions[questionId] || masterProfileQuestions[questionId];
+            let newOptions = [...(override.options || masterQ.options || [])];
+
             if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
             if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
 
