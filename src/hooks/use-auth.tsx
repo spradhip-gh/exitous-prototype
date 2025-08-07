@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email,
                 company_user_id,
                 is_invited,
-                companies (id, name)
+                company:companies (id, name)
             `)
             .eq('email', authData.email)
             .eq('company_user_id', companyIdentifier)
@@ -106,8 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: userData.email,
             userId: userData.id,
             companyUserId: userData.company_user_id,
-            companyId: userData.companies?.id,
-            companyName: userData.companies?.name
+            companyId: userData.company?.id,
+            companyName: userData.company?.name
         };
 
     } else if (authData.role === 'hr' && authData.email) {
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select(`
                 is_primary,
                 permissions,
-                companies (id, name)
+                company:companies (id, name)
             `)
             .eq('hr_email', authData.email);
 
@@ -131,9 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         finalAuthData = {
             role: 'hr',
             email: authData.email,
-            companyId: defaultAssignment.companies?.id,
-            companyName: defaultAssignment.companies?.name,
-            assignedCompanyNames: hrAssignments.map(a => a.companies?.name || '').filter(Boolean),
+            companyId: defaultAssignment.company?.id,
+            companyName: defaultAssignment.company?.name,
+            assignedCompanyNames: hrAssignments.map(a => a.company?.name || '').filter(Boolean),
             permissions: defaultAssignment.is_primary 
                 ? fullPermissions
                 : defaultAssignment.permissions as HrPermissions
