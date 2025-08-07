@@ -51,11 +51,10 @@ function MySuggestionsTab() {
         if (!auth?.email || !auth.companyName) return [];
         return reviewQueue
             .filter(item =>
-                (item.inputData?.type === 'question_edit_suggestion' || item.inputData?.type === 'custom_question_guidance') &&
-                item.userEmail.toLowerCase() === auth.email!.toLowerCase() &&
-                item.inputData?.companyName === auth.companyName
+                item.user_email.toLowerCase() === auth.email!.toLowerCase() &&
+                item.input_data?.companyName === auth.companyName
             )
-            .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+            .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
     }, [reviewQueue, auth]);
 
     const handleWithdraw = (itemId: string) => {
@@ -92,16 +91,17 @@ function MySuggestionsTab() {
                     <TableBody>
                         {mySuggestions.length > 0 ? mySuggestions.map(item => (
                             <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.inputData.questionLabel}</TableCell>
+                                <TableCell className="font-medium">{item.change_details?.questionLabel}</TableCell>
                                 <TableCell>
                                     <div className="text-xs space-y-1">
-                                        {item.inputData.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
-                                        {item.inputData.suggestions?.reason && <div className="italic text-muted-foreground">Reason: "{item.inputData.suggestions.reason}"</div>}
-                                        {item.inputData.suggestions?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
-                                        {item.inputData.suggestions?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
+                                        {item.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
+                                        {item.change_details?.reason && <div className="italic text-muted-foreground">Reason: "{item.change_details.reason}"</div>}
+                                        {item.change_details?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.change_details.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                        {item.change_details?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.change_details.optionsToRemove.join(', ')}</div>}
+                                        {item.rejection_reason && <div className="text-red-700">Rejection Reason: "{item.rejection_reason}"</div>}
                                     </div>
                                 </TableCell>
-                                <TableCell>{format(parseISO(item.createdAt), 'PPp')}</TableCell>
+                                <TableCell>{format(parseISO(item.created_at), 'PPp')}</TableCell>
                                 <TableCell>{getStatusBadge(item.status)}</TableCell>
                                 <TableCell className="text-right">
                                     {item.status === 'pending' && (
@@ -161,12 +161,23 @@ function QuestionEditor({
         getCompanyConfig,
         addReviewQueueItem,
         getMasterQuestionConfig,
+        reviewQueue
     } = useUserData();
 
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
+
+    const pendingSuggestionsByQuestionId = useMemo(() => {
+        const map = new Map<string, boolean>();
+        reviewQueue.forEach(item => {
+            if (item.status === 'pending' && item.change_details?.questionId) {
+                map.set(item.change_details.questionId, true);
+            }
+        });
+        return map;
+    }, [reviewQueue]);
 
     useEffect(() => {
         if (isLoading || !companyName) {
@@ -275,8 +286,28 @@ function QuestionEditor({
         const isSuggestionMode = !!masterQuestion?.isLocked && !questionToSave.isCustom;
     
         if (isSuggestionMode) {
-            // Suggestion logic remains the same
-            // ...
+            const suggestedOptionsToAdd = (questionToSave.options || []).filter(opt => !(masterQuestion?.options || []).includes(opt));
+             
+             if (suggestedOptionsToAdd.length === 0 && !questionToSave.answerGuidance) {
+                toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance mapping.", variant: "destructive" });
+                return;
+            }
+
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
+                user_email: auth?.email || 'unknown-hr',
+                type: 'question_edit_suggestion',
+                input_data: { 
+                    companyName: auth?.companyName,
+                },
+                change_details: {
+                    questionId: questionToSave.id,
+                    questionLabel: questionToSave.label,
+                    optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: questionToSave.answerGuidance?.[opt] })),
+                },
+                status: 'pending',
+            };
+            addReviewQueueItem(reviewItem);
+            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
         } else {
             let finalQuestion: Question = {
                 ...questionToSave,
@@ -390,6 +421,7 @@ function QuestionEditor({
                                         
                                         const relevantCustomGroup = question.position === 'top' ? customQuestionsTop : customQuestionsBottom;
                                         const customIndex = relevantCustomGroup.findIndex(q => q.id === question.id);
+                                        const hasPendingSuggestion = pendingSuggestionsByQuestionId.has(question.id);
 
                                         return (
                                             <HrQuestionItem
@@ -404,6 +436,7 @@ function QuestionEditor({
                                                 canWrite={canWrite}
                                                 isFirstCustom={question.isCustom && customIndex === 0}
                                                 isLastCustom={question.isCustom && customIndex === relevantCustomGroup.length - 1}
+                                                hasPendingSuggestion={hasPendingSuggestion}
                                             />
                                         )
                                     })}
