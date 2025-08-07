@@ -1065,16 +1065,19 @@ export function useUserData() {
 
     const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'>) => {
         const company = companyAssignments.find(c => c.companyName === auth?.companyName);
-        if (!company) return;
+        if (!company) {
+             console.error("Could not find company to associate with review item.");
+             return;
+        }
 
         const newItem = {
-            company_id: company.companyId,
+            company_id: company.companyId, // Ensure company_id is included
             user_email: item.user_email,
             status: item.status,
             type: item.type,
             change_details: item.change_details,
             rejection_reason: item.rejection_reason,
-            input_data: item.input_data, // Add input_data to the object being inserted
+            input_data: item.input_data,
             output_data: item.output_data,
         };
 
