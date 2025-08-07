@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select(`
                 is_primary,
                 permissions,
-                companies:company_id(id, name)
+                companies:companies(id, name)
             `)
             .eq('hr_email', authData.email);
 
@@ -217,17 +217,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchCompany = useCallback(async (companyName: string) => {
     if (!auth || auth.role !== 'hr' || !auth.email) return;
 
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('name', companyName)
+      .single();
+
+    if (companyError || !companyData) {
+      console.error("Error finding company:", companyError?.message || 'Company not found.');
+      return;
+    }
+
     const { data: hrAssignment, error } = await supabase
-        .from('company_hr_assignments')
-        .select(`
-            is_primary,
-            permissions,
-            companies:company_id ( id, name )
-        `)
-        .eq('hr_email', auth.email)
-        .eq('companies.name', companyName)
-        .single();
-    
+      .from('company_hr_assignments')
+      .select('is_primary, permissions, company_id')
+      .eq('hr_email', auth.email)
+      .eq('company_id', companyData.id)
+      .single();
+
     if (error || !hrAssignment) {
         console.error("Error switching company:", error?.message || 'Assignment not found.');
         return;
@@ -237,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
         : hrAssignment.permissions as HrPermissions;
 
-    const newAuth = { ...auth, companyName, companyId: hrAssignment.companies?.id, permissions: newPermissions };
+    const newAuth = { ...auth, companyName, companyId: hrAssignment.company_id, permissions: newPermissions };
     localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
     setAuthState(newAuth);
   }, [auth]);
