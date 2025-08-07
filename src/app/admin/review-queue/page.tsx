@@ -309,7 +309,7 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
 
     if (isSuggestion) {
         const { companyName, questionLabel, suggestions } = item.inputData;
-        const { optionsToAdd, optionsToRemove } = suggestions || {};
+        const { optionsToAdd, optionsToRemove, reason } = suggestions || {};
 
         return (
             <Card className="bg-muted/50">
@@ -326,6 +326,12 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
                          <p className="text-sm text-muted-foreground">For Question:</p>
                          <p className="font-semibold text-base">"{questionLabel}"</p>
                     </div>
+                     {reason && (
+                        <div>
+                            <p className="text-sm font-medium mb-1">Reason for change:</p>
+                             <blockquote className="border-l-2 pl-3 italic text-sm text-muted-foreground">"{reason}"</blockquote>
+                        </div>
+                     )}
                      {optionsToRemove?.length > 0 && (
                         <div>
                              <p className="text-sm font-medium mb-1">Suggested Removals:</p>
@@ -471,5 +477,3 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
         </Card>
     )
 }
-
-    

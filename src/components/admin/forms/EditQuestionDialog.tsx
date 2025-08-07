@@ -264,6 +264,7 @@ export default function EditQuestionDialog({
     const [newSectionName, setNewSectionName] = useState("");
     const [newOption, setNewOption] = useState('');
     const [suggestedRemovals, setSuggestedRemovals] = useState<string[]>([]);
+    const [suggestionReason, setSuggestionReason] = useState('');
         
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
@@ -302,6 +303,7 @@ export default function EditQuestionDialog({
         setIsCreatingNewSection(false);
         setNewSectionName("");
         setNewOption('');
+        setSuggestionReason('');
     }, [question]);
     
     const handleSave = useCallback(() => {
@@ -326,6 +328,7 @@ export default function EditQuestionDialog({
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
                     suggestions: {
+                        reason: suggestionReason,
                         optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
                         optionsToRemove: suggestedRemovals,
                         guidanceOverrides: finalQuestion.answerGuidance,
@@ -350,7 +353,7 @@ export default function EditQuestionDialog({
         const isAutoApproved = isHrEditing && isNew;
 
         onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals]);
+    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit, suggestedRemovals, suggestionReason]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -602,6 +605,13 @@ export default function EditQuestionDialog({
                 </div>
             )}
             
+            {isSuggestionMode && (
+                <div className="space-y-2 pt-4">
+                    <Label htmlFor="suggestion-reason">Reason for change (optional)</Label>
+                    <Textarea id="suggestion-reason" value={suggestionReason} onChange={e => setSuggestionReason(e.target.value)} placeholder="e.g., We need to add a 'Remote' option because our policy has changed." />
+                </div>
+            )}
+
             {!isSuggestionMode && (
                 <Collapsible>
                     <CollapsibleTrigger asChild>
