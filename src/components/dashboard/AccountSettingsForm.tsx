@@ -16,19 +16,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 import { accountSettingsSchema } from '@/lib/schemas';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
 export default function AccountSettingsForm() {
   const { auth } = useAuth();
-  const { profileData, saveProfileData } = useUserData();
+  const { profileData, getCompanyUser, updateCompanyUserContact, isLoading } = useUserData();
   const { toast } = useToast();
+  
+  const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth, getCompanyUser]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true)
+  }, []);
 
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      notificationEmail: auth?.email,
+      personalEmail: '',
+      phone: '',
+      notificationEmail: '',
       notificationSettings: {
         email: { all: true },
         sms: { all: false },
@@ -38,25 +47,39 @@ export default function AccountSettingsForm() {
   
   const { reset } = form;
 
-  const { notificationEmail, notificationSettings } = profileData || {};
-
   useEffect(() => {
-    reset({
-        notificationEmail: notificationEmail || auth?.email,
-        notificationSettings: notificationSettings || {
-            email: { all: true },
-            sms: { all: false },
-        },
-    });
-  }, [notificationEmail, notificationSettings, auth?.email, reset]);
+      if (!isClient || !auth || !companyUser) return;
+        
+      const personalEmail = companyUser?.user.personal_email || '';
+      const phone = companyUser?.user.phone || '';
+      const notificationEmail = profileData?.notificationEmail || personalEmail || auth.email;
 
-  function onSubmit(data: AccountSettingsFormData) {
-    if (!profileData) {
+      reset({
+          personalEmail: personalEmail,
+          phone: phone,
+          notificationEmail: notificationEmail,
+          notificationSettings: profileData?.notificationSettings || {
+              email: { all: true },
+              sms: { all: false },
+          },
+      });
+
+  }, [companyUser, profileData, auth?.email, reset, isClient, auth]);
+
+  async function onSubmit(data: AccountSettingsFormData) {
+    if (!companyUser?.user.id || !profileData) {
         toast({ title: 'Profile not found', description: "Complete your profile before managing settings.", variant: 'destructive'});
         return;
     }
+    
+    // Update contact info in company_users
+    await updateCompanyUserContact(companyUser.user.id, {
+        personal_email: data.personalEmail,
+        phone: data.phone,
+    });
 
-    saveProfileData({
+    // Update notification settings in user_profiles
+    await useUserData().saveProfileData({
         ...profileData,
         notificationEmail: data.notificationEmail,
         notificationSettings: data.notificationSettings,
@@ -64,20 +87,55 @@ export default function AccountSettingsForm() {
 
     toast({
       title: 'Settings Saved',
-      description: 'Your notification preferences have been updated.',
+      description: 'Your account settings have been updated.',
     });
   }
 
   const emailOptions = useMemo(() => {
     const options = new Set<string>();
     if (auth?.email) options.add(auth.email);
-    if (profileData?.personalEmail) options.add(profileData.personalEmail);
+    if (companyUser?.user.personal_email) options.add(companyUser.user.personal_email);
     return Array.from(options).filter(Boolean);
-  }, [auth?.email, profileData?.personalEmail]);
+  }, [auth?.email, companyUser]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+            <CardHeader>
+                <CardTitle>Contact Information</CardTitle>
+                <CardDescription>This is where we'll send important updates after your access to work systems ends.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <FormField
+                    control={form.control}
+                    name="personalEmail"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Personal Email Address</FormLabel>
+                        <FormControl>
+                            <Input placeholder="your.name@personal.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                            <Input placeholder="(555) 123-4567" {...field} />
+                        </FormControl>
+                        <FormDescription>Used for critical SMS alerts if you opt-in.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
         <Card>
             <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>

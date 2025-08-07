@@ -19,8 +19,8 @@ const profileBaseShape = {
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
-    personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
-    phone: z.string().optional(),
+    personalEmail: z.string().email({ message: "Please enter a valid personal email address." }).optional().or(z.literal('')),
+    phone: z.string().min(10, { message: "Please enter a valid phone number." }).optional().or(z.literal('')),
     notificationEmail: z.string().email().optional(),
     notificationSettings: z.object({
         email: z.object({
@@ -39,6 +39,8 @@ const profileBaseShape = {
 };
 
 export const accountSettingsSchema = z.object({
+  personalEmail: z.string().email({ message: "Please enter a valid personal email address." }).optional().or(z.literal('')),
+  phone: z.string().min(10, { message: "Please enter a valid phone number." }).optional().or(z.literal('')),
   notificationEmail: z.string().email().optional(),
   notificationSettings: z.object({
     email: z.object({
@@ -81,6 +83,8 @@ export function buildProfileSchema(questions: Question[]) {
                         shape[key] = profileBaseShape.birthYear;
                     } else if (q.id === 'personalEmail') {
                         shape[key] = profileBaseShape.personalEmail;
+                    } else if (q.id === 'phone') {
+                        shape[key] = profileBaseShape.phone;
                     }
                     else {
                         shape[key] = z.string().optional();

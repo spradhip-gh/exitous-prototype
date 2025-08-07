@@ -78,7 +78,8 @@ Stores end-users associated with a specific company. This table tracks who is el
 | `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                                             |
 | `email`                      | `TEXT`    | The end-user's primary (work) email.                                           |
 | `company_user_id`            | `TEXT`    | The user's ID within their company's system.                                   |
-| `personal_email`             | `TEXT`    | Optional personal email for the user.                                          |
+| `personal_email`             | `TEXT`    | Optional personal email for post-exit communication. Nullable.                  |
+| `phone`                      | `TEXT`    | Optional phone number for SMS alerts. Nullable.                                |
 | `notification_date`          | `DATE`    | The date the user was notified of their exit.                                  |
 | `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.                       |
 | `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.                      |
@@ -98,7 +99,7 @@ Stores the profile form data for each end-user. This is a one-to-one relationshi
 | Column      | Type      | Description                                  |
 | ----------- | --------- | -------------------------------------------- |
 | `user_id`   | `UUID`    | **Primary Key** and **Foreign Key** to `company_users.id`. |
-| `data`      | `JSONB`   | The complete JSON object of the user's profile form. |
+| `data`      | `JSONB`   | The complete JSON object of the user's profile form (excluding PII like personal email/phone). |
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.                |
 
 ### `user_assessments`
@@ -285,5 +286,3 @@ A log of AI-generated recommendations for consultants to review, approve, or con
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
 | `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
 | `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
-
-    

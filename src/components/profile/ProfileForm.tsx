@@ -217,28 +217,45 @@ const QuestionRenderer = ({ question, form }: { question: Question, form: any })
 };
 
 
-function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: ProfileData }) {
+function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUser }: { 
+    questions: Question[], 
+    dynamicSchema: z.ZodObject<any>, 
+    initialData: Partial<ProfileData>,
+    companyUser: any,
+}) {
     const router = useRouter();
-    const { saveProfileData } = useUserData();
+    const { saveProfileData, updateCompanyUserContact } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
-    
+
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
-        values: initialData,
+        values: {
+            ...initialData,
+            personalEmail: companyUser?.personal_email || '',
+            phone: companyUser?.phone || '',
+        },
     });
 
     const { formState: { isDirty } } = form;
 
     useEffect(() => {
         setIsDirty(isDirty);
-        // On unmount, reset the dirty state
         return () => setIsDirty(false);
     }, [isDirty, setIsDirty]);
 
-    function onSubmit(data: ProfileData) {
-        saveProfileData(data);
+    async function onSubmit(data: ProfileData) {
+        if (!auth?.userId) return;
+
+        const { personalEmail, phone, ...profileAnswers } = data;
+        
+        // Save contact info to company_users table
+        await updateCompanyUserContact(auth.userId, { personal_email: personalEmail, phone });
+
+        // Save the rest of the profile data
+        saveProfileData(profileAnswers as ProfileData);
+
         toast({
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
@@ -259,6 +276,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
     const groupedQuestions = useMemo(() => {
         const sections: Record<string, Question[]> = {};
         questions.forEach(q => {
+            if (!q.isActive) return;
             if (q.parentId) return;
             const sectionName = q.section || "Uncategorized";
             if (!sections[sectionName]) {
@@ -305,12 +323,14 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
 }
 
 export default function ProfileForm() {
-    const { masterProfileQuestions, profileData, isUserDataLoading } = useUserData();
+    const { masterProfileQuestions, profileData, isUserDataLoading, getCompanyUser } = useUserData();
+    const { auth } = useAuth();
     
     const questions = useMemo(() => buildQuestionTreeFromMap(masterProfileQuestions), [masterProfileQuestions]);
     const dynamicSchema = useMemo(() => buildProfileSchema(questions), [questions]);
     
     const [isLoading, setIsLoading] = useState(true);
+    const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth?.email, getCompanyUser]);
 
     useEffect(() => {
         if (!isUserDataLoading) {
@@ -334,5 +354,5 @@ export default function ProfileForm() {
         )
     }
 
-    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} />;
+    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} companyUser={companyUser?.user} />;
 }
