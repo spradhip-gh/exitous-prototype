@@ -264,7 +264,7 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileData: any }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
+    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -392,10 +392,11 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     const companyName = auth?.companyName || "your previous company";
     const editingSection = searchParams.get('section');
 
-    const groupedQuestions = useMemo(() => {
-        const sections: Record<string, Question[]> = {};
+    const orderedSections = useMemo(() => {
+        const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig('assessment');
+        const sectionOrder = masterConfig?.section_order || [];
         
-        // If editing a specific section, only include that section's questions.
         const questionsToProcess = editingSection 
             ? questions.filter(q => q.section === editingSection)
             : questions;
@@ -403,26 +404,41 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         questionsToProcess.forEach(q => {
             if (q.parentId) return;
 
-            // Handle cross-form dependencies
-            if(q.dependsOn && q.dependencySource === 'profile' && profileData) {
+            if (q.dependsOn && q.dependencySource === 'profile' && profileData) {
                 const dependencyValue = profileData[q.dependsOn as keyof typeof profileData];
                 let isTriggered = false;
-                if(Array.isArray(q.dependsOnValue)) {
+                if (Array.isArray(q.dependsOnValue)) {
                     isTriggered = q.dependsOnValue.includes(dependencyValue as string);
                 } else {
                     isTriggered = dependencyValue === q.dependsOnValue;
                 }
-                if(!isTriggered) return; // Don't render the question if dependency not met
+                if (!isTriggered) return;
             }
             
             const sectionName = q.section || "Uncategorized";
-            if (!sections[sectionName]) {
-                sections[sectionName] = [];
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
             }
-            sections[sectionName].push(q);
+            sectionsMap[sectionName].push(q);
         });
-        return sections;
-    }, [questions, profileData, editingSection]);
+        
+        // Add custom sections to the order if they don't exist
+        const masterSectionSet = new Set(sectionOrder);
+        Object.keys(sectionsMap).forEach(sectionName => {
+            if (!masterSectionSet.has(sectionName)) {
+                sectionOrder.push(sectionName);
+                masterSectionSet.add(sectionName);
+            }
+        });
+
+        return sectionOrder
+            .map(sectionName => ({
+                name: sectionName,
+                questions: sectionsMap[sectionName]?.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            }))
+            .filter(section => section.questions && section.questions.length > 0);
+
+    }, [questions, profileData, editingSection, getMasterQuestionConfig]);
     
      useEffect(() => {
         const section = searchParams.get('section');
@@ -450,7 +466,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                 </div>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                        {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
                             <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
                                 <CardHeader>
                                     <CardTitle>{section}</CardTitle>
