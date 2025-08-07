@@ -76,6 +76,8 @@ export function buildProfileSchema(questions: Question[]) {
 
     const buildShape = (qList: Question[]) => {
         qList.forEach(q => {
+            if (!q.isActive) return; // <-- This is the fix. Skip inactive questions.
+
             const key = q.id as keyof ProfileData;
             switch(q.type) {
                 case 'text':
@@ -111,7 +113,7 @@ export function buildProfileSchema(questions: Question[]) {
     let baseSchema = z.object(shape);
 
     // Now, apply refinements to the complete object schema.
-    const genderQuestion = questions.find(q => q.id === 'gender');
+    const genderQuestion = questions.find(q => q.id === 'gender' && q.isActive);
     if (genderQuestion) {
          baseSchema = baseSchema.refine((data: any) => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
             message: 'Please specify your gender identity.',
