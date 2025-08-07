@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -197,7 +196,12 @@ function QuestionEditor({
             .map(sectionName => {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;
-                return { id: sectionName, questions: questionsInSection };
+                
+                const topCustom = questionsInSection.filter(q => q.isCustom && q.position === 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const master = questionsInSection.filter(q => !q.isCustom); // Already sorted from getCompanyConfig
+                const bottomCustom = questionsInSection.filter(q => q.isCustom && q.position !== 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+                return { id: sectionName, questions: [...topCustom, ...master, ...bottomCustom] };
             })
             .filter((s): s is HrOrderedSection => s !== null);
 
@@ -217,7 +221,6 @@ function QuestionEditor({
         const currentOverride = newConfig.questions[questionId] || {};
         const masterQuestion = masterQuestions[questionId] || masterProfileQuestions[questionId];
         
-        // If there's an override, toggle its isActive. Otherwise, create an override that's the opposite of master.
         const currentIsActive = currentOverride.isActive === undefined ? masterQuestion.isActive : currentOverride.isActive;
         currentOverride.isActive = !currentIsActive;
         
@@ -325,31 +328,35 @@ function QuestionEditor({
         setCurrentQuestion(null);
     };
 
-    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
+    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down' | 'to_top' | 'to_bottom') => {
         if (!companyConfig?.customQuestions) return;
 
         const currentQuestion = companyConfig.customQuestions[questionId];
         if (!currentQuestion) return;
 
-        const siblings = Object.values(companyConfig.customQuestions)
-            .filter(q => q.section === currentQuestion.section && q.position === currentQuestion.position)
-            .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-        const currentIndex = siblings.findIndex(q => q.id === questionId);
-        if (currentIndex === -1) return;
-
-        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-        if (targetIndex < 0 || targetIndex >= siblings.length) return;
-
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        
-        // Swap sortOrder
-        const currentSortOrder = siblings[currentIndex].sortOrder || 0;
-        const targetSortOrder = siblings[targetIndex].sortOrder || 0;
 
-        newConfig.customQuestions[questionId].sortOrder = targetSortOrder;
-        newConfig.customQuestions[siblings[targetIndex].id].sortOrder = currentSortOrder;
-        
+        if (direction === 'to_top' || direction === 'to_bottom') {
+            newConfig.customQuestions[questionId].position = direction === 'to_top' ? 'top' : 'bottom';
+        } else {
+            const siblings = Object.values(newConfig.customQuestions as Record<string, Question>)
+                .filter(q => q.section === currentQuestion.section && q.position === currentQuestion.position)
+                .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+            const currentIndex = siblings.findIndex(q => q.id === questionId);
+            if (currentIndex === -1) return;
+
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+            // Swap sortOrder
+            const currentSortOrder = siblings[currentIndex].sortOrder || 0;
+            const targetSortOrder = siblings[targetIndex].sortOrder || 0;
+
+            newConfig.customQuestions[questionId].sortOrder = targetSortOrder;
+            newConfig.customQuestions[siblings[targetIndex].id].sortOrder = currentSortOrder;
+        }
+
         saveCompanyConfig(companyName, newConfig);
         toast({ title: 'Order Saved' });
     };
@@ -366,36 +373,46 @@ function QuestionEditor({
             <Card>
                 <CardHeader>
                     <CardTitle>Manage Questions</CardTitle>
-                    <CardDescription>Enable, disable, or edit questions. For custom questions (<Star className="inline h-4 w-4 text-amber-500" />), you can use the arrows to reorder them.</CardDescription>
+                    <CardDescription>Enable, disable, or edit questions. For custom questions (<Star className="inline h-4 w-4 text-amber-500" />), you can use the arrows to reorder them within their position (top/bottom of section).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {orderedSections.map((section) => (
-                        <div key={section.id} className="space-y-2">
-                             <h3 className="font-semibold text-lg">{section.id}</h3>
-                             <div className="pl-2 space-y-2 py-2">
-                                {section.questions.map((question, index) => {
-                                    const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
-                                    const masterQ = allMasterQuestions[question.id];
-                                    const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
+                    {orderedSections.map((section) => {
+                        const customQuestionsTop = section.questions.filter(q => q.isCustom && q.position === 'top');
+                        const customQuestionsBottom = section.questions.filter(q => q.isCustom && q.position !== 'top');
 
-                                    return (
-                                        <HrQuestionItem
-                                            key={question.id}
-                                            question={question}
-                                            onToggleActive={handleToggleQuestion}
-                                            onEdit={handleEditClick}
-                                            onDelete={handleDeleteCustom}
-                                            onAddSub={handleAddNewCustomClick}
-                                            hasBeenUpdated={hasBeenUpdated}
-                                            onMove={handleMoveQuestion}
-                                            canWrite={canWrite}
-                                        />
-                                    )
-                                })}
+                        return (
+                            <div key={section.id} className="space-y-2">
+                                <h3 className="font-semibold text-lg">{section.id}</h3>
+                                <div className="pl-2 space-y-2 py-2">
+                                    {section.questions.map((question, index) => {
+                                        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+                                        const masterQ = allMasterQuestions[question.id];
+                                        const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
+                                        
+                                        const relevantCustomGroup = question.position === 'top' ? customQuestionsTop : customQuestionsBottom;
+                                        const customIndex = relevantCustomGroup.findIndex(q => q.id === question.id);
+
+                                        return (
+                                            <HrQuestionItem
+                                                key={question.id}
+                                                question={question}
+                                                onToggleActive={handleToggleQuestion}
+                                                onEdit={handleEditClick}
+                                                onDelete={handleDeleteCustom}
+                                                onAddSub={handleAddNewCustomClick}
+                                                hasBeenUpdated={hasBeenUpdated}
+                                                onMove={handleMoveQuestion}
+                                                canWrite={canWrite}
+                                                isFirstCustom={question.isCustom && customIndex === 0}
+                                                isLastCustom={question.isCustom && customIndex === relevantCustomGroup.length - 1}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                                <Separator className="my-6" />
                             </div>
-                            <Separator className="my-6" />
-                        </div>
-                    ))}
+                        )
+                    })}
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <Button variant="outline" onClick={() => handleAddNewCustomClick()} disabled={!canWrite}><PlusCircle className="mr-2" /> Add Custom Question</Button>

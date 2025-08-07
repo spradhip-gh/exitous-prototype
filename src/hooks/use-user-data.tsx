@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -781,7 +780,7 @@ export function useUserData() {
         
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         
-        const finalQuestionsMap: Record<string, Question> = {};
+        let finalQuestions: Question[] = [];
 
         // 1. Add master questions that are active and of the correct type.
         for (const id in masterSource) {
@@ -790,47 +789,33 @@ export function useUserData() {
                 const override = companyConfig?.questions?.[id];
                 const isCompanyActive = override?.isActive === undefined ? masterQ.isActive : override.isActive;
                 if (!activeOnly || isCompanyActive) {
-                    finalQuestionsMap[id] = {
+                    finalQuestions.push({
                         ...masterQ,
                         ...(override || {}),
                         isActive: isCompanyActive,
-                    };
-                }
-            }
-        }
-
-        // 2. Add active custom questions for the company and form type.
-        if (companyConfig?.customQuestions) {
-            for (const id in companyConfig.customQuestions) {
-                const customQ = companyConfig.customQuestions[id];
-                if (customQ.formType === formType && (!activeOnly || customQ.isActive)) {
-                    finalQuestionsMap[id] = { ...customQ, isCustom: true };
+                    });
                 }
             }
         }
         
-        const questionTree = buildQuestionTreeFromMap(finalQuestionsMap);
+        const companyCustomQuestions = companyConfig?.customQuestions || {};
+        for(const id in companyCustomQuestions) {
+            const customQ = companyCustomQuestions[id];
+            if(customQ.formType === formType && (!activeOnly || customQ.isActive)) {
+                finalQuestions.push({ ...customQ, isCustom: true });
+            }
+        }
+
+        const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
         
         // This function now sorts custom questions relative to master questions based on their position property.
         const sortRecursive = (questions: Question[]) => {
-            const topCustom: Question[] = [];
-            const bottomCustom: Question[] = [];
-            const master: Question[] = [];
+            const topCustom = questions.filter(q => q.isCustom && q.position === 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            const master = questions.filter(q => !q.isCustom).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            const bottomCustom = questions.filter(q => q.isCustom && q.position !== 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
-            questions.forEach(q => {
-                if(q.isCustom) {
-                    if (q.position === 'top') topCustom.push(q);
-                    else bottomCustom.push(q);
-                } else {
-                    master.push(q);
-                }
-            });
-            
-            master.sort((a,b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-            
             const sorted = [...topCustom, ...master, ...bottomCustom];
             
-            // Clear the original array and push sorted items back
             questions.length = 0;
             questions.push(...sorted);
 

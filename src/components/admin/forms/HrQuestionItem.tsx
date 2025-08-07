@@ -1,5 +1,4 @@
 
-
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Question } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, GripVertical } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
@@ -69,15 +68,17 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite }: {
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite, isFirstCustom, isLastCustom }: {
     question: Question, 
     onToggleActive: (id: string, parentId?: string) => void, 
     onEdit: (q: Question) => void, 
     onDelete: (id: string) => void, 
     onAddSub: (parentId: string) => void, 
     hasBeenUpdated: boolean, 
-    onMove: (questionId: string, direction: 'up' | 'down') => void,
-    canWrite: boolean
+    onMove: (questionId: string, direction: 'up' | 'down' | 'to_top' | 'to_bottom') => void,
+    canWrite: boolean,
+    isFirstCustom: boolean,
+    isLastCustom: boolean,
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
@@ -87,14 +88,14 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
             <div className="flex items-center space-x-2 group pr-2">
                  <div className="w-10 flex-shrink-0 flex flex-col items-center">
                     {question.isCustom && canWrite && (
-                        <>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')}>
+                        <div className="flex flex-col">
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirstCustom}>
                                 <ArrowUp className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')}>
+                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLastCustom}>
                                 <ArrowDown className="h-4 w-4" />
                             </Button>
-                        </>
+                        </div>
                     )}
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
@@ -114,8 +115,26 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} disabled={!canWrite || isLocked} />
                 <Label htmlFor={question.id} className={cn("font-normal text-sm flex-1", isLocked && "text-muted-foreground")}>{question.label}</Label>
                 <div className="flex items-center">
+                    {question.isCustom && (
+                        <div className="flex items-center border rounded-md mr-2">
+                           <TooltipProvider><Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_top')} disabled={question.position === 'top'}>
+                                        <ArrowUpToLine className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger><TooltipContent><p>Move to top of section</p></TooltipContent>
+                           </Tooltip></TooltipProvider>
+                           <TooltipProvider><Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_bottom')} disabled={question.position !== 'top'}>
+                                        <ArrowDownToLine className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger><TooltipContent><p>Move to bottom of section</p></TooltipContent>
+                           </Tooltip></TooltipProvider>
+                        </div>
+                    )}
                     {canHaveSubquestions && (
-                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
+                         <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="mr-2 h-4 w-4"/>Sub</Button>
                     )}
                     {canWrite && (
                         <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
