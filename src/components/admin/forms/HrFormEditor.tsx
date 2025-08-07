@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine, History } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Bug } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -307,18 +307,16 @@ function QuestionEditor({
                 return;
             }
 
-             const reviewItem: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'> = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'> & { companyName?: string } = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
-                input_data: { 
-                    companyName: auth?.companyName,
-                },
+                status: 'pending',
+                companyName: auth?.companyName,
                 change_details: {
                     questionId: questionToSave.id,
                     questionLabel: questionToSave.label,
                     optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: questionToSave.answerGuidance?.[opt] })),
                 },
-                status: 'pending',
             };
             addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
@@ -706,6 +704,7 @@ export default function HrFormEditor() {
                         <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
                         <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
+                        <TabsTrigger value="debug">Debug</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
                         <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
@@ -725,6 +724,19 @@ export default function HrFormEditor() {
                     />
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
+                    </TabsContent>
+                    <TabsContent value="debug" className="mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Bug /> Debug Info</CardTitle>
+                                <CardDescription>Raw JSON configuration for {companyName}.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
+                                    {JSON.stringify(companyConfig, null, 2)}
+                                </pre>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 </Tabs>
                 <TaskForm

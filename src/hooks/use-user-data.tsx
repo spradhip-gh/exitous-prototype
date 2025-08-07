@@ -959,8 +959,8 @@ export function useUserData() {
             if (!forEndUser || isCompanyActive) {
                 let finalQuestion: Question = { ...masterQ };
                 
-                if (override) {
-                     if (override.optionOverrides) {
+                 if (override) {
+                    if (override.optionOverrides) {
                         const masterOptions = [...(masterQ.options || [])];
                         const toRemove = new Set(override.optionOverrides.remove || []);
                         const toAdd = override.optionOverrides.add || [];
@@ -969,10 +969,12 @@ export function useUserData() {
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
 
+                    } else if (override.label || override.description) {
+                       // This handles legacy overrides that just changed text.
+                        if (override.label) finalQuestion.label = override.label;
+                        if (override.description) finalQuestion.description = override.description;
                     }
     
-                    if (override.label) finalQuestion.label = override.label;
-                    if (override.description) finalQuestion.description = override.description;
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
                 }
                 
