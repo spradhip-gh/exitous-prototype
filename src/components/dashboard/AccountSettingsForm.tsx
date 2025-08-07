@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,7 +53,7 @@ export default function AccountSettingsForm() {
             },
         });
     }
-  }, [companyUser, profileData, auth?.email, reset]);
+  }, [companyUser, auth?.email, reset, profileData?.notificationEmail, profileData?.notificationSettings]);
 
   function onSubmit(data: AccountSettingsFormData) {
     if (!companyUser) {
