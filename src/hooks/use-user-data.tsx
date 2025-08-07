@@ -266,6 +266,41 @@ export const convertDatesToStrings = (obj: any): any => {
     return obj;
 };
 
+const getApplicableQuestions = (allQuestions: Question[], answers: any): Question[] => {
+    const applicable: Question[] = [];
+
+    const traverse = (questions: Question[]) => {
+        for (const q of questions) {
+            if (!q.isActive) continue;
+
+            let parentIsTriggered = true;
+            if (q.parentId) {
+                const parentValue = answers[q.parentId];
+                if (Array.isArray(parentValue)) {
+                    if (q.triggerValue === 'NOT_NONE') {
+                        parentIsTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
+                    } else {
+                        parentIsTriggered = parentValue.includes(q.triggerValue);
+                    }
+                } else {
+                    parentIsTriggered = parentValue === q.triggerValue;
+                }
+            }
+            
+            if (parentIsTriggered) {
+                applicable.push(q);
+                if (q.subQuestions) {
+                    traverse(q.subQuestions);
+                }
+            }
+        }
+    };
+    
+    traverse(allQuestions);
+    return applicable;
+};
+
+
 export function useUserData() {
     const { auth } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
@@ -800,40 +835,78 @@ export function useUserData() {
     }, [companyConfigs]);
     
      const getProfileCompletion = useCallback(() => {
-        if (!masterProfileQuestions || Object.keys(masterProfileQuestions).length === 0) {
-            return { percentage: 100, remaining: 0, isComplete: true };
-        }
-        const activeQuestions = Object.values(masterProfileQuestions).filter(q => q.isActive && !q.parentId);
+        const rootQuestions = buildQuestionTreeFromMap(masterProfileQuestions);
+        const applicableQuestions = getApplicableQuestions(rootQuestions, profileData);
 
-        if (activeQuestions.length === 0) {
+        if (applicableQuestions.length === 0) {
             return { percentage: 100, remaining: 0, isComplete: true };
         }
         if (!profileData) {
-            return { percentage: 0, remaining: activeQuestions.length, isComplete: false };
+            return { percentage: 0, remaining: applicableQuestions.length, isComplete: false };
         }
 
         let completedCount = 0;
-        for (const q of activeQuestions) {
+        for (const q of applicableQuestions) {
             const value = (profileData as any)[q.id];
             if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
-                // For gender, check if self-describe is filled if needed
-                if (q.id === 'gender' && value === 'Prefer to self-describe') {
-                    if ((profileData as any).genderSelfDescribe) {
-                        completedCount++;
-                    }
-                } else {
-                    completedCount++;
-                }
+                completedCount++;
             }
         }
         
-        const percentage = (completedCount / activeQuestions.length) * 100;
+        const percentage = (completedCount / applicableQuestions.length) * 100;
         return {
             percentage,
-            remaining: activeQuestions.length - completedCount,
-            isComplete: completedCount === activeQuestions.length,
+            remaining: applicableQuestions.length - completedCount,
+            isComplete: completedCount === applicableQuestions.length,
         };
     }, [profileData, masterProfileQuestions]);
+
+    const getAssessmentCompletion = useCallback(() => {
+        if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false };
+        
+        const allCompanyQuestions = getCompanyConfig(auth.companyName, true, 'assessment');
+        if (allCompanyQuestions.length === 0) return { percentage: 100, sections: [], isComplete: true };
+
+        const rootQuestions = allCompanyQuestions.filter(q => !q.parentId);
+
+        const applicableQuestions = getApplicableQuestions(rootQuestions, { ...profileData, ...assessmentData });
+        
+        const sectionsMap: Record<string, { total: number, completed: number }> = {};
+
+        for (const q of applicableQuestions) {
+            if (!q.section) continue;
+            if (!sectionsMap[q.section]) {
+                sectionsMap[q.section] = { total: 0, completed: 0 };
+            }
+            sectionsMap[q.section].total++;
+            const value = (assessmentData as any)?.[q.id];
+            if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+                sectionsMap[q.section].completed++;
+            }
+        }
+        
+        let totalQuestions = 0;
+        let totalCompleted = 0;
+        
+        const sectionsArray = Object.entries(sectionsMap).map(([name, counts]) => {
+            totalQuestions += counts.total;
+            totalCompleted += counts.completed;
+            return {
+                name,
+                ...counts,
+                percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
+            };
+        });
+
+        const overallPercentage = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 100;
+
+        return {
+            percentage: overallPercentage,
+            sections: sectionsArray,
+            isComplete: overallPercentage === 100,
+        };
+
+    }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
 
     return {
@@ -881,7 +954,7 @@ export function useUserData() {
         addCustomDeadline: () => {},
         clearData: () => {},
         getProfileCompletion,
-        getAssessmentCompletion: () => ({ percentage: 0, sections: [], isComplete: false }),
+        getAssessmentCompletion,
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
         getMappedRecommendations: () => [],
         getTargetTimezone: () => 'UTC',
