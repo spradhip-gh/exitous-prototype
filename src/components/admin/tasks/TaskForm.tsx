@@ -27,7 +27,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     onSave: (task: MasterTask) => void;
     task: Partial<MasterTask> | null;
     allResources: ExternalResource[];
-    masterTasks: MasterTask[];
+    masterTasks?: MasterTask[];
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -85,7 +85,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 let suggestedId = nameForId.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
                 // Check for uniqueness and append date if necessary
-                if (masterTasks.some(t => t.id === suggestedId)) {
+                if ((masterTasks || []).some(t => t.id === suggestedId)) {
                     suggestedId += `-${format(new Date(), 'MMddyy')}`;
                 }
                 
