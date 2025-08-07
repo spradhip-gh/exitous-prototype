@@ -259,11 +259,7 @@ export default function EditQuestionDialog({
     const { toast } = useToast();
     const { auth } = useAuth();
     const {
-        getAllCompanyConfigs,
-        saveCompanyConfig,
         addReviewQueueItem,
-        guidanceRules,
-        saveGuidanceRules,
     } = useUserData();
     
     // --- STATE ---
@@ -275,13 +271,7 @@ export default function EditQuestionDialog({
     const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
     
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
-    
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
-    const [currentGuidance, setCurrentGuidance] = useState<AnswerGuidance>({});
-
-    const [answerGuidanceOverrides, setAnswerGuidanceOverrides] = useState<Record<string, AnswerGuidance>>({});
-    
-    const [companyConfig, setCompanyConfig] = useState<CompanyConfig | undefined>();
         
     // --- COMPUTED VALUES ---
     const { masterQuestions, masterProfileQuestions } = useUserData();
@@ -317,27 +307,6 @@ export default function EditQuestionDialog({
 
     // --- EFFECTS ---
     useEffect(() => {
-        if (!question) return;
-
-        const rulesForQuestion = guidanceRules.filter(rule => rule.questionId === question.id && rule.type === 'direct');
-        const guidanceMap: Record<string, AnswerGuidance> = {};
-        rulesForQuestion.forEach(rule => {
-            if (rule.conditions) {
-                rule.conditions.forEach(condition => {
-                    if (condition.answer) {
-                        guidanceMap[condition.answer] = {
-                            tasks: rule.assignments.taskIds,
-                            tips: rule.assignments.tipIds,
-                            noGuidanceRequired: rule.assignments.noGuidanceRequired,
-                        };
-                    }
-                });
-            }
-        });
-        setAnswerGuidanceOverrides(guidanceMap);
-    }, [question, guidanceRules]);
-
-    useEffect(() => {
         setCurrentQuestion(question);
         setOptionsText(question?.options?.join('\n') || '');
         setIsCreatingNewSection(false);
@@ -346,45 +315,11 @@ export default function EditQuestionDialog({
         setSuggestedOptionsToRemove([]);
     }, [question]);
     
-    
     // --- CALLBACKS & HANDLERS ---
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
-        let rulesToUpdate = [...guidanceRules];
-
-        Object.entries(answerGuidanceOverrides).forEach(([answer, guidance]) => {
-            // Find an existing rule for this answer
-            let existingRule = rulesToUpdate.find(r => r.questionId === currentQuestion.id && r.conditions.some(c => c.answer === answer));
-
-            if (existingRule) {
-                // Update existing rule
-                existingRule.assignments = {
-                    taskIds: guidance.tasks,
-                    tipIds: guidance.tips,
-                    noGuidanceRequired: guidance.noGuidanceRequired,
-                };
-            } else {
-                // Create new rule
-                const newRule: GuidanceRule = {
-                    id: uuidv4(),
-                    questionId: currentQuestion.id!,
-                    name: `${currentQuestion.label} - ${answer}`,
-                    type: 'direct',
-                    conditions: [{ type: 'question', questionId: currentQuestion.id!, answer: answer }],
-                    assignments: {
-                        taskIds: guidance.tasks,
-                        tipIds: guidance.tips,
-                        noGuidanceRequired: guidance.noGuidanceRequired,
-                    },
-                };
-                rulesToUpdate.push(newRule);
-            }
-        });
-        
-        saveGuidanceRules(rulesToUpdate);
-
-        const questionToSave: Partial<Question> = { ...currentQuestion, options: currentOptions };
+        let finalQuestion = { ...currentQuestion, options: currentOptions };
 
         if (isSuggestionMode) {
              if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0) {
@@ -429,9 +364,9 @@ export default function EditQuestionDialog({
                 inputData: {
                     type: 'custom_question_guidance',
                     companyName: auth?.companyName,
-                    questionLabel: questionToSave.label,
-                    questionId: questionToSave.id,
-                    question: questionToSave as Question,
+                    questionLabel: finalQuestion.label,
+                    questionId: finalQuestion.id,
+                    question: finalQuestion as Question,
                     newSectionName: isCreatingNewSection ? newSectionName : undefined,
                 },
                 output: {},
@@ -443,8 +378,8 @@ export default function EditQuestionDialog({
         }
 
 
-        onSave(questionToSave, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, answerGuidanceOverrides, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, guidanceRules, saveGuidanceRules]);
+        onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
+    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -461,23 +396,24 @@ export default function EditQuestionDialog({
     }, []);
     
     const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
-        setAnswerGuidanceOverrides(prev => ({
-            ...prev,
-            [answer]: { tasks: taskIds, tips: tipIds, noGuidanceRequired }
-        }));
+        setCurrentQuestion(prev => {
+            if (!prev) return null;
+            const newGuidance = { ...(prev.answerGuidance || {}) };
+            newGuidance[answer] = { tasks: taskIds, tips: tipIds, noGuidanceRequired };
+            return { ...prev, answerGuidance: newGuidance };
+        });
     }, []);
     
     const openGuidanceDialog = useCallback((answer: string) => {
         setCurrentAnswerForGuidance(answer);
-        setCurrentGuidance(answerGuidanceOverrides[answer] || { tasks: [], tips: [], noGuidanceRequired: false });
         setIsGuidanceDialogOpen(true);
-    }, [answerGuidanceOverrides]);
+    }, []);
 
     const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
-        const guidance = answerGuidanceOverrides[answer];
+        const guidance = currentQuestion?.answerGuidance?.[answer];
         if (!guidance) return false;
         return guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0);
-    }, [answerGuidanceOverrides]);
+    }, [currentQuestion?.answerGuidance]);
 
     if (!currentQuestion) {
         return null;
@@ -753,16 +689,18 @@ export default function EditQuestionDialog({
             answer={currentAnswerForGuidance}
             onSaveGuidance={handleSaveAnswerGuidance}
             onAddNewTask={() => onAddNewTask((newTask: MasterTask) => {
-                const newGuidance = { ...currentGuidance, tasks: [...(currentGuidance.tasks || []), newTask.id]};
-                setCurrentGuidance(newGuidance);
+                const newGuidance = { ...(currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {})};
+                newGuidance.tasks = [...(newGuidance.tasks || []), newTask.id];
+                handleSaveAnswerGuidance(currentAnswerForGuidance, newGuidance.tasks, newGuidance.tips || [], newGuidance.noGuidanceRequired || false);
             })}
             onAddNewTip={() => onAddNewTip((newTip: MasterTip) => {
-                 const newGuidance = { ...currentGuidance, tips: [...(currentGuidance.tips || []), newTip.id]};
-                setCurrentGuidance(newGuidance);
+                 const newGuidance = { ...(currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {})};
+                 newGuidance.tips = [...(newGuidance.tips || []), newTip.id];
+                 handleSaveAnswerGuidance(currentAnswerForGuidance, newGuidance.tasks || [], newGuidance.tips, newGuidance.noGuidanceRequired || false);
             })}
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
-            currentGuidance={currentGuidance}
+            currentGuidance={currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {}}
         />
         
         </>
