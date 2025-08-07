@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -216,11 +217,12 @@ const QuestionRenderer = ({ question, form }: { question: Question, form: any })
 };
 
 
-function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUser }: { 
+function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUser, companyConfig }: { 
     questions: Question[], 
     dynamicSchema: z.ZodObject<any>, 
     initialData: Partial<ProfileData>,
     companyUser: any,
+    companyConfig?: CompanyConfig
 }) {
     const router = useRouter();
     const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig } = useUserData();
@@ -303,6 +305,10 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
             .filter(section => section.questions && section.questions.length > 0);
 
     }, [questions, getMasterQuestionConfig]);
+    
+    const maritalStatusQuestion = useMemo(() => {
+        return questions.find(q => q.id === 'maritalStatus');
+    }, [questions]);
 
     return (
         <Form {...form}>
@@ -329,13 +335,42 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     </Button>
                 }
             </form>
+             {process.env.NODE_ENV === 'development' && maritalStatusQuestion && (
+                <Card className="mt-8 border-destructive">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Bug className="text-destructive"/> DEBUG: Marital Status Question</CardTitle>
+                        <CardDescription>This panel will only appear in a development environment.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold text-sm">Final Question Props</h4>
+                                <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                                    {JSON.stringify(maritalStatusQuestion, null, 2)}
+                                </pre>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-sm">Company Override Data</h4>
+                                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                                    {JSON.stringify(companyConfig?.questions?.maritalStatus, null, 2)}
+                                </pre>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </Form>
     );
 }
 
 export default function ProfileForm() {
-    const { getCompanyConfig, profileData, isUserDataLoading, getCompanyUser, isLoading } = useUserData();
+    const { getCompanyConfig, profileData, isUserDataLoading, getCompanyUser, isLoading, getAllCompanyConfigs } = useUserData();
     const { auth } = useAuth();
+    
+    const companyConfig = useMemo(() => {
+        if (!auth?.companyName) return undefined;
+        return getAllCompanyConfigs()[auth.companyName];
+    }, [auth?.companyName, getAllCompanyConfigs]);
     
     const questions = useMemo(() => {
         if (!auth?.companyName) return [];
@@ -362,5 +397,5 @@ export default function ProfileForm() {
         )
     }
 
-    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} companyUser={companyUser?.user} />;
+    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} companyUser={companyUser?.user} companyConfig={companyConfig} />;
 }

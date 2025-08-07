@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -946,17 +947,20 @@ export function useUserData() {
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
-                let finalQuestion: Question = {
-                    ...masterQ,
-                    ...override,
-                    isActive: isCompanyActive,
-                };
+                let finalQuestion: Question = { ...masterQ };
                 
-                // If company has defined its own options list, use it directly.
-                if (override?.options) {
-                    finalQuestion.options = override.options;
+                if (override) {
+                    // If an override exists for the options, use IT instead of merging.
+                    // This is the key change to handle removals correctly.
+                    if (override.options) {
+                        finalQuestion.options = override.options;
+                    }
+                    if (override.label) finalQuestion.label = override.label;
+                    if (override.description) finalQuestion.description = override.description;
+                    if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
                 }
                 
+                finalQuestion.isActive = isCompanyActive;
                 finalQuestions.push(finalQuestion);
             }
         }
@@ -1070,14 +1074,15 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Partial<ReviewQueueItem> & { companyName?: string }) => {
-        const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
+    const addReviewQueueItem = useCallback(async (item: ReviewQueueItem) => {
+        const companyId = companyAssignments.find(c => c.companyName === item.change_details.companyName)?.companyId;
         if (!companyId) {
             console.error("Could not find company ID for review item");
             return;
         }
 
         const payload = { ...item, company_id: companyId, companyName: undefined };
+        console.log("DEBUG: Attempting to insert into review_queue:", JSON.stringify(payload, null, 2));
         
         const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
@@ -1125,6 +1130,8 @@ export function useUserData() {
             if (optionsToRemove) {
                 newOptions = newOptions.filter(opt => !optionsToRemove.includes(opt));
             }
+            
+            console.log("DEBUG: Final computed options for override:", newOptions);
 
             newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
             await saveCompanyConfig(companyName, newConfig);
