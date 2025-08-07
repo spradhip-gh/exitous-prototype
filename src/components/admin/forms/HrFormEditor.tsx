@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -44,15 +43,19 @@ function findQuestion(sections: HrOrderedSection[], questionId: string): Questio
 
 function MySuggestionsTab() {
     const { auth } = useAuth();
-    const { reviewQueue, saveReviewQueue } = useUserData();
+    const { reviewQueue, saveReviewQueue, companyAssignments } = useUserData();
     const { toast } = useToast();
 
+    const companyAssignmentForHr = useMemo(() => {
+        return companyAssignments.find(c => c.companyName === auth?.companyName);
+    }, [companyAssignments, auth?.companyName]);
+
     const mySuggestions = useMemo(() => {
-        if (!auth?.companyId) return [];
+        if (!companyAssignmentForHr?.companyId) return [];
         return reviewQueue
-            .filter(item => item.company_id === auth.companyId)
+            .filter(item => item.company_id === companyAssignmentForHr.companyId)
             .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
-    }, [reviewQueue, auth?.companyId]);
+    }, [reviewQueue, companyAssignmentForHr?.companyId]);
 
     const handleWithdraw = (itemId: string) => {
         const updatedQueue = reviewQueue.filter(item => item.id !== itemId);
@@ -158,7 +161,8 @@ function QuestionEditor({
         getCompanyConfig,
         addReviewQueueItem,
         getMasterQuestionConfig,
-        reviewQueue
+        reviewQueue,
+        companyAssignments,
     } = useUserData();
 
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
@@ -166,15 +170,21 @@ function QuestionEditor({
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
+    const companyAssignmentForHr = useMemo(() => {
+        return companyAssignments.find(c => c.companyName === auth?.companyName);
+    }, [companyAssignments, auth?.companyName]);
+
     const pendingSuggestionsByQuestionId = useMemo(() => {
         const map = new Map<string, ReviewQueueItem>();
+        if (!companyAssignmentForHr?.companyId) return map;
+
         reviewQueue.forEach(item => {
-            if (item.status === 'pending' && item.change_details?.questionId) {
+            if (item.company_id === companyAssignmentForHr.companyId && item.status === 'pending' && item.change_details?.questionId) {
                 map.set(item.change_details.questionId, item);
             }
         });
         return map;
-    }, [reviewQueue]);
+    }, [reviewQueue, companyAssignmentForHr?.companyId]);
 
     useEffect(() => {
         if (isLoading || !companyName) {
@@ -185,18 +195,20 @@ function QuestionEditor({
         const questionTree = getCompanyConfig(companyName, false, questionType);
         
         const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig(questionType);
+        const sectionOrder = masterConfig?.section_order || [];
+        
         questionTree.forEach(q => {
             if (q.parentId) return;
             const sectionName = q.section || "Uncategorized";
-            if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
+            }
             sectionsMap[sectionName].push(q);
         });
         
-        const masterConfig = getMasterQuestionConfig(questionType);
-        let finalSectionOrder = masterConfig?.section_order || [];
-        
-        // Add custom sections to the order if they don't exist
-        const masterSectionSet = new Set(finalSectionOrder);
+        // Add any custom sections not in the master order to the end
+        const masterSectionSet = new Set(sectionOrder);
         Object.keys(sectionsMap).forEach(sectionName => {
             if (!masterSectionSet.has(sectionName)) {
                 sectionOrder.push(sectionName);
@@ -204,7 +216,7 @@ function QuestionEditor({
             }
         });
 
-        const sections = finalSectionOrder
+        const sections = sectionOrder
             .map(sectionName => {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;

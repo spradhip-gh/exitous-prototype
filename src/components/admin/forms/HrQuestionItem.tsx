@@ -85,10 +85,11 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const isLocked = !!question.isLocked;
 
     const SuggestionTooltipContent = () => {
-        if (!pendingSuggestion) return null;
-        const { optionsToAdd, optionsToRemove, reason } = pendingSuggestion.change_details || {};
+        if (!pendingSuggestion || !pendingSuggestion.change_details) return null;
+        const { optionsToAdd, optionsToRemove, reason } = pendingSuggestion.change_details;
         return (
-            <div className="space-y-2 text-xs">
+            <div className="space-y-2 text-xs p-1">
+                <p className="font-bold">Pending Suggestion:</p>
                 {reason && <p className="italic">"{reason}"</p>}
                 {optionsToAdd && optionsToAdd.length > 0 && (
                     <div className="text-green-600">
