@@ -246,7 +246,7 @@ interface EditQuestionDialogProps {
     onAddNewTip: (callback: (item: any) => void) => void;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-    formType?: 'assessment' | 'profile';
+    formType?: 'profile' | 'assessment';
 }
 
 export default function EditQuestionDialog({
@@ -575,38 +575,21 @@ export default function EditQuestionDialog({
                         </div>
                     )}
 
-                    {(isCustomQuestion || isNew) && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length > 0 && (
+                    {(isCustomQuestion || isNew) && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && (
                         <div className="space-y-2">
                             <Label htmlFor="default-value">Default Value (Optional)</Label>
                             <Select
                                 value={currentQuestion.defaultValue as string || ''}
-                                onValueChange={(value) => setCurrentQuestion(q => q ? { ...q, defaultValue: value } : null)}
+                                onValueChange={(value) => setCurrentQuestion(q => q ? { ...q, defaultValue: value === '__none__' ? undefined : value } : null)}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a default answer..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">None</SelectItem>
-                                    {currentOptions.map(option => (
-                                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">Pre-select an answer for the user.</p>
-                        </div>
-                    )}
-                    {isCustomQuestion && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length === 0 && (
-                        <div className="space-y-2">
-                            <Label htmlFor="default-value">Default Value (Optional)</Label>
-                             <Select
-                                value={currentQuestion.defaultValue as string || ''}
-                                onValueChange={(value) => setCurrentQuestion(q => q ? { ...q, defaultValue: value } : null)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a default answer..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {currentOptions.length > 0 && <SelectItem value="">None</SelectItem>}
+                                    <DropdownMenuItem onSelect={() => setCurrentQuestion(q => q ? { ...q, defaultValue: undefined } : null)}>
+                                        None
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                     {currentOptions.map(option => (
                                         <SelectItem key={option} value={option}>{option}</SelectItem>
                                     ))}
