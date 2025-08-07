@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -110,7 +109,7 @@ export interface ReviewQueueItem {
     id: string;
     company_id: string;
     user_email: string;
-    type: 'custom_question_guidance' | 'question_edit_suggestion';
+    type: 'custom_question_guidance' | 'question_edit_suggestion' | 'ai_recommendation_audit';
     status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
     change_details: {
         questionId?: string;
@@ -127,8 +126,8 @@ export interface ReviewQueueItem {
     reviewed_at?: string;
     reviewer_id?: string;
     // The following are not part of the DB schema but are added for client-side convenience
-    inputData?: any;
-    output?: any;
+    input_data: any;
+    output_data?: any;
 }
 
 
@@ -1075,6 +1074,8 @@ export function useUserData() {
             type: item.type,
             change_details: item.change_details,
             rejection_reason: item.rejection_reason,
+            input_data: item.input_data, // Add input_data to the object being inserted
+            output_data: item.output_data,
         };
 
         const { data, error } = await supabase.from('review_queue').insert(newItem).select().single();
