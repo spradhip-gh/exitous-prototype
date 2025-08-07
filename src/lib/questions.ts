@@ -18,6 +18,7 @@ export interface Question {
     placeholder?: string;
     description?: string;
     lastUpdated?: string; // ISO date string
+    position?: 'top' | 'bottom'; // For custom questions
     // --- Sub-questions within the same form ---
     triggerValue?: string; // The value of the parent that triggers this sub-question.
     subQuestions?: Question[]; // Array of sub-questions for tree structure, not for storage.

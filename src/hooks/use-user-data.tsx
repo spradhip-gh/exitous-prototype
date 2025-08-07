@@ -775,70 +775,65 @@ export function useUserData() {
     }, []);
 
 
-    const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
+    const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
         if (!companyName) return [];
         const companyConfig = companyConfigs[companyName];
-    
+        
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
-    
-        // 1. Combine master and company-specific custom questions into one map.
-        const combinedQuestionsMap: Record<string, Question> = {};
-    
-        // Add master questions that match the formType
+        
+        const finalQuestionsMap: Record<string, Question> = {};
+
+        // 1. Add master questions that are active and of the correct type.
         for (const id in masterSource) {
             const masterQ = masterSource[id];
             if (masterQ.formType === formType) {
-                combinedQuestionsMap[id] = { ...masterQ };
-            }
-        }
-    
-        // Add company custom questions that match the formType
-        if (companyConfig?.customQuestions) {
-            for (const id in companyConfig.customQuestions) {
-                const customQ = companyConfig.customQuestions[id];
-                if (customQ.formType === formType) {
-                    combinedQuestionsMap[id] = { ...customQ, isCustom: true };
+                const override = companyConfig?.questions?.[id];
+                const isCompanyActive = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+                if (!activeOnly || isCompanyActive) {
+                    finalQuestionsMap[id] = {
+                        ...masterQ,
+                        ...(override || {}),
+                        isActive: isCompanyActive,
+                    };
                 }
             }
         }
-    
-        // 2. Apply overrides and filter by active status.
-        const finalQuestionsMap: Record<string, Question> = {};
-        for (const id in combinedQuestionsMap) {
-            const baseQ = combinedQuestionsMap[id];
-            const override = companyConfig?.questions?.[id];
-    
-            // Determine the final active state. Default to master question's state.
-            // An override can explicitly set it.
-            const isMasterActive = baseQ.isActive;
-            const isCompanyActive = override?.isActive === undefined ? isMasterActive : override.isActive;
-            
-            if (activeOnly && !isCompanyActive) {
-                continue;
+
+        // 2. Add active custom questions for the company and form type.
+        if (companyConfig?.customQuestions) {
+            for (const id in companyConfig.customQuestions) {
+                const customQ = companyConfig.customQuestions[id];
+                if (customQ.formType === formType && (!activeOnly || customQ.isActive)) {
+                    finalQuestionsMap[id] = { ...customQ, isCustom: true };
+                }
             }
-    
-            finalQuestionsMap[id] = {
-                ...baseQ,
-                ...(override || {}),
-                isActive: isCompanyActive, // Ensure final state is set
-                lastUpdated: override?.lastUpdated || baseQ.lastUpdated,
-            };
         }
         
-        // 3. Build the tree and sort
         const questionTree = buildQuestionTreeFromMap(finalQuestionsMap);
         
+        // This function now sorts custom questions relative to master questions based on their position property.
         const sortRecursive = (questions: Question[]) => {
-            questions.sort((a,b) => {
-                const aOrder = companyConfig?.questionOrderBySection?.[a.section!]?.indexOf(a.id);
-                const bOrder = companyConfig?.questionOrderBySection?.[b.section!]?.indexOf(b.id);
-                
-                if(aOrder !== undefined && aOrder > -1 && bOrder !== undefined && bOrder > -1) return aOrder - bOrder;
-                if(aOrder !== undefined && aOrder > -1) return -1;
-                if(bOrder !== undefined && bOrder > -1) return 1;
-                
-                return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+            const topCustom: Question[] = [];
+            const bottomCustom: Question[] = [];
+            const master: Question[] = [];
+
+            questions.forEach(q => {
+                if(q.isCustom) {
+                    if (q.position === 'top') topCustom.push(q);
+                    else bottomCustom.push(q);
+                } else {
+                    master.push(q);
+                }
             });
+            
+            master.sort((a,b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+            
+            const sorted = [...topCustom, ...master, ...bottomCustom];
+            
+            // Clear the original array and push sorted items back
+            questions.length = 0;
+            questions.push(...sorted);
+
             questions.forEach(q => {
                 if (q.subQuestions) {
                     sortRecursive(q.subQuestions);
@@ -1013,6 +1008,3 @@ export function useUserData() {
         reviewQueue: [],
     };
 }
-
-
-    
