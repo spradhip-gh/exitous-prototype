@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -159,6 +160,7 @@ function QuestionEditor({
         isLoading,
         getCompanyConfig,
         addReviewQueueItem,
+        getMasterQuestionConfig,
     } = useUserData();
 
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
@@ -171,35 +173,32 @@ function QuestionEditor({
             setOrderedSections([]);
             return;
         }
-        
+
         const questionTree = getCompanyConfig(companyName, false, questionType);
         
-        if (questionTree.length === 0) {
-            setOrderedSections([]);
-            return;
-        }
-
         const sectionsMap: Record<string, Question[]> = {};
         questionTree.forEach(q => {
-            if (!q.parentId) {
-                const sectionName = q.section || "Uncategorized";
-                if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
-                sectionsMap[sectionName].push(q);
-            }
+            if (q.parentId) return;
+            const sectionName = q.section || "Uncategorized";
+            if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
+            sectionsMap[sectionName].push(q);
         });
         
-        const masterSectionOrder = [...new Set(Object.values(questionType === 'profile' ? masterProfileQuestions : masterQuestions).filter(q => !q.parentId).map(q => q.section))];
-        const customSections = Object.keys(sectionsMap).filter(s => !masterSectionOrder.includes(s));
-        const finalSectionOrder = [...masterSectionOrder, ...customSections];
+        const masterConfig = getMasterQuestionConfig(questionType);
+        let finalSectionOrder = masterConfig?.section_order || [];
+        
+        const masterSectionSet = new Set(finalSectionOrder);
+        const customSections = Object.keys(sectionsMap).filter(s => !masterSectionSet.has(s));
+        finalSectionOrder = [...finalSectionOrder, ...customSections];
 
         const sections = finalSectionOrder
             .map(sectionName => {
                 const questionsInSection = sectionsMap[sectionName];
                 if (!questionsInSection || questionsInSection.length === 0) return null;
                 
-                const topCustom = questionsInSection.filter(q => q.isCustom && q.position === 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-                const master = questionsInSection.filter(q => !q.isCustom); // Already sorted from getCompanyConfig
-                const bottomCustom = questionsInSection.filter(q => q.isCustom && q.position !== 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const topCustom = questionsInSection.filter(q => q.isCustom && q.position === 'top').sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const master = questionsInSection.filter(q => !q.isCustom).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const bottomCustom = questionsInSection.filter(q => q.isCustom && q.position !== 'top').sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
                 return { id: sectionName, questions: [...topCustom, ...master, ...bottomCustom] };
             })
@@ -207,7 +206,7 @@ function QuestionEditor({
 
         setOrderedSections(sections);
 
-    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, masterQuestions, masterProfileQuestions]);
+    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, getMasterQuestionConfig]);
 
 
     const handleToggleQuestion = (questionId: string) => {

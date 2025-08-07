@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -867,25 +868,45 @@ export function useUserData() {
     }, []);
 
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
-        const allHRs = assignmentsToSave.flatMap(a => a.hrManagers.map(hr => ({ ...hr, company_id: a.companyId })));
-        
-        const upsertData = allHRs.map(hr => ({
-            company_id: hr.company_id,
-            hr_email: hr.email,
-            is_primary: hr.isPrimary,
-            permissions: hr.permissions,
-        }));
-        
-        const { error } = await supabase.from('company_hr_assignments').upsert(upsertData, {
-            onConflict: 'company_id, hr_email',
-        });
+        const allCurrentAssignments = companyAssignments || [];
+        const toUpsert = [];
+        const toDelete: { company_id: string; hr_email: string }[] = [];
 
-        if (error) {
-            console.error('Failed to save company assignments:', error);
-        } else {
-            setCompanyAssignments(assignmentsToSave);
+        for (const currentAssignment of allCurrentAssignments) {
+            const updatedAssignment = assignmentsToSave.find(a => a.companyId === currentAssignment.companyId);
+            
+            for (const currentManager of currentAssignment.hrManagers) {
+                const managerStillExists = updatedAssignment?.hrManagers.some(hr => hr.email === currentManager.email);
+                if (!managerStillExists) {
+                    toDelete.push({ company_id: currentAssignment.companyId, hr_email: currentManager.email });
+                }
+            }
         }
-    }, []);
+
+        for (const updatedAssignment of assignmentsToSave) {
+            for (const updatedManager of updatedAssignment.hrManagers) {
+                toUpsert.push({
+                    company_id: updatedAssignment.companyId,
+                    hr_email: updatedManager.email,
+                    is_primary: updatedManager.isPrimary,
+                    permissions: updatedManager.permissions,
+                });
+            }
+        }
+        
+        if (toDelete.length > 0) {
+            const { error: deleteError } = await supabase.from('company_hr_assignments').delete().in('hr_email', toDelete.map(d => d.hr_email));
+            if (deleteError) console.error("Error deleting assignments", deleteError);
+        }
+
+        if (toUpsert.length > 0) {
+            const { error: upsertError } = await supabase.from('company_hr_assignments').upsert(toUpsert, { onConflict: 'company_id, hr_email' });
+            if (upsertError) console.error("Error upserting assignments", upsertError);
+        }
+
+        setCompanyAssignments(assignmentsToSave);
+
+    }, [companyAssignments]);
 
 
     const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
@@ -896,19 +917,22 @@ export function useUserData() {
         
         let finalQuestions: Question[] = [];
 
-        // 1. Add master questions that are active and of the correct type.
         for (const id in masterSource) {
             const masterQ = masterSource[id];
-            if (masterQ.formType === formType) {
-                const override = companyConfig?.questions?.[id];
-                const isCompanyActive = override?.isActive === undefined ? masterQ.isActive : override.isActive;
-                if (!activeOnly || isCompanyActive) {
-                    finalQuestions.push({
-                        ...masterQ,
-                        ...(override || {}),
-                        isActive: isCompanyActive,
-                    });
-                }
+            if (masterQ.formType !== formType) continue;
+
+            const isMasterActive = masterQ.isActive !== false;
+            if (activeOnly && !isMasterActive) continue;
+
+            const override = companyConfig?.questions?.[id];
+            const isCompanyActive = override?.isActive === undefined ? isMasterActive : override.isActive;
+
+            if (!activeOnly || isCompanyActive) {
+                finalQuestions.push({
+                    ...masterQ,
+                    ...(override || {}),
+                    isActive: isCompanyActive,
+                });
             }
         }
         
@@ -922,25 +946,6 @@ export function useUserData() {
 
         const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
         
-        // This function now sorts custom questions relative to master questions based on their position property.
-        const sortRecursive = (questions: Question[]) => {
-            const topCustom = questions.filter(q => q.isCustom && q.position === 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-            const master = questions.filter(q => !q.isCustom).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-            const bottomCustom = questions.filter(q => q.isCustom && q.position !== 'top').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-            const sorted = [...topCustom, ...master, ...bottomCustom];
-            
-            questions.length = 0;
-            questions.push(...sorted);
-
-            questions.forEach(q => {
-                if (q.subQuestions) {
-                    sortRecursive(q.subQuestions);
-                }
-            });
-        };
-        sortRecursive(questionTree);
-
         return questionTree;
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
     
