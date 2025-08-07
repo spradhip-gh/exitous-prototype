@@ -946,9 +946,11 @@ export function useUserData() {
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
+                const finalOptions = override?.options || masterQ.options;
                  finalQuestions.push({
                     ...masterQ,
                     ...(override || {}),
+                    options: finalOptions, // Explicitly use overridden options
                     isActive: isCompanyActive, 
                 });
             }
@@ -1104,10 +1106,15 @@ export function useUserData() {
             const override = newConfig.questions[questionId] || {};
             const currentOptions = override.options || masterQuestion.options || [];
             let newOptions = [...currentOptions];
+            if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
+            if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
 
-            optionsToAdd.forEach((suggestion: { option: string }) => {
+            optionsToAdd.forEach((suggestion: { option: string, guidance?: AnswerGuidance }) => {
                 if (!newOptions.includes(suggestion.option)) {
                     newOptions.push(suggestion.option);
+                }
+                if (suggestion.guidance) {
+                    newConfig.answerGuidanceOverrides[questionId][suggestion.option] = suggestion.guidance;
                 }
             });
 
