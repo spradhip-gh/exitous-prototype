@@ -990,8 +990,7 @@ export function useUserData() {
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
             if (masterQ.formType !== formType) continue;
-            if (!masterQ.isActive) continue;
-    
+            
             const override = companyConfig?.questions?.[id];
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
     
@@ -1016,7 +1015,7 @@ export function useUserData() {
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
                 }
                 
-                finalQuestion.isActive = isCompanyActive;
+                finalQuestion.isActive = forEndUser ? (masterQ.isActive && isCompanyActive) : isCompanyActive;
                 finalQuestions.push(finalQuestion);
             }
         }
