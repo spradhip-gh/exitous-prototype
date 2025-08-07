@@ -11,6 +11,7 @@ import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flow
 import { useToast } from '@/hooks/use-toast';
 import { addDays, parse, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
+import { v4 as uuidv4 } from 'uuid';
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -937,21 +938,31 @@ export function useUserData() {
         let finalQuestions: Question[] = [];
 
         for (const id in masterSource) {
-            const masterQ = masterSource[id];
+            const masterQ = { ...masterSource[id] }; // Make a copy
             if (masterQ.formType !== formType) continue;
-
             if (!masterQ.isActive) continue;
 
             const override = companyConfig?.questions?.[id];
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
-                const finalOptions = override?.options || masterQ.options;
-                 finalQuestions.push({
+                // Correctly merge options
+                if (override?.options) {
+                    const masterOptions = masterQ.options || [];
+                    const overrideOptions = override.options || [];
+                    const combinedOptions = [...masterOptions];
+                    overrideOptions.forEach(opt => {
+                        if (!combinedOptions.includes(opt)) {
+                            combinedOptions.push(opt);
+                        }
+                    });
+                    masterQ.options = combinedOptions;
+                }
+                
+                finalQuestions.push({
                     ...masterQ,
                     ...(override || {}),
-                    options: finalOptions, // Explicitly use overridden options
-                    isActive: isCompanyActive, 
+                    isActive: isCompanyActive,
                 });
             }
         }
@@ -1081,7 +1092,7 @@ export function useUserData() {
     }, [companyAssignments]);
 
     const processReviewQueueItem = useCallback(async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string): Promise<boolean> => {
-        const reviewerId = auth?.userId; // Correctly use the UUID
+        const reviewerId = auth?.userId;
         if (!reviewerId) {
             console.error("No reviewer ID found, cannot process queue item.");
             return false;
@@ -1089,22 +1100,18 @@ export function useUserData() {
 
         if (status === 'approved' && item.type === 'question_edit_suggestion') {
             const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
-            if (!companyName) {
-                console.error("Could not find company name for review item");
-                return false;
-            }
+            if (!companyName) return false;
+            
             const currentConfig = companyConfigs[companyName];
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
             const { questionId, optionsToAdd } = item.change_details || {};
             if (!questionId || !optionsToAdd || optionsToAdd.length === 0) return false;
 
-            const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
-            const masterQuestion = allMasterQs[questionId];
-            if (!masterQuestion) return false;
-            
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
-            const currentOptions = override.options || masterQuestion.options || [];
+            
+            // Ensure options is an array before using it
+            const currentOptions = override.options || masterQuestions[questionId]?.options || masterProfileQuestions[questionId]?.options || [];
             let newOptions = [...currentOptions];
             if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
             if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
@@ -1119,27 +1126,7 @@ export function useUserData() {
             });
 
             newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
-            
-            // Save the config FIRST
-            const { error: configError } = await supabase.from('company_question_configs').upsert({
-                company_id: item.company_id,
-                question_overrides: newConfig.questions || {},
-                custom_questions: newConfig.customQuestions || {},
-                question_order_by_section: newConfig.questionOrderBySection || {},
-                answer_guidance_overrides: newConfig.answerGuidanceOverrides || {},
-                company_tasks: newConfig.companyTasks || [],
-                company_tips: newConfig.companyTips || [],
-            }, { onConflict: 'company_id' });
-
-            if (configError) {
-                console.error("Error saving company config:", configError);
-                return false; // Stop if the main action fails
-            } else {
-                 setCompanyConfigs(prev => ({
-                    ...prev,
-                    [companyName]: { ...prev[companyName], ...newConfig }
-                }));
-            }
+            await saveCompanyConfig(companyName, newConfig);
         }
         
         if (status === 'rejected' && item.type === 'custom_question_guidance') {
