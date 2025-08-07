@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Question, ReviewQueueItem, CompanyConfig } from "@/hooks/use-user-data";
+import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
 import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -87,7 +87,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const isLocked = !!question.isLocked;
 
     const override = companyConfig?.questions?.[question.id];
-    const isModified = !!override?.label || !!override?.description || !!override?.optionOverrides;
+    const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
     const SuggestionTooltipContent = () => {
         if (!pendingSuggestion || !pendingSuggestion.change_details) return null;

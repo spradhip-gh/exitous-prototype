@@ -962,7 +962,7 @@ export function useUserData() {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
-                    finalQuestion.isModified = true; // Mark as modified for the UI
+                    finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
                     if (override.label) finalQuestion.label = override.label;
                     if (override.description) finalQuestion.description = override.description;
                     
@@ -1122,7 +1122,7 @@ export function useUserData() {
             const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
             if (!companyName) return false;
             
-            const currentConfig = companyConfigs[companyName];
+            const currentConfig = companyConfigs[companyName] || {};
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
             const { questionId, optionsToAdd = [], optionsToRemove = [] } = item.change_details || {};
             if (!questionId) return false;
@@ -1141,9 +1141,9 @@ export function useUserData() {
             const removals = new Set(override.optionOverrides.remove || []);
             optionsToRemove.forEach((o: string) => removals.add(o));
             
-            // Ensure no item is in both add and remove
-            additions.forEach(item => { if (removals.has(item)) removals.delete(item); });
-            removals.forEach(item => { if (additions.has(item)) additions.delete(item); });
+            // Apply logic: if an item is in both, adding takes precedence
+            removals.forEach(r => { if(additions.has(r)) additions.delete(r); });
+            additions.forEach(a => { if(removals.has(a)) removals.delete(a); });
 
             override.optionOverrides.add = Array.from(additions);
             override.optionOverrides.remove = Array.from(removals);
