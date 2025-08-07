@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -1062,14 +1063,20 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'created_at'>) => {
-        const { data, error } = await supabase.from('review_queue').insert(item).select().single();
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'>) => {
+        const companyId = companyAssignments.find(c => c.companyName === item.input_data?.companyName)?.companyId;
+        if (!companyId) {
+            console.error("Could not find company ID for review item");
+            return;
+        }
+
+        const { data, error } = await supabase.from('review_queue').insert({ ...item, company_id: companyId }).select().single();
         if (error) {
             console.error("Error adding to review queue", error);
         } else if(data) {
             setReviewQueue(prev => [...prev, data as ReviewQueueItem]);
         }
-    }, []);
+    }, [companyAssignments]);
 
     const processReviewQueueItem = useCallback(async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string): Promise<boolean> => {
         const reviewerId = auth?.email || 'admin';
@@ -1101,6 +1108,38 @@ export function useUserData() {
             });
 
             newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
+            
+            // Save the config FIRST
+            const { error: configError } = await supabase.from('company_question_configs').upsert({
+                company_id: item.company_id,
+                question_overrides: newConfig.questions || {},
+                custom_questions: newConfig.customQuestions || {},
+                question_order_by_section: newConfig.questionOrderBySection || {},
+                answer_guidance_overrides: newConfig.answerGuidanceOverrides || {},
+                company_tasks: newConfig.companyTasks || [],
+                company_tips: newConfig.companyTips || [],
+            }, { onConflict: 'company_id' });
+
+            if (configError) {
+                console.error("Error saving company config:", configError);
+                return false; // Stop if the main action fails
+            } else {
+                 setCompanyConfigs(prev => ({
+                    ...prev,
+                    [companyName]: { ...prev[companyName], ...newConfig }
+                }));
+            }
+        }
+        
+        if (status === 'rejected' && item.type === 'custom_question_guidance') {
+            const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
+            if (!companyName) return false;
+            const currentConfig = companyConfigs[companyName];
+            const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            const { question } = item.change_details || {};
+            if (!question?.id || !newConfig.customQuestions?.[question.id]) return false;
+
+            newConfig.customQuestions[question.id].isActive = false;
             await saveCompanyConfig(companyName, newConfig);
         }
 
