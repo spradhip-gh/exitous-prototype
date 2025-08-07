@@ -431,14 +431,14 @@ function QuestionEditor({
 
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved: boolean = false) => {
         if (!questionToSave || !companyName) return;
-
-        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(getAllCompanyConfigs()[companyName]));
-        
-        const allMasterQuestions = {...masterQuestions, ...masterProfileQuestions};
+    
+        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(getAllCompanyConfigs()[companyName] || {}));
+    
+        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
         const masterQuestion = allMasterQuestions[questionToSave.id!];
-        
+    
         const isSuggestionMode = !!masterQuestion?.isLocked && !isNewCustom;
-
+    
         if (isSuggestionMode) {
             const reviewItem: ReviewQueueItem = {
                 id: `review-suggestion-${Date.now()}`,
@@ -448,41 +448,64 @@ function QuestionEditor({
                     companyName: auth?.companyName,
                     questionId: questionToSave.id,
                     questionLabel: masterQuestion.label,
-                    suggestions: suggestedEdits
+                    suggestions: suggestedEdits,
                 },
                 output: {},
                 status: 'pending',
                 createdAt: new Date().toISOString(),
             };
-
+    
             addReviewQueueItem(reviewItem);
-            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
-
-        } else { // Handle custom questions or unlocked questions
-            let finalQuestion: Question = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
-            if (!finalQuestion.id) {
-                finalQuestion.id = `custom-${uuidv4()}`;
+            toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review." });
+    
+        } else {
+            let finalQuestion: Question = {
+                ...questionToSave,
+                lastUpdated: new Date().toISOString(),
+                formType: questionToSave.formType || questionType, // Ensure formType is set
+            } as Question;
+    
+            if (isNewCustom) {
+                finalQuestion.id = finalQuestion.id || `custom-${uuidv4()}`;
+                finalQuestion.isCustom = true;
             }
-
-            if(newSectionName) {
+    
+            if (newSectionName) {
                 finalQuestion.section = newSectionName;
             }
-
-            if (!finalConfig.customQuestions) {
-                finalConfig.customQuestions = {};
+    
+            if (finalQuestion.isCustom) {
+                if (!finalConfig.customQuestions) {
+                    finalConfig.customQuestions = {};
+                }
+                finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
+            } else {
+                if (!finalConfig.questions) {
+                    finalConfig.questions = {};
+                }
+                // Only store the delta for overrides
+                const override: Partial<Question> = {};
+                if (finalQuestion.label !== masterQuestion.label) override.label = finalQuestion.label;
+                if (finalQuestion.description !== masterQuestion.description) override.description = finalQuestion.description;
+                if (JSON.stringify(finalQuestion.options) !== JSON.stringify(masterQuestion.options)) override.options = finalQuestion.options;
+                override.lastUpdated = finalQuestion.lastUpdated;
+                finalConfig.questions[finalQuestion.id] = override;
             }
-             finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
-
-             // Handle guidance for custom question
-            if (questionToSave.answerGuidance && Object.keys(questionToSave.answerGuidance).length > 0) {
-                 if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
-                 finalConfig.answerGuidanceOverrides[finalQuestion.id] = questionToSave.answerGuidance;
+    
+            if (finalQuestion.answerGuidance && Object.keys(finalQuestion.answerGuidance).length > 0) {
+                if (!finalConfig.answerGuidanceOverrides) {
+                    finalConfig.answerGuidanceOverrides = {};
+                }
+                finalConfig.answerGuidanceOverrides[finalQuestion.id] = {
+                    ...(finalConfig.answerGuidanceOverrides[finalQuestion.id] || {}),
+                    ...finalQuestion.answerGuidance,
+                };
             }
-             
-             saveCompanyConfig(companyName, finalConfig);
-             toast({ title: "Custom Question Saved" });
+    
+            saveCompanyConfig(companyName, finalConfig);
+            toast({ title: "Question Saved", description: "Your changes have been saved to the company configuration." });
         }
-
+    
         setIsEditing(false);
         setCurrentQuestion(null);
     };

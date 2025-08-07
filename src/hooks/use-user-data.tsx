@@ -518,42 +518,43 @@ export function useUserData() {
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (!auth?.userId) return;
         setAssessmentData(data); // Optimistic update
-        
+    
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
             .select('assessment_completed_at, initial_unsure_answers')
-            .eq('id', auth.userId)
+            .eq('id', auth.userId) // Use the correct user ID
             .single();
-
+    
         if (userError) {
-            console.error("Could not fetch user for analytics", userError);
-            return;
+            // This error is expected if the user record doesn't exist, which can happen in some flows.
+            // We just log it and move on, as the primary goal is to save the assessment data.
+            console.warn("Could not fetch user for analytics. This may not be an error.", userError);
+        } else if (companyUser) {
+            const now = new Date().toISOString();
+            const updates: Partial<CompanyUser> = {};
+            const unsureQuestions = Object.entries(data).filter(([, value]) => value === 'Unsure').map(([key]) => key);
+    
+            if (!companyUser.assessment_completed_at) {
+                updates.assessment_completed_at = now;
+                updates.initial_unsure_answers = unsureQuestions;
+            }
+    
+            if (companyUser.initial_unsure_answers && unsureQuestions.length === 0) {
+                updates.all_answers_resolved_at = now;
+            }
+    
+            if (Object.keys(updates).length > 0) {
+                await supabase.from('company_users').update(updates).eq('id', auth.userId);
+            }
         }
-
-        const now = new Date().toISOString();
-        const updates: Partial<CompanyUser> = {};
-        const unsureQuestions = Object.entries(data).filter(([, value]) => value === 'Unsure').map(([key]) => key);
-
-        if (!companyUser.assessment_completed_at) {
-            updates.assessment_completed_at = now;
-            updates.initial_unsure_answers = unsureQuestions;
-        }
-
-        if (companyUser.initial_unsure_answers && unsureQuestions.length === 0) {
-            updates.all_answers_resolved_at = now;
-        }
-
-        if (Object.keys(updates).length > 0) {
-            await supabase.from('company_users').update(updates).eq('id', auth.userId);
-        }
-        
-        const { error } = await supabase.from('user_assessments').upsert({
+    
+        const { error: saveError } = await supabase.from('user_assessments').upsert({
             user_id: auth.userId,
             data: convertDatesToStrings(data)
         }, { onConflict: 'user_id' });
-        
-        if (error) {
-            console.error("Error saving assessment:", error);
+    
+        if (saveError) {
+            console.error("Error saving assessment:", saveError);
         }
     }, [auth?.userId]);
     
@@ -780,8 +781,11 @@ export function useUserData() {
 
         const finalQuestionsMap: Record<string, Question> = {};
 
+        // Start with master questions and apply overrides
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
+            if (masterQ.formType !== formType && formType !== 'all') continue;
+
             const override = companyConfig?.questions?.[id];
             
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
@@ -791,18 +795,15 @@ export function useUserData() {
                 continue;
             }
             
-            const finalQ: Question = {
+            finalQuestionsMap[id] = {
                 ...masterQ,
                 ...(override || {}),
-                isActive: isCompanyActive, // Company override takes precedence
+                isActive: isCompanyActive,
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
-
-            if (finalQ.formType === formType || formType === 'all') {
-                finalQuestionsMap[id] = finalQ;
-            }
         }
         
+        // Merge in custom questions
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
