@@ -269,25 +269,10 @@ export const convertDatesToStrings = (obj: any): any => {
 const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profileDataForDeps: ProfileData | null): Question[] => {
     const applicable: Question[] = [];
 
-    const traverse = (questions: Question[]) => {
+    const traverse = (questions: Question[], parentIsActive: boolean = true) => {
         for (const q of questions) {
-            if (!q.isActive) continue;
+            if (!q.isActive || !parentIsActive) continue;
 
-            let isParentTriggered = true;
-            if (q.parentId) {
-                const parentValue = allAnswers[q.parentId];
-                isParentTriggered = false; // Default to false unless explicitly triggered
-                if (Array.isArray(parentValue)) {
-                    if (q.triggerValue === 'NOT_NONE') {
-                        isParentTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
-                    } else {
-                        isParentTriggered = parentValue.includes(q.triggerValue);
-                    }
-                } else {
-                    isParentTriggered = parentValue === q.triggerValue;
-                }
-            }
-            
             let isDependencyMet = true;
             if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
                 const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
@@ -298,11 +283,36 @@ const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profi
                     isDependencyMet = dependencyValue === q.dependsOnValue;
                 }
             }
-
-            if (isParentTriggered && isDependencyMet) {
+            
+            if (isDependencyMet) {
                 applicable.push(q);
-                if (q.subQuestions) {
-                    traverse(q.subQuestions);
+                 if (q.subQuestions) {
+                    const parentValue = allAnswers[q.id];
+                    let isParentTriggered = false;
+                     if (Array.isArray(parentValue)) {
+                        isParentTriggered = parentValue.length > 0;
+                    } else if (parentValue) {
+                        isParentTriggered = true;
+                    }
+                    
+                    if (isParentTriggered) {
+                        q.subQuestions.forEach(subQ => {
+                             let isSubTriggered = false;
+                            if (q.type === 'checkbox') {
+                                if (subQ.triggerValue === 'NOT_NONE') {
+                                    isSubTriggered = Array.isArray(parentValue) && parentValue.length > 0 && !parentValue.includes('None of the above');
+                                } else {
+                                    isSubTriggered = Array.isArray(parentValue) && parentValue.includes(subQ.triggerValue);
+                                }
+                            } else {
+                                isSubTriggered = parentValue === subQ.triggerValue;
+                            }
+
+                            if(isSubTriggered && subQ.isActive) {
+                                traverse([subQ], true);
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -522,12 +532,10 @@ export function useUserData() {
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
             .select('assessment_completed_at, initial_unsure_answers')
-            .eq('id', auth.userId) // Use the correct user ID
+            .eq('id', auth.userId) 
             .single();
     
         if (userError) {
-            // This error is expected if the user record doesn't exist, which can happen in some flows.
-            // We just log it and move on, as the primary goal is to save the assessment data.
             console.warn("Could not fetch user for analytics. This may not be an error.", userError);
         } else if (companyUser) {
             const now = new Date().toISOString();
@@ -769,58 +777,57 @@ export function useUserData() {
 
     const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
         if (!companyName) return [];
-
         const companyConfig = companyConfigs[companyName];
-        let applicableMasterQuestions: Record<string, Question>;
-
-        if (formType === 'all') {
-            applicableMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
-        } else {
-            applicableMasterQuestions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
-        }
-
-        const finalQuestionsMap: Record<string, Question> = {};
-
-        // Start with master questions and apply overrides
-        for (const id in applicableMasterQuestions) {
-            const masterQ = applicableMasterQuestions[id];
-            if (masterQ.formType !== formType && formType !== 'all') continue;
-
-            const override = companyConfig?.questions?.[id];
-            
-            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
-            const isMasterActive = masterQ.isActive;
-
-            if (activeOnly && (!isMasterActive || !isCompanyActive)) {
-                continue;
+    
+        const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+    
+        // 1. Combine master and company-specific custom questions into one map.
+        const combinedQuestionsMap: Record<string, Question> = {};
+    
+        // Add master questions that match the formType
+        for (const id in masterSource) {
+            const masterQ = masterSource[id];
+            if (masterQ.formType === formType) {
+                combinedQuestionsMap[id] = { ...masterQ };
             }
-            
-            finalQuestionsMap[id] = {
-                ...masterQ,
-                ...(override || {}),
-                isActive: isCompanyActive,
-                lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
-            };
         }
-        
-        // Merge in custom questions
+    
+        // Add company custom questions that match the formType
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
-                if ((customQ.formType === formType || formType === 'all') && (!activeOnly || customQ.isActive)) {
-                    finalQuestionsMap[id] = { ...customQ, isCustom: true };
+                if (customQ.formType === formType) {
+                    combinedQuestionsMap[id] = { ...customQ, isCustom: true };
                 }
             }
         }
+    
+        // 2. Apply overrides and filter by active status.
+        const finalQuestionsMap: Record<string, Question> = {};
+        for (const id in combinedQuestionsMap) {
+            const baseQ = combinedQuestionsMap[id];
+            const override = companyConfig?.questions?.[id];
+    
+            // Determine the final active state. Default to master question's state.
+            // An override can explicitly set it.
+            const isMasterActive = baseQ.isActive;
+            const isCompanyActive = override?.isActive === undefined ? isMasterActive : override.isActive;
+            
+            if (activeOnly && !isCompanyActive) {
+                continue;
+            }
+    
+            finalQuestionsMap[id] = {
+                ...baseQ,
+                ...(override || {}),
+                isActive: isCompanyActive, // Ensure final state is set
+                lastUpdated: override?.lastUpdated || baseQ.lastUpdated,
+            };
+        }
         
-        const finalQuestions = buildQuestionTreeFromMap(finalQuestionsMap);
+        // 3. Build the tree and sort
+        const questionTree = buildQuestionTreeFromMap(finalQuestionsMap);
         
-        // Final sort based on company config if available
-        const sectionOrderMap = new Map<string, number>();
-        const masterConfig = getMasterQuestionConfig(formType === 'all' ? 'assessment' : formType); // default to assessment for all
-        const sectionOrder = masterConfig?.section_order || [];
-        sectionOrder.forEach((name, index) => sectionOrderMap.set(name, index));
-
         const sortRecursive = (questions: Question[]) => {
             questions.sort((a,b) => {
                 const aOrder = companyConfig?.questionOrderBySection?.[a.section!]?.indexOf(a.id);
@@ -838,16 +845,11 @@ export function useUserData() {
                 }
             });
         };
-        sortRecursive(finalQuestions);
-        
-        finalQuestions.sort((a,b) => {
-            const aIndex = sectionOrderMap.get(a.section!) ?? Infinity;
-            const bIndex = sectionOrderMap.get(b.section!) ?? Infinity;
-            return aIndex - bIndex;
-        });
+        sortRecursive(questionTree);
 
-        return finalQuestions;
-    }, [companyConfigs, masterQuestions, masterProfileQuestions, getMasterQuestionConfig]);
+        return questionTree;
+    }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+    
     
     const getCompanyUser = useMemo(() => (email: string | undefined) => {
         if (!email || !companyConfigs) return null;
@@ -1011,3 +1013,6 @@ export function useUserData() {
         reviewQueue: [],
     };
 }
+
+
+    
