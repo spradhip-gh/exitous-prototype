@@ -285,6 +285,8 @@ function QuestionEditor({
             if (finalQuestion.isCustom) {
                  if (isNewCustom) {
                     finalQuestion.id = finalQuestion.id || `custom-${uuidv4()}`;
+                    const customQuestionsInSection = Object.values(companyConfig.customQuestions || {}).filter(q => q.section === finalQuestion.section && q.position === finalQuestion.position);
+                    finalQuestion.sortOrder = (customQuestionsInSection.length > 0 ? Math.max(...customQuestionsInSection.map(q => q.sortOrder || 0)) : 0) + 1;
                 }
                 if (newSectionName) {
                     finalQuestion.section = newSectionName;
@@ -323,14 +325,33 @@ function QuestionEditor({
         setCurrentQuestion(null);
     };
 
-    const handleMoveQuestion = (questionId: string, position: 'top' | 'bottom') => {
-        if (!companyConfig) return;
+    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
+        if (!companyConfig?.customQuestions) return;
+
+        const currentQuestion = companyConfig.customQuestions[questionId];
+        if (!currentQuestion) return;
+
+        const siblings = Object.values(companyConfig.customQuestions)
+            .filter(q => q.section === currentQuestion.section && q.position === currentQuestion.position)
+            .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+        const currentIndex = siblings.findIndex(q => q.id === questionId);
+        if (currentIndex === -1) return;
+
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        if (newConfig.customQuestions && newConfig.customQuestions[questionId]) {
-            newConfig.customQuestions[questionId].position = position;
-            saveCompanyConfig(companyName, newConfig);
-            toast({ title: `Question moved to ${position} of section.` });
-        }
+        
+        // Swap sortOrder
+        const currentSortOrder = siblings[currentIndex].sortOrder || 0;
+        const targetSortOrder = siblings[targetIndex].sortOrder || 0;
+
+        newConfig.customQuestions[questionId].sortOrder = targetSortOrder;
+        newConfig.customQuestions[siblings[targetIndex].id].sortOrder = currentSortOrder;
+        
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: 'Order Saved' });
     };
 
     const masterQuestionForEdit = useMemo(() => {
@@ -345,7 +366,7 @@ function QuestionEditor({
             <Card>
                 <CardHeader>
                     <CardTitle>Manage Questions</CardTitle>
-                    <CardDescription>Enable, disable, or edit questions. For custom questions (<Star className="inline h-4 w-4 text-amber-500" />), you can move them to the top or bottom of their section.</CardDescription>
+                    <CardDescription>Enable, disable, or edit questions. For custom questions (<Star className="inline h-4 w-4 text-amber-500" />), you can use the arrows to reorder them.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {orderedSections.map((section) => (
