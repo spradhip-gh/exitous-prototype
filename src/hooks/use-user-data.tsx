@@ -370,6 +370,7 @@ export function useUserData() {
     const [masterTips, setMasterTips] = useState<MasterTip[]>([]);
     const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
     const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
+    const [externalResources, setExternalResources] = useState<ExternalResource[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
     useEffect(() => {
@@ -388,6 +389,7 @@ export function useUserData() {
                 { data: tipsData },
                 { data: platformUsersData },
                 { data: reviewQueueData },
+                { data: resourcesData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -400,10 +402,12 @@ export function useUserData() {
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('platform_users').select('*'),
                 supabase.from('review_queue').select('*'),
+                supabase.from('external_resources').select('*'),
             ]);
             
             setPlatformUsers((platformUsersData as PlatformUser[]) || []);
             setReviewQueue((reviewQueueData as ReviewQueueItem[]) || []);
+            setExternalResources((resourcesData as ExternalResource[]) || []);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -1227,6 +1231,15 @@ export function useUserData() {
         setReviewQueue(prev => prev.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
         return true;
     }, [auth?.userId, companyAssignments, companyConfigs, saveCompanyConfig]);
+    
+    const saveExternalResources = useCallback(async (resources: ExternalResource[]) => {
+        const { error } = await supabase.from('external_resources').upsert(resources);
+        if (error) {
+            console.error("Error saving external resources:", error);
+        } else {
+            setExternalResources(resources);
+        }
+    }, []);
 
     return {
         profileData,
@@ -1243,7 +1256,7 @@ export function useUserData() {
         masterTips,
         companyAssignments,
         companyConfigs,
-        externalResources: [],
+        externalResources,
         platformUsers,
         reviewQueue,
         setReviewQueue,
@@ -1282,7 +1295,7 @@ export function useUserData() {
         saveCompanyResources: async () => {},
         addReviewQueueItem,
         processReviewQueueItem,
-        saveExternalResources: async () => {},
+        saveExternalResources,
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
         deleteCompanyAssignment: async () => {},
