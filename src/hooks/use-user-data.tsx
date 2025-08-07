@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -773,6 +774,23 @@ export function useUserData() {
         }
     }, []);
 
+    const saveCompanyAssignments = useCallback(async (updatedAssignments: CompanyAssignment[]) => {
+        const { error } = await supabase.rpc('update_hr_assignments', {
+            assignments: updatedAssignments.map(a => ({
+                company_id: a.companyId,
+                managers: a.hrManagers,
+            }))
+        });
+
+        if (error) {
+            console.error('Failed to save company assignments:', error);
+            // Optionally show a toast to the user
+        } else {
+            // Optimistically update the local state
+            setCompanyAssignments(updatedAssignments);
+        }
+    }, []);
+
 
     const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
         if (!companyName) return [];
@@ -961,6 +979,7 @@ export function useUserData() {
         deletePlatformUser,
         getCompanyUser,
         updateCompanyUserContact,
+        saveCompanyAssignments,
         isAssessmentComplete: !!assessmentData?.workStatus,
         clearRecommendations: () => {},
         saveRecommendations: () => {},
@@ -981,7 +1000,6 @@ export function useUserData() {
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
         updateCompanyAssignment: async () => {},
-        saveCompanyAssignments: async () => {},
         deleteCompanyAssignment: async () => {},
         getCompaniesForHr: () => [],
         getPlatformUserRole: () => null,
