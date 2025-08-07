@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb, Check } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb, Check, Ban } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -19,7 +19,34 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
+function RejectDialog({ open, onOpenChange, onConfirm }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: (reason: string) => void;
+}) {
+    const [reason, setReason] = useState('');
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Provide Rejection Reason</DialogTitle>
+                    <DialogDescription>Please provide a reason for rejecting this custom question. This will be shown to the HR Manager.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="rejection-reason" className="sr-only">Rejection Reason</Label>
+                    <Textarea id="rejection-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g., This question is too similar to an existing master question..." />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => onConfirm(reason)}>Confirm Rejection</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function GuidanceRulesTab() {
     const { guidanceRules, saveGuidanceRules, masterQuestions, masterProfileQuestions, masterTasks } = useUserData();
@@ -125,10 +152,26 @@ export default function ReviewQueuePage() {
         masterTips,
     } = useUserData();
 
-    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => {
+    const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+    const [currentItemForRejection, setCurrentItemForRejection] = useState<ReviewQueueItem | null>(null);
+
+    const handleRejectClick = (item: ReviewQueueItem) => {
+        setCurrentItemForRejection(item);
+        setIsRejectDialogOpen(true);
+    };
+
+    const handleConfirmRejection = (reason: string) => {
+        if (!currentItemForRejection) return;
+        handleStatusChange(currentItemForRejection, 'rejected', reason);
+        setIsRejectDialogOpen(false);
+        setCurrentItemForRejection(null);
+    };
+
+
+    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
         
         const reviewerId = auth?.email || 'admin';
-        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId };
+        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
         const companyName = item.inputData?.companyName;
@@ -146,21 +189,20 @@ export default function ReviewQueuePage() {
         
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
 
-        if (status === 'rejected' && item.inputData?.type === 'custom_question_guidance') {
-            const { question } = item.inputData;
+        if (status === 'rejected' && item.type === 'custom_question_guidance') {
+            const { question } = item.change_details || {};
             if (!question?.id) return;
             
-            // Remove the custom question from the company's config
+            // Deactivate the custom question
             if (newConfig.customQuestions && newConfig.customQuestions[question.id]) {
-                delete newConfig.customQuestions[question.id];
+                newConfig.customQuestions[question.id].isActive = false;
             }
             saveCompanyConfig(companyName, newConfig);
-            toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been removed from ${companyName}'s form.` });
-            reviewedItem = { ...reviewedItem, changeDetails: { rejectedQuestion: question } };
-
-        } else if (status === 'approved' && item.inputData?.type === 'question_edit_suggestion') {
-            const { questionId, suggestions } = item.inputData;
-            if (!questionId || !suggestions) {
+            toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been deactivated for ${companyName}.` });
+        
+        } else if (status === 'approved' && item.type === 'question_edit_suggestion') {
+            const { questionId, optionsToAdd, optionsToRemove } = item.change_details || {};
+            if (!questionId) {
                  toast({ title: 'Error Applying Suggestion', description: 'The suggestion data is incomplete.', variant: 'destructive' });
                  return;
             }
@@ -181,11 +223,11 @@ export default function ReviewQueuePage() {
             const currentOptions = newConfig.questions[questionId].options || masterQuestion.options || [];
             let newOptions = [...currentOptions];
 
-            if (suggestions.optionsToRemove && suggestions.optionsToRemove.length > 0) {
-                newOptions = newOptions.filter((opt: string) => !suggestions.optionsToRemove.includes(opt));
+            if (optionsToRemove && optionsToRemove.length > 0) {
+                newOptions = newOptions.filter((opt: string) => !optionsToRemove.includes(opt));
             }
-            if (suggestions.optionsToAdd && suggestions.optionsToAdd.length > 0) {
-                 suggestions.optionsToAdd.forEach((suggestion: { option: string }) => {
+            if (optionsToAdd && optionsToAdd.length > 0) {
+                 optionsToAdd.forEach((suggestion: { option: string }) => {
                     if (!newOptions.includes(suggestion.option)) {
                         newOptions.push(suggestion.option);
                     }
@@ -196,9 +238,6 @@ export default function ReviewQueuePage() {
 
             saveCompanyConfig(companyName, newConfig);
             toast({ title: `Suggestion Approved`, description: `Changes have been applied to ${companyName}'s form.` });
-            
-            reviewedItem = { ...reviewedItem, changeDetails: suggestions };
-
         } else {
             toast({ title: `Item marked as ${status}` });
         }
@@ -238,6 +277,7 @@ export default function ReviewQueuePage() {
                                         key={item.id}
                                         item={item}
                                         onStatusChange={handleStatusChange}
+                                        onRejectClick={handleRejectClick}
                                         masterTasks={masterTasks}
                                         masterTips={masterTips}
                                      />
@@ -278,10 +318,13 @@ export default function ReviewQueuePage() {
                                                     <TableCell>{format(parseISO(item.createdAt), 'PPP')}</TableCell>
                                                     <TableCell>
                                                         {getStatusBadge()}
-                                                        {item.changeDetails && (
+                                                        {item.rejection_reason && (
+                                                            <p className="text-xs text-muted-foreground mt-1 italic">Reason: "{item.rejection_reason}"</p>
+                                                        )}
+                                                        {item.change_details && (
                                                             <div className="text-xs text-muted-foreground mt-1">
-                                                                {item.changeDetails.optionsToAdd?.length > 0 && <div>+ Added: {item.changeDetails.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
-                                                                {item.changeDetails.optionsToRemove?.length > 0 && <div>- Removed: {item.changeDetails.optionsToRemove.join(', ')}</div>}
+                                                                {item.change_details.optionsToAdd?.length > 0 && <div>+ Added: {item.change_details.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                                                {item.change_details.optionsToRemove?.length > 0 && <div>- Removed: {item.change_details.optionsToRemove.join(', ')}</div>}
                                                             </div>
                                                         )}
                                                     </TableCell>
@@ -298,18 +341,21 @@ export default function ReviewQueuePage() {
                     </TabsContent>
                  </Tabs>
             </div>
+             <RejectDialog 
+                open={isRejectDialogOpen}
+                onOpenChange={setIsRejectDialogOpen}
+                onConfirm={handleConfirmRejection}
+             />
         </div>
     );
 }
 
-function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed') => void, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
+function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', reason?: string) => void, onRejectClick: (item: ReviewQueueItem) => void, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
     const [isInputOpen, setIsInputOpen] = useState(false);
-    const isSuggestion = item.inputData?.type === 'question_edit_suggestion';
-    const isCustomQuestion = item.inputData?.type === 'custom_question_guidance';
-
-    if (isSuggestion) {
-        const { companyName, questionLabel, suggestions } = item.inputData;
-        const { optionsToAdd, optionsToRemove, reason } = suggestions || {};
+    
+    if (item.type === 'question_edit_suggestion') {
+        const { companyName } = item.inputData;
+        const { questionLabel, optionsToAdd, optionsToRemove, reason } = item.change_details || {};
 
         return (
             <Card className="bg-muted/50">
@@ -365,8 +411,11 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
         )
     }
 
-    if (isCustomQuestion) {
-        const { companyName, question, newSectionName } = item.inputData as { companyName: string, question: Question, newSectionName?: string };
+    if (item.type === 'custom_question_guidance') {
+        const { companyName } = item.inputData;
+        const { question, newSectionName } = item.change_details || {};
+        if (!question) return null;
+
         return (
              <Card className="bg-muted/50">
                 <CardHeader>
@@ -390,11 +439,11 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
                             <div>
                                 <h4 className="font-medium text-sm mb-2">Answers & Guidance</h4>
                                 <div className="space-y-3">
-                                {question.options.filter(Boolean).map(option => {
+                                {question.options.filter(Boolean).map((option: string) => {
                                     const guidance = question.answerGuidance?.[option];
                                     if (!guidance) return null;
-                                    const assignedTasks = guidance.tasks?.map(taskId => masterTasks.find(t => t.id === taskId)?.name).filter(Boolean);
-                                    const assignedTips = guidance.tips?.map(tipId => masterTips.find(t => t.id === tipId)?.text).filter(Boolean);
+                                    const assignedTasks = guidance.tasks?.map((taskId: string) => masterTasks.find(t => t.id === taskId)?.name).filter(Boolean);
+                                    const assignedTips = guidance.tips?.map((tipId: string) => masterTips.find(t => t.id === tipId)?.text).filter(Boolean);
                                     
                                     if ((assignedTasks?.length || 0) === 0 && (assignedTips?.length || 0) === 0 && !guidance.noGuidanceRequired) return null;
 
@@ -429,14 +478,14 @@ function ReviewItemCard({ item, onStatusChange, masterTasks, masterTips }: { ite
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-4">
-                    <Button size="sm" variant="destructive" onClick={() => onStatusChange(item, 'rejected')}><ThumbsDown className="mr-2"/> Reject</Button>
+                    <Button size="sm" variant="destructive" onClick={() => onRejectClick(item)}><Ban className="mr-2"/> Reject</Button>
                     <Button size="sm" variant="secondary" onClick={() => onStatusChange(item, 'reviewed')}><Check className="mr-2"/> Mark as Reviewed</Button>
                 </CardFooter>
             </Card>
         )
     }
 
-    // Default rendering for AI recommendations for audit
+    // Fallback for AI recommendations audit
     return (
         <Card className="bg-muted/50">
              <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>

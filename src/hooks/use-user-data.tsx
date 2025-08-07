@@ -111,11 +111,22 @@ export interface ReviewQueueItem {
     userEmail: string;
     inputData: any;
     output: PersonalizedRecommendationsOutput;
-    status: 'pending' | 'approved' | 'rejected' | 'reviewed';
+    status: 'pending' | 'approved' | 'rejected' | 'reviewed' | 'withdrawn';
     createdAt: string;
     reviewedAt?: string;
     reviewerId?: string;
-    changeDetails?: any;
+    rejection_reason?: string;
+    type: 'custom_question_guidance' | 'question_edit_suggestion' | 'ai_recommendation_audit';
+    change_details?: {
+        questionId?: string;
+        questionLabel?: string;
+        reason?: string;
+        optionsToAdd?: { option: string; guidance?: AnswerGuidance }[];
+        optionsToRemove?: string[];
+        guidanceOverrides?: Record<string, AnswerGuidance>;
+        question?: Question;
+        newSectionName?: string;
+    }
 }
 
 export interface CompanyConfig {

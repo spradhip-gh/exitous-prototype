@@ -78,6 +78,8 @@ Stores end-users associated with a specific company. This table tracks who is el
 | `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                                             |
 | `email`                      | `TEXT`    | The end-user's primary (work) email.                                           |
 | `company_user_id`            | `TEXT`    | The user's ID within their company's system.                                   |
+| `personal_email`             | `TEXT`    | Optional personal email for post-exit communication. Nullable.                  |
+| `phone`                      | `TEXT`    | Optional phone number for SMS alerts. Nullable.                                |
 | `notification_date`          | `DATE`    | The date the user was notified of their exit.                                  |
 | `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.                       |
 | `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.                      |
@@ -97,7 +99,7 @@ Stores the profile form data for each end-user. This is a one-to-one relationshi
 | Column      | Type      | Description                                  |
 | ----------- | --------- | -------------------------------------------- |
 | `user_id`   | `UUID`    | **Primary Key** and **Foreign Key** to `company_users.id`. |
-| `data`      | `JSONB`   | The complete JSON object of the user's profile form, including contact information like personal email and phone. |
+| `data`      | `JSONB`   | The complete JSON object of the user's profile form (excluding PII like personal email/phone). |
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.                |
 
 ### `user_assessments`
@@ -272,15 +274,17 @@ Stores consultant-created rules to provide deterministic, high-quality guidance 
 
 ### `review_queue`
 
-A log of AI-generated recommendations for consultants to review, approve, or convert into guidance rules.
+A log of content changes submitted by HR for Admin review.
 
-| Column        | Type      | Description                                       |
-| ------------- | --------- | ------------------------------------------------- |
-| `id`          | `UUID`    | **Primary Key**.                                  |
-| `user_email`  | `TEXT`    | The email of the user whose data was used.        |
-| `input_data`  | `JSONB`   | The user profile/assessment data sent to the AI.  |
-| `output_data` | `JSONB`   | The recommendation list received from the AI.     |
-| `status`      | `TEXT`    | 'pending', 'approved', or 'rejected'.             |
-| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
-| `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
-| `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+| Column             | Type      | Description                                                                                         |
+| ------------------ | --------- | --------------------------------------------------------------------------------------------------- |
+| `id`               | `UUID`    | **Primary Key**.                                                                                    |
+| `company_id`       | `UUID`    | **Foreign Key** to `companies.id`. The company this review item belongs to.                         |
+| `user_email`       | `TEXT`    | The email of the HR user who submitted the item.                                                    |
+| `type`             | `TEXT`    | The type of review item (`custom_question_guidance` or `question_edit_suggestion`).                 |
+| `status`           | `TEXT`    | The current status ('pending', 'approved', 'rejected', 'withdrawn').                                |
+| `change_details`   | `JSONB`   | A structured object with the details of the suggested change (e.g., `{ "questionId": "q1", "optionsToAdd": ["New Option"] }`). |
+| `rejection_reason` | `TEXT`    | An optional text field for an Admin to provide feedback when rejecting a change. Nullable.          |
+| `created_at`       | `TIMESTAMPTZ`| Timestamp of when the item was submitted.                                                         |
+| `reviewed_at`      | `TIMESTAMPTZ`| Timestamp of when the review occurred.                                                              |
+| `reviewer_id`      | `UUID`    | **Foreign Key** to `platform_users.id`. The Admin/Consultant who reviewed it.                       |
