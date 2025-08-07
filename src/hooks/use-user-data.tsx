@@ -1062,25 +1062,63 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'>) => {
-        const company = companyAssignments.find(c => c.companyName === auth?.companyName);
-        if (!company) {
-             console.error("Could not find company to associate with review item.");
-             return;
-        }
-
-        const newItem = {
-            ...item,
-            company_id: company.companyId,
-        };
-
-        const { data, error } = await supabase.from('review_queue').insert(newItem).select().single();
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'created_at'>) => {
+        const { data, error } = await supabase.from('review_queue').insert(item).select().single();
         if (error) {
             console.error("Error adding to review queue", error);
         } else if(data) {
             setReviewQueue(prev => [...prev, data as ReviewQueueItem]);
         }
-    }, [auth?.companyName, companyAssignments]);
+    }, []);
+
+    const processReviewQueueItem = useCallback(async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string): Promise<boolean> => {
+        const reviewerId = auth?.email || 'admin';
+
+        if (status === 'approved' && item.type === 'question_edit_suggestion') {
+            const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
+            if (!companyName) {
+                console.error("Could not find company name for review item");
+                return false;
+            }
+            const currentConfig = companyConfigs[companyName];
+            const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            const { questionId, optionsToAdd } = item.change_details || {};
+            if (!questionId || !optionsToAdd || optionsToAdd.length === 0) return false;
+
+            const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
+            const masterQuestion = allMasterQs[questionId];
+            if (!masterQuestion) return false;
+            
+            if (!newConfig.questions) newConfig.questions = {};
+            const override = newConfig.questions[questionId] || {};
+            const currentOptions = override.options || masterQuestion.options || [];
+            let newOptions = [...currentOptions];
+
+            optionsToAdd.forEach((suggestion: { option: string }) => {
+                if (!newOptions.includes(suggestion.option)) {
+                    newOptions.push(suggestion.option);
+                }
+            });
+
+            newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
+            await saveCompanyConfig(companyName, newConfig);
+        }
+
+        const { data: updatedItem, error } = await supabase
+            .from('review_queue')
+            .update({ status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason })
+            .eq('id', item.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating review item status:', error);
+            return false;
+        }
+        
+        setReviewQueue(prev => prev.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
+        return true;
+    }, [auth?.email, companyAssignments, companyConfigs, masterQuestions, masterProfileQuestions, saveCompanyConfig]);
 
     return {
         profileData,
@@ -1135,6 +1173,7 @@ export function useUserData() {
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
         addReviewQueueItem,
+        processReviewQueueItem,
         saveExternalResources: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},

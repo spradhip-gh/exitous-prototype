@@ -20,7 +20,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase-client';
 
 function RejectDialog({ open, onOpenChange, onConfirm }: {
     open: boolean;
@@ -140,17 +139,12 @@ function GuidanceRulesTab() {
 
 export default function ReviewQueuePage() {
     const { toast } = useToast();
-    const { auth } = useAuth();
     const { 
         reviewQueue, 
-        setReviewQueue,
-        getAllCompanyConfigs,
-        saveCompanyConfig,
-        masterQuestions,
-        masterProfileQuestions,
+        companyAssignments,
         masterTasks,
         masterTips,
-        companyAssignments,
+        processReviewQueueItem
     } = useUserData();
 
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -174,87 +168,12 @@ export default function ReviewQueuePage() {
 
 
     const handleStatusChange = async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
-        
-        const reviewerId = auth?.email || 'admin';
-        
-        const allConfigs = getAllCompanyConfigs();
-        const companyName = companyMap.get(item.company_id);
-
-        if (!companyName) {
-            toast({ title: 'Error processing action', description: 'Company name is missing from the review item.', variant: 'destructive' });
-            return;
-        }
-
-        const companyConfig = allConfigs[companyName];
-        if (!companyConfig) {
-             toast({ title: 'Error processing action', description: `Could not find configuration for company: ${companyName}.`, variant: 'destructive' });
-             return;
-        }
-        
-        const newConfig = JSON.parse(JSON.stringify(companyConfig));
-
-        if (status === 'rejected' && item.type === 'custom_question_guidance') {
-            const { question } = item.change_details || {};
-            if (!question?.id) return;
-            
-            if (newConfig.customQuestions && newConfig.customQuestions[question.id]) {
-                newConfig.customQuestions[question.id].isActive = false;
-                await saveCompanyConfig(companyName, newConfig);
-            } else {
-                 toast({ title: `Error`, description: `Could not find custom question to deactivate.` });
-            }
-        
-        } else if (status === 'approved' && item.type === 'question_edit_suggestion') {
-            const { questionId, optionsToAdd } = item.change_details || {};
-            if (!questionId || !optionsToAdd || optionsToAdd.length === 0) {
-                 toast({ title: 'Error Applying Suggestion', description: 'The suggestion data is incomplete.', variant: 'destructive' });
-                 return;
-            }
-
-            if (!newConfig.questions) newConfig.questions = {};
-            
-            const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
-            const masterQuestion = allMasterQs[questionId];
-            if (!masterQuestion) {
-                 toast({ title: 'Error Applying Suggestion', description: `Could not find master question with ID: ${questionId}.`, variant: 'destructive' });
-                 return;
-            }
-            
-            const override = newConfig.questions[questionId] || {};
-            const currentOptions = override.options || masterQuestion.options || [];
-            let newOptions = [...currentOptions];
-
-            optionsToAdd.forEach((suggestion: { option: string }) => {
-                if (!newOptions.includes(suggestion.option)) {
-                    newOptions.push(suggestion.option);
-                }
-            });
-
-            newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
-            
-            await saveCompanyConfig(companyName, newConfig);
-        }
-        
-        // Persist the status change to the database
-        const { data: updatedItem, error } = await supabase
-            .from('review_queue')
-            .update({
-                status,
-                reviewed_at: new Date().toISOString(),
-                reviewer_id: reviewerId,
-                rejection_reason: rejectionReason,
-            })
-            .eq('id', item.id)
-            .select()
-            .single();
-
-        if (error) {
-            toast({ title: 'Database Error', description: 'Could not update the review item status.', variant: 'destructive' });
-            console.error(error);
-        } else {
-            setReviewQueue(prevQueue => prevQueue.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
-            toast({ title: `Item marked as ${status}` });
-        }
+       const success = await processReviewQueueItem(item, status, rejectionReason);
+       if(success) {
+           toast({ title: `Item marked as ${status}` });
+       } else {
+            toast({ title: 'Error', description: `Could not update item status.`, variant: 'destructive'});
+       }
     };
     
     const pendingActionItems = reviewQueue.filter(item => item.status === 'pending');
