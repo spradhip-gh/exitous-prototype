@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -329,6 +328,7 @@ export default function EditQuestionDialog({
                 type: 'question_edit_suggestion',
                 status: 'pending',
                 change_details: {
+                    companyName: auth?.companyName,
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
                     reason: suggestionReason,
