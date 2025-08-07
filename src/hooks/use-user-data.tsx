@@ -126,7 +126,7 @@ export interface ReviewQueueItem {
     created_at: string;
     reviewed_at?: string;
     reviewer_id?: string;
-    input_data: any;
+    input_data?: any;
     output_data?: any;
 }
 
@@ -951,9 +951,11 @@ export function useUserData() {
                     isActive: isCompanyActive,
                 };
                 
-                // If override has options, it is the source of truth.
                 if (override?.options) {
-                    finalQuestion.options = override.options;
+                    const masterOptions = new Set(masterQ.options || []);
+                    const overrideOptions = new Set(override.options);
+                    const finalOptions = [...new Set([...(masterQ.options || []), ...(override.options || [])])];
+                    finalQuestion.options = finalOptions;
                 }
                 
                 finalQuestions.push(finalQuestion);
@@ -1070,13 +1072,16 @@ export function useUserData() {
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
     const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'>) => {
-        const companyId = companyAssignments.find(c => c.companyName === item.input_data?.companyName)?.companyId;
+        const companyId = companyAssignments.find(c => c.companyName === (item as any).companyName)?.companyId;
         if (!companyId) {
             console.error("Could not find company ID for review item");
             return;
         }
 
-        const { data, error } = await supabase.from('review_queue').insert({ ...item, company_id: companyId }).select().single();
+        const payload = { ...item, company_id: companyId };
+        console.log("Attempting to insert into review_queue:", JSON.stringify(payload, null, 2));
+
+        const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
             console.error("Error adding to review queue", error);
         } else if(data) {
