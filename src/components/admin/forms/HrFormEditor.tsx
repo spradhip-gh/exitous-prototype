@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -113,6 +114,7 @@ function MySuggestionsTab() {
                                 <TableCell>
                                     <div className="text-xs space-y-1">
                                         {item.inputData.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
+                                        {item.inputData.suggestions?.reason && <div className="italic text-muted-foreground">Reason: "{item.inputData.suggestions.reason}"</div>}
                                         {item.inputData.suggestions?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
                                         {item.inputData.suggestions?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
                                     </div>
@@ -230,7 +232,8 @@ function QuestionEditor({
         masterProfileQuestions,
         isLoading,
         getCompanyConfig,
-        addReviewQueueItem
+        addReviewQueueItem,
+        getMasterQuestionConfig,
     } = useUserData();
 
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
@@ -261,11 +264,12 @@ function QuestionEditor({
             }
         });
         
-        const masterQuestionsSource = questionType === 'profile' ? masterProfileQuestions : masterQuestions;
-        const defaultSectionOrder = [...new Set(Object.values(masterQuestionsSource).filter(q => !q.parentId).map(q => q.section))];
-        
-        const customSections = Object.keys(sectionsMap).filter(s => !defaultSectionOrder.includes(s));
-        const finalSectionOrder = [...defaultSectionOrder, ...customSections];
+        const masterConfig = getMasterQuestionConfig(questionType);
+        const masterSectionOrder = masterConfig?.section_order || [];
+
+        const allKnownSections = new Set(masterSectionOrder);
+        const customSections = Object.keys(sectionsMap).filter(s => !allKnownSections.has(s));
+        const finalSectionOrder = [...masterSectionOrder, ...customSections];
         
         const sections = finalSectionOrder
             .map(sectionName => {
@@ -290,7 +294,7 @@ function QuestionEditor({
 
         setOrderedSections(sections);
 
-    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, masterQuestions, masterProfileQuestions]);
+    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, getMasterQuestionConfig]);
 
 
     const handleToggleQuestion = (questionId: string) => {
@@ -518,7 +522,7 @@ function QuestionEditor({
             <Card>
                 <CardHeader>
                     <CardTitle>Manage Questions</CardTitle>
-                    <CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500" /> are custom to your company.</CardDescription>
+                    <CardDescription>Enable, disable, or edit questions. Use the handle to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500" /> are custom to your company.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {orderedSections.map((section) => (
