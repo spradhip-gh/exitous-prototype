@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, CompanyConfig } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
@@ -29,7 +29,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { CalendarIcon, Info, Star } from 'lucide-react';
+import { CalendarIcon, Info, Star, Bug, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
 
 
 const safeFormatDate = (value: any, formatString: string) => {
@@ -261,7 +262,13 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileData: any }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData, companyConfig }: { 
+    questions: Question[], 
+    dynamicSchema: z.ZodObject<any>, 
+    initialData: AssessmentData, 
+    profileData: any,
+    companyConfig: CompanyConfig | null,
+}) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig } = useUserData();
@@ -504,13 +511,49 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                         }
                     </form>
                 </Form>
+                {process.env.NODE_ENV !== 'production' && (
+                    <Card className="border-destructive">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Bug className="text-destructive" />
+                                Assessment Debug Info
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <Collapsible className="mt-2">
+                                <CollapsibleTrigger asChild>
+                                    <Button variant="link" className="p-0 h-auto">
+                                        Show Custom Questions from Config <ChevronDown className="ml-1 h-4 w-4"/>
+                                    </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                                        {JSON.stringify(companyConfig?.customQuestions, null, 2)}
+                                    </pre>
+                                </CollapsibleContent>
+                            </Collapsible>
+                             <Collapsible className="mt-2">
+                                <CollapsibleTrigger asChild>
+                                    <Button variant="link" className="p-0 h-auto">
+                                        Show Final Merged Question List ({questions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
+                                    </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                        {questions.map(q => <li key={q.id}>{q.label} ({q.id}) {q.isCustom && <strong className="text-amber-600">CUSTOM</strong>}</li>)}
+                                    </ul>
+                                </CollapsibleContent>
+                            </Collapsible>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );
 }
 
 export default function AssessmentFormWrapper() {
-    const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData, profileData } = useUserData();
+    const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData, profileData, getAllCompanyConfigs } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
@@ -518,6 +561,7 @@ export default function AssessmentFormWrapper() {
     const [isLoading, setIsLoading] = useState(true);
     
     const initialData = useMemo(() => assessmentData, [assessmentData]);
+    const companyConfig = useMemo(() => auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null, [auth?.companyName, getAllCompanyConfigs]);
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
@@ -548,5 +592,5 @@ export default function AssessmentFormWrapper() {
         )
     }
 
-    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} />;
+    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} companyConfig={companyConfig} />;
 }
