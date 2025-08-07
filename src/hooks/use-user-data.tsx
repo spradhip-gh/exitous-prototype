@@ -950,11 +950,8 @@ export function useUserData() {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
-                    // If an override exists for the options, use IT instead of merging.
-                    // This is the key change to handle removals correctly.
-                    if (override.options) {
-                        finalQuestion.options = override.options;
-                    }
+                    // Use override options if they exist, otherwise use master
+                    finalQuestion.options = override.options || masterQ.options;
                     if (override.label) finalQuestion.label = override.label;
                     if (override.description) finalQuestion.description = override.description;
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -1075,14 +1072,13 @@ export function useUserData() {
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
     const addReviewQueueItem = useCallback(async (item: ReviewQueueItem) => {
-        const companyId = companyAssignments.find(c => c.companyName === item.change_details.companyName)?.companyId;
+        const companyId = companyAssignments.find(c => c.companyName === item.change_details?.companyName)?.companyId;
         if (!companyId) {
-            console.error("Could not find company ID for review item");
+            console.error("Error adding to review queue: Could not find company ID for review item");
             return;
         }
 
-        const payload = { ...item, company_id: companyId, companyName: undefined };
-        console.log("DEBUG: Attempting to insert into review_queue:", JSON.stringify(payload, null, 2));
+        const payload = { ...item, company_id: companyId };
         
         const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
@@ -1114,6 +1110,12 @@ export function useUserData() {
             const masterQ = masterQuestions[questionId] || masterProfileQuestions[questionId];
             let newOptions = [...(override.options || masterQ.options || [])];
 
+            // 1. Remove options
+            if (optionsToRemove && optionsToRemove.length > 0) {
+                 newOptions = newOptions.filter(opt => !optionsToRemove.includes(opt));
+            }
+
+            // 2. Add new options and their guidance
             if (optionsToAdd) {
                 optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
                     if (!newOptions.includes(suggestion.option)) {
@@ -1127,12 +1129,6 @@ export function useUserData() {
                 });
             }
             
-            if (optionsToRemove) {
-                newOptions = newOptions.filter(opt => !optionsToRemove.includes(opt));
-            }
-            
-            console.log("DEBUG: Final computed options for override:", newOptions);
-
             newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
             await saveCompanyConfig(companyName, newConfig);
         }

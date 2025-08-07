@@ -335,30 +335,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     </Button>
                 }
             </form>
-             {process.env.NODE_ENV === 'development' && maritalStatusQuestion && (
-                <Card className="mt-8 border-destructive">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Bug className="text-destructive"/> DEBUG: Marital Status Question</CardTitle>
-                        <CardDescription>This panel will only appear in a development environment.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="font-semibold text-sm">Final Question Props</h4>
-                                <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                                    {JSON.stringify(maritalStatusQuestion, null, 2)}
-                                </pre>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-sm">Company Override Data</h4>
-                                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                                    {JSON.stringify(companyConfig?.questions?.maritalStatus, null, 2)}
-                                </pre>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
         </Form>
     );
 }
