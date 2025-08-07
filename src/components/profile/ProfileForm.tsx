@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { CalendarIcon, Info, Star } from 'lucide-react';
+import { CalendarIcon, Info, Star, Bug } from 'lucide-react';
 import { convertStringsToDates } from '@/hooks/use-user-data';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
@@ -331,6 +331,23 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     </Button>
                 }
             </form>
+            {process.env.NODE_ENV !== 'production' && (
+                <Card className="mt-8 border-destructive">
+                    <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Bug />DEBUG: State Question Data</CardTitle>
+                    <CardDescription>This panel shows the props being passed to the 'state' question component. It will only appear in a development environment.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                        {JSON.stringify(
+                        questions.find(q => q.id === 'state'),
+                        null,
+                        2
+                        )}
+                    </pre>
+                    </CardContent>
+                </Card>
+            )}
         </Form>
     );
 }
