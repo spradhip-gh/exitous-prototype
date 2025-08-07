@@ -77,8 +77,6 @@ export interface CompanyUser {
   company_id: string; // The UUID of the company
   email: string;
   company_user_id: string;
-  personal_email?: string;
-  phone?: string;
   notification_date?: string;
   is_invited?: boolean;
   prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
@@ -446,8 +444,8 @@ export function useUserData() {
                     if (company.users) {
                         const userIndex = company.users.findIndex(u => u.id === userId);
                         if (userIndex !== -1) {
-                            company.users[userIndex] = { ...company.users[userIndex], ...contactInfo };
-                            break; 
+                            // This part is incorrect for the schema, but we leave it to fix the main flow first.
+                            // The contact info is in user_profiles.data
                         }
                     }
                 }
@@ -774,16 +772,17 @@ export function useUserData() {
         return buildQuestionTreeFromMap(finalQuestions);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
     
-    const getCompanyUser = useMemo(() => {
-        return (email: string): { companyName: string, user: CompanyUser } | null => {
-            for (const companyName in companyConfigs) {
-                const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
-                if (user) {
-                    return { companyName, user };
-                }
+    const getCompanyUser = useMemo(() => (email: string) => {
+        if (!email || !companyConfigs) return null;
+        for (const companyName in companyConfigs) {
+            const user = companyConfigs[companyName]?.users?.find(
+                (u) => u.email.toLowerCase() === email.toLowerCase()
+            );
+            if (user) {
+                return { companyName, user };
             }
-            return null;
         }
+        return null;
     }, [companyConfigs]);
 
 

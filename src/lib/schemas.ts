@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import type { Question } from './questions';
 
@@ -18,11 +19,26 @@ const profileBaseShape = {
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
+    personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
+    phone: z.string().optional(),
+    notificationEmail: z.string().email().optional(),
+    notificationSettings: z.object({
+        email: z.object({
+          all: z.boolean().optional(),
+          taskReminders: z.boolean().optional(),
+          unsureReminders: z.boolean().optional(),
+          criticalDateReminders: z.boolean().optional(),
+        }),
+        sms: z.object({
+          all: z.boolean().optional(),
+          taskReminders: z.boolean().optional(),
+          unsureReminders: z.boolean().optional(),
+          criticalDateReminders: z.boolean().optional(),
+        }),
+      }).optional(),
 };
 
 export const accountSettingsSchema = z.object({
-  personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
-  phone: z.string().optional(),
   notificationEmail: z.string().email().optional(),
   notificationSettings: z.object({
     email: z.object({
@@ -63,7 +79,10 @@ export function buildProfileSchema(questions: Question[]) {
                 case 'text':
                     if (q.id === 'birthYear') {
                         shape[key] = profileBaseShape.birthYear;
-                    } else {
+                    } else if (q.id === 'personalEmail') {
+                        shape[key] = profileBaseShape.personalEmail;
+                    }
+                    else {
                         shape[key] = z.string().optional();
                     }
                     break;

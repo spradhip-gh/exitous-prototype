@@ -282,6 +282,11 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
                                     Your company is: <span className="font-bold">{auth?.companyName || 'N/A'}</span>
                                 </CardDescription>
                              )}
+                              {section === 'Contact Information' && (
+                                 <CardDescription>
+                                    This is where we'll send important updates after your access to your work email ends.
+                                </CardDescription>
+                             )}
                         </CardHeader>
                         <CardContent className="space-y-6">
                            {sectionQuestions.map(q => <QuestionRenderer key={q.id} question={q} form={form} />)}

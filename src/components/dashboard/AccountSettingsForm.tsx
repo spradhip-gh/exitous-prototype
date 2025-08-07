@@ -22,16 +22,12 @@ type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
 export default function AccountSettingsForm() {
   const { auth } = useAuth();
-  const { profileData, getCompanyUser, updateCompanyUserContact } = useUserData();
+  const { profileData, saveProfileData } = useUserData();
   const { toast } = useToast();
-
-  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
 
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      personalEmail: '',
-      phone: '',
       notificationEmail: auth?.email,
       notificationSettings: {
         email: { all: true },
@@ -42,82 +38,46 @@ export default function AccountSettingsForm() {
   
   const { reset } = form;
 
+  const { notificationEmail, notificationSettings } = profileData || {};
+
   useEffect(() => {
-    if (companyUser) {
-        reset({
-            personalEmail: companyUser.user.personal_email || '',
-            phone: companyUser.user.phone || '',
-            notificationEmail: profileData?.notificationEmail || auth?.email,
-            notificationSettings: profileData?.notificationSettings || {
-                email: { all: true },
-                sms: { all: false },
-            },
-        });
-    }
-  }, [companyUser, profileData, auth?.email, reset]);
+    reset({
+        notificationEmail: notificationEmail || auth?.email,
+        notificationSettings: notificationSettings || {
+            email: { all: true },
+            sms: { all: false },
+        },
+    });
+  }, [notificationEmail, notificationSettings, auth?.email, reset]);
 
   function onSubmit(data: AccountSettingsFormData) {
-    if (!companyUser) {
-        toast({ title: 'User not found', variant: 'destructive'});
+    if (!profileData) {
+        toast({ title: 'Profile not found', description: "Complete your profile before managing settings.", variant: 'destructive'});
         return;
     }
 
-    updateCompanyUserContact(companyUser.user.id, {
-        personal_email: data.personalEmail,
-        phone: data.phone,
+    saveProfileData({
+        ...profileData,
+        notificationEmail: data.notificationEmail,
+        notificationSettings: data.notificationSettings,
     });
 
     toast({
       title: 'Settings Saved',
-      description: 'Your account settings have been updated.',
+      description: 'Your notification preferences have been updated.',
     });
   }
 
   const emailOptions = useMemo(() => {
     const options = new Set<string>();
     if (auth?.email) options.add(auth.email);
-    if (companyUser?.user.personal_email) options.add(companyUser.user.personal_email);
-    return Array.from(options);
-  }, [auth?.email, companyUser?.user.personal_email]);
+    if (profileData?.personalEmail) options.add(profileData.personalEmail);
+    return Array.from(options).filter(Boolean);
+  }, [auth?.email, profileData?.personalEmail]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-            <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-                <CardDescription>Manage the contact details we use to communicate with you.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <FormField
-                    control={form.control}
-                    name="personalEmail"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Personal Email Address</FormLabel>
-                        <FormControl>
-                            <Input placeholder="your.name@personal.com" {...field} />
-                        </FormControl>
-                         <FormDescription>This is where we'll send important updates after your access to your work email ends.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Phone Number (for SMS alerts)</FormLabel>
-                        <FormControl>
-                            <Input placeholder="(555) 123-4567" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
         <Card>
             <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
