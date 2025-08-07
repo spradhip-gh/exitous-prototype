@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -867,20 +866,24 @@ export function useUserData() {
         }
     }, []);
 
-    const saveCompanyAssignments = useCallback(async (updatedAssignments: CompanyAssignment[]) => {
-         const { data, error } = await supabase.rpc('update_hr_assignments', {
-            assignments: updatedAssignments.map(a => ({
-                company_id: a.companyId,
-                managers: a.hrManagers,
-            }))
+    const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        const allHRs = assignmentsToSave.flatMap(a => a.hrManagers.map(hr => ({ ...hr, company_id: a.companyId })));
+        
+        const upsertData = allHRs.map(hr => ({
+            company_id: hr.company_id,
+            hr_email: hr.email,
+            is_primary: hr.isPrimary,
+            permissions: hr.permissions,
+        }));
+        
+        const { error } = await supabase.from('company_hr_assignments').upsert(upsertData, {
+            onConflict: 'company_id, hr_email',
         });
 
         if (error) {
             console.error('Failed to save company assignments:', error);
-            // Optionally show a toast to the user
         } else {
-            // Optimistically update the local state
-            setCompanyAssignments(updatedAssignments);
+            setCompanyAssignments(assignmentsToSave);
         }
     }, []);
 
