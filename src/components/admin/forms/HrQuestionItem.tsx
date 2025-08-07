@@ -36,7 +36,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Custom Sub-Question?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete "{question.label}". This cannot be undone.</AlertDialogDescription>
+                                    <AlertDialogDescription>This will permanently delete "{question.label}". This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -87,12 +87,12 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
         <div className="bg-background rounded-lg my-1">
             <div className="flex items-center space-x-2 group pr-2">
                  <div className="w-10 flex-shrink-0 flex flex-col items-center">
-                    {question.isCustom && canWrite && (
+                    {question.isCustom && (
                         <div className="flex flex-col">
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirstCustom}>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirstCustom || !canWrite}>
                                 <ArrowUp className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLastCustom}>
+                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLastCustom || !canWrite}>
                                 <ArrowDown className="h-4 w-4" />
                             </Button>
                         </div>
@@ -119,14 +119,14 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                         <div className="flex items-center border rounded-md mr-2">
                            <TooltipProvider><Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_top')} disabled={question.position === 'top'}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_top')} disabled={question.position === 'top' || !canWrite}>
                                         <ArrowUpToLine className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger><TooltipContent><p>Move to top of section</p></TooltipContent>
                            </Tooltip></TooltipProvider>
                            <TooltipProvider><Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_bottom')} disabled={question.position !== 'top'}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'to_bottom')} disabled={question.position !== 'top' || !canWrite}>
                                         <ArrowDownToLine className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger><TooltipContent><p>Move to bottom of section</p></TooltipContent>
