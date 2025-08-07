@@ -175,7 +175,7 @@ export default function ReviewQueuePage() {
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
         
         const reviewerId = auth?.email || 'admin';
-        let reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
+        const reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
         const companyName = companyMap.get(item.company_id);
@@ -197,22 +197,24 @@ export default function ReviewQueuePage() {
             const { question } = item.change_details || {};
             if (!question?.id) return;
             
-            // Deactivate the custom question
             if (newConfig.customQuestions && newConfig.customQuestions[question.id]) {
                 newConfig.customQuestions[question.id].isActive = false;
+                saveCompanyConfig(companyName, newConfig);
+                toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been deactivated for ${companyName}.` });
+            } else {
+                 toast({ title: `Error`, description: `Could not find custom question to deactivate.` });
             }
-            saveCompanyConfig(companyName, newConfig);
-            toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been deactivated for ${companyName}.` });
         
         } else if (status === 'approved' && item.type === 'question_edit_suggestion') {
-            const { questionId, optionsToAdd, optionsToRemove } = item.change_details || {};
-            if (!questionId) {
+            const { questionId, optionsToAdd } = item.change_details || {};
+            if (!questionId || !optionsToAdd || optionsToAdd.length === 0) {
                  toast({ title: 'Error Applying Suggestion', description: 'The suggestion data is incomplete.', variant: 'destructive' });
                  return;
             }
 
             if (!newConfig.questions) newConfig.questions = {};
-
+            if (!newConfig.questions[questionId]) newConfig.questions[questionId] = {};
+            
             const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
             const masterQuestion = allMasterQs[questionId];
             if (!masterQuestion) {
@@ -220,23 +222,15 @@ export default function ReviewQueuePage() {
                  return;
             }
             
-            if (!newConfig.questions[questionId]) {
-                newConfig.questions[questionId] = {};
-            }
-
-            const currentOptions = newConfig.questions[questionId].options || masterQuestion.options || [];
+            const currentOverride = newConfig.questions[questionId];
+            const currentOptions = currentOverride.options || masterQuestion.options || [];
             let newOptions = [...currentOptions];
 
-            if (optionsToRemove && optionsToRemove.length > 0) {
-                newOptions = newOptions.filter((opt: string) => !optionsToRemove.includes(opt));
-            }
-            if (optionsToAdd && optionsToAdd.length > 0) {
-                 optionsToAdd.forEach((suggestion: { option: string }) => {
-                    if (!newOptions.includes(suggestion.option)) {
-                        newOptions.push(suggestion.option);
-                    }
-                });
-            }
+            optionsToAdd.forEach((suggestion: { option: string }) => {
+                if (!newOptions.includes(suggestion.option)) {
+                    newOptions.push(suggestion.option);
+                }
+            });
 
             newConfig.questions[questionId].options = newOptions;
 
@@ -502,7 +496,7 @@ function ReviewItemCard({ item, companyName, onStatusChange, onRejectClick, mast
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle className="text-base">AI Recommendation for: {item.user_email}</CardTitle>
-                        <CardDescription className="text-xs">For Company: {item.input_data?.companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}</CardDescription>
+                        <CardDescription className="text-xs">For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}</CardDescription>
                     </div>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
