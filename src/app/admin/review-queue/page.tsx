@@ -8,7 +8,7 @@ import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTr
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb, Check, Ban } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -171,7 +171,7 @@ export default function ReviewQueuePage() {
     const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
         
         const reviewerId = auth?.email || 'admin';
-        let reviewedItem: ReviewQueueItem = { ...item, status, reviewedAt: new Date().toISOString(), reviewerId, rejection_reason: rejectionReason };
+        let reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
         const companyName = item.inputData?.companyName;
@@ -249,7 +249,7 @@ export default function ReviewQueuePage() {
     };
     
     const pendingActionItems = reviewQueue.filter(item => item.status === 'pending');
-    const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+    const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
 
     return (
         <div className="p-4 md:p-8">
@@ -313,9 +313,9 @@ export default function ReviewQueuePage() {
                                             }
                                             return (
                                                 <TableRow key={item.id}>
-                                                    <TableCell>{item.userEmail}</TableCell>
+                                                    <TableCell>{item.user_email}</TableCell>
                                                     <TableCell>{item.inputData.companyName || 'N/A'}</TableCell>
-                                                    <TableCell>{format(parseISO(item.createdAt), 'PPP')}</TableCell>
+                                                    <TableCell>{format(parseISO(item.created_at), 'PPP')}</TableCell>
                                                     <TableCell>
                                                         {getStatusBadge()}
                                                         {item.rejection_reason && (
@@ -364,7 +364,7 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
                         <FilePenLine /> HR Suggested Question Edit
                      </CardTitle>
                     <CardDescription className="text-xs">
-                        Suggested by: {item.userEmail} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}
+                        Suggested by: {item.user_email} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -423,7 +423,7 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
                         <PlusCircle /> New Custom Question & Guidance
                      </CardTitle>
                     <CardDescription className="text-xs">
-                        Submitted by: {item.userEmail} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}
+                        Submitted by: {item.user_email} | For Company: {companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -491,8 +491,8 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
              <Collapsible open={isInputOpen} onOpenChange={setIsInputOpen}>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
-                        <CardTitle className="text-base">AI Recommendation for: {item.userEmail}</CardTitle>
-                        <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.createdAt), 'Pp')}</CardDescription>
+                        <CardTitle className="text-base">AI Recommendation for: {item.user_email}</CardTitle>
+                        <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}</CardDescription>
                     </div>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
