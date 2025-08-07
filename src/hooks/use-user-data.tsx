@@ -519,7 +519,6 @@ export function useUserData() {
         if (!auth?.userId) return;
         setAssessmentData(data); // Optimistic update
         
-        // --- Analytics Logic ---
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
             .select('assessment_completed_at, initial_unsure_answers')
@@ -536,20 +535,17 @@ export function useUserData() {
         const unsureQuestions = Object.entries(data).filter(([, value]) => value === 'Unsure').map(([key]) => key);
 
         if (!companyUser.assessment_completed_at) {
-            // This is the first time the user is completing the assessment.
             updates.assessment_completed_at = now;
             updates.initial_unsure_answers = unsureQuestions;
         }
 
         if (companyUser.initial_unsure_answers && unsureQuestions.length === 0) {
-            // This is the moment the user has resolved all their "unsure" answers.
             updates.all_answers_resolved_at = now;
         }
 
         if (Object.keys(updates).length > 0) {
             await supabase.from('company_users').update(updates).eq('id', auth.userId);
         }
-        // --- End Analytics Logic ---
         
         const { error } = await supabase.from('user_assessments').upsert({
             user_id: auth.userId,
@@ -610,8 +606,6 @@ export function useUserData() {
 
         const questionList = Object.values(questionsToSave);
 
-        // This ensures that any question without a sortOrder gets one before saving.
-        // This handles the backfill case seamlessly.
         questionList.forEach((q, index) => {
             if (q.sortOrder === undefined || q.sortOrder === null) {
                 q.sortOrder = index;
@@ -624,9 +618,9 @@ export function useUserData() {
             sort_order: q.sortOrder,
             question_data: {
                 ...q,
-                id: undefined, // Don't store id inside the jsonb
-                formType: undefined, // Don't store formType inside the jsonb
-                sortOrder: undefined, // Don't store sortOrder inside the jsonb
+                id: undefined, 
+                formType: undefined,
+                sortOrder: undefined,
             }
         }));
 
@@ -732,7 +726,6 @@ export function useUserData() {
             const { error: deleteError } = await supabase.from('guidance_rules').delete().in('id', idsToDelete);
             if (deleteError) {
                 console.error("Error deleting guidance rules:", deleteError);
-                // Don't proceed if delete failed, to avoid inconsistent state
                 return;
             }
         }
@@ -746,11 +739,10 @@ export function useUserData() {
             const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
             if (error) {
                 console.error("Error saving guidance rules:", error);
-                return; // Exit if upsert fails
+                return;
             }
         }
         
-        // If all DB operations were successful, update the local state
         setGuidanceRules(rules);
 
     }, [guidanceRules]);
@@ -774,7 +766,6 @@ export function useUserData() {
     }, []);
 
 
-    // Placeholder implementations for other write functions
     const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
         if (!companyName) return [];
 
@@ -787,50 +778,41 @@ export function useUserData() {
             applicableMasterQuestions = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         }
 
-        const finalQuestions: Record<string, Question> = {};
-        
-        // 1. Create a base list of active master questions
-        const activeMasterQuestions: Record<string, Question> = {};
+        const finalQuestionsMap: Record<string, Question> = {};
+
         for (const id in applicableMasterQuestions) {
             const masterQ = applicableMasterQuestions[id];
-            if (masterQ.isActive) {
-                 activeMasterQuestions[id] = masterQ;
-            }
-        }
-
-        // 2. Iterate through the active master list and apply company overrides
-        for (const id in activeMasterQuestions) {
-            const masterQ = activeMasterQuestions[id];
             const override = companyConfig?.questions?.[id];
+            
+            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
+            const isMasterActive = masterQ.isActive;
+
+            if (activeOnly && (!isMasterActive || !isCompanyActive)) {
+                continue;
+            }
             
             const finalQ: Question = {
                 ...masterQ,
                 ...(override || {}),
+                isActive: isCompanyActive, // Company override takes precedence
                 lastUpdated: override?.lastUpdated || masterQ.lastUpdated,
             };
 
-            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
-
-            if (activeOnly && !isCompanyActive) {
-                continue;
-            }
-
             if (finalQ.formType === formType || formType === 'all') {
-                finalQuestions[id] = finalQ;
+                finalQuestionsMap[id] = finalQ;
             }
         }
         
-        // 3. Add active custom questions for the company
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
                 if ((customQ.formType === formType || formType === 'all') && (!activeOnly || customQ.isActive)) {
-                    finalQuestions[id] = customQ;
+                    finalQuestionsMap[id] = { ...customQ, isCustom: true };
                 }
             }
         }
 
-        return buildQuestionTreeFromMap(finalQuestions);
+        return buildQuestionTreeFromMap(finalQuestionsMap);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
     
     const getCompanyUser = useMemo(() => (email: string | undefined) => {
@@ -847,7 +829,7 @@ export function useUserData() {
     }, [companyConfigs]);
     
      const getProfileCompletion = useCallback(() => {
-        const rootQuestions = buildQuestionTreeFromMap(masterProfileQuestions);
+        const rootQuestions = getCompanyConfig(auth?.companyName, true, 'profile');
         const companyUser = getCompanyUser(auth?.email)?.user;
         const allAnswers = {
             ...profileData,
@@ -874,7 +856,7 @@ export function useUserData() {
             completed: completedQuestions.length,
             incompleteQuestions,
         };
-    }, [profileData, masterProfileQuestions, getCompanyUser, auth?.email]);
+    }, [profileData, getCompanyConfig, getCompanyUser, auth?.email, auth?.companyName]);
 
     const getAssessmentCompletion = useCallback(() => {
         if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
@@ -930,7 +912,6 @@ export function useUserData() {
 
 
     return {
-        // --- DATA ---
         profileData,
         assessmentData,
         completedTasks,
@@ -947,8 +928,6 @@ export function useUserData() {
         companyConfigs,
         externalResources: [],
         platformUsers,
-
-        // --- FUNCTIONS ---
         saveProfileData,
         saveAssessmentData,
         addCompanyAssignment,
@@ -991,12 +970,10 @@ export function useUserData() {
         getCompaniesForHr: () => [],
         getPlatformUserRole: () => null,
         companyAssignmentForHr: companyAssignments.find(c => c.companyName === auth?.companyName),
-        profileCompletions: {}, // Placeholder
-        assessmentCompletions: {}, // Placeholder
-        taskMappings: [], // Placeholder
-        tipMappings: [], // Placeholder
-        reviewQueue: [], // Placeholder
+        profileCompletions: {},
+        assessmentCompletions: {},
+        taskMappings: [],
+        tipMappings: [],
+        reviewQueue: [],
     };
 }
-
-    
