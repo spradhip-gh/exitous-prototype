@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -248,7 +247,7 @@ function QuestionEditor({
             return;
         }
         
-        const questionTree = getCompanyConfig(companyName, false, questionType);
+        const questionTree = getCompanyConfig(companyName, true, questionType);
         
         if (questionTree.length === 0) {
             setOrderedSections([]);
