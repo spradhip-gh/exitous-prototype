@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 import { accountSettingsSchema } from '@/lib/schemas';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
@@ -40,9 +40,11 @@ export default function AccountSettingsForm() {
     },
   });
   
+  const { reset } = form;
+
   useEffect(() => {
     if (companyUser) {
-        form.reset({
+        reset({
             personalEmail: companyUser.user.personal_email || '',
             phone: companyUser.user.phone || '',
             notificationEmail: profileData?.notificationEmail || auth?.email,
@@ -52,7 +54,7 @@ export default function AccountSettingsForm() {
             },
         });
     }
-  }, [companyUser, profileData, auth?.email, form.reset]);
+  }, [companyUser, profileData, auth?.email, reset]);
 
   function onSubmit(data: AccountSettingsFormData) {
     if (!companyUser) {
@@ -71,10 +73,12 @@ export default function AccountSettingsForm() {
     });
   }
 
-  const emailOptions = [auth?.email];
-  if (companyUser?.user.personal_email) {
-    emailOptions.push(companyUser.user.personal_email);
-  }
+  const emailOptions = useMemo(() => {
+    const options = new Set<string>();
+    if (auth?.email) options.add(auth.email);
+    if (companyUser?.user.personal_email) options.add(companyUser.user.personal_email);
+    return Array.from(options);
+  }, [auth?.email, companyUser?.user.personal_email]);
 
   return (
     <Form {...form}>
@@ -126,7 +130,7 @@ export default function AccountSettingsForm() {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Send Notifications To</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select an email" />
