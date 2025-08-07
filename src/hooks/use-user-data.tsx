@@ -138,9 +138,11 @@ export interface QuestionOverride {
     isActive?: boolean;
     lastUpdated?: string;
     optionOverrides?: {
-        add?: string[];
-        remove?: string[];
+        add: string[];
+        remove: string[];
     };
+    // DEPRECATED:
+    options?: string[];
 }
 
 
@@ -971,6 +973,9 @@ export function useUserData() {
                         let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
+                    } else if (override.options) {
+                        // LEGACY: Handle old flat list override
+                        finalQuestion.options = override.options;
                     }
     
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -1097,7 +1102,8 @@ export function useUserData() {
             return;
         }
 
-        const payload = { ...item, company_id: companyId };
+        const { companyName, ...restOfItem } = item;
+        const payload = { ...restOfItem, company_id: companyId };
         
         const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
@@ -1125,10 +1131,13 @@ export function useUserData() {
     
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
+            
+            // This is the new, correct logic
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
-            
+            delete override.options; // Remove the legacy flat list if it exists
+
             const additions = new Set(override.optionOverrides.add || []);
             optionsToAdd.forEach((o: {option: string}) => additions.add(o.option));
 

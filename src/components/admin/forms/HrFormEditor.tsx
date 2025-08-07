@@ -308,7 +308,7 @@ function QuestionEditor({
                 return;
             }
 
-             const reviewItem: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'> & { companyName?: string } = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> & { companyName?: string } = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
                 status: 'pending',
@@ -345,7 +345,7 @@ function QuestionEditor({
                 if (!finalConfig.questions) {
                     finalConfig.questions = {};
                 }
-                const override: Partial<Question> = {};
+                const override: Partial<QuestionOverride> = {};
                 if (finalQuestion.label !== masterQuestion.label) override.label = finalQuestion.label;
                 if (finalQuestion.description !== masterQuestion.description) override.description = finalQuestion.description;
                 if (JSON.stringify(finalQuestion.options) !== JSON.stringify(masterQuestion.options)) override.options = finalQuestion.options;
