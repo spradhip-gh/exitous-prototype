@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { v4 as uuidv4 } from 'uuid';
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, History } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface HrOrderedSection {
@@ -51,7 +51,8 @@ function MySuggestionsTab() {
         if (!auth?.email || !auth.companyName) return [];
         return reviewQueue
             .filter(item =>
-                item.user_email.toLowerCase() === auth.email!.toLowerCase() &&
+                item.user_email && auth.email &&
+                item.user_email.toLowerCase() === auth.email.toLowerCase() &&
                 item.input_data?.companyName === auth.companyName
             )
             .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
