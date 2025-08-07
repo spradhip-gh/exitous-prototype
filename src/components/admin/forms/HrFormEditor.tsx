@@ -166,10 +166,10 @@ function QuestionEditor({
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
     const pendingSuggestionsByQuestionId = useMemo(() => {
-        const map = new Map<string, boolean>();
+        const map = new Map<string, ReviewQueueItem>();
         reviewQueue.forEach(item => {
             if (item.status === 'pending' && item.change_details?.questionId) {
-                map.set(item.change_details.questionId, true);
+                map.set(item.change_details.questionId, item);
             }
         });
         return map;
@@ -289,7 +289,7 @@ function QuestionEditor({
                 return;
             }
 
-             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'> = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
                 input_data: { 
@@ -417,7 +417,7 @@ function QuestionEditor({
                                         
                                         const relevantCustomGroup = question.position === 'top' ? customQuestionsTop : customQuestionsBottom;
                                         const customIndex = relevantCustomGroup.findIndex(q => q.id === question.id);
-                                        const hasPendingSuggestion = pendingSuggestionsByQuestionId.has(question.id);
+                                        const pendingSuggestion = pendingSuggestionsByQuestionId.get(question.id);
 
                                         return (
                                             <HrQuestionItem
@@ -432,7 +432,7 @@ function QuestionEditor({
                                                 canWrite={canWrite}
                                                 isFirstCustom={question.isCustom && customIndex === 0}
                                                 isLastCustom={question.isCustom && customIndex === relevantCustomGroup.length - 1}
-                                                hasPendingSuggestion={hasPendingSuggestion}
+                                                pendingSuggestion={pendingSuggestion}
                                             />
                                         )
                                     })}
