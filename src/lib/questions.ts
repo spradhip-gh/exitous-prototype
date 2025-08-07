@@ -31,29 +31,6 @@ export interface Question {
 
 export const getDefaultProfileQuestions = (): Question[] => [
     { 
-        id: 'personalEmail',
-        formType: 'profile',
-        label: 'Personal Email Address',
-        section: 'Contact Information',
-        type: 'text',
-        isActive: true,
-        isLocked: true,
-        placeholder: 'your.name@personal.com',
-        description: 'We\'ll use this to send important updates after your access to your work email ends.',
-        sortOrder: 0,
-    },
-    { 
-        id: 'phone',
-        formType: 'profile',
-        label: 'Phone Number (for SMS alerts)',
-        section: 'Contact Information',
-        type: 'text',
-        isActive: true,
-        isLocked: true,
-        placeholder: '(555) 123-4567',
-        sortOrder: 1,
-    },
-    { 
         id: 'birthYear', 
         formType: 'profile',
         label: 'What’s your birth year?', 

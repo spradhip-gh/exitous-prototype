@@ -226,11 +226,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
     
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
-        values: {
-            ...initialData,
-            personalEmail: initialData?.personalEmail || '', // ensure personalEmail is controlled
-            phone: initialData?.phone || '',
-        },
+        values: initialData,
     });
 
     const { formState: { isDirty } } = form;

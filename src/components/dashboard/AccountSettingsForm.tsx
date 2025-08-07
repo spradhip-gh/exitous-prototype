@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,19 +16,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 import { accountSettingsSchema } from '@/lib/schemas';
+import { useEffect } from 'react';
 
 type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
 export default function AccountSettingsForm() {
   const { auth } = useAuth();
-  const { profileData, saveProfileData } = useUserData();
+  const { profileData, getCompanyUser, updateCompanyUserContact } = useUserData();
   const { toast } = useToast();
+
+  const companyUser = auth?.email ? getCompanyUser(auth.email) : null;
 
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      personalEmail: profileData?.personalEmail || '',
-      phone: profileData?.phone || '',
+      personalEmail: companyUser?.user.personal_email || '',
+      phone: companyUser?.user.phone || '',
       notificationEmail: profileData?.notificationEmail || auth?.email,
       notificationSettings: {
         email: {
@@ -45,15 +49,31 @@ export default function AccountSettingsForm() {
       },
     },
   });
+  
+  useEffect(() => {
+    if (companyUser) {
+        form.reset({
+            personalEmail: companyUser.user.personal_email || '',
+            phone: companyUser.user.phone || '',
+            notificationEmail: profileData?.notificationEmail || auth?.email,
+            notificationSettings: profileData?.notificationSettings || {
+                email: { all: true },
+                sms: { all: false }
+            },
+        });
+    }
+  }, [companyUser, profileData, auth?.email, form]);
 
   function onSubmit(data: AccountSettingsFormData) {
-    if (!profileData) {
-        toast({ title: 'Profile not found', description: 'Please complete your profile first.', variant: 'destructive'});
+    if (!companyUser) {
+        toast({ title: 'User not found', variant: 'destructive'});
         return;
     }
 
-    const updatedProfile = { ...profileData, ...data };
-    saveProfileData(updatedProfile);
+    updateCompanyUserContact(companyUser.user.id, {
+        personal_email: data.personalEmail,
+        phone: data.phone,
+    });
 
     toast({
       title: 'Settings Saved',
@@ -62,8 +82,8 @@ export default function AccountSettingsForm() {
   }
 
   const emailOptions = [auth?.email];
-  if(profileData?.personalEmail) {
-    emailOptions.push(profileData.personalEmail);
+  if (companyUser?.user.personal_email) {
+    emailOptions.push(companyUser.user.personal_email);
   }
 
   return (

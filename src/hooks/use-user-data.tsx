@@ -78,6 +78,7 @@ export interface CompanyUser {
   email: string;
   company_user_id: string;
   personal_email?: string;
+  phone?: string;
   notification_date?: string;
   is_invited?: boolean;
   prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
@@ -431,6 +432,29 @@ export function useUserData() {
             // Optionally revert optimistic update
         }
     }, [auth?.userId]);
+    
+    const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
+        if (!userId) return;
+        const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
+        if (error) {
+            console.error("Error updating contact info:", error);
+        } else {
+             setCompanyConfigs(prev => {
+                const newConfigs = {...prev};
+                for (const companyName in newConfigs) {
+                    const company = newConfigs[companyName];
+                    if (company.users) {
+                        const userIndex = company.users.findIndex(u => u.id === userId);
+                        if (userIndex !== -1) {
+                            company.users[userIndex] = { ...company.users[userIndex], ...contactInfo };
+                            break; 
+                        }
+                    }
+                }
+                return newConfigs;
+             });
+        }
+    }, []);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (!auth?.userId || !auth?.companyUserId) return;
@@ -749,6 +773,16 @@ export function useUserData() {
 
         return buildQuestionTreeFromMap(finalQuestions);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+    
+    const getCompanyUser = useCallback((email: string): { companyName: string, user: CompanyUser } | null => {
+        for (const companyName in companyConfigs) {
+            const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+            if (user) {
+                return { companyName, user };
+            }
+        }
+        return null;
+    }, [companyConfigs]);
 
 
     return {
@@ -786,6 +820,8 @@ export function useUserData() {
         saveGuidanceRules,
         addPlatformUser,
         deletePlatformUser,
+        getCompanyUser,
+        updateCompanyUserContact,
         isAssessmentComplete: !!assessmentData?.workStatus,
         clearRecommendations: () => {},
         saveRecommendations: () => {},
@@ -809,7 +845,6 @@ export function useUserData() {
         saveCompanyAssignments: async () => {},
         deleteCompanyAssignment: async () => {},
         getCompaniesForHr: () => [],
-        getCompanyUser: () => null,
         getPlatformUserRole: () => null,
         companyAssignmentForHr: companyAssignments.find(c => c.companyName === auth?.companyName),
         profileCompletions: {}, // Placeholder
