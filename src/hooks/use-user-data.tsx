@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -805,6 +806,7 @@ export function useUserData() {
         if (companyConfig?.customQuestions) {
             for (const id in companyConfig.customQuestions) {
                 const customQ = companyConfig.customQuestions[id];
+                // Check if the custom question's formType matches the requested formType.
                 if ((customQ.formType === formType || formType === 'all') && (!activeOnly || customQ.isActive)) {
                     finalQuestionsMap[id] = { ...customQ, isCustom: true };
                 }
