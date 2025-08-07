@@ -610,6 +610,99 @@ export function useUserData() {
 
     }, []);
 
+    const updateCompanyAssignment = useCallback(async (companyName: string, payload: UpdateCompanyAssignmentPayload) => {
+        const assignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!assignment) return;
+        
+        if (payload.delete) {
+            // Deleting a company - more complex, might need cascading deletes or soft deletes.
+            // For now, let's just delete the assignment to make it disappear from UI.
+            const { error } = await supabase.from('companies').delete().eq('id', assignment.companyId);
+            if (error) {
+                 console.error("Error deleting company", error);
+            } else {
+                 setCompanyAssignments(prev => prev.filter(a => a.companyName !== companyName));
+            }
+            return;
+        }
+
+        if (payload.hrManagerToAdd) {
+             const { error } = await supabase.from('company_hr_assignments').insert({
+                company_id: assignment.companyId,
+                hr_email: payload.hrManagerToAdd.email,
+                is_primary: payload.hrManagerToAdd.isPrimary,
+                permissions: payload.hrManagerToAdd.permissions,
+            });
+            if (error) console.error("Error adding HR Manager", error);
+        }
+
+        if (payload.hrManagerToRemove) {
+             const { error } = await supabase.from('company_hr_assignments').delete()
+                .eq('company_id', assignment.companyId)
+                .eq('hr_email', payload.hrManagerToRemove);
+             if (error) console.error("Error removing HR Manager", error);
+        }
+
+        if (payload.hrManagerToUpdate) {
+             const { error } = await supabase.from('company_hr_assignments').update({
+                permissions: payload.hrManagerToUpdate.permissions
+            })
+            .eq('company_id', assignment.companyId)
+            .eq('hr_email', payload.hrManagerToUpdate.email);
+            if (error) console.error("Error updating permissions", error);
+        }
+
+        if (payload.newPrimaryManagerEmail) {
+            const currentPrimary = assignment.hrManagers.find(hr => hr.isPrimary);
+            if (currentPrimary) {
+                await supabase.from('company_hr_assignments').update({ is_primary: false })
+                    .eq('company_id', assignment.companyId)
+                    .eq('hr_email', currentPrimary.email);
+            }
+             await supabase.from('company_hr_assignments').update({ is_primary: true })
+                .eq('company_id', assignment.companyId)
+                .eq('hr_email', payload.newPrimaryManagerEmail);
+        }
+        
+        // Update other company fields
+        const companyUpdatePayload = {
+            version: payload.version,
+            max_users: payload.maxUsers,
+            severance_deadline_time: payload.severanceDeadlineTime,
+            severance_deadline_timezone: payload.severanceDeadlineTimezone,
+            pre_end_date_contact_alias: payload.preEndDateContactAlias,
+            post_end_date_contact_alias: payload.postEndDateContactAlias,
+        };
+        const definedUpdates = Object.fromEntries(Object.entries(companyUpdatePayload).filter(([, v]) => v !== undefined));
+
+        if (Object.keys(definedUpdates).length > 0) {
+             const { error } = await supabase.from('companies').update(definedUpdates).eq('id', assignment.companyId);
+             if(error) console.error("Error updating company settings", error);
+        }
+
+        // After all DB operations, refetch the assignments for consistency.
+         const { data, error } = await supabase.from('companies').select('*, company_hr_assignments(*)').eq('name', companyName).single();
+         if (data) {
+            const updatedAssignment: CompanyAssignment = {
+                companyId: data.id,
+                companyName: data.name,
+                version: data.version,
+                maxUsers: data.max_users,
+                severanceDeadlineTime: data.severance_deadline_time,
+                severanceDeadlineTimezone: data.severance_deadline_timezone,
+                preEndDateContactAlias: data.pre_end_date_contact_alias,
+                postEndDateContactAlias: data.post_end_date_contact_alias,
+                hrManagers: data.company_hr_assignments.map((a: any) => ({
+                    email: a.hr_email,
+                    isPrimary: a.is_primary,
+                    permissions: a.permissions
+                }))
+            };
+            setCompanyAssignments(prev => prev.map(a => a.companyName === companyName ? updatedAssignment : a));
+         }
+
+    }, [companyAssignments]);
+
     const saveMasterQuestions = useCallback(async (questionsToSave: Record<string, Question>, formType: 'profile' | 'assessment') => {
         const setFn = formType === 'profile' ? setMasterProfileQuestions : setMasterQuestions;
 
@@ -775,7 +868,7 @@ export function useUserData() {
     }, []);
 
     const saveCompanyAssignments = useCallback(async (updatedAssignments: CompanyAssignment[]) => {
-        const { error } = await supabase.rpc('update_hr_assignments', {
+         const { data, error } = await supabase.rpc('update_hr_assignments', {
             assignments: updatedAssignments.map(a => ({
                 company_id: a.companyId,
                 managers: a.hrManagers,
@@ -965,6 +1058,7 @@ export function useUserData() {
         saveProfileData,
         saveAssessmentData,
         addCompanyAssignment,
+        updateCompanyAssignment,
         saveMasterQuestions,
         saveMasterQuestionConfig,
         saveCompanyConfig,
@@ -999,7 +1093,6 @@ export function useUserData() {
         saveReviewQueue: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
-        updateCompanyAssignment: async () => {},
         deleteCompanyAssignment: async () => {},
         getCompaniesForHr: () => [],
         getPlatformUserRole: () => null,
