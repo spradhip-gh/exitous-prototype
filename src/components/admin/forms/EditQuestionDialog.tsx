@@ -327,9 +327,7 @@ export default function EditQuestionDialog({
              const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
-                input_data: { 
-                    companyName: auth?.companyName || 'N/A',
-                },
+                status: 'pending',
                 change_details: {
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
@@ -337,8 +335,6 @@ export default function EditQuestionDialog({
                     optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
                     optionsToRemove: suggestedRemovals,
                 },
-                output_data: {}, // Not used for this type
-                status: 'pending',
             };
 
             addReviewQueueItem(reviewItem);
@@ -744,4 +740,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
