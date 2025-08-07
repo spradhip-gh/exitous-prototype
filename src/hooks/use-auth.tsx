@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -36,6 +35,13 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const fullPermissions: HrPermissions = {
+    userManagement: 'write-upload',
+    formEditor: 'write',
+    resources: 'write',
+    companySettings: 'write',
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuthState] = useState<AuthState | null>(null);
@@ -129,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             companyName: defaultAssignment.companies?.name,
             assignedCompanyNames: hrAssignments.map(a => a.companies?.name || '').filter(Boolean),
             permissions: defaultAssignment.is_primary 
-                ? { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'write' }
+                ? fullPermissions
                 : defaultAssignment.permissions as HrPermissions
         };
 
@@ -241,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     const newPermissions = hrAssignment.is_primary 
-        ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
+        ? fullPermissions
         : hrAssignment.permissions as HrPermissions;
 
     const newAuth = { ...auth, companyName, companyId: hrAssignment.company_id, permissions: newPermissions };
