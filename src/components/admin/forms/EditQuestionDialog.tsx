@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -575,7 +575,7 @@ export default function EditQuestionDialog({
                         </div>
                     )}
 
-                    {isCustomQuestion && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length > 0 && (
+                    {(isCustomQuestion || isNew) && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length > 0 && (
                         <div className="space-y-2">
                             <Label htmlFor="default-value">Default Value (Optional)</Label>
                             <Select
@@ -593,6 +593,25 @@ export default function EditQuestionDialog({
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">Pre-select an answer for the user.</p>
+                        </div>
+                    )}
+                    {isCustomQuestion && (currentQuestion.type === 'select' || currentQuestion.type === 'radio') && currentOptions.length === 0 && (
+                        <div className="space-y-2">
+                            <Label htmlFor="default-value">Default Value (Optional)</Label>
+                             <Select
+                                value={currentQuestion.defaultValue as string || ''}
+                                onValueChange={(value) => setCurrentQuestion(q => q ? { ...q, defaultValue: value } : null)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a default answer..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {currentOptions.length > 0 && <SelectItem value="">None</SelectItem>}
+                                    {currentOptions.map(option => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     )}
 
