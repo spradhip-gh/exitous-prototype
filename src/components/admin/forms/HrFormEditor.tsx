@@ -430,12 +430,13 @@ function QuestionEditor({
 
         let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(getAllCompanyConfigs()[companyName]));
         
-        const masterQuestion = masterQuestions[questionToSave.id!] || masterProfileQuestions[questionToSave.id!];
+        const allMasterQuestions = {...masterQuestions, ...masterProfileQuestions};
+        const masterQuestion = allMasterQuestions[questionToSave.id!];
         
-        const isSuggestionMode = !questionToSave.isCustom && !isNewCustom;
+        const isSuggestionMode = !!masterQuestion?.isLocked && !isNewCustom;
 
         if (isSuggestionMode) {
-            const reviewItem = {
+            const reviewItem: ReviewQueueItem = {
                 id: `review-suggestion-${Date.now()}`,
                 userEmail: auth?.email || 'unknown-hr',
                 inputData: {
@@ -443,20 +444,17 @@ function QuestionEditor({
                     companyName: auth?.companyName,
                     questionId: questionToSave.id,
                     questionLabel: masterQuestion.label,
-                    suggestions: {
-                        optionsToAdd: suggestedEdits?.optionsToAdd || [],
-                        optionsToRemove: suggestedEdits?.optionsToRemove || [],
-                    }
+                    suggestions: suggestedEdits
                 },
                 output: {},
                 status: 'pending',
                 createdAt: new Date().toISOString(),
-            } as unknown as ReviewQueueItem;
+            };
 
             addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
 
-        } else {
+        } else { // Handle custom questions or unlocked questions
             let finalQuestion: Question = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
             if (!finalQuestion.id) {
                 finalQuestion.id = `custom-${uuidv4()}`;
@@ -470,16 +468,15 @@ function QuestionEditor({
                 finalConfig.customQuestions = {};
             }
              finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
+
+             // Handle guidance for custom question
+            if (questionToSave.answerGuidance && Object.keys(questionToSave.answerGuidance).length > 0) {
+                 if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
+                 finalConfig.answerGuidanceOverrides[finalQuestion.id] = questionToSave.answerGuidance;
+            }
+             
              saveCompanyConfig(companyName, finalConfig);
              toast({ title: "Custom Question Saved" });
-        }
-        
-        // Save guidance overrides
-        if (questionToSave.answerGuidance && Object.keys(questionToSave.answerGuidance).length > 0) {
-            if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
-            finalConfig.answerGuidanceOverrides[questionToSave.id!] = questionToSave.answerGuidance;
-            saveCompanyConfig(companyName, finalConfig);
-            toast({ title: "Guidance Mapped", description: "Your task and tip mappings have been saved for this question."})
         }
 
         setIsEditing(false);

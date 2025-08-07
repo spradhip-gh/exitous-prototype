@@ -1,5 +1,4 @@
 
-
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,25 +68,32 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite }: { question: Question, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, hasBeenUpdated: boolean, onMove: (questionId: string, direction: 'up' | 'down') => void, isFirst: boolean, isLast: boolean, canWrite: boolean }) {
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite, dndAttributes, dndListeners }: { 
+    question: Question, 
+    onToggleActive: (id: string, parentId?: string) => void, 
+    onEdit: (q: Question) => void, 
+    onDelete: (id: string) => void, 
+    onAddSub: (parentId: string) => void, 
+    hasBeenUpdated: boolean, 
+    onMove: (questionId: string, direction: 'up' | 'down') => void, 
+    isFirst: boolean, 
+    isLast: boolean, 
+    canWrite: boolean,
+    dndAttributes: any,
+    dndListeners: any
+}) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
-    const canEditLockedQuestion = isLocked && canHaveSubquestions;
 
     return (
         <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
             <div className="flex items-center space-x-2 group pr-2">
-                 <div className="flex flex-col w-5">
-                    {question.isCustom && (
-                        <>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst || !canWrite}>
-                                <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast || !canWrite}>
-                                <ArrowDown className="h-4 w-4" />
-                            </Button>
-                        </>
-                    )}
+                <div className="flex flex-col w-5">
+                    {question.isCustom && canWrite ? (
+                        <button {...dndAttributes} {...dndListeners} className="cursor-grab p-1">
+                            <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                    ) : <div className="w-5 h-10" />}
                 </div>
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
                     {isLocked && !question.isCustom && (
@@ -109,7 +115,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     {canHaveSubquestions && (
                          <Button variant="ghost" size="sm" onClick={() => onAddSub(question.id)} disabled={!canWrite}><PlusCircle className="h-4 w-4 mr-2" /> Sub</Button>
                     )}
-                    {canWrite && (!isLocked || canEditLockedQuestion) && (
+                    {canWrite && (
                         <Button variant="ghost" size="sm" onClick={() => onEdit(question)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>
                     )}
                     {question.isCustom && (

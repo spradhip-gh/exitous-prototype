@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -255,30 +254,25 @@ export default function EditQuestionDialog({
     onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType
 }: EditQuestionDialogProps) {
     
-    // --- HOOKS ---
     const { toast } = useToast();
     const { auth } = useAuth();
-    const {
-        addReviewQueueItem,
-    } = useUserData();
+    const { addReviewQueueItem } = useUserData();
     
-    // --- STATE ---
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [optionsText, setOptionsText] = useState('');
     const [isCreatingNewSection, setIsCreatingNewSection] = useState(false);
     const [newSectionName, setNewSectionName] = useState("");
-    const [suggestedOptionsToAdd, setSuggestedOptionsToAdd] = useState<any[]>([]);
-    const [suggestedOptionsToRemove, setSuggestedOptionsToRemove] = useState<string[]>([]);
-    
+    const [newOption, setNewOption] = useState('');
+        
     const [isGuidanceDialogOpen, setIsGuidanceDialogOpen] = useState(false);
     const [currentAnswerForGuidance, setCurrentAnswerForGuidance] = useState<string>('');
         
-    // --- COMPUTED VALUES ---
     const { masterQuestions, masterProfileQuestions } = useUserData();
     const isAdmin = auth?.role === 'admin';
     const isHrEditing = auth?.role === 'hr';
+    const isLockedMasterQuestion = !!masterQuestionForEdit?.isLocked;
     const isCustomQuestion = !!question?.isCustom;
-    const isSuggestionMode = isHrEditing && !isCustomQuestion;
+    const isSuggestionMode = isHrEditing && isLockedMasterQuestion && !isCustomQuestion;
         
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -296,37 +290,33 @@ export default function EditQuestionDialog({
         const sourceMap = currentQuestion.dependencySource === 'profile' ? masterProfileQuestions : masterQuestions;
         return sourceMap[currentQuestion.dependsOn]?.options || [];
     }, [currentQuestion, masterProfileQuestions, masterQuestions]);
-
-    const masterOptionsSet = useMemo(() => {
-        if (!masterQuestionForEdit?.options) return new Set();
-        return new Set(masterQuestionForEdit.options);
-    }, [masterQuestionForEdit]);
-
+    
     const hasUpdateForCurrentQuestion = masterQuestionForEdit && currentQuestion?.lastUpdated && masterQuestionForEdit.lastUpdated && new Date(masterQuestionForEdit.lastUpdated) > new Date(currentQuestion.lastUpdated);
     const currentOptions = useMemo(() => optionsText.split('\n').map(o => o.trim()).filter(Boolean), [optionsText]);
 
-    // --- EFFECTS ---
     useEffect(() => {
         setCurrentQuestion(question);
         setOptionsText(question?.options?.join('\n') || '');
         setIsCreatingNewSection(false);
         setNewSectionName("");
-        setSuggestedOptionsToAdd([]);
-        setSuggestedOptionsToRemove([]);
+        setNewOption('');
     }, [question]);
     
-    // --- CALLBACKS & HANDLERS ---
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
 
         let finalQuestion = { ...currentQuestion, options: currentOptions };
 
         if (isSuggestionMode) {
-             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0) {
-                toast({ title: "No Changes Suggested", description: "Please suggest an addition or removal.", variant: "destructive" });
+             const suggestedOptionsToAdd = (finalQuestion.options || []).filter(opt => !(masterQuestionForEdit?.options || []).includes(opt));
+             const suggestedOptionsToRemove = (masterQuestionForEdit?.options || []).filter(opt => !(finalQuestion.options || []).includes(opt));
+
+             if (suggestedOptionsToAdd.length === 0 && suggestedOptionsToRemove.length === 0 && !finalQuestion.answerGuidance) {
+                toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance mapping.", variant: "destructive" });
                 return;
             }
-             const reviewItem = {
+
+             const reviewItem: ReviewQueueItem = {
                 id: `review-suggestion-${Date.now()}`,
                 userEmail: auth?.email || 'unknown-hr',
                 inputData: { 
@@ -335,14 +325,15 @@ export default function EditQuestionDialog({
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
                     suggestions: {
-                        optionsToAdd: suggestedOptionsToAdd,
+                        optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
                         optionsToRemove: suggestedOptionsToRemove,
+                        guidanceOverrides: finalQuestion.answerGuidance,
                     }
                 },
                 output: {},
                 status: 'pending',
                 createdAt: new Date().toISOString(),
-            } as unknown as ReviewQueueItem;
+            };
 
             addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
@@ -357,29 +348,8 @@ export default function EditQuestionDialog({
         
         const isAutoApproved = isHrEditing && isNew;
 
-        if (isAutoApproved) {
-             const reviewItem: ReviewQueueItem = {
-                id: `review-custom-q-${Date.now()}`,
-                userEmail: auth?.email || 'unknown-hr',
-                inputData: {
-                    type: 'custom_question_guidance',
-                    companyName: auth?.companyName,
-                    questionLabel: finalQuestion.label,
-                    questionId: finalQuestion.id,
-                    question: finalQuestion as Question,
-                    newSectionName: isCreatingNewSection ? newSectionName : undefined,
-                },
-                output: {},
-                status: 'pending',
-                createdAt: new Date().toISOString(),
-            };
-            addReviewQueueItem(reviewItem);
-            toast({ title: "Custom Question Added", description: "Your new question is live and has been sent for administrative review." });
-        }
-
-
         onSave(finalQuestion, isCreatingNewSection ? newSectionName : undefined, undefined, isAutoApproved);
-    }, [currentQuestion, isSuggestionMode, suggestedOptionsToAdd, suggestedOptionsToRemove, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions]);
+    }, [currentQuestion, isSuggestionMode, onSave, isCreatingNewSection, newSectionName, toast, isHrEditing, isNew, auth, addReviewQueueItem, onClose, currentOptions, masterQuestionForEdit]);
 
     const handleDependsOnValueChange = useCallback((option: string, isChecked: boolean) => {
         setCurrentQuestion(prev => {
@@ -415,6 +385,13 @@ export default function EditQuestionDialog({
         return guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0);
     }, [currentQuestion?.answerGuidance]);
 
+    const handleAddNewOption = () => {
+        if (newOption && !currentOptions.includes(newOption)) {
+            setOptionsText(prev => `${prev}\n${newOption}`.trim());
+            setNewOption('');
+        }
+    };
+    
     if (!currentQuestion) {
         return null;
     }
@@ -426,25 +403,26 @@ export default function EditQuestionDialog({
                  <DialogTitle>
                     {isNew 
                         ? (isAdmin ? 'Add New Master Question' : 'Add New Custom Question') 
-                        : 'Edit Question'}
+                        : (isSuggestionMode ? 'Suggest Edits For' : 'Edit Question')}
+                        {!isNew && <span className="block truncate font-normal text-muted-foreground text-base">"{currentQuestion.label}"</span>}
                 </DialogTitle>
                 <DialogDescription>
-                    {isHrEditing && !isCustomQuestion
+                    {isSuggestionMode
                         ? 'Suggest changes to this locked master question. Your suggestions will be sent for review.'
                         : (isNew ? (isAdmin ? 'Create a new question that will be available to all companies.' : 'Create a new custom question for your company.') : 'Modify the question text, answer options, and default value.')}
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isHrEditing && !isCustomQuestion && !isNew} className="space-y-6 py-4">
-                 {isHrEditing && isCustomQuestion && (
+            <fieldset disabled={isSuggestionMode} className="space-y-6 py-4">
+                 {isSuggestionMode && (
                     <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800">
                         <HelpCircle className="h-4 w-4 !text-blue-600"/>
-                        <AlertTitle>Adding Custom Guidance</AlertTitle>
+                        <AlertTitle>Suggestion Mode</AlertTitle>
                         <AlertDescription>
-                          For new custom questions or custom answers, it is important to provide guidance. Please suggest a corresponding task or tip for each new answer choice to ensure users receive relevant advice.
+                          This is a locked, platform-wide question. You cannot change its text or type, but you can suggest adding or removing answer options, and map your company-specific guidance to any answer.
                         </AlertDescription>
                     </Alert>
-                )}
+                 )}
                 {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
                     <Alert variant="default" className="bg-primary/5 border-primary/50">
                         <BellDot className="h-4 w-4 !text-primary" />
@@ -547,53 +525,67 @@ export default function EditQuestionDialog({
                         </SelectContent>
                     </Select>
                 </div>
+            </fieldset>
 
-                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Answer Options</Label>
-                            <p className="text-xs text-muted-foreground">Enter one option per line.</p>
-                             <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} rows={5}/>
-                        </div>
-                        {currentQuestion.type === 'checkbox' && (
-                             <div className="space-y-2">
-                                <Label htmlFor="exclusive-option">Exclusive Option</Label>
-                                <Input id="exclusive-option" value={currentQuestion.exclusiveOption || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, exclusiveOption: e.target.value } : null)} placeholder="e.g., None of the above"/>
-                                <p className="text-xs text-muted-foreground">If a user selects this option, all other options will be deselected.</p>
-                            </div>
-                        )}
-                         <div className="space-y-2">
-                             <Label>Default Value</Label>
-                             <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, defaultValue: v as any } : null)} value={currentQuestion.defaultValue as string || ''}>
-                                <SelectTrigger><SelectValue placeholder="Select a default value..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="NO_DEFAULT">No Default</SelectItem>
-                                    {currentOptions.map(option => (
-                                        <SelectItem key={option} value={option}>{option}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                         </div>
+            {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
+                <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                        <Label>Answer Options & Guidance</Label>
+                        <p className="text-xs text-muted-foreground">
+                            {isSuggestionMode 
+                                ? "Suggest adding/removing options and map company-specific guidance." 
+                                : "Enter one option per line and map tasks/tips."
+                            }
+                        </p>
+                        {!isSuggestionMode && <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} rows={5}/>}
                     </div>
-                )}
-                
-                <div className="space-y-4">
-                    <Label>Answer Guidance</Label>
-                     <p className="text-xs text-muted-foreground">For each answer, you can assign specific tasks or tips that will be shown to the user.</p>
-                    <div className="space-y-2 rounded-md border p-4">
-                         {currentOptions.length > 0 ? currentOptions.map(option => (
-                             <div key={option} className="flex items-center justify-between">
-                                 <Label htmlFor={`guidance-${option}`} className="font-normal">{option}</Label>
-                                 <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                     <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
-                                 </Button>
-                             </div>
-                         )) : (
-                            <p className="text-center text-muted-foreground text-sm py-4">Add answer options above to set guidance.</p>
-                         )}
+
+                    {isSuggestionMode && (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Input value={newOption} onChange={e => setNewOption(e.target.value)} placeholder="Type new answer option..." />
+                                <Button onClick={handleAddNewOption}><PlusCircle className="mr-2"/>Add</Button>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {currentQuestion.type === 'checkbox' && !isSuggestionMode && (
+                         <div className="space-y-2">
+                            <Label htmlFor="exclusive-option">Exclusive Option</Label>
+                            <Input id="exclusive-option" value={currentQuestion.exclusiveOption || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, exclusiveOption: e.target.value } : null)} placeholder="e.g., None of the above"/>
+                            <p className="text-xs text-muted-foreground">If a user selects this option, all other options will be deselected.</p>
+                        </div>
+                    )}
+
+                    <div className="space-y-2 rounded-md border p-4 max-h-60 overflow-y-auto">
+                        {currentOptions.length > 0 ? currentOptions.map(option => {
+                            const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
+                            return (
+                                <div key={option} className="flex items-center justify-between">
+                                    <Label htmlFor={`guidance-${option}`} className="font-normal flex items-center gap-2">
+                                        {!isMasterOption && !isSuggestionMode && <Star className="h-4 w-4 text-amber-500 fill-current" />}
+                                        {option}
+                                    </Label>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                            <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
+                                        </Button>
+                                        {isSuggestionMode && !isMasterOption && (
+                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOptionsText(prev => prev.split('\n').filter(o => o !== option).join('\n'))}>
+                                                <Trash2 />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        }) : (
+                            <p className="text-center text-muted-foreground text-sm py-4">Add answer options to set guidance.</p>
+                        )}
                     </div>
                 </div>
-
+            )}
+            
+            {!isSuggestionMode && (
                 <Collapsible>
                     <CollapsibleTrigger asChild>
                         <Button variant="link" className="p-0 h-auto flex items-center gap-2">
@@ -653,26 +645,24 @@ export default function EditQuestionDialog({
                         </div>
                     </CollapsibleContent>
                 </Collapsible>
+            )}
 
-
-                {isAdmin && !currentQuestion.parentId && (
-                    <div className="space-y-4 rounded-md border border-dashed p-4">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
-                                <Lock className="text-muted-foreground" />
-                                Lock this Question
-                            </Label>
-                            <Switch 
-                                id="is-locked-switch"
-                                checked={!!currentQuestion.isLocked}
-                                onCheckedChange={(checked) => setCurrentQuestion(q => q ? { ...q, isLocked: checked } : null)}
-                            />
-                        </div>
-                        <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
+            {isAdmin && !currentQuestion.parentId && (
+                <div className="space-y-4 rounded-md border border-dashed p-4">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
+                            <Lock className="text-muted-foreground" />
+                            Lock this Question
+                        </Label>
+                        <Switch 
+                            id="is-locked-switch"
+                            checked={!!currentQuestion.isLocked}
+                            onCheckedChange={(checked) => setCurrentQuestion(q => q ? { ...q, isLocked: checked } : null)}
+                        />
                     </div>
-                )}
-
-            </fieldset>
+                    <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
+                </div>
+            )}
 
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" onClick={onClose}>Cancel</Button></DialogClose>
