@@ -306,10 +306,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
 
     }, [questions, getMasterQuestionConfig]);
     
-    const maritalStatusQuestion = useMemo(() => {
-        return questions.find(q => q.id === 'maritalStatus');
-    }, [questions]);
-
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
@@ -335,30 +331,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     </Button>
                 }
             </form>
-             {process.env.NODE_ENV === 'development' && maritalStatusQuestion && (
-                <Card className="mt-8 border-destructive">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-destructive"><Bug /> Marital Status Debug Panel</CardTitle>
-                        <CardDescription>This panel is for debugging and only appears in development.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <h3 className="font-semibold text-sm">Final Question Props</h3>
-                            <p className="text-xs text-muted-foreground">This is the final props object passed to the form component.</p>
-                            <pre className="text-xs mt-2 bg-muted p-2 rounded-md overflow-x-auto">
-                                {JSON.stringify(maritalStatusQuestion, null, 2)}
-                            </pre>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-sm">Company Override Data</h3>
-                            <p className="text-xs text-muted-foreground">This is the raw override data stored for this company.</p>
-                             <pre className="text-xs mt-2 bg-muted p-2 rounded-md overflow-x-auto">
-                                {JSON.stringify(companyConfig?.questions?.maritalStatus, null, 2)}
-                            </pre>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
         </Form>
     );
 }

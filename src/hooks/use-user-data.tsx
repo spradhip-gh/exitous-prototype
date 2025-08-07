@@ -135,7 +135,7 @@ export interface ReviewQueueItem {
 export interface QuestionOverride {
     label?: string;
     description?: string;
-    options?: string[];
+    options?: string[]; // DEPRECATED: Should use optionOverrides instead. Kept for backward compatibility.
     isActive?: boolean;
     lastUpdated?: string;
     optionOverrides?: {
@@ -966,21 +966,12 @@ export function useUserData() {
                         const toRemove = new Set(override.optionOverrides.remove || []);
                         const toAdd = override.optionOverrides.add || [];
                         
-                        if (id === 'maritalStatus') {
-                            console.log('DEBUG getCompanyConfig for maritalStatus');
-                            console.log('Master Options:', masterOptions);
-                            console.log('Override Rules:', override.optionOverrides);
-                        }
-
                         let newOptions = masterOptions.filter(opt => !toRemove.has(opt));
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
 
-                         if (id === 'maritalStatus') {
-                            console.log('Final Calculated Options:', newOptions);
-                        }
-
                     } else if (override.options) {
+                        // DEPRECATED path, but kept for backward compatibility.
                         finalQuestion.options = override.options;
                     }
     
@@ -1103,13 +1094,12 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'company_id'|'created_at'>) => {
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'created_at'>) => {
         const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
         if (!companyId) {
             console.error("Error adding to review queue: Could not find company ID for review item");
             return;
         }
-        console.log('DEBUG: Object being sent to addReviewQueueItem:', JSON.stringify(item, null, 2));
 
         const payload = { ...item, company_id: companyId };
         
@@ -1145,11 +1135,11 @@ export function useUserData() {
             
             const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
             
-            // Add to the 'add' list, remove from the 'remove' list
+            // Add to the 'add' list, remove from the 'remove' list if it exists there
             override.optionOverrides.add = [...new Set([...(override.optionOverrides.add || []), ...newAdditions])];
             override.optionOverrides.remove = (override.optionOverrides.remove || []).filter((opt: string) => !newAdditions.includes(opt));
             
-            // Add to the 'remove' list, remove from the 'add' list
+            // Add to the 'remove' list, remove from the 'add' list if it exists there
             override.optionOverrides.remove = [...new Set([...(override.optionOverrides.remove || []), ...optionsToRemove])];
             override.optionOverrides.add = (override.optionOverrides.add || []).filter((opt: string) => !optionsToRemove.includes(opt));
             
