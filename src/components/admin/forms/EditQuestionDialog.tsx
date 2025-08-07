@@ -317,19 +317,18 @@ export default function EditQuestionDialog({
         };
 
         if (isSuggestionMode) {
-            const suggestedOptionsToAdd = (finalQuestion.options || []).filter(opt => !(masterQuestionForEdit?.options || []).includes(opt));
+             const suggestedOptionsToAdd = (finalQuestion.options || []).filter(opt => !(masterQuestionForEdit?.options || []).includes(opt));
              
-            if (suggestedOptionsToAdd.length === 0 && suggestedRemovals.length === 0 && !finalQuestion.answerGuidance) {
+             if (suggestedOptionsToAdd.length === 0 && suggestedRemovals.length === 0 && !finalQuestion.answerGuidance) {
                 toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance mapping.", variant: "destructive" });
                 return;
             }
 
-            const reviewItem = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
                 user_email: auth?.email || 'unknown-hr',
-                type: 'question_edit_suggestion' as const,
-                status: 'pending' as const,
-                input_data: {
-                    companyName: auth?.companyName
+                type: 'question_edit_suggestion',
+                input_data: { 
+                    companyName: auth?.companyName,
                 },
                 change_details: {
                     questionId: currentQuestion.id,
@@ -338,6 +337,8 @@ export default function EditQuestionDialog({
                     optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
                     optionsToRemove: suggestedRemovals,
                 },
+                output_data: {}, // Not used for this type
+                status: 'pending',
             };
 
             addReviewQueueItem(reviewItem);
@@ -743,3 +744,4 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
