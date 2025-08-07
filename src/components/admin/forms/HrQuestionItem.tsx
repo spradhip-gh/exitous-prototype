@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Question } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, GripVertical } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
@@ -16,7 +17,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
 
     return (
         <div className="space-y-2">
-            <div className={cn("flex items-center space-x-2 group p-2 rounded-md", question.isCustom ? "bg-primary/5" : "bg-muted/50")} style={{ marginLeft: `${level * 1.5}rem`}}>
+            <div className="flex items-center space-x-2 group p-2 rounded-md" style={{ marginLeft: `${level * 1.5}rem`}}>
                 <CornerDownRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id, parentId)} disabled={!canWrite || isLocked} />
                 <Label htmlFor={question.id} className={cn("font-normal text-sm flex-1", isLocked && "text-muted-foreground")}>{question.label}</Label>
@@ -68,7 +69,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite, dndAttributes, dndListeners }: { 
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, isFirst, isLast, canWrite }: { 
     question: Question, 
     onToggleActive: (id: string, parentId?: string) => void, 
     onEdit: (q: Question) => void, 
@@ -78,23 +79,24 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     onMove: (questionId: string, direction: 'up' | 'down') => void, 
     isFirst: boolean, 
     isLast: boolean, 
-    canWrite: boolean,
-    dndAttributes: any,
-    dndListeners: any
+    canWrite: boolean
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
 
     return (
-        <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
+        <div className="bg-background rounded-lg my-1">
             <div className="flex items-center space-x-2 group pr-2">
-                <div className="flex items-center justify-center w-5">
-                     {question.isCustom && canWrite ? (
-                        <button {...dndAttributes} {...dndListeners} className="cursor-grab p-1">
-                            <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                    ) : <div className="w-5 h-10" />}
-                </div>
+                {question.isCustom && canWrite ? (
+                    <div className="flex flex-col">
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirst}>
+                            <ArrowUp className="h-4 w-4" />
+                        </Button>
+                         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLast}>
+                            <ArrowDown className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ) : <div className="w-10 h-10" />}
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
                     {isLocked && !question.isCustom && (
                         <TooltipProvider>
