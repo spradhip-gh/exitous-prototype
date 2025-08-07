@@ -88,8 +88,8 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     return (
         <div className={cn("p-2 rounded-lg my-1", question.isCustom ? "bg-primary/5" : "bg-background")}>
             <div className="flex items-center space-x-2 group pr-2">
-                <div className="flex flex-col w-5">
-                    {question.isCustom && canWrite ? (
+                <div className="flex items-center justify-center w-5">
+                     {question.isCustom && canWrite ? (
                         <button {...dndAttributes} {...dndListeners} className="cursor-grab p-1">
                             <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </button>

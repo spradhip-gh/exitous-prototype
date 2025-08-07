@@ -178,7 +178,7 @@ function SortableQuestionItem({ question, onToggleActive, onEdit, onDelete, onAd
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: question.id,
-        disabled: !canWrite
+        disabled: !canWrite || !question.isCustom
     });
 
     const style = {
@@ -247,7 +247,7 @@ function QuestionEditor({
             return;
         }
         
-        const questionTree = getCompanyConfig(companyName, true, questionType);
+        const questionTree = getCompanyConfig(companyName, false, questionType);
         
         if (questionTree.length === 0) {
             setOrderedSections([]);
@@ -521,6 +521,13 @@ function QuestionEditor({
         if (activeSectionIndex === -1 || overSectionIndex === -1 || activeSectionIndex !== overSectionIndex) return; // Only allow reorder within the same section for HR
         
         const activeSection = { ...newSections[activeSectionIndex] };
+        
+        const draggedQuestion = activeSection.questions.find(q => q.id === active.id);
+        if (!draggedQuestion || !draggedQuestion.isCustom) {
+            toast({ title: "Reorder Failed", description: "Only custom questions can be reordered.", variant: "destructive" });
+            return;
+        }
+        
         const oldIndex = activeSection.questions.findIndex(q => q.id === active.id);
         const newIndex = activeSection.questions.findIndex(q => q.id === over.id);
 
