@@ -20,8 +20,10 @@ export default function Home() {
           router.push('/dashboard');
           break;
         case 'admin':
+          router.push('/admin/dashboard');
+          break;
         case 'hr':
-          // Redirect both admin and HR to the user management page by default
+          // Redirect HR to the user management page by default
           router.push('/admin/users');
           break;
         case 'consultant':

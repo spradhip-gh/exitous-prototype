@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb, Blocks } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb, Blocks, LayoutDashboard } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -18,11 +17,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const { auth } = useAuth();
-  const { companyAssignments } = useUserData();
+  const { companyAssignments, reviewQueue } = useUserData();
   
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   
@@ -51,10 +51,22 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
     return companyAssignments.some(c => c.hrManagers.some(hr => hr.email === auth.email && hr.isPrimary));
   }, [role, auth?.email, companyAssignments]);
 
+  const pendingReviewCount = useMemo(() => {
+    if (!reviewQueue) return 0;
+    return reviewQueue.filter(item => item.status === 'pending').length;
+  }, [reviewQueue]);
+
   return (
     <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
         <>
+          <Link href="/admin/dashboard">
+            <Button variant={getVariant('/admin/dashboard')} className="w-full justify-start">
+              <LayoutDashboard className="mr-2" />
+              Dashboard
+            </Button>
+          </Link>
+
           <Collapsible open={isCustomerManagementOpen} onOpenChange={setIsCustomerManagementOpen}>
             <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between pr-2">
@@ -104,8 +116,11 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
 
           <Link href="/admin/review-queue">
             <Button variant={getVariant('/admin/review-queue')} className="w-full justify-start">
-              <CheckSquare className="mr-2" />
-              Guidance & Review
+              <div className="flex items-center flex-1">
+                <CheckSquare className="mr-2" />
+                Guidance & Review
+              </div>
+              {pendingReviewCount > 0 && <Badge variant="destructive">{pendingReviewCount}</Badge>}
             </Button>
           </Link>
           <Link href="/admin/external-resources">
@@ -245,7 +260,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const pendingReviewCount = useMemo(() => {
     if (!reviewQueue) return 0;
-    return reviewQueue.filter(item => item.status === 'pending' && item.inputData?.type === 'question_edit_suggestion').length;
+    return reviewQueue.filter(item => item.status === 'pending' && item.type === 'question_edit_suggestion').length;
   }, [reviewQueue]);
 
   if (loading || !auth || (auth.role !== 'hr' && auth.role !== 'consultant' && auth.role !== 'admin')) {
@@ -293,7 +308,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {navContent}
         </aside>
         <main className="flex-1">
-           {pendingReviewCount > 0 && (auth.role === 'admin' || auth.role === 'consultant') && (
+           {auth.role === 'admin' && pendingReviewCount > 0 && (
             <div className="border-b border-blue-300 bg-blue-50 p-4">
               <Alert variant="default" className="border-blue-300 bg-transparent">
                 <CheckSquare className="h-4 w-4 !text-blue-600" />
