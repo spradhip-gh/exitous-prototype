@@ -132,9 +132,21 @@ export interface ReviewQueueItem {
     companyName?: string;
 }
 
+export interface QuestionOverride {
+    label?: string;
+    description?: string;
+    options?: string[];
+    isActive?: boolean;
+    lastUpdated?: string;
+    optionOverrides?: {
+        add?: string[];
+        remove?: string[];
+    };
+}
+
 
 export interface CompanyConfig {
-    questions?: Record<string, Partial<Question> & { optionOverrides?: { add?: string[], remove?: string[] } }>;
+    questions?: Record<string, QuestionOverride>;
     customQuestions?: Record<string, Question>;
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
@@ -936,28 +948,42 @@ export function useUserData() {
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         
         let finalQuestions: Question[] = [];
-
+    
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
             if (masterQ.formType !== formType) continue;
             if (!masterQ.isActive) continue;
-
+    
             const override = companyConfig?.questions?.[id];
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
-
+    
             if (!forEndUser || isCompanyActive) {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
                     if (override.optionOverrides) {
-                        const baseOptions = masterQ.options || [];
+                        const masterOptions = [...(masterQ.options || [])];
                         const toRemove = new Set(override.optionOverrides.remove || []);
                         const toAdd = override.optionOverrides.add || [];
-                        finalQuestion.options = [...baseOptions.filter(o => !toRemove.has(o)), ...toAdd];
+                        
+                        if (id === 'maritalStatus') {
+                            console.log('DEBUG getCompanyConfig for maritalStatus');
+                            console.log('Master Options:', masterOptions);
+                            console.log('Override Rules:', override.optionOverrides);
+                        }
+
+                        let newOptions = masterOptions.filter(opt => !toRemove.has(opt));
+                        newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+                        finalQuestion.options = newOptions;
+
+                         if (id === 'maritalStatus') {
+                            console.log('Final Calculated Options:', newOptions);
+                        }
+
                     } else if (override.options) {
-                        // Legacy handling for direct option arrays
                         finalQuestion.options = override.options;
                     }
+    
                     if (override.label) finalQuestion.label = override.label;
                     if (override.description) finalQuestion.description = override.description;
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -975,7 +1001,7 @@ export function useUserData() {
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
-
+    
         const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
         
         return questionTree;
@@ -1077,12 +1103,13 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: ReviewQueueItem) => {
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'company_id'|'created_at'>) => {
         const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
         if (!companyId) {
             console.error("Error adding to review queue: Could not find company ID for review item");
             return;
         }
+        console.log('DEBUG: Object being sent to addReviewQueueItem:', JSON.stringify(item, null, 2));
 
         const payload = { ...item, company_id: companyId };
         
@@ -1100,41 +1127,36 @@ export function useUserData() {
             console.error("No reviewer ID found, cannot process queue item.");
             return false;
         }
-
+    
         if (status === 'approved' && item.type === 'question_edit_suggestion') {
             const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
             if (!companyName) return false;
             
             const currentConfig = companyConfigs[companyName];
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
-            const { questionId, optionsToAdd, optionsToRemove } = item.change_details || {};
+            const { questionId, optionsToAdd = [], optionsToRemove = [] } = item.change_details || {};
             if (!questionId) return false;
-
+    
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
             
-            // 1. Add new removals to the remove list
-            if (optionsToRemove && optionsToRemove.length > 0) {
-                 override.optionOverrides.remove = [...new Set([...(override.optionOverrides.remove || []), ...optionsToRemove])];
-                 // Also remove from the 'add' list if it exists there
-                 override.optionOverrides.add = (override.optionOverrides.add || []).filter((opt: string) => !optionsToRemove.includes(opt));
-            }
-
-            // 2. Add new additions to the add list
-            if (optionsToAdd && optionsToAdd.length > 0) {
-                 const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
-                 override.optionOverrides.add = [...new Set([...(override.optionOverrides.add || []), ...newAdditions])];
-                 // Also remove from the 'remove' list if it was previously there
-                 override.optionOverrides.remove = (override.optionOverrides.remove || []).filter((opt: string) => !newAdditions.includes(opt));
-            }
+            const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
+            
+            // Add to the 'add' list, remove from the 'remove' list
+            override.optionOverrides.add = [...new Set([...(override.optionOverrides.add || []), ...newAdditions])];
+            override.optionOverrides.remove = (override.optionOverrides.remove || []).filter((opt: string) => !newAdditions.includes(opt));
+            
+            // Add to the 'remove' list, remove from the 'add' list
+            override.optionOverrides.remove = [...new Set([...(override.optionOverrides.remove || []), ...optionsToRemove])];
+            override.optionOverrides.add = (override.optionOverrides.add || []).filter((opt: string) => !optionsToRemove.includes(opt));
             
             newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
-
+    
             // Handle guidance for new options
-            if (optionsToAdd) {
+            if (optionsToAdd.length > 0) {
                 optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
                     if (suggestion.guidance) {
                         if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
@@ -1143,7 +1165,7 @@ export function useUserData() {
                     }
                 });
             }
-
+    
             await saveCompanyConfig(companyName, newConfig);
         }
         
@@ -1154,18 +1176,18 @@ export function useUserData() {
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
             const { question } = item.change_details || {};
             if (!question?.id || !newConfig.customQuestions?.[question.id]) return false;
-
+    
             newConfig.customQuestions[question.id].isActive = false;
             await saveCompanyConfig(companyName, newConfig);
         }
-
+    
         const { data: updatedItem, error } = await supabase
             .from('review_queue')
             .update({ status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason })
             .eq('id', item.id)
             .select()
             .single();
-
+    
         if (error) {
             console.error('Error updating review item status:', error);
             return false;
