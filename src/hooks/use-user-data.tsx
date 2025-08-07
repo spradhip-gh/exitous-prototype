@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -938,7 +937,7 @@ export function useUserData() {
         let finalQuestions: Question[] = [];
 
         for (const id in masterSource) {
-            const masterQ = { ...masterSource[id] }; // Make a copy
+            const masterQ = { ...masterSource[id] };
             if (masterQ.formType !== formType) continue;
             if (!masterQ.isActive) continue;
 
@@ -946,28 +945,18 @@ export function useUserData() {
             const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
             if (!forEndUser || isCompanyActive) {
-                let finalOptions = masterQ.options ? [...masterQ.options] : [];
+                const finalQuestion: Question = {
+                    ...masterQ,
+                    ...override, // Apply overrides for label, description, etc.
+                    isActive: isCompanyActive,
+                };
+                
+                // If override has options, it is the source of truth.
                 if (override?.options) {
-                    const masterOptionsSet = new Set(masterQ.options || []);
-                    const overrideOptionsSet = new Set(override.options);
-                    
-                    // Remove options from master that are not in override
-                    finalOptions = finalOptions.filter(opt => overrideOptionsSet.has(opt));
-
-                    // Add options from override that are not in master
-                    override.options.forEach(opt => {
-                        if (!masterOptionsSet.has(opt)) {
-                            finalOptions.push(opt);
-                        }
-                    });
+                    finalQuestion.options = override.options;
                 }
                 
-                finalQuestions.push({
-                    ...masterQ,
-                    ...(override || {}),
-                    options: finalOptions,
-                    isActive: isCompanyActive,
-                });
+                finalQuestions.push(finalQuestion);
             }
         }
         

@@ -331,40 +331,24 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     </Button>
                 }
             </form>
-            {process.env.NODE_ENV !== 'production' && (
-                <Card className="mt-8 border-destructive">
-                    <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bug />DEBUG: State Question Data</CardTitle>
-                    <CardDescription>This panel shows the props being passed to the 'state' question component. It will only appear in a development environment.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                        {JSON.stringify(
-                        questions.find(q => q.id === 'state'),
-                        null,
-                        2
-                        )}
-                    </pre>
-                    </CardContent>
-                </Card>
-            )}
         </Form>
     );
 }
 
 export default function ProfileForm() {
-    const { masterProfileQuestions, profileData, isUserDataLoading, getCompanyUser } = useUserData();
+    const { getCompanyConfig, profileData, isUserDataLoading, getCompanyUser, isLoading } = useUserData();
     const { auth } = useAuth();
     
     const questions = useMemo(() => {
-        return buildQuestionTreeFromMap(masterProfileQuestions).filter(q => q.isActive);
-    }, [masterProfileQuestions]);
+        if (!auth?.companyName) return [];
+        return getCompanyConfig(auth.companyName, true, 'profile');
+    }, [getCompanyConfig, auth?.companyName]);
 
     const dynamicSchema = useMemo(() => buildProfileSchema(questions), [questions]);
     
     const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth?.email, getCompanyUser]);
 
-    if (isUserDataLoading || !questions || !dynamicSchema) {
+    if (isLoading || isUserDataLoading || !questions || !dynamicSchema) {
          return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
