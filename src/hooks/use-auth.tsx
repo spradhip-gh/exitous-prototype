@@ -80,13 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (authData.role === 'end-user' && authData.email && companyIdentifier) {
         const { data: userData, error } = await supabase
             .from('company_users')
-            .select(`
-                id,
-                email,
-                company_user_id,
-                is_invited,
-                companies!inner (id, name)
-            `)
+            .select(`*`)
             .eq('email', authData.email)
             .eq('company_user_id', companyIdentifier)
             .single();
@@ -95,11 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('End-user login error:', error);
             return false;
         }
-        
-        const company = Array.isArray(userData.companies) ? userData.companies[0] : userData.companies;
 
         if (!userData.is_invited) {
             console.warn('User not invited yet:', userData.email);
+            return false;
+        }
+        
+        const { data: companyData, error: companyError } = await supabase.from('companies').select('id, name').eq('id', userData.company_id).single();
+        if(companyError || !companyData) {
+            console.error('Could not find company for user:', companyError);
             return false;
         }
 
@@ -108,18 +106,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: userData.email,
             userId: userData.id,
             companyUserId: userData.company_user_id,
-            companyId: company?.id,
-            companyName: company?.name
+            companyId: companyData?.id,
+            companyName: companyData?.name
         };
 
     } else if (authData.role === 'hr' && authData.email) {
         const { data: hrAssignments, error } = await supabase
             .from('company_hr_assignments')
-            .select(`
-                is_primary,
-                permissions,
-                companies!inner (id, name)
-            `)
+            .select(`*`)
             .eq('hr_email', authData.email);
 
         if (error || !hrAssignments || hrAssignments.length === 0) {
@@ -127,7 +121,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return false;
         }
         
-        const assignmentsWithCompany = hrAssignments.map(a => ({...a, company: Array.isArray(a.companies) ? a.companies[0] : a.companies })).filter(a => a.company);
+        const companyIds = hrAssignments.map(a => a.company_id);
+        const {data: companies, error: companiesError } = await supabase.from('companies').select('id, name').in('id', companyIds);
+        if (companiesError || !companies) {
+            console.error('HR login company fetch error:', companiesError);
+            return false;
+        }
+
+        const assignmentsWithCompany = hrAssignments.map(a => {
+            const company = companies.find(c => c.id === a.company_id);
+            return {...a, companyName: company?.name};
+        }).filter(a => a.companyName);
 
         const primaryAssignment = assignmentsWithCompany.find(a => a.is_primary);
         const defaultAssignment = primaryAssignment || assignmentsWithCompany[0];
@@ -140,9 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         finalAuthData = {
             role: 'hr',
             email: authData.email,
-            companyId: defaultAssignment.company?.id,
-            companyName: defaultAssignment.company?.name,
-            assignedCompanyNames: assignmentsWithCompany.map(a => a.company?.name || '').filter(Boolean),
+            companyId: defaultAssignment.company_id,
+            companyName: defaultAssignment.companyName,
+            assignedCompanyNames: assignmentsWithCompany.map(a => a.companyName || '').filter(Boolean),
             permissions: defaultAssignment.is_primary 
                 ? fullPermissions
                 : defaultAssignment.permissions as HrPermissions
