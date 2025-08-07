@@ -323,12 +323,12 @@ export default function EditQuestionDialog({
                 return;
             }
 
-             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
+             const reviewItem = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
                 status: 'pending',
+                companyName: auth?.companyName,
                 change_details: {
-                    companyName: auth?.companyName,
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
                     reason: suggestionReason,
@@ -337,7 +337,7 @@ export default function EditQuestionDialog({
                 },
             };
 
-            addReviewQueueItem(reviewItem);
+            addReviewQueueItem(reviewItem as any);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
             onClose();
             return;

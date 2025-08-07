@@ -121,6 +121,7 @@ export interface ReviewQueueItem {
         guidanceOverrides?: Record<string, AnswerGuidance>;
         question?: Question;
         newSectionName?: string;
+        companyName?: string;
     };
     rejection_reason?: string;
     created_at: string;
@@ -951,11 +952,10 @@ export function useUserData() {
                     isActive: isCompanyActive,
                 };
                 
+                // This is the corrected logic: If an override for options exists, use it exclusively.
+                // Otherwise, fall back to the master question's options.
                 if (override?.options) {
-                    const masterOptions = new Set(masterQ.options || []);
-                    const overrideOptions = new Set(override.options);
-                    const finalOptions = [...new Set([...(masterQ.options || []), ...(override.options || [])])];
-                    finalQuestion.options = finalOptions;
+                    finalQuestion.options = override.options;
                 }
                 
                 finalQuestions.push(finalQuestion);
@@ -1071,15 +1071,14 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'>) => {
-        const companyId = companyAssignments.find(c => c.companyName === (item as any).companyName)?.companyId;
+    const addReviewQueueItem = useCallback(async (item: Partial<ReviewQueueItem> & { companyName?: string }) => {
+        const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
         if (!companyId) {
             console.error("Could not find company ID for review item");
             return;
         }
 
-        const payload = { ...item, company_id: companyId };
-        console.log("Attempting to insert into review_queue:", JSON.stringify(payload, null, 2));
+        const payload = { ...item, company_id: companyId, companyName: undefined };
 
         const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
         if (error) {
