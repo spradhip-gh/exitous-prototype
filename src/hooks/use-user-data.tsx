@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -812,8 +811,41 @@ export function useUserData() {
             }
         }
 
-        return buildQuestionTreeFromMap(finalQuestionsMap);
-    }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+        const finalQuestions = buildQuestionTreeFromMap(finalQuestionsMap);
+        
+        // Final sort based on company config if available
+        const sectionOrderMap = new Map<string, number>();
+        const masterConfig = getMasterQuestionConfig(formType === 'all' ? 'assessment' : formType); // default to assessment for all
+        const sectionOrder = masterConfig?.section_order || [];
+        sectionOrder.forEach((name, index) => sectionOrderMap.set(name, index));
+
+        const sortRecursive = (questions: Question[]) => {
+            questions.sort((a,b) => {
+                const aOrder = companyConfig?.questionOrderBySection?.[a.section!]?.indexOf(a.id);
+                const bOrder = companyConfig?.questionOrderBySection?.[b.section!]?.indexOf(b.id);
+                
+                if(aOrder !== undefined && aOrder > -1 && bOrder !== undefined && bOrder > -1) return aOrder - bOrder;
+                if(aOrder !== undefined && aOrder > -1) return -1;
+                if(bOrder !== undefined && bOrder > -1) return 1;
+                
+                return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+            });
+            questions.forEach(q => {
+                if (q.subQuestions) {
+                    sortRecursive(q.subQuestions);
+                }
+            });
+        };
+        sortRecursive(finalQuestions);
+        
+        finalQuestions.sort((a,b) => {
+            const aIndex = sectionOrderMap.get(a.section!) ?? Infinity;
+            const bIndex = sectionOrderMap.get(b.section!) ?? Infinity;
+            return aIndex - bIndex;
+        });
+
+        return finalQuestions;
+    }, [companyConfigs, masterQuestions, masterProfileQuestions, getMasterQuestionConfig]);
     
     const getCompanyUser = useMemo(() => (email: string | undefined) => {
         if (!email || !companyConfigs) return null;

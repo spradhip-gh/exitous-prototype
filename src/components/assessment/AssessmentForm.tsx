@@ -521,7 +521,7 @@ export default function AssessmentFormWrapper() {
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
-            const companyQuestions = getCompanyConfig(auth.companyName, true);
+            const companyQuestions = getCompanyConfig(auth.companyName, true, 'assessment');
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions, profileData));
             setIsLoading(false);
