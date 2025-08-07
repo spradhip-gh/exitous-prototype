@@ -615,8 +615,6 @@ export function useUserData() {
         if (!assignment) return;
         
         if (payload.delete) {
-            // Deleting a company - more complex, might need cascading deletes or soft deletes.
-            // For now, let's just delete the assignment to make it disappear from UI.
             const { error } = await supabase.from('companies').delete().eq('id', assignment.companyId);
             if (error) {
                  console.error("Error deleting company", error);
@@ -664,7 +662,6 @@ export function useUserData() {
                 .eq('hr_email', payload.newPrimaryManagerEmail);
         }
         
-        // Update other company fields
         const companyUpdatePayload = {
             version: payload.version,
             max_users: payload.maxUsers,
@@ -680,8 +677,12 @@ export function useUserData() {
              if(error) console.error("Error updating company settings", error);
         }
 
-        // After all DB operations, refetch the assignments for consistency.
-         const { data, error } = await supabase.from('companies').select('*, company_hr_assignments(*)').eq('name', companyName).single();
+         const { data, error } = await supabase
+            .from('companies')
+            .select('*, company_hr_assignments!inner(*)')
+            .eq('name', companyName)
+            .single();
+
          if (data) {
             const updatedAssignment: CompanyAssignment = {
                 companyId: data.id,
@@ -868,21 +869,23 @@ export function useUserData() {
     }, []);
 
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        // This function is complex. It needs to figure out what was added, updated, or removed.
         const allCurrentAssignments = companyAssignments || [];
-        const toUpsert = [];
+        const toUpsert: any[] = [];
         const toDelete: { company_id: string; hr_email: string }[] = [];
 
         for (const currentAssignment of allCurrentAssignments) {
             const updatedAssignment = assignmentsToSave.find(a => a.companyId === currentAssignment.companyId);
             
             for (const currentManager of currentAssignment.hrManagers) {
+                // If a manager that existed before is no longer in the updated list for that company, mark for deletion.
                 const managerStillExists = updatedAssignment?.hrManagers.some(hr => hr.email === currentManager.email);
                 if (!managerStillExists) {
                     toDelete.push({ company_id: currentAssignment.companyId, hr_email: currentManager.email });
                 }
             }
         }
-
+        
         for (const updatedAssignment of assignmentsToSave) {
             for (const updatedManager of updatedAssignment.hrManagers) {
                 toUpsert.push({
@@ -893,10 +896,12 @@ export function useUserData() {
                 });
             }
         }
-        
+
         if (toDelete.length > 0) {
-            const { error: deleteError } = await supabase.from('company_hr_assignments').delete().in('hr_email', toDelete.map(d => d.hr_email));
-            if (deleteError) console.error("Error deleting assignments", deleteError);
+            const deletePromises = toDelete.map(d => 
+                supabase.from('company_hr_assignments').delete().match({ company_id: d.company_id, hr_email: d.hr_email })
+            );
+            await Promise.all(deletePromises);
         }
 
         if (toUpsert.length > 0) {
@@ -908,8 +913,7 @@ export function useUserData() {
 
     }, [companyAssignments]);
 
-
-    const getCompanyConfig = useCallback((companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
+    const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
         if (!companyName) return [];
         const companyConfig = companyConfigs[companyName];
         
@@ -921,17 +925,18 @@ export function useUserData() {
             const masterQ = masterSource[id];
             if (masterQ.formType !== formType) continue;
 
-            const isMasterActive = masterQ.isActive !== false;
-            if (activeOnly && !isMasterActive) continue;
+            // This is the fix: ALWAYS check if the master question is active.
+            if (!masterQ.isActive) continue;
 
             const override = companyConfig?.questions?.[id];
-            const isCompanyActive = override?.isActive === undefined ? isMasterActive : override.isActive;
+            // For HR view, we show it even if they have it disabled. For user view, we don't.
+            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
 
-            if (!activeOnly || isCompanyActive) {
-                finalQuestions.push({
+            if (!forEndUser || isCompanyActive) {
+                 finalQuestions.push({
                     ...masterQ,
                     ...(override || {}),
-                    isActive: isCompanyActive,
+                    isActive: isCompanyActive, // Ensure company's preference is the final state
                 });
             }
         }
@@ -939,7 +944,7 @@ export function useUserData() {
         const companyCustomQuestions = companyConfig?.customQuestions || {};
         for(const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
-            if(customQ.formType === formType && (!activeOnly || customQ.isActive)) {
+            if(customQ.formType === formType && customQ.isActive) {
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
