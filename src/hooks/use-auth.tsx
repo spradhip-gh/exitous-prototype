@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email,
                 company_user_id,
                 is_invited,
-                company:companies (id, name)
+                companies!inner (id, name)
             `)
             .eq('email', authData.email)
             .eq('company_user_id', companyIdentifier)
@@ -95,6 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('End-user login error:', error);
             return false;
         }
+        
+        const company = Array.isArray(userData.companies) ? userData.companies[0] : userData.companies;
 
         if (!userData.is_invited) {
             console.warn('User not invited yet:', userData.email);
@@ -106,8 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: userData.email,
             userId: userData.id,
             companyUserId: userData.company_user_id,
-            companyId: userData.company?.id,
-            companyName: userData.company?.name
+            companyId: company?.id,
+            companyName: company?.name
         };
 
     } else if (authData.role === 'hr' && authData.email) {
@@ -116,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select(`
                 is_primary,
                 permissions,
-                company:companies (id, name)
+                companies!inner (id, name)
             `)
             .eq('hr_email', authData.email);
 
@@ -124,16 +126,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('HR login error:', error);
             return false;
         }
+        
+        const assignmentsWithCompany = hrAssignments.map(a => ({...a, company: Array.isArray(a.companies) ? a.companies[0] : a.companies })).filter(a => a.company);
 
-        const primaryAssignment = hrAssignments.find(a => a.is_primary);
-        const defaultAssignment = primaryAssignment || hrAssignments[0];
+        const primaryAssignment = assignmentsWithCompany.find(a => a.is_primary);
+        const defaultAssignment = primaryAssignment || assignmentsWithCompany[0];
+
+        if (!defaultAssignment) {
+            console.error("HR login error: Could not determine a default company assignment.");
+            return false;
+        }
 
         finalAuthData = {
             role: 'hr',
             email: authData.email,
             companyId: defaultAssignment.company?.id,
             companyName: defaultAssignment.company?.name,
-            assignedCompanyNames: hrAssignments.map(a => a.company?.name || '').filter(Boolean),
+            assignedCompanyNames: assignmentsWithCompany.map(a => a.company?.name || '').filter(Boolean),
             permissions: defaultAssignment.is_primary 
                 ? fullPermissions
                 : defaultAssignment.permissions as HrPermissions
