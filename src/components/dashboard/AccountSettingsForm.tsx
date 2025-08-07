@@ -41,19 +41,47 @@ export default function AccountSettingsForm() {
   
   const { reset } = form;
 
+  const notificationEmail = profileData?.notificationEmail;
+  const allEmail = profileData?.notificationSettings?.email?.all;
+  const taskRemindersEmail = profileData?.notificationSettings?.email?.taskReminders;
+  const unsureRemindersEmail = profileData?.notificationSettings?.email?.unsureReminders;
+  const criticalDateRemindersEmail = profileData?.notificationSettings?.email?.criticalDateReminders;
+  const allSms = profileData?.notificationSettings?.sms?.all;
+  const taskRemindersSms = profileData?.notificationSettings?.sms?.taskReminders;
+  const unsureRemindersSms = profileData?.notificationSettings?.sms?.unsureReminders;
+  const criticalDateRemindersSms = profileData?.notificationSettings?.sms?.criticalDateReminders;
+
+
   useEffect(() => {
     if (companyUser) {
         reset({
             personalEmail: companyUser.user.personal_email || '',
             phone: companyUser.user.phone || '',
-            notificationEmail: profileData?.notificationEmail || auth?.email,
-            notificationSettings: profileData?.notificationSettings || {
-                email: { all: true },
-                sms: { all: false }
+            notificationEmail: notificationEmail || auth?.email,
+            notificationSettings: {
+                email: { 
+                  all: allEmail,
+                  taskReminders: taskRemindersEmail,
+                  unsureReminders: unsureRemindersEmail,
+                  criticalDateReminders: criticalDateRemindersEmail,
+                },
+                sms: { 
+                  all: allSms,
+                  taskReminders: taskRemindersSms,
+                  unsureReminders: unsureRemindersSms,
+                  criticalDateReminders: criticalDateRemindersSms,
+                }
             },
         });
     }
-  }, [companyUser, auth?.email, reset, profileData?.notificationEmail, profileData?.notificationSettings]);
+  }, [
+      companyUser, 
+      auth?.email, 
+      reset, 
+      notificationEmail,
+      allEmail, taskRemindersEmail, unsureRemindersEmail, criticalDateRemindersEmail,
+      allSms, taskRemindersSms, unsureRemindersSms, criticalDateRemindersSms
+  ]);
 
   function onSubmit(data: AccountSettingsFormData) {
     if (!companyUser) {
