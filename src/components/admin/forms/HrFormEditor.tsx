@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +22,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { v4 as uuidv4 } from 'uuid';
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
-import { Pencil, Trash2, History } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface HrOrderedSection {
@@ -43,15 +44,15 @@ function findQuestion(sections: HrOrderedSection[], questionId: string): Questio
 
 function MySuggestionsTab() {
     const { auth } = useAuth();
-    const { reviewQueue, saveReviewQueue, companyAssignmentForHr } = useUserData();
+    const { reviewQueue, saveReviewQueue } = useUserData();
     const { toast } = useToast();
 
     const mySuggestions = useMemo(() => {
-        if (!companyAssignmentForHr) return [];
+        if (!auth?.companyId) return [];
         return reviewQueue
-            .filter(item => item.company_id === companyAssignmentForHr.companyId)
+            .filter(item => item.company_id === auth.companyId)
             .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
-    }, [reviewQueue, companyAssignmentForHr]);
+    }, [reviewQueue, auth?.companyId]);
 
     const handleWithdraw = (itemId: string) => {
         const updatedQueue = reviewQueue.filter(item => item.id !== itemId);
@@ -194,9 +195,14 @@ function QuestionEditor({
         const masterConfig = getMasterQuestionConfig(questionType);
         let finalSectionOrder = masterConfig?.section_order || [];
         
+        // Add custom sections to the order if they don't exist
         const masterSectionSet = new Set(finalSectionOrder);
-        const customSections = Object.keys(sectionsMap).filter(s => !masterSectionSet.has(s));
-        finalSectionOrder = [...finalSectionOrder, ...customSections];
+        Object.keys(sectionsMap).forEach(sectionName => {
+            if (!masterSectionSet.has(sectionName)) {
+                sectionOrder.push(sectionName);
+                masterSectionSet.add(sectionName);
+            }
+        });
 
         const sections = finalSectionOrder
             .map(sectionName => {
