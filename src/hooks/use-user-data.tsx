@@ -122,7 +122,6 @@ export interface ReviewQueueItem {
         guidanceOverrides?: Record<string, AnswerGuidance>;
         question?: Question;
         newSectionName?: string;
-        companyName?: string;
     };
     rejection_reason?: string;
     created_at: string;
@@ -130,11 +129,12 @@ export interface ReviewQueueItem {
     reviewer_id?: string;
     input_data?: any;
     output_data?: any;
+    companyName?: string;
 }
 
 
 export interface CompanyConfig {
-    questions?: Record<string, Partial<Question>>;
+    questions?: Record<string, Partial<Question> & { optionOverrides?: { add?: string[], remove?: string[] } }>;
     customQuestions?: Record<string, Question>;
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
@@ -933,7 +933,6 @@ export function useUserData() {
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
         if (!companyName) return [];
         const companyConfig = companyConfigs[companyName];
-        
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         
         let finalQuestions: Question[] = [];
@@ -950,8 +949,15 @@ export function useUserData() {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
-                    // Use override options if they exist, otherwise use master
-                    finalQuestion.options = override.options || masterQ.options;
+                    if (override.optionOverrides) {
+                        const baseOptions = masterQ.options || [];
+                        const toRemove = new Set(override.optionOverrides.remove || []);
+                        const toAdd = override.optionOverrides.add || [];
+                        finalQuestion.options = [...baseOptions.filter(o => !toRemove.has(o)), ...toAdd];
+                    } else if (override.options) {
+                        // Legacy handling for direct option arrays
+                        finalQuestion.options = override.options;
+                    }
                     if (override.label) finalQuestion.label = override.label;
                     if (override.description) finalQuestion.description = override.description;
                     if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
@@ -1072,7 +1078,7 @@ export function useUserData() {
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
     const addReviewQueueItem = useCallback(async (item: ReviewQueueItem) => {
-        const companyId = companyAssignments.find(c => c.companyName === item.change_details?.companyName)?.companyId;
+        const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
         if (!companyId) {
             console.error("Error adding to review queue: Could not find company ID for review item");
             return;
@@ -1106,21 +1112,30 @@ export function useUserData() {
 
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
+            if (!override.optionOverrides) {
+                override.optionOverrides = { add: [], remove: [] };
+            }
             
-            const masterQ = masterQuestions[questionId] || masterProfileQuestions[questionId];
-            let newOptions = [...(override.options || masterQ.options || [])];
-
-            // 1. Remove options
+            // 1. Add new removals to the remove list
             if (optionsToRemove && optionsToRemove.length > 0) {
-                 newOptions = newOptions.filter(opt => !optionsToRemove.includes(opt));
+                 override.optionOverrides.remove = [...new Set([...(override.optionOverrides.remove || []), ...optionsToRemove])];
+                 // Also remove from the 'add' list if it exists there
+                 override.optionOverrides.add = (override.optionOverrides.add || []).filter((opt: string) => !optionsToRemove.includes(opt));
             }
 
-            // 2. Add new options and their guidance
+            // 2. Add new additions to the add list
+            if (optionsToAdd && optionsToAdd.length > 0) {
+                 const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
+                 override.optionOverrides.add = [...new Set([...(override.optionOverrides.add || []), ...newAdditions])];
+                 // Also remove from the 'remove' list if it was previously there
+                 override.optionOverrides.remove = (override.optionOverrides.remove || []).filter((opt: string) => !newAdditions.includes(opt));
+            }
+            
+            newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
+
+            // Handle guidance for new options
             if (optionsToAdd) {
                 optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
-                    if (!newOptions.includes(suggestion.option)) {
-                        newOptions.push(suggestion.option);
-                    }
                     if (suggestion.guidance) {
                         if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
                         if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
@@ -1128,8 +1143,7 @@ export function useUserData() {
                     }
                 });
             }
-            
-            newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
+
             await saveCompanyConfig(companyName, newConfig);
         }
         
@@ -1159,7 +1173,7 @@ export function useUserData() {
         
         setReviewQueue(prev => prev.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
         return true;
-    }, [auth?.userId, companyAssignments, companyConfigs, masterQuestions, masterProfileQuestions, saveCompanyConfig]);
+    }, [auth?.userId, companyAssignments, companyConfigs, saveCompanyConfig]);
 
     return {
         profileData,

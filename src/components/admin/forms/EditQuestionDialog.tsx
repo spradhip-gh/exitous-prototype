@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -323,7 +324,7 @@ export default function EditQuestionDialog({
                 return;
             }
 
-             const reviewItem = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'> & { companyName?: string } = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
                 status: 'pending',
@@ -337,7 +338,7 @@ export default function EditQuestionDialog({
                 },
             };
 
-            addReviewQueueItem(reviewItem as any);
+            addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
             onClose();
             return;
