@@ -135,7 +135,6 @@ export interface ReviewQueueItem {
 export interface QuestionOverride {
     label?: string;
     description?: string;
-    options?: string[]; // DEPRECATED: Should use optionOverrides instead. Kept for backward compatibility.
     isActive?: boolean;
     lastUpdated?: string;
     optionOverrides?: {
@@ -961,7 +960,7 @@ export function useUserData() {
                 let finalQuestion: Question = { ...masterQ };
                 
                 if (override) {
-                    if (override.optionOverrides) {
+                     if (override.optionOverrides) {
                         const masterOptions = [...(masterQ.options || [])];
                         const toRemove = new Set(override.optionOverrides.remove || []);
                         const toAdd = override.optionOverrides.add || [];
@@ -970,9 +969,6 @@ export function useUserData() {
                         newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
                         finalQuestion.options = newOptions;
 
-                    } else if (override.options) {
-                        // DEPRECATED path, but kept for backward compatibility.
-                        finalQuestion.options = override.options;
                     }
     
                     if (override.label) finalQuestion.label = override.label;
@@ -1094,7 +1090,7 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'created_at'>) => {
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'created_at'|'company_id'> & { companyName?: string }) => {
         const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
         if (!companyId) {
             console.error("Error adding to review queue: Could not find company ID for review item");
@@ -1133,15 +1129,18 @@ export function useUserData() {
                 override.optionOverrides = { add: [], remove: [] };
             }
             
-            const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
+            const newAdditions = new Set(override.optionOverrides.add || []);
+            optionsToAdd.forEach((o: {option: string}) => newAdditions.add(o.option));
+
+            const newRemovals = new Set(override.optionOverrides.remove || []);
+            optionsToRemove.forEach((o: string) => newRemovals.add(o));
             
-            // Add to the 'add' list, remove from the 'remove' list if it exists there
-            override.optionOverrides.add = [...new Set([...(override.optionOverrides.add || []), ...newAdditions])];
-            override.optionOverrides.remove = (override.optionOverrides.remove || []).filter((opt: string) => !newAdditions.includes(opt));
-            
-            // Add to the 'remove' list, remove from the 'add' list if it exists there
-            override.optionOverrides.remove = [...new Set([...(override.optionOverrides.remove || []), ...optionsToRemove])];
-            override.optionOverrides.add = (override.optionOverrides.add || []).filter((opt: string) => !optionsToRemove.includes(opt));
+            // Ensure no item is in both add and remove
+            newAdditions.forEach(item => { if (newRemovals.has(item)) newRemovals.delete(item); });
+            newRemovals.forEach(item => { if (newAdditions.has(item)) newAdditions.delete(item); });
+
+            override.optionOverrides.add = Array.from(newAdditions);
+            override.optionOverrides.remove = Array.from(newRemovals);
             
             newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
     
