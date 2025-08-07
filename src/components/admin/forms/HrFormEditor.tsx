@@ -1,10 +1,9 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource, CompanyAssignment } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,19 +43,15 @@ function findQuestion(sections: HrOrderedSection[], questionId: string): Questio
 
 function MySuggestionsTab() {
     const { auth } = useAuth();
-    const { reviewQueue, saveReviewQueue } = useUserData();
+    const { reviewQueue, saveReviewQueue, companyAssignmentForHr } = useUserData();
     const { toast } = useToast();
 
     const mySuggestions = useMemo(() => {
-        if (!auth?.email || !auth.companyName) return [];
+        if (!companyAssignmentForHr) return [];
         return reviewQueue
-            .filter(item =>
-                item.user_email && auth.email &&
-                item.user_email.toLowerCase() === auth.email.toLowerCase() &&
-                item.input_data?.companyName === auth.companyName
-            )
+            .filter(item => item.company_id === companyAssignmentForHr.companyId)
             .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
-    }, [reviewQueue, auth]);
+    }, [reviewQueue, companyAssignmentForHr]);
 
     const handleWithdraw = (itemId: string) => {
         const updatedQueue = reviewQueue.filter(item => item.id !== itemId);

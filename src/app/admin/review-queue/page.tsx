@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
-import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition, Question, MasterTip } from '@/hooks/use-user-data';
+import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition, Question, MasterTip, CompanyAssignment } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -150,10 +149,15 @@ export default function ReviewQueuePage() {
         masterProfileQuestions,
         masterTasks,
         masterTips,
+        companyAssignments,
     } = useUserData();
 
     const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
     const [currentItemForRejection, setCurrentItemForRejection] = useState<ReviewQueueItem | null>(null);
+    
+    const companyMap = useMemo(() => {
+        return new Map(companyAssignments.map(c => [c.companyId, c.companyName]));
+    }, [companyAssignments]);
 
     const handleRejectClick = (item: ReviewQueueItem) => {
         setCurrentItemForRejection(item);
@@ -174,7 +178,7 @@ export default function ReviewQueuePage() {
         let reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
-        const companyName = item.input_data?.companyName;
+        const companyName = companyMap.get(item.company_id);
 
         if (!companyName) {
             toast({ title: 'Error processing action', description: 'Company name is missing from the review item.', variant: 'destructive' });
@@ -276,6 +280,7 @@ export default function ReviewQueuePage() {
                                      <ReviewItemCard 
                                         key={item.id}
                                         item={item}
+                                        companyName={companyMap.get(item.company_id)}
                                         onStatusChange={handleStatusChange}
                                         onRejectClick={handleRejectClick}
                                         masterTasks={masterTasks}
@@ -314,7 +319,7 @@ export default function ReviewQueuePage() {
                                             return (
                                                 <TableRow key={item.id}>
                                                     <TableCell>{item.user_email}</TableCell>
-                                                    <TableCell>{item.input_data.companyName || 'N/A'}</TableCell>
+                                                    <TableCell>{companyMap.get(item.company_id) || 'N/A'}</TableCell>
                                                     <TableCell>{format(parseISO(item.created_at), 'PPP')}</TableCell>
                                                     <TableCell>
                                                         {getStatusBadge()}
@@ -350,11 +355,17 @@ export default function ReviewQueuePage() {
     );
 }
 
-function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, masterTips }: { item: ReviewQueueItem, onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', reason?: string) => void, onRejectClick: (item: ReviewQueueItem) => void, masterTasks: MasterTask[], masterTips: MasterTip[] }) {
+function ReviewItemCard({ item, companyName, onStatusChange, onRejectClick, masterTasks, masterTips }: { 
+    item: ReviewQueueItem,
+    companyName?: string,
+    onStatusChange: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', reason?: string) => void, 
+    onRejectClick: (item: ReviewQueueItem) => void, 
+    masterTasks: MasterTask[], 
+    masterTips: MasterTip[] 
+}) {
     const [isInputOpen, setIsInputOpen] = useState(false);
     
     if (item.type === 'question_edit_suggestion') {
-        const { companyName } = item.input_data || {};
         const { questionLabel, optionsToAdd, optionsToRemove, reason } = item.change_details || {};
 
         return (
@@ -412,7 +423,6 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
     }
 
     if (item.type === 'custom_question_guidance') {
-        const { companyName } = item.input_data || {};
         const { question, newSectionName } = item.change_details || {};
         if (!question) return null;
 
