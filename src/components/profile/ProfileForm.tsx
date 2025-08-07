@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -305,10 +304,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
 
     }, [questions, getMasterQuestionConfig]);
 
-    const maritalStatusQuestionData = useMemo(() => {
-        return questions.find(q => q.id === 'maritalStatus');
-    }, [questions]);
-
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
@@ -333,24 +328,6 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                         {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}
                     </Button>
                 }
-                 {process.env.NODE_ENV !== 'production' && (
-                    <Card className="border-destructive mt-8">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Bug className="text-destructive" />
-                                DEBUG: Marital Status Question Data
-                            </CardTitle>
-                            <CardDescription>
-                               This panel shows the props being passed to the 'maritalStatus' question component. It will only appear in a development environment.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                                {JSON.stringify(maritalStatusQuestionData, null, 2)}
-                            </pre>
-                        </CardContent>
-                    </Card>
-                )}
             </form>
         </Form>
     );

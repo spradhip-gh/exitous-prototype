@@ -948,26 +948,13 @@ export function useUserData() {
             if (!forEndUser || isCompanyActive) {
                 let finalQuestion: Question = {
                     ...masterQ,
-                    ...override, // Apply overrides for label, description, etc.
+                    ...override,
                     isActive: isCompanyActive,
                 };
                 
+                // If company has defined its own options list, use it directly.
                 if (override?.options) {
-                    const masterOptions = new Set(masterQ.options || []);
-                    const overrideOptions = new Set(override.options);
-                    const finalOptions = new Set([...(masterQ.options || [])]);
-
-                    // Add options from override that are not in master
-                    override.options.forEach(opt => finalOptions.add(opt));
-
-                    // Remove options from master that are not in override
-                    masterQ.options?.forEach(opt => {
-                        if (!overrideOptions.has(opt)) {
-                            finalOptions.delete(opt);
-                        }
-                    });
-                    
-                    finalQuestion.options = Array.from(finalOptions);
+                    finalQuestion.options = override.options;
                 }
                 
                 finalQuestions.push(finalQuestion);
@@ -1238,5 +1225,3 @@ export function useUserData() {
         tipMappings: [],
     };
 }
-
-    
