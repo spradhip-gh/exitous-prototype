@@ -9,7 +9,7 @@ import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '../lib/external-resources';
 import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from '@/hooks/use-toast';
-import { addDays } from 'date-fns';
+import { addDays, parse, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
 
 const PROFILE_KEY = 'exitbetter-profile';
@@ -78,6 +78,8 @@ export interface CompanyUser {
   email: string;
   company_user_id: string;
   notification_date?: string;
+  personal_email?: string;
+  phone?: string;
   is_invited?: boolean;
   prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
     preEndDateContactAlias?: string;
@@ -444,8 +446,10 @@ export function useUserData() {
                     if (company.users) {
                         const userIndex = company.users.findIndex(u => u.id === userId);
                         if (userIndex !== -1) {
-                            // This part is incorrect for the schema, but we leave it to fix the main flow first.
-                            // The contact info is in user_profiles.data
+                            newConfigs[companyName].users![userIndex] = {
+                                ...newConfigs[companyName].users![userIndex],
+                                ...contactInfo
+                            };
                         }
                     }
                 }
@@ -455,14 +459,14 @@ export function useUserData() {
     }, []);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
-        if (!auth?.userId || !auth?.companyUserId) return;
+        if (!auth?.userId) return;
         setAssessmentData(data); // Optimistic update
         
         // --- Analytics Logic ---
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
             .select('assessment_completed_at, initial_unsure_answers')
-            .eq('id', auth.companyUserId)
+            .eq('id', auth.userId)
             .single();
 
         if (userError) {
@@ -486,7 +490,7 @@ export function useUserData() {
         }
 
         if (Object.keys(updates).length > 0) {
-            await supabase.from('company_users').update(updates).eq('id', auth.companyUserId);
+            await supabase.from('company_users').update(updates).eq('id', auth.userId);
         }
         // --- End Analytics Logic ---
         
@@ -498,7 +502,7 @@ export function useUserData() {
         if (error) {
             console.error("Error saving assessment:", error);
         }
-    }, [auth?.userId, auth?.companyUserId]);
+    }, [auth?.userId]);
     
      const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions }[] }) => {
         const { data: companyData, error: companyError } = await supabase
