@@ -586,9 +586,7 @@ export default function EditQuestionDialog({
                                     <SelectValue placeholder="Select a default answer..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <DropdownMenuItem onSelect={() => setCurrentQuestion(q => q ? { ...q, defaultValue: undefined } : null)}>
-                                        None
-                                    </DropdownMenuItem>
+                                    <SelectItem value="__none__">None</SelectItem>
                                     <DropdownMenuSeparator />
                                     {currentOptions.map(option => (
                                         <SelectItem key={option} value={option}>{option}</SelectItem>
