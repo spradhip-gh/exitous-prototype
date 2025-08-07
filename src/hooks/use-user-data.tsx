@@ -108,16 +108,11 @@ export interface AnswerGuidance {
 
 export interface ReviewQueueItem {
     id: string;
-    userEmail: string;
-    inputData: any;
-    output: PersonalizedRecommendationsOutput;
+    company_id: string;
+    user_email: string;
+    type: 'custom_question_guidance' | 'question_edit_suggestion';
     status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
-    createdAt: string;
-    reviewedAt?: string;
-    reviewerId?: string;
-    rejection_reason?: string;
-    type: 'custom_question_guidance' | 'question_edit_suggestion' | 'ai_recommendation_audit';
-    change_details?: {
+    change_details: {
         questionId?: string;
         questionLabel?: string;
         reason?: string;
@@ -126,8 +121,16 @@ export interface ReviewQueueItem {
         guidanceOverrides?: Record<string, AnswerGuidance>;
         question?: Question;
         newSectionName?: string;
-    }
+    };
+    rejection_reason?: string;
+    created_at: string;
+    reviewed_at?: string;
+    reviewer_id?: string;
+    // The following are not part of the DB schema but are added for client-side convenience
+    inputData?: any;
+    output?: any;
 }
+
 
 export interface CompanyConfig {
     questions?: Record<string, Partial<Question>>;
@@ -332,7 +335,6 @@ const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profi
     traverse(allQuestions);
     return applicable;
 };
-
 export function useUserData() {
     const { auth } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
@@ -1062,24 +1064,26 @@ export function useUserData() {
 
     }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
 
-    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'createdAt'>) => {
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id' | 'company_id' | 'created_at'>) => {
         const company = companyAssignments.find(c => c.companyName === auth?.companyName);
         if (!company) return;
 
         const newItem = {
-            ...item,
             company_id: company.companyId,
-            user_email: auth?.email,
-            status: 'pending',
-            created_at: new Date().toISOString(),
+            user_email: item.user_email,
+            status: item.status,
+            type: item.type,
+            change_details: item.change_details,
+            rejection_reason: item.rejection_reason,
         };
+
         const { data, error } = await supabase.from('review_queue').insert(newItem).select().single();
         if (error) {
             console.error("Error adding to review queue", error);
         } else if(data) {
             setReviewQueue(prev => [...prev, data as ReviewQueueItem]);
         }
-    }, [auth?.email, auth?.companyName, companyAssignments]);
+    }, [auth?.companyName, companyAssignments]);
 
     return {
         profileData,
