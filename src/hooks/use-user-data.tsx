@@ -86,6 +86,7 @@ export interface CompanyUser {
     postEndDateContactAlias?: string;
   };
   assessment_completed_at?: string;
+  profile_completed_at?: string;
   initial_unsure_answers?: string[];
   all_answers_resolved_at?: string;
 }
@@ -423,6 +424,15 @@ export function useUserData() {
     const saveProfileData = useCallback(async (data: ProfileData) => {
         if (!auth?.userId) return;
         setProfileData(data); // Optimistic update
+        const { error: userError } = await supabase
+            .from('company_users')
+            .update({ profile_completed_at: new Date().toISOString() })
+            .eq('id', auth.userId);
+
+        if (userError) {
+            console.error("Error updating profile completion timestamp:", userError);
+        }
+
         const { error } = await supabase.from('user_profiles').upsert({
             user_id: auth.userId,
             data: convertDatesToStrings(data)
@@ -788,6 +798,38 @@ export function useUserData() {
         }
         return null;
     }, [companyConfigs]);
+    
+     const getProfileCompletion = useCallback(() => {
+        const requiredQuestions = Object.values(masterProfileQuestions).filter(q => q.isActive && !q.parentId);
+        if (requiredQuestions.length === 0) {
+            return { percentage: 100, remaining: 0, isComplete: true };
+        }
+        if (!profileData) {
+            return { percentage: 0, remaining: requiredQuestions.length, isComplete: false };
+        }
+
+        let completedCount = 0;
+        for (const q of requiredQuestions) {
+            const value = (profileData as any)[q.id];
+            if (value !== undefined && value !== null && value !== '') {
+                // For gender, check if self-describe is filled if needed
+                if (q.id === 'gender' && value === 'Prefer to self-describe') {
+                    if ((profileData as any).genderSelfDescribe) {
+                        completedCount++;
+                    }
+                } else {
+                    completedCount++;
+                }
+            }
+        }
+
+        const percentage = (completedCount / requiredQuestions.length) * 100;
+        return {
+            percentage,
+            remaining: requiredQuestions.length - completedCount,
+            isComplete: completedCount === requiredQuestions.length,
+        };
+    }, [profileData, masterProfileQuestions]);
 
 
     return {
@@ -834,7 +876,7 @@ export function useUserData() {
         updateTaskDate: () => {},
         addCustomDeadline: () => {},
         clearData: () => {},
-        getProfileCompletion: () => ({ percentage: 0, sections: [], isComplete: false }),
+        getProfileCompletion,
         getAssessmentCompletion: () => ({ percentage: 0, sections: [], isComplete: false }),
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
         getMappedRecommendations: () => [],

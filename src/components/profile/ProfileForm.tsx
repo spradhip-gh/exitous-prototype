@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -344,16 +345,9 @@ export default function ProfileForm() {
 
     const dynamicSchema = useMemo(() => buildProfileSchema(questions), [questions]);
     
-    const [isLoading, setIsLoading] = useState(true);
     const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth?.email, getCompanyUser]);
 
-    useEffect(() => {
-        if (!isUserDataLoading) {
-            setIsLoading(false);
-        }
-    }, [isUserDataLoading]);
-
-    if (isLoading || !questions || !dynamicSchema) {
+    if (isUserDataLoading || !questions || !dynamicSchema) {
          return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
