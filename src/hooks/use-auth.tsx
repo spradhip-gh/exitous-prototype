@@ -110,8 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .select(`
                 is_primary,
                 permissions,
-                company_id,
-                companies:companies(id, name)
+                companies:company_id(id, name)
             `)
             .eq('hr_email', authData.email);
 
