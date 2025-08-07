@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb, Blocks, LayoutDashboard } from 'lucide-react';
+import { FileText, Users, UserCheck, Wrench, Building, UserCog, ChevronRight, Menu, Download, TriangleAlert, Library, Settings, HelpCircle, BarChart, Handshake, CheckSquare, Briefcase, Users2, ListChecks, Lightbulb, Blocks, LayoutDashboard, Bug } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import Footer from '@/components/common/Footer';
@@ -154,6 +154,12 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                 Help & Guide
             </Button>
            </Link>
+           <Link href="/admin/debug">
+                <Button variant={getVariant('/admin/debug')} className="w-full justify-start text-destructive hover:text-destructive">
+                    <Bug className="mr-2" />
+                    Debug
+                </Button>
+            </Link>
         </>
       )}
       {role === 'hr' && (
