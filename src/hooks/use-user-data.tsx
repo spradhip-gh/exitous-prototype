@@ -125,7 +125,6 @@ export interface ReviewQueueItem {
     created_at: string;
     reviewed_at?: string;
     reviewer_id?: string;
-    // The following are not part of the DB schema but are added for client-side convenience
     input_data: any;
     output_data?: any;
 }
@@ -1071,14 +1070,8 @@ export function useUserData() {
         }
 
         const newItem = {
-            company_id: company.companyId, // Ensure company_id is included
-            user_email: item.user_email,
-            status: item.status,
-            type: item.type,
-            change_details: item.change_details,
-            rejection_reason: item.rejection_reason,
-            input_data: item.input_data,
-            output_data: item.output_data,
+            ...item,
+            company_id: company.companyId,
         };
 
         const { data, error } = await supabase.from('review_queue').insert(newItem).select().single();
@@ -1107,6 +1100,7 @@ export function useUserData() {
         externalResources: [],
         platformUsers,
         reviewQueue,
+        setReviewQueue,
         saveProfileData,
         saveAssessmentData,
         addCompanyAssignment,
@@ -1141,7 +1135,6 @@ export function useUserData() {
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
         addReviewQueueItem,
-        saveReviewQueue: setReviewQueue,
         saveExternalResources: async () => {},
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},

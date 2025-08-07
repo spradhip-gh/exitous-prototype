@@ -7,7 +7,7 @@ import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTr
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ThumbsUp, ThumbsDown, GitBranch, ChevronsUpDown, Info, PlusCircle, Trash2, Pencil, CalendarCheck2, Clock, MessageSquareQuote, FilePenLine, CheckCircle, Circle, Archive, ListChecks, Lightbulb, Check, Ban } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/lib/supabase-client';
 
 function RejectDialog({ open, onOpenChange, onConfirm }: {
     open: boolean;
@@ -142,7 +143,7 @@ export default function ReviewQueuePage() {
     const { auth } = useAuth();
     const { 
         reviewQueue, 
-        saveReviewQueue,
+        setReviewQueue,
         getAllCompanyConfigs,
         saveCompanyConfig,
         masterQuestions,
@@ -172,10 +173,9 @@ export default function ReviewQueuePage() {
     };
 
 
-    const handleStatusChange = (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
+    const handleStatusChange = async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => {
         
         const reviewerId = auth?.email || 'admin';
-        const reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
         const companyName = companyMap.get(item.company_id);
@@ -199,8 +199,7 @@ export default function ReviewQueuePage() {
             
             if (newConfig.customQuestions && newConfig.customQuestions[question.id]) {
                 newConfig.customQuestions[question.id].isActive = false;
-                saveCompanyConfig(companyName, newConfig);
-                toast({ title: `Custom Question Rejected`, description: `Question "${question.label}" has been deactivated for ${companyName}.` });
+                await saveCompanyConfig(companyName, newConfig);
             } else {
                  toast({ title: `Error`, description: `Could not find custom question to deactivate.` });
             }
@@ -213,7 +212,6 @@ export default function ReviewQueuePage() {
             }
 
             if (!newConfig.questions) newConfig.questions = {};
-            if (!newConfig.questions[questionId]) newConfig.questions[questionId] = {};
             
             const allMasterQs = { ...masterQuestions, ...masterProfileQuestions };
             const masterQuestion = allMasterQs[questionId];
@@ -222,8 +220,8 @@ export default function ReviewQueuePage() {
                  return;
             }
             
-            const currentOverride = newConfig.questions[questionId];
-            const currentOptions = currentOverride.options || masterQuestion.options || [];
+            const override = newConfig.questions[questionId] || {};
+            const currentOptions = override.options || masterQuestion.options || [];
             let newOptions = [...currentOptions];
 
             optionsToAdd.forEach((suggestion: { option: string }) => {
@@ -232,18 +230,31 @@ export default function ReviewQueuePage() {
                 }
             });
 
-            newConfig.questions[questionId].options = newOptions;
-
-            saveCompanyConfig(companyName, newConfig);
-            toast({ title: `Suggestion Approved`, description: `Changes have been applied to ${companyName}'s form.` });
-        } else {
-            toast({ title: `Item marked as ${status}` });
+            newConfig.questions[questionId] = { ...override, options: newOptions, lastUpdated: new Date().toISOString() };
+            
+            await saveCompanyConfig(companyName, newConfig);
         }
         
-        const updatedQueue = reviewQueue.map(i =>
-            i.id === item.id ? reviewedItem : i
-        );
-        saveReviewQueue(updatedQueue);
+        // Persist the status change to the database
+        const { data: updatedItem, error } = await supabase
+            .from('review_queue')
+            .update({
+                status,
+                reviewed_at: new Date().toISOString(),
+                reviewer_id: reviewerId,
+                rejection_reason: rejectionReason,
+            })
+            .eq('id', item.id)
+            .select()
+            .single();
+
+        if (error) {
+            toast({ title: 'Database Error', description: 'Could not update the review item status.', variant: 'destructive' });
+            console.error(error);
+        } else {
+            setReviewQueue(prevQueue => prevQueue.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
+            toast({ title: `Item marked as ${status}` });
+        }
     };
     
     const pendingActionItems = reviewQueue.filter(item => item.status === 'pending');
