@@ -13,7 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { addReviewQueueItem, getExternalResources } from '@/lib/demo-data';
+import { supabase } from '@/lib/supabase-client';
 import { stateUnemploymentLinks } from '@/lib/state-resources';
 import { differenceInYears, parseISO } from 'date-fns';
 import { tenureOptions } from '@/lib/guidance-helpers';
@@ -203,9 +203,15 @@ const personalizedRecommendationsFlow = ai.defineFlow(
   },
   async (input, streamingCallback) => {
     
-    // In a real app, this might come from a different source, but for the prototype,
-    // we fetch it from the same demo-data store.
-    const externalResources = getExternalResources();
+    // Fetch external resources from Supabase
+    const { data: externalResources, error: resourceError } = await supabase
+        .from('external_resources')
+        .select('*');
+    
+    if (resourceError) {
+        console.error("Error fetching external resources:", resourceError);
+        throw new Error("Could not retrieve external resources from the database.");
+    }
     
     const maxRetries = 3;
     let attempt = 0;
@@ -216,16 +222,19 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             externalResources,
         });
         
-        // Add the result to the review queue
+        // Add the result to the review queue in Supabase
         if (output) {
-            addReviewQueueItem({
-                id: `review-${input.userEmail}-${Date.now()}`,
-                userEmail: input.userEmail,
-                inputData: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName },
-                output: output,
-                status: 'pending',
-                createdAt: new Date().toISOString(),
+            const { error: reviewError } = await supabase.from('review_queue').insert({
+                user_email: input.userEmail,
+                input_data: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName },
+                output_data: output,
+                status: 'pending'
             });
+
+            if (reviewError) {
+                console.error("Error adding to review queue:", reviewError);
+                // Not throwing an error here as it's not critical for the user flow
+            }
         }
 
         return output!;
