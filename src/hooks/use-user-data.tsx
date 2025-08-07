@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -1130,10 +1129,11 @@ export function useUserData() {
             if (!newConfig.questions) newConfig.questions = {};
             const override = newConfig.questions[questionId] || {};
             
+            // This is the corrected logic.
             if (!override.optionOverrides) {
                 override.optionOverrides = { add: [], remove: [] };
             }
-             delete override.options; // Ensure legacy flat list is removed.
+            delete override.options; // IMPORTANT: Remove the incorrect, legacy 'options' array.
 
             const additions = new Set(override.optionOverrides.add || []);
             optionsToAdd.forEach((o: {option: string}) => additions.add(o.option));
@@ -1141,9 +1141,8 @@ export function useUserData() {
             const removals = new Set(override.optionOverrides.remove || []);
             optionsToRemove.forEach((o: string) => removals.add(o));
             
-            // Apply logic: if an item is in both, adding takes precedence
-            removals.forEach(r => { if(additions.has(r)) additions.delete(r); });
             additions.forEach(a => { if(removals.has(a)) removals.delete(a); });
+            removals.forEach(r => { if(additions.has(r)) additions.delete(r); });
 
             override.optionOverrides.add = Array.from(additions);
             override.optionOverrides.remove = Array.from(removals);
@@ -1258,3 +1257,5 @@ export function useUserData() {
         tipMappings: [],
     };
 }
+
+    
