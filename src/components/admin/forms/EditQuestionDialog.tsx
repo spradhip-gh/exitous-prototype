@@ -328,7 +328,7 @@ export default function EditQuestionDialog({
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
                 input_data: { 
-                    companyName: auth?.companyName,
+                    companyName: auth?.companyName || 'N/A',
                 },
                 change_details: {
                     questionId: currentQuestion.id,
