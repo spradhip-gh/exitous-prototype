@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -275,23 +274,31 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
     
     const orderedSections = useMemo(() => {
         const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig('profile');
+        const sectionOrder = masterConfig?.section_order || [];
+
+        // Add any custom sections not in the master order to the end
+        const masterSectionSet = new Set(sectionOrder);
         questions.forEach(q => {
-            if (!q.isActive) return;
-            if (q.parentId) return;
+            if (q.section && !masterSectionSet.has(q.section)) {
+                sectionOrder.push(q.section);
+                masterSectionSet.add(q.section);
+            }
+        });
+        
+        questions.forEach(q => {
+            if (!q.isActive || q.parentId) return;
             const sectionName = q.section || "Uncategorized";
             if (!sectionsMap[sectionName]) {
                 sectionsMap[sectionName] = [];
             }
             sectionsMap[sectionName].push(q);
         });
-
-        const masterConfig = getMasterQuestionConfig('profile');
-        const sectionOrder = masterConfig?.section_order || Object.keys(sectionsMap);
         
         return sectionOrder
             .map(sectionName => ({
                 name: sectionName,
-                questions: sectionsMap[sectionName]
+                questions: sectionsMap[sectionName]?.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
             }))
             .filter(section => section.questions && section.questions.length > 0);
 
@@ -331,7 +338,10 @@ export default function ProfileForm() {
     const { masterProfileQuestions, profileData, isUserDataLoading, getCompanyUser } = useUserData();
     const { auth } = useAuth();
     
-    const questions = useMemo(() => buildQuestionTreeFromMap(masterProfileQuestions), [masterProfileQuestions]);
+    const questions = useMemo(() => {
+        return buildQuestionTreeFromMap(masterProfileQuestions).filter(q => q.isActive);
+    }, [masterProfileQuestions]);
+
     const dynamicSchema = useMemo(() => buildProfileSchema(questions), [questions]);
     
     const [isLoading, setIsLoading] = useState(true);
