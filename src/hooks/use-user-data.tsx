@@ -774,14 +774,16 @@ export function useUserData() {
         return buildQuestionTreeFromMap(finalQuestions);
     }, [companyConfigs, masterQuestions, masterProfileQuestions]);
     
-    const getCompanyUser = useCallback((email: string): { companyName: string, user: CompanyUser } | null => {
-        for (const companyName in companyConfigs) {
-            const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
-            if (user) {
-                return { companyName, user };
+    const getCompanyUser = useMemo(() => {
+        return (email: string): { companyName: string, user: CompanyUser } | null => {
+            for (const companyName in companyConfigs) {
+                const user = companyConfigs[companyName]?.users?.find(u => u.email.toLowerCase() === email.toLowerCase());
+                if (user) {
+                    return { companyName, user };
+                }
             }
+            return null;
         }
-        return null;
     }, [companyConfigs]);
 
 
