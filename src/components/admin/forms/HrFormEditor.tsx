@@ -462,7 +462,7 @@ function QuestionEditor({
             let finalQuestion: Question = {
                 ...questionToSave,
                 lastUpdated: new Date().toISOString(),
-                formType: questionToSave.formType || questionType, // Ensure formType is set
+                formType: questionType, // Ensure formType is always set
             } as Question;
     
             if (isNewCustom) {
