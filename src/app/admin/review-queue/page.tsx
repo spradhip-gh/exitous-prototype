@@ -174,7 +174,7 @@ export default function ReviewQueuePage() {
         let reviewedItem: ReviewQueueItem = { ...item, status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason };
         
         const allConfigs = getAllCompanyConfigs();
-        const companyName = item.inputData?.companyName;
+        const companyName = item.input_data?.companyName;
 
         if (!companyName) {
             toast({ title: 'Error processing action', description: 'Company name is missing from the review item.', variant: 'destructive' });
@@ -314,7 +314,7 @@ export default function ReviewQueuePage() {
                                             return (
                                                 <TableRow key={item.id}>
                                                     <TableCell>{item.user_email}</TableCell>
-                                                    <TableCell>{item.inputData.companyName || 'N/A'}</TableCell>
+                                                    <TableCell>{item.input_data.companyName || 'N/A'}</TableCell>
                                                     <TableCell>{format(parseISO(item.created_at), 'PPP')}</TableCell>
                                                     <TableCell>
                                                         {getStatusBadge()}
@@ -354,7 +354,7 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
     const [isInputOpen, setIsInputOpen] = useState(false);
     
     if (item.type === 'question_edit_suggestion') {
-        const { companyName } = item.inputData;
+        const { companyName } = item.input_data || {};
         const { questionLabel, optionsToAdd, optionsToRemove, reason } = item.change_details || {};
 
         return (
@@ -412,7 +412,7 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
     }
 
     if (item.type === 'custom_question_guidance') {
-        const { companyName } = item.inputData;
+        const { companyName } = item.input_data || {};
         const { question, newSectionName } = item.change_details || {};
         if (!question) return null;
 
@@ -492,7 +492,7 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle className="text-base">AI Recommendation for: {item.user_email}</CardTitle>
-                        <CardDescription className="text-xs">For Company: {item.inputData.companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}</CardDescription>
+                        <CardDescription className="text-xs">For Company: {item.input_data?.companyName || 'N/A'} | Generated: {format(parseISO(item.created_at), 'Pp')}</CardDescription>
                     </div>
                     <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -503,13 +503,13 @@ function ReviewItemCard({ item, onStatusChange, onRejectClick, masterTasks, mast
                 <CollapsibleContent>
                     <div className="px-6 pb-4">
                         <pre className="text-xs bg-background p-4 rounded-md overflow-x-auto max-h-60">
-                            {JSON.stringify(item.inputData, null, 2)}
+                            {JSON.stringify(item.input_data, null, 2)}
                         </pre>
                     </div>
                 </CollapsibleContent>
             </Collapsible>
             <CardContent className="space-y-2">
-                {item.output?.recommendations?.map((rec, index) => (
+                {item.output_data?.recommendations?.map((rec: any, index: number) => (
                     <div key={index} className="p-3 border rounded-md bg-background">
                         <div className="flex justify-between items-center">
                              <p className="font-semibold">{rec.task}</p>
