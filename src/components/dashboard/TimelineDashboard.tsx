@@ -226,7 +226,10 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         const result = await getPersonalizedRecommendations({
           userEmail: auth.email,
           companyName: auth.companyName,
-          profileData: transformedProfileData,
+          profileData: {
+            gender: 'Prefer not to say', // Add a default for gender
+            ...transformedProfileData,
+          },
           layoffDetails: stringifiedAssessmentData,
         });
         saveRecommendations(result);

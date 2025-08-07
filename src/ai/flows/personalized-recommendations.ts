@@ -22,7 +22,7 @@ import type { GuidanceRule } from '@/hooks/use-user-data';
 const ProfileDataSchema = z.object({
   birthYear: z.number().describe("The user's birth year."),
   state: z.string().describe('The state the user lives in.'),
-  gender: z.string().describe('The gender the user identifies with.'),
+  gender: z.string().optional().describe('The gender the user identifies with.'),
   maritalStatus: z.string().describe("The user's marital status."),
   hasChildrenUnder13: z.boolean().describe('Whether the user has children under 13.'),
   hasExpectedChildren: z.boolean().describe('Whether the user has expected children.'),
