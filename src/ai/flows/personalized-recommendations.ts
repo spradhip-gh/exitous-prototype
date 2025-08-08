@@ -132,25 +132,26 @@ Your task is to generate two lists:
 2.  **Tips:** A list of relevant "Did you know..." style tips. These should be short, insightful pieces of advice that correspond to the user's situation.
 
 **CRITICAL INSTRUCTIONS FOR RECOMMENDATIONS (TASKS):**
-1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Do not guess or provide unverified guidance. Your recommendations should be based only on the data provided.
-2.  **Use Pre-defined Task IDs for Resources:** You have been provided with a list of external professional resources and their corresponding \`Related Task IDs\`. When you generate a recommendation that matches the purpose of a resource, you MUST use one of the exact \`taskId\`s from that resource's list. This is critical for connecting the user to the right professional. For example, if you advise reviewing a severance agreement, you MUST use the taskId \`review-severance-agreement\`.
-3.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
-4.  **Consolidate Healthcare Deadlines:** Create a single, primary recommendation with the taskId 'explore-health-insurance' to cover all lost health benefits (medical, dental, vision).
+1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Your recommendations should be based only on the data provided. Do not guess or provide unverified guidance.
+2.  **Use Pre-defined Task IDs for Resources:** You have been provided with a list of external professional resources and their corresponding \`relatedTaskIds\`. When you generate a recommendation that matches the purpose of a resource, you MUST use one of the exact \`taskId\`s from that resource's list. This is critical for connecting the user to the right professional. For example, if you advise reviewing a severance agreement, you MUST use the taskId \`review-severance-agreement\`.
+3.  **Prioritize Mapped Tasks:** The user's answers to specific questions might trigger pre-defined tasks. You must prioritize including these mapped tasks in your recommendations.
+4.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
+5.  **Consolidate Healthcare Deadlines:** Create a single, primary recommendation with the taskId 'explore-health-insurance' to cover all lost health benefits (medical, dental, vision).
     *   The details of this task MUST list out each specific coverage end date. For example: "Your medical coverage ends on YYYY-MM-DD, and your dental ends on YYYY-MM-DD. It is critical to explore new options like COBRA or ACA Marketplace plans before these dates to avoid a gap in coverage."
     *   The \`endDate\` for this consolidated task should be the EARLIEST of all the user's health-related coverage end dates.
-5.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline MUST be for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
-6.  **Comprehensive Categories:** Provide a thorough and comprehensive set of recommendations across all relevant categories: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, exploring COBRA, and networking. Do not limit the number of recommendations; be exhaustive and helpful.
-7.  **Create a unique \`taskId\`**: For tasks that do not have a pre-defined ID from the resource list, create a new, unique, descriptive, kebab-case taskId (e.g., \`backup-work-files\`, \`check-pto-payout\`).
-8.  **Set \`timeline\` and \`isGoal\`**:
+6.  **Accurate Unemployment Timing**: The recommendation to apply for unemployment benefits is critical. You MUST check the user's \`finalDate\`. The recommendation's timeline MUST be for *after* this date. For example, if the final day is August 18th, suggest applying "On or after August 19th". Do not give a generic timeline like "Within 3 days" for this task if the final day is in the future.
+7.  **Comprehensive Categories:** Provide a thorough and comprehensive set of recommendations across all relevant categories: Legal, Healthcare, Finances, Career, and Well-being. For example, include tasks like creating a budget, updating a resume, exploring COBRA, and networking. Do not limit the number of recommendations; be exhaustive and helpful.
+8.  **Create a unique \`taskId\`**: For tasks that do not have a pre-defined ID from the resource list, create a new, unique, descriptive, kebab-case taskId (e.g., \`backup-work-files\`, \`check-pto-payout\`).
+9.  **Set \`timeline\` and \`isGoal\`**:
     *   For hard deadlines provided by the user (like \`severanceAgreementDeadline\` or \`medicalCoverageEndDate\`), set the \`timeline\` to "Upcoming Deadline" or "Action Required", and set \`isGoal\` to \`false\`. The \`endDate\` field MUST be populated.
     *   For flexible recommendations (like "Update your resume"), use a timeline like "Within 1 week" or "Within 2 weeks", and set \`isGoal\` to \`true\`. Do not set an \`endDate\` for these.
-9.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
-10. **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
+10. **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
+11. **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
 
 **CRITICAL INSTRUCTIONS FOR TIPS:**
 1.  **Select Relevant Tips from Master List:** Your primary goal for tips is to select the most relevant ones from the "AVAILABLE TIPS" list based on the user's data. Select 3-5 tips.
 2.  **Use Exact Data:** For each tip you select, you MUST use its exact \`tipId\`, \`text\`, \`category\`, and \`priority\` from the provided list.
-3.  **Do Not Create New Tips:** It is critical that you DO NOT generate new, original tips. Only select from the provided "AVAILABLE TIPS" list.
+3.  **Do Not Create New Tips:** It is critical that you DO NOT generate new, original tips. Only select from the provided "AVAILABLE TIPS" list. Your role is to select, not create.
 
 **AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
 ---
