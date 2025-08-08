@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,7 +14,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse, isValid } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
@@ -335,7 +333,6 @@ export default function HrUserManagement() {
             toast({ title: "No users to export", variant: "destructive" });
             return;
         }
-        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const dataToExport = users.map(user => ({
             email: user.email,
             companyId: user.company_user_id,
@@ -351,14 +348,11 @@ export default function HrUserManagement() {
             preEndDateContactAlias: user.prefilled_assessment_data?.preEndDateContactAlias || '',
             postEndDateContactAlias: user.prefilled_assessment_data?.postEndDateContactAlias || '',
         }));
-        const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `${companyName}_user_export.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+        XLSX.writeFile(workbook, `${companyName}_user_export.xlsx`);
     }, [users, toast, companyName]);
     
     const requestSort = useCallback((key: SortConfig['key']) => {
@@ -418,8 +412,8 @@ export default function HrUserManagement() {
                          <fieldset disabled={!canUpload}>
                             <div className="space-y-2">
                                 <Label>Bulk Upload User Data</Label>
-                                <p className="text-sm text-muted-foreground">Upload an Excel or CSV file. This will add new users or update existing, non-invited users.</p>
-                                <input type="file" accept=".csv,.tsv,.txt,.xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                <p className="text-sm text-muted-foreground">Upload an Excel file. This will add new users or update existing, non-invited users.</p>
+                                <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                                 <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload File</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
                             </div>
                         </fieldset>

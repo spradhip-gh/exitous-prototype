@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Download } from 'lucide-react';
 import { format, parse, isPast } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 
 interface ExportableUser {
@@ -45,7 +46,7 @@ export default function ExportUsersPage() {
     // 2. Add HR Managers
     companyAssignments.forEach(assignment => {
       users.push({
-        email: assignment.hrManagerEmail,
+        email: assignment.hrManagers[0]?.email,
         role: 'HR Manager',
         company: assignment.companyName,
         companyId: 'N/A',
@@ -71,9 +72,8 @@ export default function ExportUsersPage() {
             email: user.email,
             role: 'End-User',
             company: companyName,
-            companyId: user.companyId,
-            notificationDate: notificationDateDisplay,
-            notified: user.notified ? 'Invited' : 'Pending',
+            companyId: user.company_user_id,
+            notified: user.is_invited ? 'Invited' : 'Pending',
             profileStatus: profileCompletions[user.email] ? 'Completed' : 'Pending',
             assessmentStatus: assessmentCompletions[user.email] ? 'Completed' : 'Pending',
           });
@@ -92,59 +92,21 @@ export default function ExportUsersPage() {
 
   }, [platformUsers, companyAssignments, getAllCompanyConfigs, profileCompletions, assessmentCompletions]);
 
-  const handleExportCSV = () => {
-    const headers = ['Email Address', 'Role', 'Company', 'Company ID', 'Notification Date', 'Invitation Status', 'Profile Status', 'Assessment Status'];
-    
-    // Re-fetch and format data specifically for CSV export
-    const allCompanyConfigs = getAllCompanyConfigs();
-    const endUsersForCsv = Object.entries(allCompanyConfigs).flatMap(([companyName, config]) => 
-        config.users?.map(user => ({
-            email: user.email,
-            role: 'End-User',
-            company: companyName,
-            companyId: user.companyId,
-            notificationDate: user.notificationDate ? format(parse(user.notificationDate, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A',
-            notified: user.notified ? 'Invited' : 'Pending',
-            profileStatus: profileCompletions[user.email] ? 'Completed' : 'Pending',
-            assessmentStatus: assessmentCompletions[user.email] ? 'Completed' : 'Pending',
-        })) || []
-    );
+  const handleExport = () => {
+    const dataToExport = allUsers.map(user => ({
+      'Email Address': user.email,
+      'Role': user.role,
+      'Company': user.company,
+      'Company ID': user.companyId || 'N/A',
+      'Invitation Status': user.notified || 'N/A',
+      'Profile Status': user.profileStatus || 'N/A',
+      'Assessment Status': user.assessmentStatus || 'N/A',
+    }));
 
-    const dataToExport = allUsers.map(user => {
-        if(user.role === 'End-User') {
-            return endUsersForCsv.find(u => u.email === user.email);
-        }
-        return user;
-    }).filter(Boolean);
-
-
-    const csvRows = [
-      headers.join(','),
-      ...dataToExport.map(user => 
-        [
-          `"${user.email}"`,
-          `"${user.role}"`,
-          `"${user.company}"`,
-          `"${user.companyId || 'N/A'}"`,
-          `"${user.notificationDate || 'N/A'}"`,
-          `"${user.notified || 'N/A'}"`,
-          `"${user.profileStatus || 'N/A'}"`,
-          `"${user.assessmentStatus || 'N/A'}"`,
-        ].join(',')
-      )
-    ];
-    
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'exitbetter_user_export.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Users");
+    XLSX.writeFile(workbook, "exitbetter_all_users_export.xlsx");
   };
 
   const getStatusBadge = (status: string | undefined) => {
@@ -170,9 +132,9 @@ export default function ExportUsersPage() {
                     View and export a list of all users across the platform.
                 </p>
             </div>
-            <Button onClick={handleExportCSV}>
+            <Button onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" />
-                Export as CSV
+                Export as Excel
             </Button>
         </div>
 

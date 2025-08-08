@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Pencil, Download, Upload, Replace, Archive, ArchiveRestore } from 'lucide-react';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import TipForm from '@/components/admin/tips/TipForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,68 +65,71 @@ export default function TipsManagementPage() {
     
     const handleDownloadTemplate = useCallback(() => {
         const headers = ["id", "type", "priority", "category", "text"];
-        const sampleRow = ["sample-tip-1", "layoff", "Medium", "Financial", "You can rollover your 401k to an IRA."];
-        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', 'tips_template.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const sampleData = [{
+            id: "sample-tip-1",
+            type: "layoff",
+            priority: "Medium",
+            category: "Financial",
+            text: "You can rollover your 401k to an IRA."
+        }];
+        const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Tips");
+        XLSX.writeFile(workbook, "tips_template.xlsx");
     }, []);
     
     const processCsvFile = useCallback((file: File, replace: boolean) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const requiredHeaders = ["id", "text", "category", "priority", "type"];
-                const fileHeaders = results.meta.fields?.map(h => h.toLowerCase().replace(/\s/g, '')) || [];
-                if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
-                    toast({ title: "Invalid CSV format", description: `CSV must include columns: ${requiredHeaders.join(', ')}`, variant: "destructive" });
-                    return;
-                }
-                
-                let updatedCount = 0;
-                let addedCount = 0;
-                let newMasterTips = replace ? [] : [...(masterTips || [])];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const results = XLSX.utils.sheet_to_json(worksheet);
 
-                results.data.forEach((row: any) => {
-                    const id = row.id?.trim();
-                    if (!id || !row.text) return;
-
-                    const tip: MasterTip = {
-                        id,
-                        text: row.text,
-                        category: ['Financial', 'Career', 'Health', 'Basics'].includes(row.category) ? row.category : 'Basics',
-                        priority: ['High', 'Medium', 'Low'].includes(row.priority) ? row.priority : 'Medium',
-                        type: ['layoff', 'anxious'].includes(row.type) ? row.type : 'layoff',
-                        isCompanySpecific: false,
-                        isActive: true, // Default to active
-                    };
-                    
-                    const existingIndex = newMasterTips.findIndex(t => t.id === id);
-                    if (existingIndex !== -1) {
-                        newMasterTips[existingIndex] = tip;
-                        updatedCount++;
-                    } else {
-                        newMasterTips.push(tip);
-                        addedCount++;
-                    }
-                });
-
-                saveMasterTips(newMasterTips);
-                if (replace) {
-                    toast({ title: "Upload Complete", description: `Tip list replaced with ${addedCount} tips from the file.` });
-                } else {
-                    toast({ title: "Upload Complete", description: `${addedCount} tips added, ${updatedCount} tips updated.` });
-                }
-            },
-            error: (error) => {
-                toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+            const requiredHeaders = ["id", "text", "category", "priority", "type"];
+            const fileHeaders = Object.keys(results[0] as object).map(h => h.toLowerCase().replace(/\s/g, '')) || [];
+            if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
+                toast({ title: "Invalid Excel format", description: `Excel must include columns: ${requiredHeaders.join(', ')}`, variant: "destructive" });
+                return;
             }
-        });
+            
+            let updatedCount = 0;
+            let addedCount = 0;
+            let newMasterTips = replace ? [] : [...(masterTips || [])];
+
+            results.forEach((row: any) => {
+                const id = row.id?.trim();
+                if (!id || !row.text) return;
+
+                const tip: MasterTip = {
+                    id,
+                    text: row.text,
+                    category: ['Financial', 'Career', 'Health', 'Basics'].includes(row.category) ? row.category : 'Basics',
+                    priority: ['High', 'Medium', 'Low'].includes(row.priority) ? row.priority : 'Medium',
+                    type: ['layoff', 'anxious'].includes(row.type) ? row.type : 'layoff',
+                    isCompanySpecific: false,
+                    isActive: true, // Default to active
+                };
+                
+                const existingIndex = newMasterTips.findIndex(t => t.id === id);
+                if (existingIndex !== -1) {
+                    newMasterTips[existingIndex] = tip;
+                    updatedCount++;
+                } else {
+                    newMasterTips.push(tip);
+                    addedCount++;
+                }
+            });
+
+            saveMasterTips(newMasterTips);
+            if (replace) {
+                toast({ title: "Upload Complete", description: `Tip list replaced with ${addedCount} tips from the file.` });
+            } else {
+                toast({ title: "Upload Complete", description: `${addedCount} tips added, ${updatedCount} tips updated.` });
+            }
+        };
+        reader.readAsBinaryString(file);
     }, [masterTips, saveMasterTips, toast]);
 
 
@@ -197,18 +201,18 @@ export default function TipsManagementPage() {
                             <CardContent>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
-                                    <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                                    <input type="file" accept=".csv,.xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with Excel</Button>
+                                    <input type="file" accept=".csv,.xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via Excel</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This action will completely delete all current master tips and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                                    This action will completely delete all current master tips and replace them with the content of your uploaded Excel file. This cannot be undone.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
