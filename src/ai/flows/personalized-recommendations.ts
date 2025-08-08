@@ -9,10 +9,11 @@
  * - PersonalizedRecommendationsInput - The input type for the getPersonalizedRecommendations function.
  * - PersonalizedRecommendationsOutput - The return type for the getPersonalizedRecommendations function.
  * - RecommendationItem - The type for a single recommendation item.
+ * - TipItem - The type for a single tip item.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import { supabase } from '@/lib/supabase-client';
 import { stateUnemploymentLinks } from '@/lib/state-resources';
 import { differenceInYears, parseISO } from 'date-fns';
@@ -94,14 +95,25 @@ const RecommendationItemSchema = z.object({
   isGoal: z.boolean().optional().describe("Set to true if this is a flexible goal (like 'Within 2 weeks'), false if it is a hard deadline."),
   isCompanySpecific: z.boolean().optional().describe("Set to true if this task is from a company-specific rule or custom question."),
 });
-
-
 export type RecommendationItem = z.infer<typeof RecommendationItemSchema>;
+
+const TipItemSchema = z.object({
+    tipId: z.string().describe("A unique, kebab-case identifier for the tip (e.g., 'check-401k-rollover')."),
+    text: z.string().describe('The "Did you know..." style tip text.'),
+    category: z.string().describe('The category of the tip (e.g., "Healthcare", "Finances", "Career", "Legal", "Well-being").'),
+    priority: z.string().describe("The priority of the tip ('High', 'Medium', 'Low')."),
+    isCompanySpecific: z.boolean().optional().describe("Set to true if this tip is from a company-specific rule or custom question."),
+});
+export type TipItem = z.infer<typeof TipItemSchema>;
+
 
 const PersonalizedRecommendationsOutputSchema = z.object({
   recommendations: z
     .array(RecommendationItemSchema)
     .describe('A structured list of personalized recommendations. Each recommendation should have a task, category, timeline, and details.'),
+  tips: z
+    .array(TipItemSchema)
+    .describe('A list of helpful, contextual "Did you know..." tips for the user.'),
 });
 
 
@@ -113,11 +125,13 @@ const prompt = ai.definePrompt({
     name: 'personalizedRecommendationsPrompt',
     input: { schema: PersonalizedRecommendationsInputSchema },
     output: { schema: PersonalizedRecommendationsOutputSchema },
-    prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations for an individual navigating a job exit.
+    prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations and helpful tips for an individual navigating a job exit.
 
-Your task is to generate a comprehensive list of actionable recommendations based on ALL of the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
+Your task is to generate two lists:
+1.  **Recommendations:** A comprehensive list of actionable recommendations based on ALL of the user's profile and layoff details. This must include time-sensitive legal and healthcare tasks, as well as crucial financial, career, and well-being steps.
+2.  **Tips:** A list of relevant "Did you know..." style tips. These should be short, insightful pieces of advice that correspond to the user's situation.
 
-**CRITICAL INSTRUCTIONS:**
+**CRITICAL INSTRUCTIONS FOR RECOMMENDATIONS (TASKS):**
 1.  **Empathy and Accuracy First:** Always frame your advice with empathy and support. Acknowledge that this is a difficult time. Kindness and accuracy are paramount. Do not guess or provide unverified guidance. Your recommendations should be based only on the data provided.
 2.  **Use Pre-defined Task IDs for Resources:** You have been provided with a list of external professional resources and their corresponding \`Related Task IDs\`. When you generate a recommendation that matches the purpose of a resource, you MUST use one of the exact \`taskId\`s from that resource's list. This is critical for connecting the user to the right professional. For example, if you advise reviewing a severance agreement, you MUST use the taskId \`review-severance-agreement\`.
 3.  **Severance Agreement:** If a \`severanceAgreementDeadline\` is provided, you MUST create a recommendation with the taskId 'review-severance-agreement'. The task should be to "Review and sign your severance agreement" and the details MUST emphasize the importance of legal review before signing.
@@ -133,6 +147,11 @@ Your task is to generate a comprehensive list of actionable recommendations base
 9.  **Sort by Urgency**: The final list of all recommendations must be sorted chronologically by urgency, with the most critical and time-sensitive tasks first.
 10. **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
 
+**CRITICAL INSTRUCTIONS FOR TIPS:**
+1.  **Generate Relevant Tips:** Based on the user's data, select or generate 3-5 relevant "Did you know..." style tips.
+2.  **Use Master List:** Prioritize using tips from the "AVAILABLE TIPS" list provided below if they are a good match for the user's situation. Use their exact `tipId`, `text`, `category`, and `priority`.
+3.  **Be Creative but Factual:** If no master tips are a good fit, you can generate new, original tips. Ensure they are factual, helpful, and empathetic. For any new tip you create, generate a new unique `tipId` in kebab-case.
+
 **AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
 ---
 {{#each externalResources}}
@@ -141,6 +160,17 @@ Description: {{this.description}}
 Related Task IDs: {{#each this.relatedTaskIds}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 ---
 {{/each}}
+
+**AVAILABLE TIPS (Use their data for your output):**
+---
+{{#each masterTips}}
+Tip ID: {{this.id}}
+Text: {{this.text}}
+Category: {{this.category}}
+Priority: {{this.priority}}
+---
+{{/each}}
+
 
 **FULL USER PROFILE:**
 - Birth Year: {{{profileData.birthYear}}}
@@ -214,6 +244,17 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         throw new Error("Could not retrieve external resources from the database.");
     }
     
+     // Fetch master tips from Supabase
+    const { data: masterTips, error: tipsError } = await supabase
+        .from('master_tips')
+        .select('*')
+        .eq('isActive', true);
+    
+    if (tipsError) {
+        console.error("Error fetching master tips:", tipsError);
+        throw new Error("Could not retrieve master tips from the database.");
+    }
+
     const maxRetries = 3;
     let attempt = 0;
     while (attempt < maxRetries) {
@@ -221,12 +262,14 @@ const personalizedRecommendationsFlow = ai.defineFlow(
         const { output } = await prompt({
             ...input,
             externalResources,
+            masterTips,
         });
         
         // Add the result to the review queue in Supabase
         if (output) {
             const { error: reviewError } = await supabase.from('review_queue').insert({
                 user_email: input.userEmail,
+                type: 'ai_recommendation_audit',
                 input_data: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName },
                 output_data: output,
                 status: 'pending'
