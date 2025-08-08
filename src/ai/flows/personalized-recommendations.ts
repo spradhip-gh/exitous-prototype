@@ -265,22 +265,6 @@ const personalizedRecommendationsFlow = ai.defineFlow(
             externalResources,
             masterTips,
         });
-        
-        // Add the result to the review queue in Supabase
-        if (output) {
-            const { error: reviewError } = await supabase.from('review_queue').insert({
-                user_email: input.userEmail,
-                type: 'ai_recommendation_audit',
-                input_data: { profileData: input.profileData, layoffDetails: input.layoffDetails, companyName: input.companyName },
-                output_data: output,
-                status: 'pending'
-            });
-
-            if (reviewError) {
-                console.error("Error adding to review queue:", reviewError);
-                // Not throwing an error here as it's not critical for the user flow
-            }
-        }
 
         return output!;
       } catch (error: any) {
