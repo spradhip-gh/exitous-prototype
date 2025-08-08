@@ -1,3 +1,4 @@
+
 # New Features & User Stories (Since July 14, 2025)
 
 This document provides a consolidated overview of the latest features and user stories that have been added to the ExitBetter platform.
@@ -16,6 +17,9 @@ We've focused on making the dashboard more intuitive and the overall experience 
 
 *   **Feature: Enhanced & Empathetic Language**
     *   **Description:** We've updated the platform's language to be more inclusive. Terms like "Pre/Post-Layoff" have been changed to **Pre/Post-End Date** to better reflect all types of employment separations.
+
+*   **Feature: Personalized Resource Matching**
+    *   **User Story:** As an End-User, I want to see a list of external professional resources (like financial advisors or career coaches) that are automatically matched to my specific needs based on my profile and assessment answers.
 
 ---
 
@@ -56,3 +60,6 @@ Admins now have advanced tools to manage the platform's core content and create 
 
 *   **Feature: Inline Content Creation**
     *   **Description:** The workflow for mapping content has been streamlined. From the "Map Tasks" or "Map Tips" dialog in the form editor, Admins can now create a new task or tip on the fly without navigating to a different page.
+
+*   **Feature: Comprehensive Analytics**
+    *   **User Story:** As a Platform Admin, I want to view analytics on the most common "Unsure" answers across all companies so that I can identify areas where our questions or guidance can be improved.

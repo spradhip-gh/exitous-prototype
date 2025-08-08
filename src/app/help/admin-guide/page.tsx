@@ -39,10 +39,11 @@ export default function AdminGuidePage() {
                         As an Admin, you control the "source of truth" for all default content on the platform.
                     </p>
                     <h3>Master Form Editor</h3>
-                    <p>This is the heart of the platform's assessment tool. The editor is tabbed for easier navigation between "Profile Questions," "Assessment Questions," and "Guidance Rules."</p>
+                    <p>This is the heart of the platform's assessment tool. The editor is tabbed for easier navigation between "Profile Questions," "Assessment Questions," "Guidance Rules," and "Archived" items.</p>
                     <ul>
                         <li><strong>Editing Questions:</strong> You can modify the text, type, and options of any question in the master list. Be aware that these changes will be flagged to HR Managers who may have overridden that question, prompting them to review and accept the update.</li>
                         <li><strong>Adding Questions:</strong> New questions added here will become available to all companies. They can then choose to enable or disable them in their own form editor.</li>
+                        <li><strong>Archiving & Deleting:</strong> You can archive questions to hide them from the form editor or permanently delete them from the "Archived" tab.</li>
                         <li><strong>Guidance Rules:</strong> This powerful editor allows you to create deterministic rules that assign specific tasks or tips when certain conditions are met (e.g., if a user's tenure is over 10 years, assign the "401k Review" task).</li>
                     </ul>
                      <h3>Task & Tip Management</h3>

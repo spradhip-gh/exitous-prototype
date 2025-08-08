@@ -289,3 +289,4 @@ A log of content changes submitted by HR for Admin review.
 | `created_at`       | `TIMESTAMPTZ`| Timestamp of when the item was submitted.                                                         |
 | `reviewed_at`      | `TIMESTAMPTZ`| Timestamp of when the review occurred.                                                              |
 | `reviewer_id`      | `UUID`    | **Foreign Key** to `platform_users.id`. The Admin/Consultant who reviewed it.                       |
+

@@ -1,3 +1,4 @@
+
 # ExitBetter: Review Queue & Approval Logic
 
 This document outlines the logic for the Admin/Consultant review queue, detailing which actions by an HR Manager trigger a review and what the expected outcomes are. This serves as the blueprint for the platform's content governance and quality control.
@@ -31,6 +32,7 @@ This workflow applies when an HR Manager creates new, company-specific content. 
 | Trigger                            | Action by HR Manager                                                             | Item Sent to Queue (`review_queue`)                                                                                                        | Admin Action: **Mark as Reviewed**                                                                                        | Admin Action: **Reject**                                                                                                                                                                                           |
 | ---------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Creating a New Custom Question** | Adds a completely new question (with its own answers and guidance) to the form.  | A `custom_question_guidance` item is created containing the full `Question` object. The status is `pending`. The question is **live** on the company's form. | The item is marked `reviewed`, indicating the Admin has seen and acknowledged the custom content. No changes are made. The question remains active. | An Admin can provide a `rejection_reason`. The item status is marked `rejected`. The `isActive` flag on the custom question in `company_question_configs` is set to `false`. The question is now hidden from users. |
+| **Auditing AI Recommendations** | (System Action) The AI agent generates a personalized plan for a user. | An `ai_recommendation_audit` item is created with the user's (anonymized) input data and the AI's generated output. | The item is marked `reviewed`, indicating a consultant has audited the AI's performance for quality assurance. | (Not Applicable) This is for auditing only. |
 
 ---
 
@@ -38,4 +40,4 @@ This workflow applies when an HR Manager creates new, company-specific content. 
 
 -   `question_edit_suggestion`: An HR's proposal to change the options or guidance of a locked master question. **Requires Admin approval to become active.**
 -   `custom_question_guidance`: A notification that an HR manager has created a new, company-specific question. **Active immediately, but can be rejected and deactivated by an Admin.**
--   `ai_recommendation_audit`: (Future feature) A sample of AI-generated recommendations for a real (anonymized) user for consultant review and quality control.
+-   `ai_recommendation_audit`: A sample of AI-generated recommendations for a real (anonymized) user for consultant review and quality control.
