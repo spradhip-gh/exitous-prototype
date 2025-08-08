@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -300,7 +299,21 @@ export default function HrUserManagement() {
         ];
         
         const templateHeaders = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
-        const templateSampleRow = ["user@company.com", "EMP123", "2025-12-31", "user@personal.com", "2026-01-31", "2026-02-15", "", "", "", "", "Your HR Business Partner", "alumni-support@company.com"];
+        const templateSampleRow = {
+            email: "user@company.com",
+            companyId: "EMP123",
+            notificationDate: "2025-12-31",
+            personalEmail: "user@personal.com",
+            finalDate: "2026-01-31",
+            severanceAgreementDeadline: "2026-02-15",
+            medicalCoverageEndDate: "",
+            dentalCoverageEndDate: "",
+            visionCoverageEndDate: "",
+            eapCoverageEndDate: "",
+            preEndDateContactAlias: "Your HR Business Partner",
+            postEndDateContactAlias: "alumni-support@company.com"
+        };
+
 
         const wb = XLSX.utils.book_new();
         const instructionsSheet = XLSX.utils.json_to_sheet(instructionsData);
