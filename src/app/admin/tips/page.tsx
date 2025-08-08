@@ -78,7 +78,7 @@ export default function TipsManagementPage() {
         XLSX.writeFile(workbook, "tips_template.xlsx");
     }, []);
     
-    const processCsvFile = useCallback((file: File, replace: boolean) => {
+    const processExcelFile = useCallback((file: File, replace: boolean) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const data = e.target?.result;
@@ -136,16 +136,16 @@ export default function TipsManagementPage() {
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        processCsvFile(file, false);
+        processExcelFile(file, false);
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [processCsvFile]);
+    }, [processExcelFile]);
     
     const handleReplaceUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        processCsvFile(file, true);
+        processExcelFile(file, true);
         if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
-    }, [processCsvFile]);
+    }, [processExcelFile]);
     
     const handleArchiveToggle = (tip: MasterTip) => {
         const updatedTip = { ...tip, isActive: !tip.isActive };
@@ -201,9 +201,9 @@ export default function TipsManagementPage() {
                             <CardContent>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                                    <input type="file" accept=".csv,.xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                                     <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with Excel</Button>
-                                    <input type="file" accept=".csv,.xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                                    <input type="file" accept=".xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="destructive"><Replace className="mr-2" /> Replace via Excel</Button>
