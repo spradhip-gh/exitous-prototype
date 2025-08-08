@@ -149,8 +149,8 @@ Your task is to generate two lists:
 
 **CRITICAL INSTRUCTIONS FOR TIPS:**
 1.  **Generate Relevant Tips:** Based on the user's data, select or generate 3-5 relevant "Did you know..." style tips.
-2.  **Use Master List:** Prioritize using tips from the "AVAILABLE TIPS" list provided below if they are a good match for the user's situation. Use their exact `tipId`, `text`, `category`, and `priority`.
-3.  **Be Creative but Factual:** If no master tips are a good fit, you can generate new, original tips. Ensure they are factual, helpful, and empathetic. For any new tip you create, generate a new unique `tipId` in kebab-case.
+2.  **Use Master List:** Prioritize using tips from the "AVAILABLE TIPS" list provided below if they are a good match for the user's situation. Use their exact \`tipId\`, \`text\`, \`category\`, and \`priority\`.
+3.  **Be Creative but Factual:** If no master tips are a good fit, you can generate new, original tips. Ensure they are factual, helpful, and empathetic. For any new tip you create, generate a new unique \`tipId\` in kebab-case.
 
 **AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
 ---
