@@ -10,10 +10,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    // This is needed to allow the Next.js dev server to accept requests from the IDE's preview window
-    allowedDevOrigins: ["*"],
-  },
   images: {
     remotePatterns: [
       {
