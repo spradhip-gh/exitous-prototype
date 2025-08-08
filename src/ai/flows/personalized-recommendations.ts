@@ -148,9 +148,9 @@ Your task is to generate two lists:
 10. **Use ALL Key Dates:** For EVERY OTHER date provided in the user's exit details (e.g., \`finalDate\`, \`emailAccessEndDate\`), you MUST create a corresponding, relevant recommendation if it has not already been covered. Each of these recommendations MUST have its \`endDate\` field populated with the provided date.
 
 **CRITICAL INSTRUCTIONS FOR TIPS:**
-1.  **Generate Relevant Tips:** Based on the user's data, select or generate 3-5 relevant "Did you know..." style tips.
-2.  **Use Master List:** Prioritize using tips from the "AVAILABLE TIPS" list provided below if they are a good match for the user's situation. Use their exact \`tipId\`, \`text\`, \`category\`, and \`priority\`.
-3.  **Be Creative but Factual:** If no master tips are a good fit, you can generate new, original tips. Ensure they are factual, helpful, and empathetic. For any new tip you create, generate a new unique \`tipId\` in kebab-case.
+1.  **Select Relevant Tips from Master List:** Your primary goal for tips is to select the most relevant ones from the "AVAILABLE TIPS" list based on the user's data. Select 3-5 tips.
+2.  **Use Exact Data:** For each tip you select, you MUST use its exact \`tipId\`, \`text\`, \`category\`, and \`priority\` from the provided list.
+3.  **Do Not Create New Tips:** It is critical that you DO NOT generate new, original tips. Only select from the provided "AVAILABLE TIPS" list.
 
 **AVAILABLE RESOURCES (Use their Related Task IDs for your output):**
 ---
