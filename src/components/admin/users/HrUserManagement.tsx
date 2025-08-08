@@ -221,21 +221,23 @@ export default function HrUserManagement() {
         const file = event.target.files?.[0];
         if (!file || !companyName) return;
 
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                const requiredHeaders = ["email", "companyid", "notificationdate"];
-                const fileHeaders = results.meta.fields?.map(h => h.trim().toLowerCase()) || [];
-                if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
-                    toast({ title: "Invalid CSV format", description: "CSV must include columns: email, companyId, notificationDate.", variant: "destructive"});
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const templateSheetName = 'Upload Template';
+                const worksheet = workbook.Sheets[templateSheetName];
+                if (!worksheet) {
+                    toast({ title: 'Invalid File', description: `Could not find a sheet named "${templateSheetName}".`, variant: 'destructive'});
                     return;
                 }
-                
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
                 let toAdd: Partial<CompanyUser>[] = [];
                 let toUpdate: Partial<CompanyUser>[] = [];
 
-                for (const row of results.data as any[]) {
+                for (const row of jsonData as any[]) {
                     const { userFromCsv, error } = processCsvRow(row);
                     if (error) {
                         toast({ title: "Skipping Row", description: error, variant: "destructive" });
@@ -275,11 +277,14 @@ export default function HrUserManagement() {
                 } else {
                     toast({ title: "Upload Failed", description: "An error occurred during the database operation.", variant: "destructive" });
                 }
+            } catch (error) {
+                 toast({ title: "File Read Error", description: "Could not process the uploaded file.", variant: "destructive" });
             }
-        });
+        };
+        reader.readAsBinaryString(file);
         
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [companyName, companyAssignmentForHr, saveCompanyUsers, toast, users, processCsvRow]);
+    }, [companyName, companyAssignmentForHr, toast, users, processCsvRow]);
 
 
     const handleDownloadTemplate = useCallback(() => {
@@ -298,7 +303,6 @@ export default function HrUserManagement() {
             { Column: "postEndDateContactAlias", Required: "No", Description: "Overrides the default company contact alias for this user after their end date." },
         ];
         
-        const templateHeaders = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const templateSampleRow = {
             email: "user@company.com",
             companyId: "EMP123",
@@ -317,7 +321,7 @@ export default function HrUserManagement() {
 
         const wb = XLSX.utils.book_new();
         const instructionsSheet = XLSX.utils.json_to_sheet(instructionsData);
-        const templateSheet = XLSX.utils.json_to_sheet([templateSampleRow], { header: templateHeaders, skipHeader: false });
+        const templateSheet = XLSX.utils.json_to_sheet([templateSampleRow]);
         
         XLSX.utils.book_append_sheet(wb, instructionsSheet, "Instructions");
         XLSX.utils.book_append_sheet(wb, templateSheet, "Upload Template");
