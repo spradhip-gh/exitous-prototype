@@ -27,7 +27,7 @@ export default function HrManagerGuidePage() {
                     </p>
                     <ul>
                         <li><strong>Adding Users Manually:</strong> <em>(Requires Write permission).</em> Use the "Add New User" form to add employees one by one. You must provide their Work Email, Company ID, and Notification Date.</li>
-                        <li><strong>Bulk Upload via CSV:</strong> <em>(Requires Write & Upload permission).</em> For adding multiple users at once, download the template to see all available columns. You can pre-fill key assessment dates and even custom contact aliases for individual users to override the company defaults.</li>
+                        <li><strong>Bulk Upload via Excel:</strong> <em>(Requires Write & Upload permission).</em> For adding multiple users at once, download the Excel template. It includes a tab with detailed instructions for each column and a separate tab for you to fill in with your user data. You can pre-fill key assessment dates and even custom contact aliases for individual users to override the company defaults.</li>
                         <li><strong>Sending Invitations:</strong> Users can only log in after their "Notification Date" has passed and an invitation has been sent. You can send invitations individually or in bulk.</li>
                     </ul>
 

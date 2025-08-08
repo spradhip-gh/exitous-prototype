@@ -23,7 +23,7 @@ export default function AdminGuidePage() {
                         <li><strong>Editing Company Details:</strong> From the company list, you can click the "Edit" pencil icon to open a dialog where you can manage that company's settings, HR team, and plan.</li>
                         <li><strong>Managing HR Teams:</strong> Within the edit dialog, you can add new HR managers to a company, remove existing ones, and set a "Primary Manager". The Primary Manager has full permissions for that company.</li>
                         <li><strong>Upgrading to Pro:</strong> You can upgrade a company from Basic to Pro at any time, which unlocks advanced features for their HR Manager.</li>
-                        <li><strong>Exporting Data:</strong> A CSV export of all companies and their key statistics (user counts, version, etc.) is available.</li>
+                        <li><strong>Exporting Data:</strong> An Excel export of all companies and their key statistics (user counts, version, etc.) is available.</li>
                     </ul>
                      <h3>User Management (Admin View)</h3>
                     <p>
@@ -47,7 +47,7 @@ export default function AdminGuidePage() {
                         <li><strong>Guidance Rules:</strong> This powerful editor allows you to create deterministic rules that assign specific tasks or tips when certain conditions are met (e.g., if a user's tenure is over 10 years, assign the "401k Review" task).</li>
                     </ul>
                      <h3>Task & Tip Management</h3>
-                    <p>These pages allow you to create and manage the master lists of all possible user tasks and "Did you know..." tips. You can add items individually through a form or manage them in bulk by uploading a CSV file.</p>
+                    <p>These pages allow you to create and manage the master lists of all possible user tasks and "Did you know..." tips. You can add items individually through a form or manage them in bulk by uploading an Excel file.</p>
                      <h3>External Resources Management</h3>
                     <p>This page allows you to curate the directory of professional services that are recommended to users. The <code>relatedTaskIds</code> field is critical for linking a resource to a specific task, enabling the "Connect with a Professional" feature.</p>
 
@@ -61,7 +61,7 @@ export default function AdminGuidePage() {
 
                     <h2>4. Data Export</h2>
                     <p>
-                        This feature provides a comprehensive export of every single user on the platform, including End-Users, HR Managers, and Platform Admins/Consultants, along with their status and company affiliation.
+                        This feature provides a comprehensive export of every single user on the platform, including End-Users, HR Managers, and Platform Admins/Consultants, along with their status and company affiliation, in an Excel format.
                     </p>
 
                 </article>
