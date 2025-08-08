@@ -7,7 +7,7 @@ import { ProfileData, AssessmentData, buildAssessmentSchema, buildProfileSchema 
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '../lib/external-resources';
-import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
+import { PersonalizedRecommendationsOutput, RecommendationItem, TipItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from '@/hooks/use-toast';
 import { addDays, parse, parseISO, differenceInYears } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
@@ -1244,14 +1244,19 @@ export function useUserData() {
     }, []);
 
     const getMappedRecommendations = useCallback(() => {
-        if (!profileData || !assessmentData || !auth?.companyName) return [];
+        if (!profileData || !assessmentData || !auth?.companyName) return { tasks: [], tips: [] };
 
         const allUserAnswers = { ...profileData, ...assessmentData };
         const companyConfig = companyConfigs[auth.companyName];
-        const recommendations: RecommendationItem[] = [];
+        const allCompanyTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
+        const allCompanyTips = [...masterTips, ...(companyConfig?.companyTips || [])];
+        
+        const tasks: RecommendationItem[] = [];
+        const tips: TipItem[] = [];
         const addedTaskIds = new Set<string>();
+        const addedTipIds = new Set<string>();
 
-        // 1. Evaluate Guidance Rules
+        // 1. Evaluate Guidance Rules (master rules)
         guidanceRules.forEach(rule => {
             let isMatch = false;
             if (rule.type === 'direct') {
@@ -1261,7 +1266,7 @@ export function useUserData() {
                     return Array.isArray(userAnswer) ? userAnswer.includes(cond.answer) : userAnswer === cond.answer;
                 });
             } else if (rule.type === 'calculated') {
-                let calculatedValue: number | null = null;
+                 let calculatedValue: number | null = null;
                 if (rule.calculation?.type === 'age' && profileData.birthYear) {
                     calculatedValue = new Date().getFullYear() - profileData.birthYear;
                 } else if (rule.calculation?.type === 'tenure' && assessmentData.startDate && assessmentData.finalDate) {
@@ -1273,53 +1278,68 @@ export function useUserData() {
                         }
                     } catch {}
                 }
-
-                if (calculatedValue !== null) {
+                 if (calculatedValue !== null) {
                     const matchingRange = rule.ranges?.find(range => calculatedValue! >= range.from && calculatedValue! < range.to);
-                    if (matchingRange) {
-                        (matchingRange.assignments.taskIds || []).forEach(taskId => {
-                            if (!addedTaskIds.has(taskId)) {
-                                const task = masterTasks.find(t => t.id === taskId);
-                                if (task) recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail });
-                                addedTaskIds.add(taskId);
-                            }
-                        });
-                        // Tips from calculated rules can be handled here too if needed
+                    if (matchingRange && !matchingRange.assignments.noGuidanceRequired) {
+                        (matchingRange.assignments.taskIds || []).forEach(taskId => addedTaskIds.add(taskId));
+                        (matchingRange.assignments.tipIds || []).forEach(tipId => addedTipIds.add(tipId));
                     }
                 }
             }
-
-            if (isMatch) {
-                (rule.assignments.taskIds || []).forEach(taskId => {
-                    if (!addedTaskIds.has(taskId)) {
-                        const task = masterTasks.find(t => t.id === taskId);
-                        if (task) recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail });
-                        addedTaskIds.add(taskId);
-                    }
-                });
+            if (isMatch && !rule.assignments.noGuidanceRequired) {
+                (rule.assignments.taskIds || []).forEach(taskId => addedTaskIds.add(taskId));
+                (rule.assignments.tipIds || []).forEach(tipId => addedTipIds.add(tipId));
             }
         });
         
-        // 2. Evaluate Company-specific Answer Guidance
+        // 2. Evaluate Company-specific Answer Guidance Overrides
         Object.entries(allUserAnswers).forEach(([questionId, answer]) => {
             if (!answer) return;
-            const guidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[answer as string];
-            if (guidance) {
-                (guidance.tasks || []).forEach(taskId => {
-                    if (!addedTaskIds.has(taskId)) {
-                        const companyTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
-                        const task = companyTasks.find(t => t.id === taskId);
-                        if (task) {
-                            recommendations.push({ taskId: task.id, task: task.name, category: task.category, timeline: '', details: task.detail, isCompanySpecific: task.isCompanySpecific });
-                            addedTaskIds.add(taskId);
-                        }
-                    }
+            
+            const handleAnswer = (ans: string) => {
+                const guidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[ans];
+                if (guidance && !guidance.noGuidanceRequired) {
+                    (guidance.tasks || []).forEach(taskId => addedTaskIds.add(taskId));
+                    (guidance.tips || []).forEach(tipId => addedTipIds.add(tipId));
+                }
+            };
+
+            if (Array.isArray(answer)) {
+                answer.forEach(handleAnswer);
+            } else {
+                handleAnswer(String(answer));
+            }
+        });
+
+        // 3. Compile the final lists from the collected IDs
+        addedTaskIds.forEach(taskId => {
+            const task = allCompanyTasks.find(t => t.id === taskId);
+            if (task) {
+                tasks.push({
+                    taskId: task.id,
+                    task: task.name,
+                    category: task.category,
+                    timeline: '', // AI will fill this
+                    details: task.detail,
+                    isCompanySpecific: task.isCompanySpecific,
                 });
             }
         });
 
+        addedTipIds.forEach(tipId => {
+            const tip = allCompanyTips.find(t => t.id === tipId);
+            if (tip) {
+                tips.push({
+                    tipId: tip.id,
+                    text: tip.text,
+                    category: tip.category,
+                    priority: tip.priority,
+                    isCompanySpecific: tip.isCompanySpecific,
+                });
+            }
+        });
 
-        return recommendations;
+        return { tasks, tips };
     }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName]);
 
     return {
@@ -1389,6 +1409,7 @@ export function useUserData() {
         tipMappings: [],
     };
 }
+
 
 
 
