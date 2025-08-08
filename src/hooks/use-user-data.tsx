@@ -994,6 +994,7 @@ export function useUserData() {
     
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
+            if (!masterQ.isActive) continue; // Skip inactive master questions
             if (masterQ.formType !== formType) continue;
             
             const override = companyConfig?.questions?.[id];
@@ -1388,5 +1389,6 @@ export function useUserData() {
         tipMappings: [],
     };
 }
+
 
 
