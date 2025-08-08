@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Key, Users, Users2 } from "lucide-react";
+import { Info, Key, Users, Users2, BarChart } from "lucide-react";
 
 export default function HrManagerGuidePage() {
     return (
@@ -48,6 +48,11 @@ export default function HrManagerGuidePage() {
                         <li><strong>My Suggestions:</strong> This tab shows a history of all the suggestions you've submitted for review and their current status (Pending, Approved, or Rejected).</li>
                     </ul>
                     
+                    <h2><BarChart className="inline-block -mt-1 mr-2" /> Analytics</h2>
+                    <p>
+                        The analytics page provides insights into your employees' initial assessment responses. It highlights the questions that were most frequently answered with "I'm not sure," helping you identify areas where communication or the questions themselves could be clearer.
+                    </p>
+
                     <h2>Company Resources & Settings</h2>
                     <h3>Resources</h3>
                     <p>

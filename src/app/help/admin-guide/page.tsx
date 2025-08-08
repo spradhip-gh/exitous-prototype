@@ -56,7 +56,7 @@ export default function AdminGuidePage() {
                     <p>This is your queue for moderating content. You can review, approve, or reject suggestions submitted by HR Managers for locked questions and custom guidance mappings. This ensures platform-wide content quality and consistency.</p>
                     <h3>Assessment Analytics</h3>
                     <p>
-                        This page gives you high-level insights into how employees across the entire platform are interacting with the assessment. You can see the questions most frequently answered with "Unsure" and drill down to see a company-by-company breakdown.
+                        This page gives you high-level insights into how employees across the entire platform are interacting with the assessment. You can see the questions most frequently answered with "Unsure" on initial completion. This data is invaluable for identifying confusing questions or areas where more guidance is needed. You can click on any question in the chart to see a company-by-company breakdown of the "Unsure" counts.
                     </p>
 
                     <h2>4. Data Export</h2>
