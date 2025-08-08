@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { format, parse, isValid } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
 import BulkActions from "./BulkActions";
@@ -283,16 +284,33 @@ export default function HrUserManagement() {
 
 
     const handleDownloadTemplate = useCallback(() => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
-        const sampleRow = ["user@company.com", "EMP123", "2025-12-31", "user@personal.com", "2026-01-31", "2026-02-15", "", "", "", "", "Your HR Business Partner", "alumni-support@company.com"];
-        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', 'user_upload_template.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const instructionsData = [
+            { Column: "email", Required: "Yes", Description: "The employee's work email address. This is used for login and must be unique per company." },
+            { Column: "companyId", Required: "Yes", Description: "The employee's unique ID within your company's system (e.g., employee number)." },
+            { Column: "notificationDate", Required: "Yes", Description: "The date the employee was notified of their exit. Must be in YYYY-MM-DD format." },
+            { Column: "personalEmail", Required: "No", Description: "A personal email for post-exit communication." },
+            { Column: "finalDate", Required: "No", Description: "The employee's last day of employment. Must be in YYYY-MM-DD format." },
+            { Column: "severanceAgreementDeadline", Required: "No", Description: "The deadline to sign the severance agreement. Must be in YYYY-MM-DD format." },
+            { Column: "medicalCoverageEndDate", Required: "No", Description: "End date for medical coverage. Must be in YYYY-MM-DD format." },
+            { Column: "dentalCoverageEndDate", Required: "No", Description: "End date for dental coverage. Must be in YYYY-MM-DD format." },
+            { Column: "visionCoverageEndDate", Required: "No", Description: "End date for vision coverage. Must be in YYYY-MM-DD format." },
+            { Column: "eapCoverageEndDate", Required: "No", Description: "End date for EAP coverage. Must be in YYYY-MM-DD format." },
+            { Column: "preEndDateContactAlias", Required: "No", Description: "Overrides the default company contact alias for this user before their end date." },
+            { Column: "postEndDateContactAlias", Required: "No", Description: "Overrides the default company contact alias for this user after their end date." },
+        ];
+        
+        const templateHeaders = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
+        const templateSampleRow = ["user@company.com", "EMP123", "2025-12-31", "user@personal.com", "2026-01-31", "2026-02-15", "", "", "", "", "Your HR Business Partner", "alumni-support@company.com"];
+
+        const wb = XLSX.utils.book_new();
+        const instructionsSheet = XLSX.utils.json_to_sheet(instructionsData);
+        const templateSheet = XLSX.utils.json_to_sheet([templateSampleRow], { header: templateHeaders, skipHeader: false });
+        
+        XLSX.utils.book_append_sheet(wb, instructionsSheet, "Instructions");
+        XLSX.utils.book_append_sheet(wb, templateSheet, "Upload Template");
+        
+        XLSX.writeFile(wb, "user_upload_template.xlsx");
+
     }, []);
 
     const handleExportUsers = useCallback(() => {
@@ -383,9 +401,9 @@ export default function HrUserManagement() {
                          <fieldset disabled={!canUpload}>
                             <div className="space-y-2">
                                 <Label>Bulk Upload User Data</Label>
-                                <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
-                                <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
+                                <p className="text-sm text-muted-foreground">Upload an Excel or CSV file. This will add new users or update existing, non-invited users.</p>
+                                <input type="file" accept=".csv,.tsv,.txt,.xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload File</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
                             </div>
                         </fieldset>
                     </CardFooter>
