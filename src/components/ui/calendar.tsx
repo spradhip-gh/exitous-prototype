@@ -18,23 +18,38 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const [currentMonth, setCurrentMonth] = React.useState(props.month || props.defaultMonth || new Date());
+
+  React.useEffect(() => {
+    // If a date is selected, open the calendar to that month.
+    if (props.selected) {
+      const selectedDate = props.selected as Date;
+      if (selectedDate && (selectedDate.getMonth() !== currentMonth.getMonth() || selectedDate.getFullYear() !== currentMonth.getFullYear())) {
+        setCurrentMonth(selectedDate);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.selected]);
+  
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
+      month={currentMonth}
+      onMonthChange={setCurrentMonth}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
-        caption: "flex justify-between pt-1 relative items-center",
-        caption_label: "text-sm font-medium hidden",
-        caption_dropdowns: "flex justify-center gap-1",
-        nav: "space-x-1 flex items-center",
+        caption: "grid grid-cols-[auto_1fr_auto] gap-1 items-center mb-2",
+        caption_label: "text-sm font-medium hidden", // We hide the default label to use dropdowns
+        caption_dropdowns: "flex justify-center gap-1 col-start-2",
+        nav: "space-x-1 flex items-center col-start-1 col-end-4",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        nav_button_previous: "col-start-1",
+        nav_button_next: "col-start-3",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
