@@ -1,15 +1,14 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema as buildStaticProfileSchema, buildProfileSchema, type ProfileData } from '@/lib/schemas';
 import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
@@ -17,7 +16,7 @@ import { useFormState } from '@/hooks/use-form-state';
 
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -226,10 +225,13 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
     companyConfig?: CompanyConfig
 }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig, clearRecommendations } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
+    
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
@@ -264,7 +266,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
           description: "Your profile has been successfully saved.",
         });
         setIsDirty(false);
-        router.push('/dashboard/assessment');
+        router.push(searchParams.has('section') ? '/dashboard/profile' : '/dashboard/assessment');
     }
 
     const onInvalid = (errors: any) => {
@@ -308,11 +310,33 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
 
     }, [questions, getMasterQuestionConfig]);
     
+     useEffect(() => {
+        const section = searchParams.get('section');
+        if (section && sectionRefs.current[section]) {
+            setTimeout(() => {
+                sectionRefs.current[section]?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+            }, 100);
+        }
+    }, [searchParams]);
+
+    const pageTitle = searchParams.has('section') ? `Edit: ${searchParams.get('section')}` : 'Create Your Profile';
+    const pageDescription = searchParams.has('section')
+        ? 'Update your answers below and save your changes.'
+        : 'Exits can be challenging and we are here to help. Your answers help us create a personalized roadmap for you. All information entered in confidential and personal info is never shared';
+    
     return (
+        <>
+        <div>
+          <h1 className="font-headline text-3xl font-bold">{pageTitle}</h1>
+          <p className="text-muted-foreground">{pageDescription}</p>
+        </div>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                  {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
-                    <Card key={section}>
+                    <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
                         <CardHeader>
                             <CardTitle>{section}</CardTitle>
                              {section === 'Contact Information' && (
@@ -334,6 +358,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                 }
             </form>
         </Form>
+        </>
     );
 }
 
