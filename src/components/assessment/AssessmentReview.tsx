@@ -89,7 +89,7 @@ function AnswerDisplay({ label, value, subDetails }: { label: string; value: any
 }
 
 export default function AssessmentReview() {
-    const { getCompanyConfig, assessmentData, isLoading } = useUserData();
+    const { getCompanyConfig, assessmentData, isLoading, getMasterQuestionConfig } = useUserData();
     const { auth } = useAuth();
     const router = useRouter();
 
@@ -158,28 +158,32 @@ export default function AssessmentReview() {
         )
     }
 
-    const groupedQuestions = useMemo(() => {
-        const sections: Record<string, Question[]> = {};
-        
-        const processQuestion = (q: Question) => {
+    const orderedSections = useMemo(() => {
+        const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig('assessment');
+        const sectionOrder = masterConfig?.section_order || [];
+
+        const allQuestionsWithAnswers = questions.filter(q => {
+            if (q.parentId) return false;
             const value = assessmentData?.[q.id as keyof typeof assessmentData];
-            const hasAnswer = value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
-
-            if (!q.parentId && hasAnswer) {
-                const sectionName = q.section || "Uncategorized";
-                if (!sections[sectionName]) {
-                    sections[sectionName] = [];
-                }
-                sections[sectionName].push(q);
-            }
-        };
-
-        questions.forEach(q => {
-            processQuestion(q);
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         });
 
-        return sections;
-    }, [questions, assessmentData]);
+        allQuestionsWithAnswers.forEach(q => {
+            const sectionName = q.section || "Uncategorized";
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
+            }
+            sectionsMap[sectionName].push(q);
+        });
+
+        return sectionOrder
+            .map(sectionName => ({
+                name: sectionName,
+                questions: sectionsMap[sectionName] || [],
+            }))
+            .filter(section => section.questions.length > 0);
+    }, [questions, assessmentData, getMasterQuestionConfig]);
     
     const handleEditClick = (sectionId: string) => {
         router.push(`/dashboard/assessment?section=${encodeURIComponent(sectionId)}`);
@@ -199,7 +203,7 @@ export default function AssessmentReview() {
                     </p>
                 </div>
 
-                {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
                      <Card key={section}>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div className="space-y-1.5">
