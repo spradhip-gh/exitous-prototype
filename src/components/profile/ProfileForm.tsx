@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema as buildStaticProfileSchema, buildProfileSchema, type ProfileData } from '@/lib/schemas';
-import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
+import { useUserData, buildQuestionTreeFromMap, CompanyConfig } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
@@ -277,22 +277,29 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
             variant: "destructive",
         });
     };
+
+    const editingSection = searchParams.get('section');
     
     const orderedSections = useMemo(() => {
         const sectionsMap: Record<string, Question[]> = {};
         const masterConfig = getMasterQuestionConfig('profile');
         const sectionOrder = masterConfig?.section_order || [];
 
+        // If editing a specific section, only process questions from that section.
+        const questionsToProcess = editingSection 
+            ? questions.filter(q => q.section === editingSection)
+            : questions;
+
         // Add any custom sections not in the master order to the end
         const masterSectionSet = new Set(sectionOrder);
-        questions.forEach(q => {
+        questionsToProcess.forEach(q => {
             if (q.section && !masterSectionSet.has(q.section)) {
                 sectionOrder.push(q.section);
                 masterSectionSet.add(q.section);
             }
         });
         
-        questions.forEach(q => {
+        questionsToProcess.forEach(q => {
             if (!q.isActive || q.parentId) return;
             const sectionName = q.section || "Uncategorized";
             if (!sectionsMap[sectionName]) {
@@ -308,22 +315,21 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
             }))
             .filter(section => section.questions && section.questions.length > 0);
 
-    }, [questions, getMasterQuestionConfig]);
+    }, [questions, editingSection, getMasterQuestionConfig]);
     
      useEffect(() => {
-        const section = searchParams.get('section');
-        if (section && sectionRefs.current[section]) {
+        if (editingSection && sectionRefs.current[editingSection]) {
             setTimeout(() => {
-                sectionRefs.current[section]?.scrollIntoView({
+                sectionRefs.current[editingSection]?.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start',
                 });
             }, 100);
         }
-    }, [searchParams]);
+    }, [editingSection]);
 
-    const pageTitle = searchParams.has('section') ? `Edit: ${searchParams.get('section')}` : 'Create Your Profile';
-    const pageDescription = searchParams.has('section')
+    const pageTitle = editingSection ? `Edit: ${editingSection}` : 'Create Your Profile';
+    const pageDescription = editingSection
         ? 'Update your answers below and save your changes.'
         : 'Exits can be challenging and we are here to help. Your answers help us create a personalized roadmap for you. All information entered in confidential and personal info is never shared';
     
@@ -339,7 +345,7 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                     <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
                         <CardHeader>
                             <CardTitle>{section}</CardTitle>
-                             {section === 'Contact Information' && (
+                             {section === 'Contact Information' && !editingSection && (
                                 <CardDescription>
                                     This is where we'll send important updates after your access to your work email ends.
                                 </CardDescription>
@@ -348,10 +354,17 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUse
                         <CardContent className="space-y-6">
                            {sectionQuestions.map(q => <QuestionRenderer key={q.id} question={q} form={form} />)}
                         </CardContent>
+                        {editingSection && (
+                            <CardFooter>
+                                <Button type="submit" disabled={form.formState.isSubmitting}>
+                                    {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </CardFooter>
+                        )}
                     </Card>
                 ))}
                 
-                {questions.length > 0 &&
+                {!editingSection && questions.length > 0 &&
                     <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}
                     </Button>

@@ -85,7 +85,7 @@ function AnswerDisplay({ label, value, subDetails }: { label: string; value: any
 }
 
 export default function ProfileReview() {
-    const { getCompanyConfig, profileData, isLoading, getMasterQuestionConfig } = useUserData();
+    const { getCompanyConfig, profileData, isLoading, getMasterQuestionConfig, getCompanyUser } = useUserData();
     const { auth } = useAuth();
     const router = useRouter();
 
@@ -93,6 +93,8 @@ export default function ProfileReview() {
     const questions = useMemo(() => {
         return companyName ? getCompanyConfig(companyName, true, 'profile') : [];
     }, [companyName, getCompanyConfig]);
+
+    const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email)?.user : null, [auth?.email, getCompanyUser]);
 
     const getAnswerComponent = (question: Question) => {
         const value = profileData?.[question.id as keyof typeof profileData];
@@ -131,9 +133,15 @@ export default function ProfileReview() {
         const masterConfig = getMasterQuestionConfig('profile');
         const sectionOrder = masterConfig?.section_order || [];
 
+        const allData = {
+            ...profileData,
+            personalEmail: companyUser?.personal_email,
+            phone: companyUser?.phone,
+        };
+
         const allQuestionsWithAnswers = questions.filter(q => {
             if (q.parentId) return false;
-            const value = profileData?.[q.id as keyof typeof profileData];
+            const value = (allData as any)[q.id];
             return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         });
 
@@ -151,7 +159,7 @@ export default function ProfileReview() {
                 questions: sectionsMap[sectionName] || [],
             }))
             .filter(section => section.questions.length > 0);
-    }, [questions, profileData, getMasterQuestionConfig]);
+    }, [questions, profileData, companyUser, getMasterQuestionConfig]);
     
     const handleEditClick = (sectionId: string) => {
         router.push(`/dashboard/profile?section=${encodeURIComponent(sectionId)}`);
@@ -182,7 +190,16 @@ export default function ProfileReview() {
                     </CardHeader>
                     <CardContent>
                          <dl className="divide-y divide-border">
-                            {sectionQuestions.map(q => getAnswerComponent(q))}
+                            {sectionQuestions.map(q => {
+                                 // Special handling for contact info from the companyUser object
+                                if (q.id === 'personalEmail') {
+                                    return <AnswerDisplay key={q.id} label={q.label} value={companyUser?.personal_email} />;
+                                }
+                                if (q.id === 'phone') {
+                                    return <AnswerDisplay key={q.id} label={q.label} value={companyUser?.phone} />;
+                                }
+                                return getAnswerComponent(q)
+                            })}
                         </dl>
                     </CardContent>
                 </Card>
