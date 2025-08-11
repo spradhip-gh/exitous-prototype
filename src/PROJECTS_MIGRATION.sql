@@ -1,4 +1,4 @@
--- Enable the "moddatetime" extension to automatically update "updated_at" columns.
+-- Create the function to update the updated_at column
 CREATE OR REPLACE FUNCTION moddatetime()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -7,45 +7,61 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create the new 'projects' table
-CREATE TABLE projects (
+-- Create the projects table if it doesn't exist
+CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
     name TEXT NOT NULL,
     is_archived BOOLEAN DEFAULT FALSE,
     severance_deadline_time TIME,
     severance_deadline_timezone TEXT,
     pre_end_date_contact_alias TEXT,
     post_end_date_contact_alias TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(company_id, name)
 );
--- Add a unique constraint for project names within a company
-ALTER TABLE projects ADD CONSTRAINT projects_company_id_name_key UNIQUE (company_id, name);
--- Add a trigger to update 'updated_at' on any change
-DROP TRIGGER IF EXISTS handle_updated_at ON projects;
-CREATE TRIGGER handle_updated_at BEFORE UPDATE ON projects
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
 
--- Alter 'company_users' table
-ALTER TABLE company_users ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
--- NOTE: No 'updated_at' trigger for company_users as it does not have the column.
+-- Add triggers for projects table if they don't exist
+DO $$
+BEGIN
+   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'handle_updated_at' AND tgrelid = 'projects'::regclass) THEN
+      CREATE TRIGGER handle_updated_at
+      BEFORE UPDATE ON projects
+      FOR EACH ROW
+      EXECUTE PROCEDURE moddatetime();
+   END IF;
+END $$;
 
--- Alter 'company_hr_assignments' table
-ALTER TABLE company_hr_assignments ADD COLUMN IF NOT EXISTS project_access JSONB DEFAULT '["all"]'::jsonb;
-ALTER TABLE company_hr_assignments ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb;
--- NOTE: No 'updated_at' trigger for company_hr_assignments as it does not have the column.
 
--- Alter 'company_question_configs' table to add project-specific overrides
-ALTER TABLE company_question_configs ADD COLUMN IF NOT EXISTS project_configs JSONB;
--- This table DOES have an updated_at column, so we ensure the trigger exists.
-DROP TRIGGER IF EXISTS handle_updated_at ON company_question_configs;
-CREATE TRIGGER handle_updated_at BEFORE UPDATE ON company_question_configs
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
+-- Add project_id to company_users table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='company_users' AND column_name='project_id') THEN
+        ALTER TABLE company_users ADD COLUMN project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
--- Alter 'company_resources' table
-ALTER TABLE company_resources ADD COLUMN IF NOT EXISTS project_ids JSONB;
--- This table DOES have an updated_at column, so we ensure the trigger exists.
-DROP TRIGGER IF EXISTS handle_updated_at ON company_resources;
-CREATE TRIGGER handle_updated_at BEFORE UPDATE ON company_resources
-  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
+-- Add project_access to company_hr_assignments table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='company_hr_assignments' AND column_name='project_access') THEN
+        ALTER TABLE company_hr_assignments ADD COLUMN project_access JSONB DEFAULT '["all"]'::jsonb;
+    END IF;
+END $$;
+
+-- Add project_configs to company_question_configs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='company_question_configs' AND column_name='project_configs') THEN
+        ALTER TABLE company_question_configs ADD COLUMN project_configs JSONB;
+    END IF;
+END $$;
+
+-- Add project_ids to company_resources table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='company_resources' AND column_name='project_ids') THEN
+        ALTER TABLE company_resources ADD COLUMN project_ids JSONB DEFAULT '[]'::jsonb;
+    END IF;
+END $$;
