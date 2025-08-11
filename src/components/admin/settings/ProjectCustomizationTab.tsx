@@ -1,15 +1,16 @@
 
 'use client';
 import * as React from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project, Question } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 
 export default function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
@@ -76,7 +77,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                 if (projectId === 'all') {
                                     newProjectIds = [];
                                 } else {
-                                    let currentIds = isAllSelected ? [] : [...currentProjectIds];
+                                    let currentIds = isAllSelected ? projects.map(p => p.id).concat('__none__') : [...currentProjectIds];
                                     if (isChecked) {
                                         newProjectIds = [...currentIds, projectId];
                                     } else {
@@ -109,13 +110,27 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                                 <Label htmlFor={`all-${item.id}`} className="font-semibold">All Projects</Label>
                                             </div>
                                             <div className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`unassigned-${item.id}`}
-                                                    checked={!isAllSelected && currentProjectIds.includes('__none__')}
-                                                    onCheckedChange={(checked) => handleCheckboxChange('__none__', !!checked)}
-                                                    disabled={isAllSelected || !canWrite}
-                                                />
-                                                <Label htmlFor={`unassigned-${item.id}`} className="font-normal italic">Unassigned Users</Label>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center space-x-2">
+                                                                <Checkbox
+                                                                    id={`unassigned-${item.id}`}
+                                                                    checked={!isAllSelected && currentProjectIds.includes('__none__')}
+                                                                    onCheckedChange={(checked) => handleCheckboxChange('__none__', !!checked)}
+                                                                    disabled={isAllSelected || !canWrite}
+                                                                />
+                                                                <Label htmlFor={`unassigned-${item.id}`} className="font-normal italic flex items-center gap-1.5 cursor-help">
+                                                                    Unassigned Users
+                                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                </Label>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Users who are not allocated to a specific project or division.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             </div>
                                             {projects.map(p => (
                                                 <div key={p.id} className="flex items-center space-x-2">
