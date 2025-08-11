@@ -62,14 +62,17 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
 
         let updatedCount = 0;
         const updates = Array.from(selectedUsers).map(email => {
+            const user = users.find(u => u.email === email);
+            if (!user) return null;
             updatedCount++;
             return {
-                id: users.find(u => u.email === email)?.id,
+                id: user.id,
+                email: user.email, // Include email to satisfy constraints if upsert behaves like insert
                 notification_date: format(newBulkNotificationDate, 'yyyy-MM-dd')
             };
-        }).filter(u => u.id);
+        }).filter(u => u?.id);
 
-        const { error } = await supabase.from('company_users').upsert(updates);
+        const { error } = await supabase.from('company_users').upsert(updates as any);
         if (error) {
             toast({ title: 'Error Updating Users', description: error.message, variant: 'destructive' });
         } else {
@@ -96,10 +99,17 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         
         const projectId = newBulkProjectId === 'none' ? null : newBulkProjectId;
         
-        const updates = Array.from(selectedUsers).map(email => ({
-            id: users.find(u => u.email === email)?.id,
-            project_id: projectId
-        })).filter(u => u.id);
+        const updates = Array.from(selectedUsers).map(email => {
+            const user = users.find(u => u.email === email);
+            if (!user) return null;
+            return {
+                id: user.id,
+                email: user.email, // Ensure email is included
+                project_id: projectId
+            };
+        }).filter((u): u is { id: string, email: string, project_id: string | null } => u !== null);
+
+        if (updates.length === 0) return;
 
         const { error } = await supabase.from('company_users').upsert(updates);
 
