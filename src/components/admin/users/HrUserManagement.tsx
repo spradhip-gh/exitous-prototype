@@ -82,16 +82,28 @@ export default function HrUserManagement() {
         };
         loadData();
     }, [companyName, companyConfigs, isUserDataLoading]);
+    
+    const hrProjectAccess = useMemo(() => {
+        if (!auth?.email || !companyAssignmentForHr) return null;
+        return companyAssignmentForHr.hrManagers.find(hr => hr.email === auth.email)?.projectAccess;
+    }, [auth?.email, companyAssignmentForHr]);
+    
+    const hasScopedProjectAccess = useMemo(() => {
+        return hrProjectAccess && !hrProjectAccess.includes('all');
+    }, [hrProjectAccess]);
+
+
+    const visibleUsers = useMemo(() => {
+        if (!users) return [];
+        if (!hasScopedProjectAccess || !hrProjectAccess) {
+            return users; // No scoping, show all
+        }
+        return users.filter(user => 
+            !user.project_id || hrProjectAccess.includes(user.project_id)
+        );
+    }, [users, hasScopedProjectAccess, hrProjectAccess]);
 
     const sortedUsers = useMemo(() => {
-        if (!users) return [];
-        
-        // Filter users based on HR's project access
-        const hrProjectAccess = companyAssignmentForHr?.hrManagers.find(hr => hr.email === auth?.email)?.projectAccess;
-        const visibleUsers = (hrProjectAccess && !hrProjectAccess.includes('all'))
-            ? users.filter(user => !user.project_id || hrProjectAccess.includes(user.project_id))
-            : users;
-
         const invitedUsers = visibleUsers.filter(u => u.is_invited);
         const uninvitedUsers = visibleUsers.filter(u => !u.is_invited);
 
@@ -133,7 +145,7 @@ export default function HrUserManagement() {
         const sortedInvited = sortArray(invitedUsers, sortConfig);
 
         return [...sortedUninvited, ...sortedInvited];
-    }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr, auth?.email]);
+    }, [visibleUsers, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
 
     const addUser = useCallback(async (userToAdd: Partial<CompanyUser>): Promise<boolean> => {
         if (!companyName || !companyAssignmentForHr?.companyId) return false;
@@ -351,11 +363,11 @@ export default function HrUserManagement() {
     }, []);
 
     const handleExportUsers = useCallback(() => {
-        if (!users || users.length === 0) {
+        if (!visibleUsers || visibleUsers.length === 0) {
             toast({ title: "No users to export", variant: "destructive" });
             return;
         }
-        const dataToExport = users.map(user => ({
+        const dataToExport = visibleUsers.map(user => ({
             email: user.email,
             companyId: user.company_user_id,
             notificationDate: user.notification_date || '',
@@ -376,7 +388,7 @@ export default function HrUserManagement() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
         XLSX.writeFile(workbook, `${companyName}_user_export.xlsx`);
-    }, [users, toast, companyName, companyAssignmentForHr]);
+    }, [visibleUsers, toast, companyName, companyAssignmentForHr]);
     
     const requestSort = useCallback((key: SortConfig['key']) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -416,7 +428,10 @@ export default function HrUserManagement() {
                         <CardTitle>Add New User</CardTitle>
                         <CardDescription>
                             Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.
-                            You have added {users.length} of {companyAssignmentForHr?.maxUsers ?? 'N/A'} users.
+                            {hasScopedProjectAccess
+                                ? `You are viewing ${visibleUsers.length} of ${users.length} total users.`
+                                : `You have added ${users.length} of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`
+                            }
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
