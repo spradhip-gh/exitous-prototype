@@ -17,8 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
-import { ProjectAssignmentPopover } from '../settings/ProjectAssignmentPopover';
 import { useUserData } from '@/hooks/use-user-data';
+import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -136,6 +136,8 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     }, [task, isOpen, isHr]);
 
     const activeProjects = companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
+    const projectOptions: MultiSelectOption[] = activeProjects.map(p => ({ value: p.id, label: p.name }));
+    projectOptions.push({value: '__none__', label: 'Unassigned Users'});
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -249,10 +251,11 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                     {isHr && (
                         <div className="space-y-2">
                             <Label>Project Visibility</Label>
-                            <ProjectAssignmentPopover
-                                item={{...(formData as MasterTask), typeLabel: 'Task' }}
-                                projects={activeProjects || []}
-                                onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
+                            <MultiSelect 
+                                options={projectOptions}
+                                selected={formData.projectIds || []}
+                                onChange={(projectIds) => setFormData(prev => ({...prev, projectIds}))}
+                                placeholder="Select project visibility..."
                             />
                         </div>
                     )}
@@ -277,3 +280,4 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         </Dialog>
     );
 }
+

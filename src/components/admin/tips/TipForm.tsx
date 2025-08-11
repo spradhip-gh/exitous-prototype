@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -17,7 +18,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
-import { MultiSelectPopover } from '../forms/GuidanceRuleForm';
+import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -123,6 +124,8 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
     }, [tip, isOpen, isHr]);
 
     const activeProjects = companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
+    const projectOptions: MultiSelectOption[] = activeProjects.map(p => ({ value: p.id, label: p.name }));
+    projectOptions.push({value: '__none__', label: 'Unassigned Users'});
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -210,16 +213,14 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                     </div>
                      {isHr && (
                         <div className="space-y-2 md:col-span-2">
-                            <MultiSelectPopover 
-                                label="Project Visibility"
-                                items={activeProjects.map(p => ({id: p.id, name: p.name, category: 'Projects'}))}
-                                selectedIds={formData.projectIds}
-                                onSelectionChange={(projectIds) => setFormData(prev => ({...prev, projectIds}))}
-                                onAddNew={() => {}}
-                                categories={[]}
-                                popoverContentWidth='w-[450px]'
-                            />
-                             <p className="text-xs text-muted-foreground">Select which projects this custom tip should appear in. Leave blank for All Projects.</p>
+                             <Label>Project Visibility</Label>
+                             <MultiSelect
+                                options={projectOptions}
+                                selected={formData.projectIds || []}
+                                onChange={(projectIds) => setFormData(prev => ({...prev, projectIds}))}
+                                placeholder="Select project visibility..."
+                             />
+                             <p className="text-xs text-muted-foreground">Leave blank for All Projects.</p>
                         </div>
                     )}
                 </div>
