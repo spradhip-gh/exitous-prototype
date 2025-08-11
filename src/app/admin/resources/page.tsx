@@ -27,14 +27,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MultiSelectPopover } from '@/components/admin/forms/GuidanceRuleForm'; // Assuming this is a shared component now
+import { Badge } from '@/components/ui/badge';
 
 export default function ResourceManagementPage() {
   const { toast } = useToast();
   const { auth } = useAuth();
-  const { getAllCompanyConfigs, saveCompanyResources } = useUserData();
+  const { companyAssignmentForHr, saveCompanyResources } = useUserData();
   const companyName = auth?.companyName || '';
-  const companyConfig = getAllCompanyConfigs()[companyName];
-  const resources = companyConfig?.resources || [];
+  const resources = companyAssignmentForHr?.resources || [];
+  const projects = companyAssignmentForHr?.projects || [];
   const canWrite = auth?.permissions?.resources === 'write';
 
   const [newTitle, setNewTitle] = useState('');
@@ -42,6 +44,7 @@ export default function ResourceManagementPage() {
   const [newCategory, setNewCategory] = useState<Resource['category']>('Other');
   const [newFileName, setNewFileName] = useState('');
   const [newFileContent, setNewFileContent] = useState(''); // Store as raw text
+  const [newProjectIds, setNewProjectIds] = useState<string[]>([]);
   const [fileInputKey, setFileInputKey] = useState(Date.now()); // to reset file input
   const [viewingResource, setViewingResource] = useState<Resource | null>(null);
 
@@ -58,6 +61,7 @@ export default function ResourceManagementPage() {
       fileName: newFileName,
       category: newCategory,
       content: newFileContent,
+      projectIds: newProjectIds,
     };
     
     saveCompanyResources(companyName, [...resources, newResource]);
@@ -68,6 +72,7 @@ export default function ResourceManagementPage() {
     setNewCategory('Other');
     setNewFileName('');
     setNewFileContent('');
+    setNewProjectIds([]);
     setFileInputKey(Date.now()); // Reset file input visually
   };
   
@@ -103,6 +108,8 @@ export default function ResourceManagementPage() {
   const handleViewResource = (resource: Resource) => {
     setViewingResource(resource);
   };
+  
+  const projectOptions = projects.map(p => ({ id: p.id, name: p.name, category: 'Projects' }));
 
   return (
     <div className="p-4 md:p-8">
@@ -118,40 +125,53 @@ export default function ResourceManagementPage() {
             <Card>
             <CardHeader>
                 <CardTitle>Add New Resource</CardTitle>
-                <CardDescription>Upload a new document to be shared with your employees.</CardDescription>
+                <CardDescription>Upload a new document and specify which projects can access it.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                    <Label htmlFor="title">Resource Title</Label>
-                    <Input id="title" placeholder="e.g., 2024 Benefits Guide" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+                    <div className="space-y-2">
+                        <Label htmlFor="title">Resource Title</Label>
+                        <Input id="title" placeholder="e.g., 2024 Benefits Guide" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="category">Category</Label>
+                        <Select value={newCategory} onValueChange={(v) => setNewCategory(v as any)}>
+                        <SelectTrigger id="category"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Benefits">Benefits</SelectItem>
+                            <SelectItem value="Policies">Policies</SelectItem>
+                            <SelectItem value="Career">Career</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={newCategory} onValueChange={(v) => setNewCategory(v as any)}>
-                    <SelectTrigger id="category"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Benefits">Benefits</SelectItem>
-                        <SelectItem value="Policies">Policies</SelectItem>
-                        <SelectItem value="Career">Career</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                    </Select>
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea id="description" placeholder="A brief summary of what this document contains." value={newDescription} onChange={e => setNewDescription(e.target.value)} />
                 </div>
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" placeholder="A brief summary of what this document contains." value={newDescription} onChange={e => setNewDescription(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="file-upload">File</Label>
-                <div className="flex items-center gap-4">
-                    <Input id="file-upload" type="file" key={fileInputKey} onChange={handleFileChange} className="hidden" />
-                    <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
-                        <UploadCloud className="mr-2"/> Choose File
-                    </Button>
-                    {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileIcon className="h-4 w-4"/><span>{newFileName}</span></div>}
-                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="file-upload">File</Label>
+                        <div className="flex items-center gap-4">
+                            <Input id="file-upload" type="file" key={fileInputKey} onChange={handleFileChange} className="hidden" />
+                            <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
+                                <UploadCloud className="mr-2"/> Choose File
+                            </Button>
+                        </div>
+                         {newFileName && <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileIcon className="h-4 w-4"/><span>{newFileName}</span></div>}
+                    </div>
+                    <div className="space-y-2">
+                         <MultiSelectPopover 
+                            label="Visible to Projects"
+                            items={projectOptions}
+                            selectedIds={newProjectIds}
+                            onSelectionChange={setNewProjectIds}
+                            onAddNew={() => {}}
+                            categories={[]}
+                        />
+                         <p className="text-xs text-muted-foreground">Leave blank to make available to all projects.</p>
+                    </div>
                 </div>
                 <Button onClick={handleAddResource}>
                 <PlusCircle className="mr-2" /> Add Resource
@@ -171,7 +191,7 @@ export default function ResourceManagementPage() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>File Name</TableHead>
+                  <TableHead>Visible To</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -180,7 +200,17 @@ export default function ResourceManagementPage() {
                   <TableRow key={resource.id}>
                     <TableCell className="font-medium">{resource.title}</TableCell>
                     <TableCell>{resource.category}</TableCell>
-                    <TableCell>{resource.fileName}</TableCell>
+                    <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                            {(!resource.projectIds || resource.projectIds.length === 0) 
+                                ? <Badge variant="secondary">All Projects</Badge>
+                                : resource.projectIds.map(id => {
+                                    const project = projects.find(p => p.id === id);
+                                    return <Badge key={id} variant="outline">{project?.name || id}</Badge>
+                                })
+                            }
+                        </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleViewResource(resource)}>
                         <Eye className="h-4 w-4" />

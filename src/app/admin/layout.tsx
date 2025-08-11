@@ -194,19 +194,19 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   )}
                 </Tooltip>
               </TooltipProvider>
-              <Link href="/admin/analytics">
-                <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
-                  <BarChart className="mr-2" />
-                  Analytics
-                </Button>
-              </Link>
               <Link href="/admin/resources">
                 <Button variant={getVariant('/admin/resources')} className="w-full justify-start">
                   <Library className="mr-2" />
                   Resources
                 </Button>
               </Link>
-              <Link href="/admin/settings">
+               <Link href="/admin/analytics">
+                <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
+                  <BarChart className="mr-2" />
+                  Analytics
+                </Button>
+              </Link>
+               <Link href="/admin/settings">
                 <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
                   <Settings className="mr-2" />
                   Company Settings
