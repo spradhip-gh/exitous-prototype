@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -112,11 +111,8 @@ export default function HrUserManagement() {
     }, [users, hasScopedProjectAccess, hrProjectAccess]);
     
     const visibleUserCountText = useMemo(() => {
-        if (!hasScopedProjectAccess) {
-            return `You have added ${users.length} of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`;
-        }
-        return `You are viewing ${visibleUsers.length} of ${users.length} total users in this company based on your project access.`;
-    }, [hasScopedProjectAccess, users.length, visibleUsers.length, companyAssignmentForHr?.maxUsers]);
+        return `You are managing ${visibleUsers.length} users. The company has a limit of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`;
+    }, [visibleUsers.length, companyAssignmentForHr?.maxUsers]);
 
     const sortedUsers = useMemo(() => {
         const invitedUsers = visibleUsers.filter(u => u.is_invited);
