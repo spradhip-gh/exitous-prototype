@@ -433,7 +433,7 @@ export default function EditQuestionDialog({
             </DialogHeader>
 
             <div className="space-y-6 py-4">
-                <fieldset disabled={isSuggestionMode}>
+                <fieldset disabled={isSuggestionMode && !isCustomQuestion}>
                     {isSuggestionMode && (
                         <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800 mb-6">
                             <HelpCircle className="h-4 w-4 !text-blue-600"/>
@@ -548,24 +548,21 @@ export default function EditQuestionDialog({
                     </div>
                 </fieldset>
                 
-                <fieldset disabled={!isNew && !currentQuestion.isCustom}>
-                    {currentQuestion.isCustom && (
-                        <div className="space-y-2 py-4">
-                            <Label>Project Visibility</Label>
-                            <ProjectAssignmentPopover
-                                item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
-                                projects={activeProjects}
-                                onSave={(itemId, itemType, projectIds) => {
-                                    setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
-                                }}
-                                disabled={!isNew && !currentQuestion.isCustom}
-                                includeUnassignedOption={true}
-                                popoverContentWidth='w-full'
-                            />
-                            <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
-                        </div>
-                    )}
-                </fieldset>
+                {currentQuestion.isCustom && (
+                    <div className="space-y-2 py-4">
+                        <Label>Project Visibility</Label>
+                        <ProjectAssignmentPopover
+                            item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
+                            projects={activeProjects}
+                            onSave={(itemId, itemType, projectIds) => {
+                                setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
+                            }}
+                            includeUnassignedOption={true}
+                            popoverContentWidth='w-full'
+                        />
+                        <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
+                    </div>
+                )}
 
                 {/* The rest of the form elements (options, guidance, etc.) */}
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
