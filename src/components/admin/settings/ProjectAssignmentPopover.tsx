@@ -86,7 +86,7 @@ export function ProjectAssignmentPopover({
     const hiddenInMyScope = hiddenProjectIds.some(id => id === 'all' || managerVisibleProjects.has(id));
 
     if (!hiddenInMyScope) {
-        return { isHiddenForAny: false, tooltipText: "Visible to all projects in your scope" };
+        return { isHiddenForAny: false, tooltipText: `Visible to all projects in your scope.` };
     }
     
     const hiddenNames = hiddenProjectIds.map(id => {
@@ -142,7 +142,7 @@ export function ProjectAssignmentPopover({
       <PopoverContent className="w-[250px] p-0">
         <div className="p-4">
           <h4 className="font-medium text-sm">Project Visibility</h4>
-          <p className="text-xs text-muted-foreground">Select projects to hide this question from.</p>
+          <p className="text-xs text-muted-foreground">Select projects to hide this {itemType.toLowerCase()} from.</p>
         </div>
         <Separator />
         <ScrollArea className="max-h-60">
