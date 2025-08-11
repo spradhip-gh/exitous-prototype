@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project, QuestionOverride } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -431,138 +432,141 @@ export default function EditQuestionDialog({
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset disabled={isSuggestionMode} className="space-y-6 py-4">
-                 {isSuggestionMode && (
-                    <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800">
-                        <HelpCircle className="h-4 w-4 !text-blue-600"/>
-                        <AlertTitle>Suggestion Mode</AlertTitle>
-                        <AlertDescription>
-                          This is a locked, platform-wide question. You cannot change its text or type, but you can suggest adding or removing answer options, and map your company-specific guidance to any answer.
-                        </AlertDescription>
-                    </Alert>
-                 )}
-                {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
-                    <Alert variant="default" className="bg-primary/5 border-primary/50">
-                        <BellDot className="h-4 w-4 !text-primary" />
-                        <AlertTitle>Update Available</AlertTitle>
-                        <AlertDescription className="space-y-2">
-                            The master version of this question has changed. You can apply updates.
-                            <div className="text-xs space-y-1 pt-2">
-                                <p><strong className="text-foreground">New Text:</strong> {masterQuestionForEdit.label}</p>
-                                {masterQuestionForEdit.options && <p><strong className="text-foreground">New Options:</strong> {masterQuestionForEdit.options.join(', ')}</p>}
+            <div className="space-y-6 py-4">
+                <fieldset disabled={isSuggestionMode}>
+                    {isSuggestionMode && (
+                        <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800 mb-6">
+                            <HelpCircle className="h-4 w-4 !text-blue-600"/>
+                            <AlertTitle>Suggestion Mode</AlertTitle>
+                            <AlertDescription>
+                            This is a locked, platform-wide question. You cannot change its text or type, but you can suggest adding or removing answer options, and map your company-specific guidance to any answer.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    {hasUpdateForCurrentQuestion && masterQuestionForEdit && (
+                        <Alert variant="default" className="bg-primary/5 border-primary/50 mb-6">
+                            <BellDot className="h-4 w-4 !text-primary" />
+                            <AlertTitle>Update Available</AlertTitle>
+                            <AlertDescription className="space-y-2">
+                                The master version of this question has changed. You can apply updates.
+                                <div className="text-xs space-y-1 pt-2">
+                                    <p><strong className="text-foreground">New Text:</strong> {masterQuestionForEdit.label}</p>
+                                    {masterQuestionForEdit.options && <p><strong className="text-foreground">New Options:</strong> {masterQuestionForEdit.options.join(', ')}</p>}
+                                </div>
+                                <Button size="sm" variant="outline" className="mt-2" onClick={() => {
+                                    setCurrentQuestion(q => q ? { ...q, label: masterQuestionForEdit.label, options: masterQuestionForEdit.options, lastUpdated: masterQuestionForEdit.lastUpdated } : null);
+                                    setOptionsText(masterQuestionForEdit.options?.join('\n') || '');
+                                    toast({ title: "Updates Applied" });
+                                }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    <div className="space-y-6">
+                        {!isNew && (
+                            <div className="space-y-2">
+                                <Label htmlFor="question-id">Question ID</Label>
+                                <Input id="question-id" value={currentQuestion.id || ''} disabled />
+                                <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>
                             </div>
-                            <Button size="sm" variant="outline" className="mt-2" onClick={() => {
-                                setCurrentQuestion(q => q ? { ...q, label: masterQuestionForEdit.label, options: masterQuestionForEdit.options, lastUpdated: masterQuestionForEdit.lastUpdated } : null);
-                                setOptionsText(masterQuestionForEdit.options?.join('\n') || '');
-                                toast({ title: "Updates Applied" });
-                            }}><Copy className="mr-2 h-3 w-3" /> Apply Updates</Button>
-                        </AlertDescription>
-                    </Alert>
-                )}
+                        )}
+                        {isNew && (
+                            <div className="space-y-2">
+                                <Label htmlFor="question-id">Question ID</Label>
+                                <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') } : null)} />
+                                <p className="text-xs text-muted-foreground">Use a unique, kebab-case ID.</p>
+                            </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="question-label">Question Text</Label>
+                            <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => q ? { ...q, label: e.target.value } : null)} />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="question-description">Question Tooltip (Description)</Label>
+                            <Textarea id="question-description" value={currentQuestion.description || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, description: e.target.value } : null)} placeholder="Why are we asking this? Explain what this information is used for."/>
+                        </div>
 
-                {!isNew && (
-                    <div className="space-y-2">
-                        <Label htmlFor="question-id">Question ID</Label>
-                        <Input id="question-id" value={currentQuestion.id || ''} disabled />
-                        <p className="text-xs text-muted-foreground">ID cannot be changed after creation.</p>
-                    </div>
-                )}
-                {isNew && (
-                    <div className="space-y-2">
-                        <Label htmlFor="question-id">Question ID</Label>
-                        <Input id="question-id" placeholder="kebab-case-unique-id" value={currentQuestion.id || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, id: e.target.value.toLowerCase().replace(/\s+/g, '-') } : null)} />
-                        <p className="text-xs text-muted-foreground">Use a unique, kebab-case ID.</p>
-                    </div>
-                )}
-                
-                <div className="space-y-2">
-                    <Label htmlFor="question-label">Question Text</Label>
-                    <Textarea id="question-label" value={currentQuestion.label} onChange={(e) => setCurrentQuestion(q => q ? { ...q, label: e.target.value } : null)} />
-                </div>
-                
-                 <div className="space-y-2">
-                    <Label htmlFor="question-description">Question Tooltip (Description)</Label>
-                    <Textarea id="question-description" value={currentQuestion.description || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, description: e.target.value } : null)} placeholder="Why are we asking this? Explain what this information is used for."/>
-                </div>
+                        {currentQuestion.parentId && (
+                            <div className="space-y-2">
+                                <Label htmlFor="trigger-value">Trigger Value</Label>
+                                <Input id="trigger-value" value={currentQuestion.triggerValue || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, triggerValue: e.target.value } : null)} placeholder="e.g., Yes" />
+                                <p className="text-xs text-muted-foreground">The answer from the parent question that will show this question.</p>
+                            </div>
+                        )}
 
-                {currentQuestion.parentId && (
-                    <div className="space-y-2">
-                        <Label htmlFor="trigger-value">Trigger Value</Label>
-                        <Input id="trigger-value" value={currentQuestion.triggerValue || ''} onChange={(e) => setCurrentQuestion(q => q ? { ...q, triggerValue: e.target.value } : null)} placeholder="e.g., Yes" />
-                        <p className="text-xs text-muted-foreground">The answer from the parent question that will show this question.</p>
-                    </div>
-                )}
+                        {!currentQuestion.parentId && (isNew || (!isNew && currentQuestion.isCustom)) && (
+                            <div className="space-y-2">
+                                <Label htmlFor="question-section">Section</Label>
+                                <Select
+                                    onValueChange={(v) => {
+                                        if (v === 'CREATE_NEW') {
+                                            setIsCreatingNewSection(true);
+                                            setCurrentQuestion(q => q ? { ...q, section: '' } : null);
+                                        } else {
+                                            setIsCreatingNewSection(false);
+                                            setCurrentQuestion(q => q ? { ...q, section: v as any } : null);
+                                        }
+                                    }}
+                                    value={isCreatingNewSection ? 'CREATE_NEW' : currentQuestion.section || ''}
+                                >
+                                    <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {existingSections?.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        {(isAdmin || (isHrEditing && formType === 'assessment')) && (
+                                            <>
+                                                <Separator className="my-1" />
+                                                <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        
+                        {isCreatingNewSection && (
+                            <div className="space-y-2">
+                                <Label htmlFor="new-section-name">New Section Name</Label>
+                                <Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" />
+                            </div>
+                        )}
 
-                {!currentQuestion.parentId && (isNew || (!isNew && currentQuestion.isCustom)) && (
-                     <div className="space-y-2">
-                        <Label htmlFor="question-section">Section</Label>
-                        <Select
-                            onValueChange={(v) => {
-                                if (v === 'CREATE_NEW') {
-                                    setIsCreatingNewSection(true);
-                                    setCurrentQuestion(q => q ? { ...q, section: '' } : null);
-                                } else {
-                                    setIsCreatingNewSection(false);
-                                    setCurrentQuestion(q => q ? { ...q, section: v as any } : null);
-                                }
+                        <div className="space-y-2">
+                            <Label htmlFor="question-type">Question Type</Label>
+                            <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, type: v as any, options: [] } : null)} value={currentQuestion.type}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="text">Text</SelectItem>
+                                    <SelectItem value="select">Select</SelectItem>
+                                    <SelectItem value="radio">Radio</SelectItem>
+                                    <SelectItem value="checkbox">Checkbox</SelectItem>
+                                    <SelectItem value="date">Date</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                {currentQuestion.isCustom && (
+                    <div className="space-y-2 py-4">
+                        <Label>Project Visibility</Label>
+                        <ProjectAssignmentPopover
+                            item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
+                            projects={activeProjects}
+                            onSave={(itemId, itemType, projectIds) => {
+                                setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                             }}
-                            value={isCreatingNewSection ? 'CREATE_NEW' : currentQuestion.section || ''}
-                        >
-                            <SelectTrigger><SelectValue placeholder="Select a section..." /></SelectTrigger>
-                            <SelectContent>
-                                {existingSections?.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                {(isAdmin || (isHrEditing && formType === 'assessment')) && (
-                                    <>
-                                        <Separator className="my-1" />
-                                        <SelectItem value="CREATE_NEW">Create new section...</SelectItem>
-                                    </>
-                                )}
-                            </SelectContent>
-                        </Select>
+                            disabled={false}
+                            includeUnassignedOption={true}
+                            popoverContentWidth='w-full'
+                        />
+                        <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
                     </div>
                 )}
                 
-                {isCreatingNewSection && (
-                    <div className="space-y-2">
-                        <Label htmlFor="new-section-name">New Section Name</Label>
-                        <Input id="new-section-name" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder="Enter the new section name" />
-                    </div>
-                )}
-
-
-                <div className="space-y-2">
-                    <Label htmlFor="question-type">Question Type</Label>
-                    <Select onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, type: v as any, options: [] } : null)} value={currentQuestion.type}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="text">Text</SelectItem>
-                            <SelectItem value="select">Select</SelectItem>
-                            <SelectItem value="radio">Radio</SelectItem>
-                            <SelectItem value="checkbox">Checkbox</SelectItem>
-                            <SelectItem value="date">Date</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </fieldset>
-
-             {currentQuestion.isCustom && (
-                <div className="space-y-2 py-4">
-                    <Label>Project Visibility</Label>
-                     <ProjectAssignmentPopover
-                        item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
-                        projects={activeProjects}
-                        onSave={(itemId, itemType, projectIds) => {
-                            setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
-                        }}
-                        disabled={isSuggestionMode}
-                        includeUnassignedOption={true}
-                        popoverContentWidth='w-full'
-                    />
-                    <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
-                </div>
-            )}
-
-            {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
+                {/* The rest of the form elements (options, guidance, etc.) */}
+                {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                 <div className="space-y-4 pt-4">
                     <div className="space-y-2">
                         <Label>Answer Options & Guidance</Label>
@@ -646,93 +650,94 @@ export default function EditQuestionDialog({
                         )}
                     </div>
                 </div>
-            )}
-            
-            {isSuggestionMode && (
-                <div className="space-y-2 pt-4">
-                    <Label htmlFor="suggestion-reason">Reason for change (optional)</Label>
-                    <Textarea id="suggestion-reason" value={suggestionReason} onChange={e => setSuggestionReason(e.target.value)} placeholder="e.g., We need to add a 'Remote' option because our policy has changed." />
-                </div>
-            )}
-
-            {!isSuggestionMode && (
-                <Collapsible>
-                    <CollapsibleTrigger asChild>
-                        <Button variant="link" className="p-0 h-auto flex items-center gap-2">
-                           <Link className="text-muted-foreground"/> Show Advanced Conditional Logic <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                        <div className="space-y-4 rounded-md border border-dashed p-4 mt-2">
-                            <h3 className="text-sm font-semibold">Conditional Logic (Optional)</h3>
-                            <p className="text-xs text-muted-foreground">Only show this question if another question has a specific answer.</p>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Source Form</Label>
-                                    <Select value={currentQuestion.dependencySource || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependencySource: v as any, dependsOn: '', dependsOnValue: '' } : null)}>
-                                        <SelectTrigger><SelectValue placeholder="Select Source..." /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="profile">Profile Form</SelectItem>
-                                            <SelectItem value="assessment">Assessment Form</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Source Question</Label>
-                                    <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: [] } : null)} disabled={!currentQuestion.dependencySource}>
-                                        <SelectTrigger><SelectValue placeholder="Select Question..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {(currentQuestion.dependencySource && dependencyQuestions[currentQuestion.dependencySource])?.map(q => (
-                                                <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            {sourceQuestionOptions.length > 0 && (
-                                <div className="space-y-2">
-                                    <Label>Trigger Answer(s)</Label>
-                                    <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
-                                        {sourceQuestionOptions.map(option => {
-                                            const isChecked = Array.isArray(currentQuestion.dependsOnValue) && currentQuestion.dependsOnValue.includes(option);
-                                            return (
-                                                <div key={option} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`trigger-${option}`}
-                                                        checked={isChecked}
-                                                        onCheckedChange={(checked) => handleDependsOnValueChange(option, !!checked)}
-                                                    />
-                                                    <Label htmlFor={`trigger-${option}`} className="font-normal">{option}</Label>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">The answer(s) that will make this question appear.</p>
-                                </div>
-                            )}
-                            <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
-                        </div>
-                    </CollapsibleContent>
-                </Collapsible>
-            )}
-
-            {isAdmin && !currentQuestion.parentId && (
-                <div className="space-y-4 rounded-md border border-dashed p-4">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
-                            <Lock className="text-muted-foreground" />
-                            Lock this Question
-                        </Label>
-                        <Switch 
-                            id="is-locked-switch"
-                            checked={!!currentQuestion.isLocked}
-                            onCheckedChange={(checked) => setCurrentQuestion(q => q ? { ...q, isLocked: checked } : null)}
-                        />
+                )}
+                
+                {isSuggestionMode && (
+                    <div className="space-y-2 pt-4">
+                        <Label htmlFor="suggestion-reason">Reason for change (optional)</Label>
+                        <Textarea id="suggestion-reason" value={suggestionReason} onChange={e => setSuggestionReason(e.target.value)} placeholder="e.g., We need to add a 'Remote' option because our policy has changed." />
                     </div>
-                    <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
-                </div>
-            )}
+                )}
+
+                {!isSuggestionMode && (
+                    <Collapsible>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="link" className="p-0 h-auto flex items-center gap-2">
+                            <Link className="text-muted-foreground"/> Show Advanced Conditional Logic <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="space-y-4 rounded-md border border-dashed p-4 mt-2">
+                                <h3 className="text-sm font-semibold">Conditional Logic (Optional)</h3>
+                                <p className="text-xs text-muted-foreground">Only show this question if another question has a specific answer.</p>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Source Form</Label>
+                                        <Select value={currentQuestion.dependencySource || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependencySource: v as any, dependsOn: '', dependsOnValue: '' } : null)}>
+                                            <SelectTrigger><SelectValue placeholder="Select Source..." /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="profile">Profile Form</SelectItem>
+                                                <SelectItem value="assessment">Assessment Form</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Source Question</Label>
+                                        <Select value={currentQuestion.dependsOn || ''} onValueChange={(v) => setCurrentQuestion(q => q ? { ...q, dependsOn: v as any, dependsOnValue: [] } : null)} disabled={!currentQuestion.dependencySource}>
+                                            <SelectTrigger><SelectValue placeholder="Select Question..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {(currentQuestion.dependencySource && dependencyQuestions[currentQuestion.dependencySource])?.map(q => (
+                                                    <SelectItem key={q.id} value={q.id}>{q.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                {sourceQuestionOptions.length > 0 && (
+                                    <div className="space-y-2">
+                                        <Label>Trigger Answer(s)</Label>
+                                        <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                            {sourceQuestionOptions.map(option => {
+                                                const isChecked = Array.isArray(currentQuestion.dependsOnValue) && currentQuestion.dependsOnValue.includes(option);
+                                                return (
+                                                    <div key={option} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`trigger-${option}`}
+                                                            checked={isChecked}
+                                                            onCheckedChange={(checked) => handleDependsOnValueChange(option, !!checked)}
+                                                        />
+                                                        <Label htmlFor={`trigger-${option}`} className="font-normal">{option}</Label>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">The answer(s) that will make this question appear.</p>
+                                    </div>
+                                )}
+                                <Button variant="outline" size="sm" onClick={() => setCurrentQuestion(q => q ? {...q, dependencySource: undefined, dependsOn: undefined, dependsOnValue: undefined } : null)}>Clear Logic</Button>
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
+                )}
+
+                {isAdmin && !currentQuestion.parentId && (
+                    <div className="space-y-4 rounded-md border border-dashed p-4">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="is-locked-switch" className="flex items-center gap-2 font-semibold">
+                                <Lock className="text-muted-foreground" />
+                                Lock this Question
+                            </Label>
+                            <Switch 
+                                id="is-locked-switch"
+                                checked={!!currentQuestion.isLocked}
+                                onCheckedChange={(checked) => setCurrentQuestion(q => q ? { ...q, isLocked: checked } : null)}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">When locked, HR Managers on Pro plans cannot disable or edit this question's text or options. It becomes read-only for them.</p>
+                    </div>
+                )}
+            </div>
 
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline" onClick={onClose}>Cancel</Button></DialogClose>

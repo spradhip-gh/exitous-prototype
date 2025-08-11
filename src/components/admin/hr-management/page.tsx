@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -394,14 +393,12 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
         setAssignments(prev => {
             const newAssignments = {...prev};
             
-            // Unset other primaries for this user
             Object.keys(newAssignments).forEach(cn => {
                 if (newAssignments[cn].isPrimary) {
                     newAssignments[cn] = {...newAssignments[cn], isPrimary: false, permissions: defaultPermissions };
                 }
             });
 
-            // Set the new primary
             newAssignments[companyName] = {
                 ...newAssignments[companyName],
                 isPrimary: true,
@@ -429,18 +426,17 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
             return;
         }
 
-        let updatedAssignments = JSON.parse(JSON.stringify(allAssignments)); // deep copy
+        let updatedAssignments = JSON.parse(JSON.stringify(allAssignments));
 
         Object.values(assignments).forEach(newAssignment => {
             const assignmentIndex = updatedAssignments.findIndex((a: CompanyAssignment) => a.companyName === newAssignment.companyName);
             if (assignmentIndex > -1) {
                 const company = updatedAssignments[assignmentIndex];
                 if (company.hrManagers.some((hr: HrManager) => hr.email.toLowerCase() === email.toLowerCase())) {
-                    return; // already assigned
+                    return;
                 }
 
                 if (newAssignment.isPrimary) {
-                    // Demote old primary
                     company.hrManagers.forEach((hr: HrManager) => { if (hr.isPrimary) hr.isPrimary = false; });
                 }
 
@@ -477,7 +473,6 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                             const currentPrimaryEmail = allAssignments.find(a => a.companyName === company.companyName)?.hrManagers.find(m => m.isPrimary)?.email;
                             const projectOptions = company.projects?.filter(p => !p.isArchived) || [];
 
-
                             return (
                                 <Card key={company.companyName} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
                                     <CardHeader className="flex flex-row items-center justify-between p-4">
@@ -500,7 +495,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                         <AlertDialogTrigger asChild>
                                                             <Switch 
                                                                 checked={isPrimary}
-                                                                onCheckedChange={() => {}} // dummy to allow trigger
+                                                                onCheckedChange={() => {}}
                                                                 disabled={isPrimary}
                                                             />
                                                         </AlertDialogTrigger>
@@ -676,7 +671,7 @@ export default function HrManagementPage() {
         
         const parts = [];
         if (assignedProjectCount > 0) parts.push(`${assignedProjectCount} Project${assignedProjectCount > 1 ? 's' : ''}`);
-        if (hasUnassigned) parts.push("Unassigned");
+        if (hasUnassigned) parts.push("Unassigned Users");
         
         const text = parts.join(' + ');
 
