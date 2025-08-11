@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -945,21 +943,19 @@ export function useUserData() {
     }, []);
 
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
-        const allCurrentAssignments = companyAssignments || [];
         const toUpsert: any[] = [];
         const toDelete: { company_id: string; hr_email: string }[] = [];
-
-        for (const currentAssignment of allCurrentAssignments) {
-            const updatedAssignment = assignmentsToSave.find(a => a.companyId === currentAssignment.companyId);
-            
-            for (const currentManager of currentAssignment.hrManagers) {
-                const managerStillExists = updatedAssignment?.hrManagers.some(hr => hr.email === currentManager.email);
-                if (!managerStillExists) {
-                    toDelete.push({ company_id: currentAssignment.companyId, hr_email: currentManager.email });
-                }
+    
+        const allCurrentManagers = new Set(companyAssignments.flatMap(c => c.hrManagers.map(h => `${c.companyId}-${h.email}`)));
+        const allNewManagers = new Set(assignmentsToSave.flatMap(c => c.hrManagers.map(h => `${c.companyId}-${h.email}`)));
+    
+        allCurrentManagers.forEach(managerKey => {
+            if (!allNewManagers.has(managerKey)) {
+                const [companyId, email] = managerKey.split('-');
+                toDelete.push({ company_id: companyId, hr_email: email });
             }
-        }
-        
+        });
+    
         for (const updatedAssignment of assignmentsToSave) {
             for (const updatedManager of updatedAssignment.hrManagers) {
                 toUpsert.push({
@@ -971,21 +967,20 @@ export function useUserData() {
                 });
             }
         }
-
+    
         if (toDelete.length > 0) {
-            const deletePromises = toDelete.map(d => 
-                supabase.from('company_hr_assignments').delete().match({ company_id: d.company_id, hr_email: d.hr_email })
+            const deletePromises = toDelete.map(d =>
+                supabase.from('company_hr_assignments').delete().match(d)
             );
             await Promise.all(deletePromises);
         }
-
+    
         if (toUpsert.length > 0) {
             const { error: upsertError } = await supabase.from('company_hr_assignments').upsert(toUpsert, { onConflict: 'company_id, hr_email' });
             if (upsertError) console.error("Error upserting assignments", upsertError);
         }
-
+    
         setCompanyAssignments(assignmentsToSave);
-
     }, [companyAssignments]);
 
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
@@ -1453,12 +1448,3 @@ export function useUserData() {
         saveCompanyProjects,
     };
 }
-
-
-
-
-
-
-
-
-
