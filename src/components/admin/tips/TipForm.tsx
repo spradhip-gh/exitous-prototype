@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -20,6 +19,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProjectAssignmentPopover } from '../settings/ProjectAssignmentPopover';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -52,15 +52,16 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
         setFormData(prev => ({ ...prev, [name]: value }));
     };
     
-    const handleProjectSelectionChange = (projectId: string, isChecked: boolean) => {
-        setFormData(prev => {
-            const currentProjectIds = prev.projectIds || [];
-            if (isChecked) {
-                return { ...prev, projectIds: [...currentProjectIds, projectId] };
-            } else {
-                return { ...prev, projectIds: currentProjectIds.filter(id => id !== projectId) };
-            }
-        });
+    const handleProjectVisibilityChange = (hiddenIds: string[]) => {
+        const newProjectIds = (companyAssignmentForHr?.projects || [])
+            .map(p => p.id)
+            .filter(id => !hiddenIds.includes(id) && !hiddenIds.includes('all'));
+            
+        if (hiddenIds.includes('__none__')) {
+            // No action needed, as unassigned is handled by empty array or inclusion
+        }
+
+        setFormData(prev => ({ ...prev, projectIds: newProjectIds }));
     };
 
     const handleSubmit = () => {
@@ -224,21 +225,14 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                      {isHr && (
                         <div className="space-y-2 md:col-span-2">
                              <Label>Project Visibility</Label>
-                             <ScrollArea className="h-40 rounded-md border">
-                                <div className="p-4 space-y-2">
-                                     <div className="flex items-center space-x-2">
-                                        <Checkbox id="tip-project-unassigned" checked={(formData.projectIds || []).includes('__none__')} onCheckedChange={(c) => handleProjectSelectionChange('__none__', !!c)} />
-                                        <Label htmlFor="tip-project-unassigned" className="font-normal italic">Unassigned Users</Label>
-                                    </div>
-                                    {activeProjects.map(project => (
-                                        <div key={project.id} className="flex items-center space-x-2">
-                                            <Checkbox id={`tip-project-${project.id}`} checked={(formData.projectIds || []).includes(project.id)} onCheckedChange={(c) => handleProjectSelectionChange(project.id, !!c)} />
-                                            <Label htmlFor={`tip-project-${project.id}`} className="font-normal">{project.name}</Label>
-                                        </div>
-                                    ))}
-                                </div>
-                             </ScrollArea>
-                             <p className="text-xs text-muted-foreground">Leave all unchecked for All Projects.</p>
+                              <ProjectAssignmentPopover
+                                questionId={formData.id || ''}
+                                projects={activeProjects}
+                                companyConfig={{ customQuestions: { [formData.id!]: formData as MasterTip } }}
+                                onVisibilityChange={handleProjectVisibilityChange}
+                                disabled={!isHr}
+                                itemType="Tip"
+                            />
                         </div>
                     )}
                 </div>
