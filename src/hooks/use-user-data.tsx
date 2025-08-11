@@ -555,6 +555,11 @@ export function useUserData() {
     
     const saveProfileData = useCallback(async (data: ProfileData) => {
         if (!auth?.userId) return;
+        if (auth.isPreview) {
+            setProfileData(data);
+            return;
+        }
+
         setProfileData(data); // Optimistic update
         const { error: userError } = await supabase
             .from('company_users')
@@ -573,11 +578,21 @@ export function useUserData() {
             console.error("Error saving profile:", error);
             // Optionally revert optimistic update
         }
-    }, [auth?.userId]);
+    }, [auth?.userId, auth?.isPreview]);
     
     const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
         if (!userId) return;
-        const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
+        if (auth?.isPreview) { // Added preview check
+            // In preview, just update local state if needed, or do nothing.
+            // This part might need more logic depending on how previews should work for this.
+            return;
+        }
+
+        const { error } = await supabase.rpc('update_my_contact_info', {
+            new_personal_email: contactInfo.personal_email,
+            new_phone: contactInfo.phone,
+        });
+
         if (error) {
             console.error("Error updating contact info:", error);
         } else {
@@ -598,10 +613,14 @@ export function useUserData() {
                 return newConfigs;
              });
         }
-    }, []);
+    }, [auth?.isPreview]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (!auth?.userId) return;
+        if (auth.isPreview) {
+            setAssessmentData(data);
+            return;
+        }
         setAssessmentData(data); // Optimistic update
     
         const { data: companyUser, error: userError } = await supabase
@@ -639,7 +658,7 @@ export function useUserData() {
         if (saveError) {
             console.error("Error saving assessment:", saveError);
         }
-    }, [auth?.userId]);
+    }, [auth?.userId, auth?.isPreview]);
     
      const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions }[] }) => {
         const { data: companyData, error: companyError } = await supabase
@@ -1001,7 +1020,15 @@ export function useUserData() {
             if (masterQ.formType !== formType) continue;
             
             const override = companyConfig?.questions?.[id];
-            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
+            let isCompanyActive = override?.isActive === undefined ? true : override.isActive;
+
+            // In preview mode, check project-specific hidden questions
+            if (auth?.isPreview && auth.previewProjectId) {
+                const projectConfig = companyConfig?.projectConfigs?.[auth.previewProjectId];
+                if (projectConfig?.hiddenQuestions?.includes(id)) {
+                    isCompanyActive = false;
+                }
+            }
     
             if (!forEndUser || isCompanyActive) {
                 let finalQuestion: Question = { ...masterQ };
@@ -1033,6 +1060,12 @@ export function useUserData() {
         for(const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
             if(customQ.formType === formType && customQ.isActive) {
+                // In preview mode, filter custom questions by project ID
+                if (auth?.isPreview && auth.previewProjectId) {
+                    if (customQ.projectIds && customQ.projectIds.length > 0 && !customQ.projectIds.includes(auth.previewProjectId)) {
+                        continue; // Skip if it's assigned to other projects
+                    }
+                }
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
@@ -1040,7 +1073,7 @@ export function useUserData() {
         const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
         
         return questionTree;
-    }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+    }, [companyConfigs, masterQuestions, masterProfileQuestions, auth?.isPreview, auth?.previewProjectId]);
     
     
     const getCompanyUser = useMemo(() => (email: string | undefined) => {

@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChevronsUpDown, Trash2, Eye, ShieldCheck, Key, Crown } from 'lucide-react';
@@ -47,7 +51,7 @@ const permissionLabels: Record<string, string> = {
 
 export default function Header({ children }: { children?: React.ReactNode }) {
   const { auth, logout, startUserView, stopUserView, switchCompany } = useAuth();
-  const { clearData, companyAssignments } = useUserData();
+  const { clearData, companyAssignments, companyAssignmentForHr } = useUserData();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -60,8 +64,8 @@ export default function Header({ children }: { children?: React.ReactNode }) {
     window.location.reload(); // Reload to force state reset and redirect to progress tracker
   };
 
-  const handleStartUserView = () => {
-    startUserView();
+  const handleStartUserView = (projectId?: string, projectName?: string) => {
+    startUserView(projectId, projectName);
     router.push('/dashboard');
   };
 
@@ -87,6 +91,10 @@ export default function Header({ children }: { children?: React.ReactNode }) {
         .filter(c => c.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
         .map(c => c.companyName);
   }, [auth?.email, companyAssignments]);
+  
+  const projectsForPreview = useMemo(() => {
+    return companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
+  }, [companyAssignmentForHr]);
 
 
   return (
@@ -109,7 +117,7 @@ export default function Header({ children }: { children?: React.ReactNode }) {
         {auth?.role && <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-auto">
-                    {auth.isPreview ? 'User Preview' : (auth.role === 'hr' ? auth.companyName : (auth.role === 'end-user' ? auth.email : roleNames[auth.role]))}
+                    {auth.isPreview ? `Preview: ${auth.previewProjectName || 'Default'}` : (auth.role === 'hr' ? auth.companyName : (auth.role === 'end-user' ? auth.email : roleNames[auth.role]))}
                     <ChevronsUpDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
@@ -203,10 +211,24 @@ export default function Header({ children }: { children?: React.ReactNode }) {
                  )}
                  
                  {auth.role === 'hr' && !auth.isPreview && (
-                    <DropdownMenuItem onSelect={handleStartUserView}>
-                        <Eye className="mr-2" />
-                        <span>View as User</span>
-                    </DropdownMenuItem>
+                     <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Eye className="mr-2" />
+                            <span>View as User</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                             <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleStartUserView(undefined, 'Default (No Project)')}>
+                                    Default (No Project)
+                                </DropdownMenuItem>
+                                {projectsForPreview.map(p => (
+                                    <DropdownMenuItem key={p.id} onClick={() => handleStartUserView(p.id, p.name)}>
+                                        {p.name}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
                  )}
 
                  {auth.isPreview && (

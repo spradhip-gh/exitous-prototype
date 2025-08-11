@@ -21,6 +21,8 @@ export interface AuthState {
   isPreview?: boolean;
   assignedCompanyNames?: string[];
   permissions?: HrPermissions;
+  previewProjectId?: string;
+  previewProjectName?: string;
 }
 
 interface AuthContextType {
@@ -28,7 +30,7 @@ interface AuthContextType {
   loading: boolean;
   login: (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string) => Promise<boolean>;
   logout: () => void;
-  startUserView: () => void;
+  startUserView: (projectId?: string, projectName?: string) => void;
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
@@ -194,10 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const startUserView = useCallback(() => {
+  const startUserView = useCallback((projectId?: string, projectName?: string) => {
     if (!auth || auth.role !== 'hr') return;
 
-    const originalAuth = { ...auth, isPreview: undefined };
+    const originalAuth = { ...auth, isPreview: undefined, previewProjectId: undefined, previewProjectName: undefined };
     
     // Create a temporary, generic user session for the preview
     const previewAuth: AuthState = {
@@ -208,6 +210,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         companyId: auth.companyId,
         companyName: auth.companyName,
         isPreview: true,
+        previewProjectId: projectId,
+        previewProjectName: projectName,
     };
     
     try {
