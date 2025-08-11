@@ -835,7 +835,7 @@ export function useUserData() {
         const company = companyAssignments.find(c => c.companyName === companyName);
         if (!company) return;
 
-        const { error } = await supabase.from('company_question_configs').upsert({
+        const payload = {
             company_id: company.companyId,
             question_overrides: config.questions || {},
             custom_questions: config.customQuestions || {},
@@ -843,9 +843,10 @@ export function useUserData() {
             answer_guidance_overrides: config.answerGuidanceOverrides || {},
             company_tasks: config.companyTasks || [],
             company_tips: config.companyTips || [],
-            resources: config.resources || [],
             project_configs: config.projectConfigs || {},
-        }, { onConflict: 'company_id' });
+        };
+
+        const { error } = await supabase.from('company_question_configs').upsert(payload, { onConflict: 'company_id' });
         
         if (error) {
             console.error("Error saving company config:", error);
