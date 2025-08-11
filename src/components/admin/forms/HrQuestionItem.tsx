@@ -10,7 +10,7 @@ import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride, Project } f
 import { cn } from "@/lib/utils";
 import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
+import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
 import { useUserData } from "@/hooks/use-user-data";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
@@ -97,7 +97,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
-    const handleProjectVisibilityChange = (itemId: string, itemType: 'Question', projectIds: string[]) => {
+    const handleProjectVisibilityChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', projectIds: string[]) => {
         if (!companyConfig) return;
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
         if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
@@ -180,6 +180,10 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
         )
     };
 
+    const projectOptions: MultiSelectOption[] = (projects || []).map(p => ({value: p.id, label: p.name}));
+    projectOptions.push({value: 'all', label: 'Hidden for All Projects'});
+
+
     return (
         <div className="bg-background rounded-lg my-1">
             <div className="flex items-center space-x-2 group pr-2">
@@ -239,12 +243,13 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                         </TooltipProvider>
                     )}
                     {!question.isCustom && (
-                        <ProjectAssignmentPopover 
-                            item={{...question, typeLabel: 'Question'}}
-                            projects={projects}
-                            onSave={handleProjectVisibilityChange}
-                            initialProjectIds={initialProjectIds}
+                        <MultiSelect 
+                            options={projectOptions}
+                            selected={initialProjectIds}
+                            onChange={(value) => handleProjectVisibilityChange(question.id, 'Question', value)}
                             disabled={!canWrite}
+                            placeholder='Visible to All'
+                            className="w-[180px]"
                         />
                     )}
                     {question.isCustom && (

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -21,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ProjectAssignmentPopover } from "@/components/admin/settings/ProjectAssignmentPopover";
+import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -186,8 +187,9 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
-                                const projectOptions = assignment.projects?.filter(p => !p.isArchived) || [];
-                                
+                                const projectOptions: MultiSelectOption[] = (assignment.projects?.filter(p => !p.isArchived) || []).map(p => ({ value: p.id, label: p.name }));
+                                projectOptions.push({value: '__none__', label: 'Unassigned Users'});
+
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
                                         <CardHeader className="flex flex-row items-center justify-between p-4">
@@ -294,13 +296,13 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                         </Select>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <ProjectAssignmentPopover
-                                                            item={{id: manager.email, typeLabel: 'User' as any, name: manager.email}}
-                                                            projects={projectOptions}
-                                                            initialProjectIds={manager.projectAccess}
-                                                            onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(assignment.companyName, projectIds)}
-                                                            includeUnassignedOption={true}
-                                                            popoverContentWidth='w-full'
+                                                        <Label>Project Access</Label>
+                                                        <MultiSelect 
+                                                            options={projectOptions}
+                                                            selected={manager.projectAccess || []}
+                                                            onChange={(value) => handleProjectAccessChange(assignment.companyName, value)}
+                                                            placeholder="Select project access..."
+                                                            disabled={!canEditThisCompany}
                                                         />
                                                     </div>
                                                 </fieldset>
@@ -471,7 +473,8 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                             const isAssigned = !!assignments[company.companyName];
                             const isPrimary = isAssigned && assignments[company.companyName].isPrimary;
                             const currentPrimaryEmail = allAssignments.find(a => a.companyName === company.companyName)?.hrManagers.find(m => m.isPrimary)?.email;
-                            const projectOptions = company.projects?.filter(p => !p.isArchived) || [];
+                            const projectOptions: MultiSelectOption[] = (company.projects?.filter(p => !p.isArchived) || []).map(p => ({ value: p.id, label: p.name }));
+                            projectOptions.push({value: '__none__', label: 'Unassigned Users'});
 
                             return (
                                 <Card key={company.companyName} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
@@ -495,7 +498,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                         <AlertDialogTrigger asChild>
                                                             <Switch 
                                                                 checked={isPrimary}
-                                                                onCheckedChange={() => {}}
+                                                                onCheckedChange={() => {}} // dummy to allow trigger
                                                                 disabled={isPrimary}
                                                             />
                                                         </AlertDialogTrigger>
@@ -566,13 +569,12 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                         </Select>
                                                     </div>
                                                      <div className="col-span-2">
-                                                        <ProjectAssignmentPopover
-                                                            item={{id: email, typeLabel: 'User' as any, name: email}}
-                                                            projects={projectOptions}
-                                                            initialProjectIds={assignments[company.companyName].projectAccess}
-                                                            onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(company.companyName, projectIds)}
-                                                            includeUnassignedOption={true}
-                                                            popoverContentWidth='w-full'
+                                                        <Label>Project Access</Label>
+                                                        <MultiSelect
+                                                            options={projectOptions}
+                                                            selected={assignments[company.companyName].projectAccess}
+                                                            onChange={(value) => handleProjectAccessChange(company.companyName, value)}
+                                                            placeholder="Select project access..."
                                                         />
                                                     </div>
                                                 </div>
@@ -664,7 +666,7 @@ export default function HrManagementPage() {
     }, [companyAssignments, managedCompanies]);
 
     const getAccessDisplay = (projectAccess: string[] | undefined, projects: any[] | undefined) => {
-        if (!projectAccess || projectAccess.includes('all')) return <Badge variant="secondary">All Projects</Badge>;
+        if (!projectAccess || projectAccess.includes('all') || projectAccess.length === 0) return <Badge variant="secondary">All Projects</Badge>;
         
         const hasUnassigned = projectAccess.includes('__none__');
         const assignedProjectCount = projectAccess.filter(id => id !== '__none__').length;
