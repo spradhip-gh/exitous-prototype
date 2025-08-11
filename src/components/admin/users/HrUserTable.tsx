@@ -147,6 +147,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         if (!editingUser || !companyName) return;
 
         const updatedUserPayload = {
+            id: editingUser.id, // Ensure ID is included in the payload
             personal_email: editedPersonalEmail || undefined,
             notification_date: editedNotificationDate ? format(editedNotificationDate, 'yyyy-MM-dd') : editingUser.notification_date,
             project_id: editedProjectId === 'none' ? null : editedProjectId,
@@ -255,4 +256,3 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         </TooltipProvider>
     );
 }
-
