@@ -290,6 +290,8 @@ export default function CompanySettingsPage() {
   const isPro = companyAssignmentForHr.version === 'pro';
   const activeProjects = visibleProjects.filter(p => !p.isArchived);
   const archivedProjects = visibleProjects.filter(p => p.isArchived);
+  
+  const isPrimaryHr = hrManager?.isPrimary === true;
 
   return (
     <>
@@ -330,35 +332,37 @@ export default function CompanySettingsPage() {
             </TabsList>
             <TabsContent value="settings" className="mt-6">
                 <div className="space-y-8">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Plan & Usage</CardTitle>
-                            <CardDescription>Your current subscription plan and user license details.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between rounded-lg border p-4">
-                                <div>
-                                    <p className="text-sm font-medium">Plan Type</p>
-                                    <Badge variant={isPro ? 'default' : 'secondary'} className={isPro ? 'bg-green-600' : ''}>
-                                    {isPro ? "Pro" : "Basic"}
-                                    </Badge>
-                                </div>
-                                {isPro ? (
-                                    <div className="text-green-600 flex items-center gap-2">
-                                        <ShieldCheck />
-                                        <span className="font-semibold">Active</span>
+                    {(auth?.role === 'admin' || isPrimaryHr) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Plan & Usage</CardTitle>
+                                <CardDescription>Your current subscription plan and user license details.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between rounded-lg border p-4">
+                                    <div>
+                                        <p className="text-sm font-medium">Plan Type</p>
+                                        <Badge variant={isPro ? 'default' : 'secondary'} className={isPro ? 'bg-green-600' : ''}>
+                                        {isPro ? "Pro" : "Basic"}
+                                        </Badge>
                                     </div>
-                                ) : (
-                                    <Button onClick={handleUpgrade} disabled={!canWrite}><ShieldAlert className="mr-2"/>Upgrade to Pro</Button>
-                                )}
-                            </div>
-                            <div>
-                                <Label>User Licenses</Label>
-                                <Progress value={userProgress} className="w-full mt-2" />
-                                <p className="text-sm text-muted-foreground mt-2 text-right">{userCount} of {maxUsers} users</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                                    {isPro ? (
+                                        <div className="text-green-600 flex items-center gap-2">
+                                            <ShieldCheck />
+                                            <span className="font-semibold">Active</span>
+                                        </div>
+                                    ) : (
+                                        <Button onClick={handleUpgrade} disabled={!canWrite}><ShieldAlert className="mr-2"/>Upgrade to Pro</Button>
+                                    )}
+                                </div>
+                                <div>
+                                    <Label>User Licenses</Label>
+                                    <Progress value={userProgress} className="w-full mt-2" />
+                                    <p className="text-sm text-muted-foreground mt-2 text-right">{userCount} of {maxUsers} users</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <fieldset disabled={!canWrite}>
                         <Card>
@@ -476,3 +480,4 @@ export default function CompanySettingsPage() {
     </>
   );
 }
+
