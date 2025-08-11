@@ -554,10 +554,12 @@ export function useUserData() {
     }, [auth?.userId, auth?.role]);
     
     const saveProfileData = useCallback(async (data: ProfileData) => {
-        setProfileData(data); // Optimistic update for all users
-        if (auth?.isPreview || !auth?.userId) {
+        if (auth?.isPreview) {
+            setProfileData(data);
             return;
         }
+
+        if (!auth?.userId) return;
 
         const { error: userError } = await supabase
             .from('company_users')
@@ -572,14 +574,23 @@ export function useUserData() {
             user_id: auth.userId,
             data: convertDatesToStrings(data)
         }, { onConflict: 'user_id' });
+        
         if (error) {
             console.error("Error saving profile:", error);
-            // Optionally revert optimistic update
+        } else {
+            setProfileData(data);
         }
     }, [auth?.userId, auth?.isPreview]);
     
     const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
-        if (!userId || auth?.isPreview) {
+        if (!userId) return;
+
+        if (auth?.isPreview) {
+             const userToUpdate = companyConfigs[auth.companyName || '']?.users?.find(u => u.id === userId);
+             if (userToUpdate) {
+                userToUpdate.personal_email = contactInfo.personal_email;
+                userToUpdate.phone = contactInfo.phone;
+             }
             return;
         }
         
@@ -595,15 +606,32 @@ export function useUserData() {
              const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
             if (error) {
                 console.error("Error updating contact info:", error);
+            } else {
+                 setCompanyConfigs(prev => {
+                    const newConfigs = {...prev};
+                    for (const companyName in newConfigs) {
+                        const userIndex = newConfigs[companyName].users?.findIndex(u => u.id === userId);
+                        if(userIndex !== -1 && newConfigs[companyName].users) {
+                            newConfigs[companyName].users![userIndex] = {
+                                ...newConfigs[companyName].users![userIndex],
+                                ...contactInfo
+                            };
+                            break;
+                        }
+                    }
+                    return newConfigs;
+                });
             }
         }
-    }, [auth?.isPreview, auth?.role]);
+    }, [auth, companyConfigs]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
-        setAssessmentData(data); // Optimistic update for all users
-        if (auth?.isPreview || !auth?.userId) {
+        if (auth?.isPreview) {
+            setAssessmentData(data);
             return;
         }
+
+        if (!auth?.userId) return;
     
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
@@ -639,6 +667,8 @@ export function useUserData() {
     
         if (saveError) {
             console.error("Error saving assessment:", saveError);
+        } else {
+            setAssessmentData(data);
         }
     }, [auth?.userId, auth?.isPreview]);
     
@@ -989,6 +1019,19 @@ export function useUserData() {
         setCompanyAssignments(assignmentsToSave);
     }, [companyAssignments]);
 
+    const getCompanyUser = useMemo(() => (email: string | undefined) => {
+        if (!email || !companyConfigs) return null;
+        for (const companyName in companyConfigs) {
+            const user = companyConfigs[companyName]?.users?.find(
+                (u) => u.email.toLowerCase() === email.toLowerCase()
+            );
+            if (user) {
+                return { companyName, user };
+            }
+        }
+        return null;
+    }, [companyConfigs]);
+    
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
         if (!companyName) return [];
         const companyConfig = companyConfigs[companyName];
@@ -1010,7 +1053,7 @@ export function useUserData() {
                 if (projectConfig?.hiddenQuestions?.includes(id)) {
                     isCompanyActive = false;
                 }
-            } else if (forEndUser && !auth?.isPreview) { // For real end-users
+            } else if (forEndUser && auth?.role === 'end-user' && auth?.email) { // For real end-users
                 const companyUser = getCompanyUser(auth?.email)?.user;
                 if (companyUser?.project_id) {
                     const projectConfig = companyConfig?.projectConfigs?.[companyUser.project_id];
@@ -1059,7 +1102,8 @@ export function useUserData() {
                     if(auth?.isPreview) {
                         targetProjectId = auth.previewProjectId;
                     } else if (forEndUser) {
-                        targetProjectId = getCompanyUser(auth?.email)?.user.project_id;
+                        const companyUser = getCompanyUser(auth?.email)?.user;
+                        targetProjectId = companyUser?.project_id;
                     }
 
                     if (targetProjectId) {
@@ -1081,19 +1125,6 @@ export function useUserData() {
         return questionTree;
     }, [companyConfigs, masterQuestions, masterProfileQuestions, auth, getCompanyUser]);
     
-    
-    const getCompanyUser = useMemo(() => (email: string | undefined) => {
-        if (!email || !companyConfigs) return null;
-        for (const companyName in companyConfigs) {
-            const user = companyConfigs[companyName]?.users?.find(
-                (u) => u.email.toLowerCase() === email.toLowerCase()
-            );
-            if (user) {
-                return { companyName, user };
-            }
-        }
-        return null;
-    }, [companyConfigs]);
     
      const getProfileCompletion = useCallback(() => {
         const rootQuestions = getCompanyConfig(auth?.companyName, true, 'profile');
