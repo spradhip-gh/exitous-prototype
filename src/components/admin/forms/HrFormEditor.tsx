@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug, ArchiveRestore, Trash2 } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 import { v4 as uuidv4 } from 'uuid';
 import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface HrOrderedSection {
@@ -193,7 +193,7 @@ function QuestionEditor({
             return;
         }
 
-        const questionTree = getCompanyConfig(companyName, true, questionType);
+        const questionTree = getCompanyConfig(companyName, false, questionType);
         
         const sectionsMap: Record<string, Question[]> = {};
         const masterConfig = getMasterQuestionConfig(questionType);
@@ -208,7 +208,6 @@ function QuestionEditor({
             sectionsMap[sectionName].push(q);
         });
         
-        // Add any custom sections not in the master order to the end
         const masterSectionSet = new Set(sectionOrder);
         Object.keys(sectionsMap).forEach(sectionName => {
             if (!masterSectionSet.has(sectionName)) {
@@ -370,14 +369,25 @@ function QuestionEditor({
                 finalConfig.questions[finalQuestion.id] = override;
             }
     
-            if (finalQuestion.answerGuidance && Object.keys(finalQuestion.answerGuidance).length > 0) {
-                if (!finalConfig.answerGuidanceOverrides) {
-                    finalConfig.answerGuidanceOverrides = {};
-                }
-                finalConfig.answerGuidanceOverrides[finalQuestion.id] = {
-                    ...(finalConfig.answerGuidanceOverrides[finalQuestion.id] || {}),
-                    ...finalQuestion.answerGuidance,
-                };
+            if (finalQuestion.answerGuidance || finalQuestion.projectAnswerGuidance) {
+                if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
+                
+                Object.entries(finalQuestion.answerGuidance || {}).forEach(([answer, guidance]) => {
+                    if (!finalConfig.answerGuidanceOverrides![finalQuestion.id!]) {
+                        finalConfig.answerGuidanceOverrides![finalQuestion.id!] = {};
+                    }
+                    finalConfig.answerGuidanceOverrides![finalQuestion.id!][answer] = guidance;
+                });
+                
+                if (!finalConfig.projectConfigs) finalConfig.projectConfigs = {};
+                Object.entries(finalQuestion.projectAnswerGuidance || {}).forEach(([answer, projectGuidances]) => {
+                    Object.entries(projectGuidances).forEach(([projectId, guidance]) => {
+                        if (!finalConfig.projectConfigs![projectId]) finalConfig.projectConfigs![projectId] = {};
+                        if (!finalConfig.projectConfigs![projectId].answerGuidanceOverrides) finalConfig.projectConfigs![projectId].answerGuidanceOverrides = {};
+                        if (!finalConfig.projectConfigs![projectId].answerGuidanceOverrides![finalQuestion.id!]) finalConfig.projectConfigs![projectId].answerGuidanceOverrides![finalQuestion.id!] = {};
+                        finalConfig.projectConfigs![projectId].answerGuidanceOverrides![finalQuestion.id!][answer] = guidance;
+                    });
+                });
             }
     
             saveCompanyConfig(companyName, finalConfig);
@@ -468,6 +478,7 @@ function QuestionEditor({
                                                 isLastCustom={question.isCustom && customIndex === relevantCustomGroup.length - 1}
                                                 pendingSuggestion={pendingSuggestion}
                                                 companyConfig={companyConfig}
+                                                projects={companyAssignmentForHr?.projects || []}
                                             />
                                         )
                                     })}
@@ -601,7 +612,7 @@ function CompanyContentTabs({ companyConfig, canWrite, onTaskEdit, onTipEdit, on
 
 export default function HrFormEditor() {
     const { auth } = useAuth();
-    const { companyAssignmentForHr, isLoading, getAllCompanyConfigs, saveCompanyConfig, externalResources } = useUserData();
+    const { companyAssignmentForHr, isLoading, getAllCompanyConfigs, saveCompanyConfig, externalResources, masterQuestions, masterProfileQuestions } = useUserData();
     const { toast } = useToast();
     
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -620,7 +631,7 @@ export default function HrFormEditor() {
     }, [companyName, getAllCompanyConfigs]);
 
     const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
-        setEditingTask(null); // Ensure we're adding a new one
+        setEditingTask(null);
         setTaskCallback(() => callback);
         setIsTaskFormOpen(true);
     }, []);
@@ -698,6 +709,30 @@ export default function HrFormEditor() {
         saveCompanyConfig(companyName, { ...companyConfig, companyTips: newTips });
         toast({ title: "Company Tip Deleted" });
     };
+    
+    const { archivedQuestions, handleReactivateClick } = useMemo(() => {
+        const archived: Question[] = [];
+        const allMaster = { ...masterProfileQuestions, ...masterQuestions };
+    
+        Object.values(allMaster).forEach(q => {
+          const override = companyConfig?.questions?.[q.id];
+          if (override?.isActive === false) {
+            archived.push({ ...q, ...override });
+          }
+        });
+        
+        const reactivate = (questionId: string) => {
+            if (!companyConfig || !companyName) return;
+            const newConfig = { ...companyConfig };
+            if (newConfig.questions?.[questionId]) {
+              newConfig.questions[questionId].isActive = true;
+            }
+            saveCompanyConfig(companyName, newConfig);
+            toast({ title: 'Question re-enabled for your company.' });
+        };
+    
+        return { archivedQuestions: archived, handleReactivateClick: reactivate };
+      }, [masterProfileQuestions, masterQuestions, companyConfig, saveCompanyConfig, companyName, toast]);
 
 
     if (isLoading || companyAssignmentForHr === undefined || !companyConfig) {
@@ -724,7 +759,7 @@ export default function HrFormEditor() {
                         <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
                         <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
-                        <TabsTrigger value="debug" className="text-destructive"><Bug className="mr-2" /> Debug</TabsTrigger>
+                        <TabsTrigger value="archived">Archived Questions</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
                         <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
@@ -745,16 +780,39 @@ export default function HrFormEditor() {
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
                     </TabsContent>
-                    <TabsContent value="debug" className="mt-6">
+                     <TabsContent value="archived" className="mt-6">
                         <Card>
-                             <CardHeader>
-                                <CardTitle>Debug Info</CardTitle>
-                                <CardDescription>Raw JSON configuration for {companyName}.</CardDescription>
+                            <CardHeader>
+                                <CardTitle>Archived Questions</CardTitle>
+                                <CardDescription>This is a list of master questions that have been disabled for your company.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
-                                    {JSON.stringify(companyConfig.questions, null, 2)}
-                                </pre>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Question</TableHead>
+                                            <TableHead>Section</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {archivedQuestions.length > 0 ? (
+                                            archivedQuestions.map(q => (
+                                                <TableRow key={q.id}>
+                                                    <TableCell>{q.label}</TableCell>
+                                                    <TableCell>{q.section}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button variant="ghost" size="sm" onClick={() => handleReactivateClick(q.id)}><ArchiveRestore className="mr-2"/> Re-enable</Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">No questions have been archived.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -777,4 +835,3 @@ export default function HrFormEditor() {
     );
 }
 
-    

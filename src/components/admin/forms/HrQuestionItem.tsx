@@ -6,10 +6,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride } from "@/hooks/use-user-data";
+import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride, Project } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
+import { useUserData } from "@/hooks/use-user-data";
+import { useToast } from "@/hooks/use-toast";
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
@@ -69,7 +72,7 @@ function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, 
     );
 }
 
-export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite, isFirstCustom, isLastCustom, pendingSuggestion, companyConfig }: {
+export default function HrQuestionItem({ question, onToggleActive, onEdit, onDelete, onAddSub, hasBeenUpdated, onMove, canWrite, isFirstCustom, isLastCustom, pendingSuggestion, companyConfig, projects }: { 
     question: Question, 
     onToggleActive: (id: string, parentId?: string) => void, 
     onEdit: (q: Question) => void, 
@@ -82,12 +85,61 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     isLastCustom: boolean,
     pendingSuggestion?: ReviewQueueItem,
     companyConfig?: CompanyConfig,
+    projects: Project[],
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
+    const { saveCompanyConfig, auth } = useUserData();
+    const { toast } = useToast();
+    const companyName = auth?.companyName || '';
 
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
+
+    const handleProjectVisibilityChange = (itemId: string, itemType: 'Question', projectIds: string[]) => {
+        if (!companyConfig) return;
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
+
+        projects.forEach(p => {
+            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
+            if (!newConfig.projectConfigs[p.id].hiddenQuestions) newConfig.projectConfigs[p.id].hiddenQuestions = [];
+
+            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions);
+            if (projectIds.includes(p.id)) {
+                currentHidden.add(itemId);
+            } else {
+                currentHidden.delete(itemId);
+            }
+            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
+        });
+        
+        // Handle "All Projects" case
+        if (projectIds.includes('all')) {
+            onToggleActive(itemId);
+        } else {
+            // If we uncheck all projects, we should make it active at company level
+            const allProjectsHidden = projects.every(p => projectIds.includes(p.id));
+             if (!allProjectsHidden && override?.isActive === false) {
+                 onToggleActive(itemId);
+             }
+        }
+        
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: 'Project visibility updated.' });
+    };
+
+    const initialProjectIds = useMemo(() => {
+        const hiddenInProjects: string[] = [];
+        projects.forEach(p => {
+            if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(question.id)) {
+                hiddenInProjects.push(p.id);
+            }
+        });
+        if(override?.isActive === false) return ['all'];
+
+        return hiddenInProjects;
+    }, [companyConfig, question.id, projects, override]);
 
     const SuggestionTooltipContent = () => {
         if (!pendingSuggestion || !pendingSuggestion.change_details) return null;
@@ -133,10 +185,10 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                  <div className="w-10 flex-shrink-0 flex flex-col items-center">
                     {question.isCustom && (
                         <div className="flex flex-col">
-                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'up')} disabled={isFirstCustom || !canWrite}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'up')} disabled={isFirstCustom || !canWrite}>
                                 <ArrowUp className="h-4 w-4" />
                             </Button>
-                             <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onMove(question.id, 'down')} disabled={isLastCustom || !canWrite}>
+                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onMove(question.id, 'down')} disabled={isLastCustom || !canWrite}>
                                 <ArrowDown className="h-4 w-4" />
                             </Button>
                         </div>
@@ -169,7 +221,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     )}
                 </div>
                 <Checkbox id={question.id} checked={question.isActive} onCheckedChange={() => onToggleActive(question.id)} disabled={!canWrite || isLocked} />
-                <Label htmlFor={question.id} className={cn("font-normal text-sm flex-1", isLocked && "text-muted-foreground")}>{question.label}</Label>
+                <Label htmlFor={question.id} className={cn("font-normal text-sm flex-1", !question.isActive && "text-muted-foreground line-through")}>{question.label}</Label>
                 <div className="flex items-center">
                      {pendingSuggestion && (
                         <TooltipProvider>
@@ -184,6 +236,15 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
+                    )}
+                    {!question.isCustom && (
+                        <ProjectAssignmentPopover 
+                            item={{...question, typeLabel: 'Question'}}
+                            projects={projects}
+                            onSave={handleProjectVisibilityChange}
+                            initialProjectIds={initialProjectIds}
+                            disabled={!canWrite}
+                        />
                     )}
                     {question.isCustom && (
                         <div className="flex items-center border rounded-md mr-2">

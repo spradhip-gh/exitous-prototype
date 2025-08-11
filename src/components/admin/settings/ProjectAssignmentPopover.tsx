@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, EyeOff } from 'lucide-react';
 import { Project } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,6 +55,12 @@ export function ProjectAssignmentPopover({
     };
 
     const getDisplayText = () => {
+        if (item.typeLabel === 'Question') {
+            if (itemProjectIds.includes('all')) return "Hidden for All Projects";
+            if (itemProjectIds.length === 0) return "Visible to All Projects";
+            return `Hidden for ${itemProjectIds.length} project(s)`;
+        }
+
         if (itemProjectIds.includes('all') || itemProjectIds.length === 0) return "All Projects";
         
         const hasUnassigned = itemProjectIds.includes('__none__');
@@ -66,15 +72,17 @@ export function ProjectAssignmentPopover({
         
         return parts.join(' + ');
     };
+    
+    const popoverButton = item.typeLabel === 'Question' 
+        ? <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" disabled={disabled}><EyeOff className="h-4 w-4" /></Button>
+        : <Button variant="outline" className="w-full justify-between font-normal" disabled={disabled}><span className="truncate">{getDisplayText()}</span> <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/></Button>
 
-    const isAllSelected = itemProjectIds.includes('all') || itemProjectIds.length === 0;
+    const isAllSelected = itemProjectIds.includes('all');
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between font-normal" disabled={disabled}>
-                    <span className="truncate">{getDisplayText()}</span> <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
-                </Button>
+                {popoverButton}
             </PopoverTrigger>
             <PopoverContent className={cn("p-0", popoverContentWidth)}>
                  <Command>
@@ -82,7 +90,7 @@ export function ProjectAssignmentPopover({
                         <CommandGroup>
                             <CommandItem onSelect={() => handleSelect('all')}>
                                 <Checkbox className="mr-2" checked={isAllSelected} id={`all-projects-checkbox-${item.id}`}/> 
-                                <label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full cursor-pointer">All Projects</label>
+                                <label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full cursor-pointer">{item.typeLabel === 'Question' ? 'Hide for All Projects' : 'All Projects'}</label>
                             </CommandItem>
                              {includeUnassignedOption && (
                                 <CommandItem onSelect={() => handleSelect('__none__')} disabled={isAllSelected}>
