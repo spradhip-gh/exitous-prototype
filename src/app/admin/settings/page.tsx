@@ -60,7 +60,20 @@ function ProjectFormDialog({
         if (isOpen) {
             setStep(1);
             setCreatedProject(null);
-            setSelectedManagers(new Set());
+            
+            const primaryManager = hrManagers.find(hr => hr.isPrimary);
+            const initialSelection = new Set<string>();
+            if (primaryManager) {
+                initialSelection.add(primaryManager.email);
+            }
+            // Also pre-select anyone who has "all" access, as they would get it by default
+             hrManagers.forEach(hr => {
+                if (!hr.isPrimary && (!hr.projectAccess || hr.projectAccess.length === 0 || hr.projectAccess.includes('all'))) {
+                    initialSelection.add(hr.email);
+                }
+            });
+            setSelectedManagers(initialSelection);
+
             if (project) {
                 setName(project.name || '');
                 setPreEndDateContact(project.preEndDateContactAlias || '');
@@ -78,7 +91,7 @@ function ProjectFormDialog({
                 setInheritDeadline(true);
             }
         }
-    }, [project, isOpen]);
+    }, [project, isOpen, hrManagers]);
 
     useEffect(() => {
         if (inheritPreContact) setPreEndDateContact('');
@@ -139,9 +152,17 @@ function ProjectFormDialog({
         if (checked) {
             setSelectedManagers(new Set(hrManagers.map(hr => hr.email)));
         } else {
-            setSelectedManagers(new Set());
+            // Unselecting all should still keep the primary manager selected and disabled
+            const primaryManager = hrManagers.find(hr => hr.isPrimary);
+            if (primaryManager) {
+                setSelectedManagers(new Set([primaryManager.email]));
+            } else {
+                setSelectedManagers(new Set());
+            }
         }
     }
+
+    const primaryManager = hrManagers.find(hr => hr.isPrimary);
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -220,10 +241,11 @@ function ProjectFormDialog({
                                         id={`hr-access-${hr.email}`}
                                         checked={selectedManagers.has(hr.email)}
                                         onCheckedChange={(checked) => handleManagerSelection(hr.email, !!checked)}
+                                        disabled={hr.email === primaryManager?.email}
                                     />
                                     <Label htmlFor={`hr-access-${hr.email}`} className="font-normal flex flex-col">
                                         <span>{hr.email}</span>
-                                        <span className="text-xs text-muted-foreground">{hr.isPrimary ? 'Primary Manager' : 'Manager'}</span>
+                                        <span className="text-xs text-muted-foreground">{hr.isPrimary ? 'Primary Manager (Required)' : 'Manager'}</span>
                                     </Label>
                                 </div>
                             ))}
@@ -317,29 +339,35 @@ export default function CompanySettingsPage() {
     if(savedProject) toast({ title: `Project ${savedProject.isArchived ? 'archived' : 'restored'}.` });
   };
   
-  const handleAssignManagers = (projectId: string, managerEmails: string[]) => {
-    if (!companyAssignmentForHr) return;
+  const handleAssignManagers = (projectId: string, selectedManagerEmails: string[]) => {
+      if (!companyAssignmentForHr) return;
 
-    const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
-        if (managerEmails.includes(hr.email)) {
-            const currentAccess = hr.projectAccess || [];
-            // If they had 'all' access, we need to convert it to a specific list
-            if (currentAccess.length === 0 || currentAccess.includes('all')) {
-                const allOtherProjects = (companyAssignmentForHr.projects || [])
-                    .map(p => p.id)
-                    .filter(id => id !== projectId);
-                return { ...hr, projectAccess: [...allOtherProjects, projectId] };
-            }
-            // Otherwise, just add the new project if it's not there
-            if (!currentAccess.includes(projectId)) {
-                return { ...hr, projectAccess: [...currentAccess, projectId] };
-            }
-        }
-        return hr;
-    });
+      const allOtherProjectIds = (companyAssignmentForHr.projects || [])
+          .map(p => p.id)
+          .filter(id => id !== projectId);
 
-    saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
-    toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
+      const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
+          const isSelected = selectedManagerEmails.includes(hr.email);
+          const hadAllAccess = !hr.projectAccess || hr.projectAccess.length === 0 || hr.projectAccess.includes('all');
+
+          if (isSelected) {
+              // If they are selected and had specific access, add the new project.
+              // If they had "all access", no change is needed as they already have access.
+              if (!hadAllAccess && !hr.projectAccess?.includes(projectId)) {
+                  return { ...hr, projectAccess: [...(hr.projectAccess || []), projectId] };
+              }
+          } else {
+              // If they were unselected and previously had "all access", we must now restrict them.
+              if (hadAllAccess) {
+                  return { ...hr, projectAccess: allOtherProjectIds };
+              }
+          }
+          // If unselected and already had specific access, no change is needed.
+          return hr;
+      });
+
+      saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
+      toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
   };
 
   const handleEditProjectClick = (project: Project) => {
