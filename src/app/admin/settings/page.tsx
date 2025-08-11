@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData, CompanyAssignment, Project, Question, MasterTask, MasterTip, Resource } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, Project, Question, MasterTask, MasterTip, Resource, CompanyConfig } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ProjectAssignmentPopover } from './ProjectAssignmentPopover';
+import { ProjectAssignmentPopover } from '@/components/admin/settings/ProjectAssignmentPopover';
 
 function ProjectFormDialog({
     isOpen,
