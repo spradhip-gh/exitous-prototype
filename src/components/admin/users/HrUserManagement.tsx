@@ -115,7 +115,7 @@ export default function HrUserManagement() {
         if (!hasScopedProjectAccess) {
             return `You have added ${users.length} of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`;
         }
-        return `You are viewing ${visibleUsers.length} of ${users.length} total users in this company.`;
+        return `You are viewing ${visibleUsers.length} of ${users.length} total users in this company based on your project access.`;
     }, [hasScopedProjectAccess, users.length, visibleUsers.length, companyAssignmentForHr?.maxUsers]);
 
     const sortedUsers = useMemo(() => {
