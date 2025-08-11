@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -110,6 +111,7 @@ export interface AnswerGuidance {
     tasks?: string[];
     tips?: string[];
     noGuidanceRequired?: boolean;
+    projectId?: string;
 }
 
 export interface ReviewQueueItem {
@@ -170,7 +172,8 @@ export interface CompanyConfig {
     answerGuidanceOverrides?: Record<string, Record<string, AnswerGuidance>>;
     projectConfigs?: Record<string, {
         hiddenQuestions?: string[],
-        hiddenAnswers?: Record<string, string[]>
+        hiddenAnswers?: Record<string, string[]>,
+        answerGuidanceOverrides?: Record<string, Record<string, AnswerGuidance>>
     }>;
 }
 
@@ -1247,6 +1250,7 @@ export function useUserData() {
     const getMappedRecommendations = useCallback(() => {
         if (!profileData || !assessmentData || !auth?.companyName) return { tasks: [], tips: [] };
 
+        const companyUser = getCompanyUser(auth?.email)?.user;
         const allUserAnswers = { ...profileData, ...assessmentData };
         const companyConfig = companyConfigs[auth.companyName];
         const allCompanyTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
@@ -1298,10 +1302,21 @@ export function useUserData() {
             if (!answer) return;
             
             const handleAnswer = (ans: string) => {
-                const guidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[ans];
-                if (guidance && !guidance.noGuidanceRequired) {
-                    (guidance.tasks || []).forEach(taskId => addedTaskIds.add(taskId));
-                    (guidance.tips || []).forEach(tipId => addedTipIds.add(tipId));
+                // Check for project-specific guidance first
+                const projectConfig = companyConfig?.projectConfigs?.[companyUser?.project_id || ''];
+                const projectGuidance = projectConfig?.answerGuidanceOverrides?.[questionId]?.[ans];
+
+                if (projectGuidance && !projectGuidance.noGuidanceRequired) {
+                    (projectGuidance.tasks || []).forEach(taskId => addedTaskIds.add(taskId));
+                    (projectGuidance.tips || []).forEach(tipId => addedTipIds.add(tipId));
+                    return; // Stop if project-specific guidance is found
+                }
+
+                // Fallback to company-wide guidance
+                const companyGuidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[ans];
+                if (companyGuidance && !companyGuidance.noGuidanceRequired) {
+                    (companyGuidance.tasks || []).forEach(taskId => addedTaskIds.add(taskId));
+                    (companyGuidance.tips || []).forEach(tipId => addedTipIds.add(tipId));
                 }
             };
 
@@ -1341,7 +1356,7 @@ export function useUserData() {
         });
 
         return { tasks, tips };
-    }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName]);
+    }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName, getCompanyUser, auth?.email]);
 
     const saveCompanyProjects = useCallback(async (companyName: string, newProjects: Project[]) => {
         if (!companyName) return;

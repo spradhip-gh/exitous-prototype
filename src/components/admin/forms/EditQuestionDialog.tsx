@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -140,35 +141,38 @@ interface AnswerGuidanceDialogProps {
     onOpenChange: (open: boolean) => void;
     questionLabel: string;
     answer: string;
-    onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => void;
+    onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean, projectId?: string) => void;
     onAddNewTask: () => void;
     onAddNewTip: () => void;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
     currentGuidance: AnswerGuidance;
+    projects: Project[];
 }
 
 function AnswerGuidanceDialog({
     isOpen, onOpenChange, questionLabel, answer,
     onSaveGuidance, onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips,
-    currentGuidance
+    currentGuidance, projects
 }: AnswerGuidanceDialogProps) {
 
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [selectedTips, setSelectedTips] = useState<string[]>([]);
     const [noGuidanceRequired, setNoGuidanceRequired] = useState(false);
+    const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
 
     useEffect(() => {
         if (isOpen) {
             setSelectedTasks(currentGuidance.tasks || []);
             setSelectedTips(currentGuidance.tips || []);
             setNoGuidanceRequired(currentGuidance.noGuidanceRequired || false);
+            setSelectedProjectId(currentGuidance.projectId || 'all');
         }
     }, [isOpen, currentGuidance]);
 
 
     const handleSave = () => {
-        onSaveGuidance(answer, selectedTasks, selectedTips, noGuidanceRequired);
+        onSaveGuidance(answer, selectedTasks, selectedTips, noGuidanceRequired, selectedProjectId);
         onOpenChange(false);
     }
     
@@ -198,6 +202,22 @@ function AnswerGuidanceDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                     <div className="space-y-2">
+                        <Label>Apply Guidance To Project</Label>
+                        <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a project..."/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Projects (Company Default)</SelectItem>
+                                {projects.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                         <p className="text-xs text-muted-foreground">Selecting a specific project will override the company default guidance for users in that project.</p>
+                     </div>
+                     <Separator />
                      <div className="flex items-center space-x-2">
                         <Checkbox 
                             id="no-guidance-required" 
@@ -371,11 +391,14 @@ export default function EditQuestionDialog({
         });
     }, []);
     
-    const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean) => {
+    const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean, projectId?: string) => {
         setCurrentQuestion(prev => {
             if (!prev) return null;
             const newGuidance = { ...(prev.answerGuidance || {}) };
             newGuidance[answer] = { tasks: taskIds, tips: tipIds, noGuidanceRequired };
+             if(projectId && projectId !== 'all') {
+                newGuidance[answer].projectId = projectId;
+            }
             return { ...prev, answerGuidance: newGuidance };
         });
     }, []);
@@ -791,6 +814,7 @@ export default function EditQuestionDialog({
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
             currentGuidance={currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {}}
+            projects={projects}
         />
         
         </>
