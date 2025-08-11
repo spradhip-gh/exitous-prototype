@@ -1,7 +1,6 @@
-
 'use client';
 import { useMemo, useState } from 'react';
-import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project } from '@/hooks/use-user-data';
+import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project, Question } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     canWrite: boolean;
 }) {
     const { saveCompanyConfig } = useUserData();
-    const [editingItem, setEditingItem] = useState<(Partial<any> & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource', name: string }) | null>(null);
+    const [editingItem, setEditingItem] = useState<(Partial<Question | MasterTask | MasterTip | Resource> & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource', name: string }) | null>(null);
 
     const allCustomContent = useMemo(() => {
         const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label }));
@@ -50,6 +49,9 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         }
         
         saveCompanyConfig(companyName, newConfig);
+        
+        // Also update the local state for the dialog
+        setEditingItem(prev => prev ? { ...prev, projectIds } : null);
     };
 
     return (
@@ -100,7 +102,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                     <div className="py-4">
                         {editingItem && (
                             <ProjectAssignmentPopover
-                                item={editingItem}
+                                item={editingItem as any}
                                 projects={projects}
                                 onSave={handleProjectAssignmentSave}
                                 disabled={!canWrite}

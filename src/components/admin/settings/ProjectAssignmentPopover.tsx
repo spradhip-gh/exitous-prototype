@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -30,21 +29,21 @@ export function ProjectAssignmentPopover({
     const [open, setOpen] = useState(false);
     const itemProjectIds = useMemo(() => initialProjectIds || item.projectIds || [], [item.projectIds, initialProjectIds]);
 
-    const handleSelect = (projectId: string, isSelected: boolean) => {
-        let currentIds = itemProjectIds.includes('all') || itemProjectIds.length === 0 ? [] : [...itemProjectIds];
-        let newProjectIds;
-    
+    const handleSelect = (projectId: string) => {
+        const isSelected = itemProjectIds.includes(projectId);
+        let newProjectIds: string[];
+
         if (projectId === 'all') {
-            newProjectIds = isSelected ? ['all'] : [];
+            newProjectIds = itemProjectIds.includes('all') ? [] : ['all'];
         } else {
-            // Ensure 'all' is not in the list when individual items are selected
-            currentIds = currentIds.filter(id => id !== 'all');
+            let currentIds = itemProjectIds.filter(id => id !== 'all');
             if (isSelected) {
-                newProjectIds = [...currentIds, projectId];
-            } else {
                 newProjectIds = currentIds.filter(id => id !== projectId);
+            } else {
+                newProjectIds = [...currentIds, projectId];
             }
         }
+        
         onSave(item.id, item.typeLabel, newProjectIds);
     };
 
@@ -74,12 +73,12 @@ export function ProjectAssignmentPopover({
                  <Command>
                     <CommandList>
                         <CommandGroup>
-                            <CommandItem onSelect={() => handleSelect('all', !isAllSelected)}>
+                            <CommandItem onSelect={() => handleSelect('all')}>
                                 <Checkbox className="mr-2" checked={isAllSelected} id="all-projects-checkbox"/> 
                                 <label htmlFor="all-projects-checkbox" className="w-full">All Projects</label>
                             </CommandItem>
                              {includeUnassignedOption && (
-                                <CommandItem onSelect={() => handleSelect('__none__', !itemProjectIds.includes('__none__'))} disabled={isAllSelected}>
+                                <CommandItem onSelect={() => handleSelect('__none__')} disabled={isAllSelected}>
                                     <Checkbox className="mr-2" checked={itemProjectIds.includes('__none__')} id="unassigned-checkbox" /> 
                                     <label htmlFor="unassigned-checkbox" className="w-full">Unassigned Users</label>
                                 </CommandItem>
@@ -91,7 +90,7 @@ export function ProjectAssignmentPopover({
                                 {(projects || []).map(p => {
                                     const isChecked = !isAllSelected && itemProjectIds.includes(p.id);
                                     return (
-                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected}>
+                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id)} disabled={isAllSelected}>
                                             <Checkbox className="mr-2" checked={isChecked} id={`project-${p.id}-checkbox`}/> 
                                             <label htmlFor={`project-${p.id}-checkbox`} className="w-full">{p.name}</label>
                                         </CommandItem>

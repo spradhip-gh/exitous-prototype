@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -641,12 +640,14 @@ export default function EditQuestionDialog({
              {currentQuestion.isCustom && (
                 <div className="space-y-2 pt-4">
                     <Label>Project Visibility</Label>
-                    <ProjectAssignmentPopover
+                     <ProjectAssignmentPopover
                         item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
                         projects={activeProjects}
                         onSave={(itemId, itemType, projectIds) => {
                             setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                         }}
+                        includeUnassignedOption={true}
+                        popoverContentWidth='w-full'
                     />
                     <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
                 </div>
