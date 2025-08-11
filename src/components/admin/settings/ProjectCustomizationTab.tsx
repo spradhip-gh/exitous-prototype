@@ -1,4 +1,5 @@
 
+
 'use client';
 import * as React from 'react';
 import { useMemo, useState, useEffect } from 'react';
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Bug, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
@@ -19,12 +21,26 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     projects: Project[];
     canWrite: boolean;
 }) {
-    const { saveCompanyConfig } = useUserData();
+    const { auth } = useAuth();
+    const { saveCompanyConfig, companyAssignmentForHr } = useUserData();
     const [localCompanyConfig, setLocalCompanyConfig] = useState(companyConfig);
 
     useEffect(() => {
         setLocalCompanyConfig(companyConfig);
     }, [companyConfig]);
+
+    const hrManager = useMemo(() => {
+      if (!auth?.email || !companyAssignmentForHr) return null;
+      return companyAssignmentForHr.hrManagers.find(hr => hr.email === auth.email);
+    }, [auth?.email, companyAssignmentForHr]);
+  
+    const visibleProjects = useMemo(() => {
+      if (auth?.role === 'admin' || !hrManager || !hrManager.projectAccess || hrManager.projectAccess.includes('all')) {
+          return projects;
+      }
+      const accessibleProjectIds = new Set(hrManager.projectAccess);
+      return projects.filter(p => accessibleProjectIds.has(p.id));
+    }, [projects, hrManager, auth?.role]);
 
     const allCustomContent = useMemo(() => {
         const config = localCompanyConfig || { customQuestions: {}, companyTasks: [], companyTips: [], resources: [] };
@@ -32,8 +48,25 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         const tasks = (config.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const }));
         const tips = (config.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text }));
         const resources = (config.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title }));
-        return [...questions, ...tasks, ...tips, ...resources];
-    }, [localCompanyConfig]);
+        
+        const allContent = [...questions, ...tasks, ...tips, ...resources];
+
+        if (auth?.role === 'admin' || !hrManager || !hrManager.projectAccess || hrManager.projectAccess.includes('all')) {
+            return allContent;
+        }
+
+        const accessibleProjectIds = new Set(hrManager.projectAccess);
+        
+        return allContent.filter(item => {
+            const itemProjectIds = item.projectIds || [];
+            if (itemProjectIds.length === 0) {
+                return true; // Visible to all, so HR can see it.
+            }
+            // Check if there is at least one intersection between the item's projects and the HR's accessible projects.
+            return itemProjectIds.some(id => accessibleProjectIds.has(id));
+        });
+
+    }, [localCompanyConfig, auth?.role, hrManager]);
 
     const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectId: string, isChecked: boolean) => {
         const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
@@ -65,12 +98,12 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
 
         if (item) {
             const allPossibleProjectIds = projects.map(p => p.id);
-            allPossibleProjectIds.push('__none__'); // For "Unassigned Users"
-
+            if (hrManager?.projectAccess?.includes('__none__')) {
+                allPossibleProjectIds.push('__none__');
+            }
+            
             let currentIds = item.projectIds || [];
             
-            // If currentIds is empty, it implies "All Projects".
-            // For the first interaction, we need to treat it as if all were selected.
             if (currentIds.length === 0) {
                 currentIds = allPossibleProjectIds;
             }
@@ -83,8 +116,6 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                 newProjectIds = currentIds.filter((id: string) => id !== projectId);
             }
 
-            // If the resulting array contains all possible projects, or is empty, it means "All Projects".
-            // We represent "All Projects" with an empty array.
             if (newProjectIds.length === 0 || newProjectIds.length === allPossibleProjectIds.length) {
                 item.projectIds = [];
             } else {
@@ -129,7 +160,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                         </Tooltip>
                                     </TooltipProvider>
                                 </TableHead>
-                                {projects.map(p => (
+                                {visibleProjects.map(p => (
                                     <TableHead key={p.id} className="text-center">{p.name}</TableHead>
                                 ))}
                             </TableRow>
@@ -137,7 +168,6 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                         <TableBody>
                             {allCustomContent.map(item => {
                                 const projectIds = item.projectIds || [];
-                                // An empty array signifies visibility to all. For UI, we treat it as if all are checked.
                                 const isVisibleToAll = projectIds.length === 0;
 
                                 return (
@@ -158,7 +188,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                                 disabled={!canWrite}
                                             />
                                         </TableCell>
-                                        {projects.map(p => (
+                                        {visibleProjects.map(p => (
                                             <TableCell key={p.id} className="text-center">
                                                 <Checkbox
                                                     checked={isVisibleToAll || projectIds.includes(p.id)}

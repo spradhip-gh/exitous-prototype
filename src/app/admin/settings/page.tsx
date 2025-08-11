@@ -246,6 +246,20 @@ export default function CompanySettingsPage() {
     setIsProjectFormOpen(true);
   };
 
+  const hrManager = useMemo(() => {
+    if (!auth?.email || !companyAssignmentForHr) return null;
+    return companyAssignmentForHr.hrManagers.find(hr => hr.email === auth.email);
+  }, [auth?.email, companyAssignmentForHr]);
+
+  const visibleProjects = useMemo(() => {
+    const allProjects = companyAssignmentForHr?.projects || [];
+    if (auth?.role === 'admin' || !hrManager || !hrManager.projectAccess || hrManager.projectAccess.includes('all')) {
+        return allProjects;
+    }
+    const accessibleProjectIds = new Set(hrManager.projectAccess);
+    return allProjects.filter(p => accessibleProjectIds.has(p.id));
+  }, [companyAssignmentForHr?.projects, hrManager, auth?.role]);
+
   if (isLoading || companyAssignmentForHr === undefined || !companyConfig) {
     return (
       <div className="p-4 md:p-8">
@@ -274,9 +288,8 @@ export default function CompanySettingsPage() {
   }
 
   const isPro = companyAssignmentForHr.version === 'pro';
-  const projects = companyAssignmentForHr.projects || [];
-  const activeProjects = projects.filter(p => !p.isArchived);
-  const archivedProjects = projects.filter(p => p.isArchived);
+  const activeProjects = visibleProjects.filter(p => !p.isArchived);
+  const archivedProjects = visibleProjects.filter(p => p.isArchived);
 
   return (
     <>
