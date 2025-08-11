@@ -2,12 +2,13 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronsUpDown } from 'lucide-react';
 import { Project, Question, MasterTask, MasterTip, Resource } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function ProjectAssignmentPopover({
     item,
@@ -69,14 +70,19 @@ export function ProjectAssignmentPopover({
                             <CommandItem onSelect={() => handleSelect('none', !isNoneSelected)}>
                                 <Checkbox className="mr-2" checked={isNoneSelected} disabled={isAllSelected} /> No Project
                             </CommandItem>
-                            {(projects || []).map(p => {
-                                const isChecked = !isAllSelected && !isNoneSelected && itemProjectIds.includes(p.id);
-                                return (
-                                    <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected || isNoneSelected}>
-                                        <Checkbox className="mr-2" checked={isChecked} /> {p.name}
-                                    </CommandItem>
-                                )
-                            })}
+                        </CommandGroup>
+                        <CommandSeparator />
+                         <CommandGroup>
+                            <ScrollArea className="h-32">
+                                {(projects || []).map(p => {
+                                    const isChecked = !isAllSelected && !isNoneSelected && itemProjectIds.includes(p.id);
+                                    return (
+                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected || isNoneSelected}>
+                                            <Checkbox className="mr-2" checked={isChecked} /> {p.name}
+                                        </CommandItem>
+                                    )
+                                })}
+                            </ScrollArea>
                         </CommandGroup>
                     </CommandList>
                 </Command>

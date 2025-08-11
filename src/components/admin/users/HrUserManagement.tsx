@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { useUserData, CompanyUser } from "@/hooks/use-user-data";
-import { PlusCircle, Download, Upload } from "lucide-react";
+import { useUserData, CompanyUser, Project } from "@/hooks/use-user-data";
+import { PlusCircle, Download, Upload, VenetianMask } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,8 +85,15 @@ export default function HrUserManagement() {
 
     const sortedUsers = useMemo(() => {
         if (!users) return [];
-        const invitedUsers = users.filter(u => u.is_invited);
-        const uninvitedUsers = users.filter(u => !u.is_invited);
+        
+        // Filter users based on HR's project access
+        const hrProjectAccess = companyAssignmentForHr?.hrManagers.find(hr => hr.email === auth?.email)?.projectAccess;
+        const visibleUsers = (hrProjectAccess && !hrProjectAccess.includes('all'))
+            ? users.filter(user => !user.project_id || hrProjectAccess.includes(user.project_id))
+            : users;
+
+        const invitedUsers = visibleUsers.filter(u => u.is_invited);
+        const uninvitedUsers = visibleUsers.filter(u => !u.is_invited);
 
         const sortArray = (array: CompanyUser[], config: SortConfig) => {
             return [...array].sort((a, b) => {
@@ -126,7 +133,7 @@ export default function HrUserManagement() {
         const sortedInvited = sortArray(invitedUsers, sortConfig);
 
         return [...sortedUninvited, ...sortedInvited];
-    }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
+    }, [users, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr, auth?.email]);
 
     const addUser = useCallback(async (userToAdd: Partial<CompanyUser>): Promise<boolean> => {
         if (!companyName || !companyAssignmentForHr?.companyId) return false;
@@ -450,7 +457,16 @@ export default function HrUserManagement() {
             <Card>
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div><CardTitle>Employee List</CardTitle><CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{companyName}</span>.</CardDescription></div>
-                    <BulkActions selectedUsers={selectedUsers} users={users} setUsers={setUsers} setSelectedUsers={setSelectedUsers} onExport={handleExportUsers} canWrite={canWrite} canInvite={canInvite}/>
+                    <BulkActions 
+                        selectedUsers={selectedUsers} 
+                        users={users} 
+                        setUsers={setUsers} 
+                        setSelectedUsers={setSelectedUsers} 
+                        onExport={handleExportUsers} 
+                        canWrite={canWrite} 
+                        canInvite={canInvite}
+                        projects={companyAssignmentForHr?.projects || []}
+                    />
                 </CardHeader>
                 <CardContent>
                    <HrUserTable isLoading={isLoading} users={sortedUsers} setUsers={setUsers} selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} sortConfig={sortConfig} requestSort={requestSort} canWrite={canWrite} canInvite={canInvite}/>
@@ -459,4 +475,3 @@ export default function HrUserManagement() {
         </div>
     );
 }
-

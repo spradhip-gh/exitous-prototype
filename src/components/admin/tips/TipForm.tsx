@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MasterTip } from '@/hooks/use-user-data';
+import { MasterTip, Project } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2, Terminal, HelpCircle } from 'lucide-react';
@@ -18,7 +17,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
 import { useUserData } from '@/hooks/use-user-data';
-import { ProjectAssignmentPopover } from '../settings/ProjectAssignmentPopover';
+import { MultiSelectPopover } from '../forms/GuidanceRuleForm';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -211,11 +210,14 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                     </div>
                      {isHr && (
                         <div className="space-y-2 md:col-span-2">
-                            <Label>Project Visibility</Label>
-                            <ProjectAssignmentPopover
-                                item={{...(formData as MasterTip), typeLabel: 'Tip' }}
-                                projects={activeProjects || []}
-                                onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
+                            <MultiSelectPopover 
+                                label="Project Visibility"
+                                items={activeProjects.map(p => ({id: p.id, name: p.name, category: 'Projects'}))}
+                                selectedIds={formData.projectIds}
+                                onSelectionChange={(projectIds) => setFormData(prev => ({...prev, projectIds}))}
+                                onAddNew={() => {}}
+                                categories={[]}
+                                popoverContentWidth='w-[450px]'
                             />
                              <p className="text-xs text-muted-foreground">Select which projects this custom tip should appear in. Leave blank for All Projects.</p>
                         </div>

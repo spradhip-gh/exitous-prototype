@@ -1,18 +1,19 @@
 
-
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Calendar } from '@/components/ui/calendar';
-import { Download, PencilRuler, Send, AlertCircle } from 'lucide-react';
+import { Download, PencilRuler, Send, AlertCircle, VenetianMask } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
-import { useUserData, CompanyUser } from '@/hooks/use-user-data';
+import { useUserData, CompanyUser, Project } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase-client';
 
-export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport, canWrite, canInvite }: {
+export default function BulkActions({ selectedUsers, users, setUsers, setSelectedUsers, onExport, canWrite, canInvite, projects }: {
     selectedUsers: Set<string>;
     users: CompanyUser[];
     setUsers: React.Dispatch<React.SetStateAction<CompanyUser[]>>;
@@ -20,6 +21,7 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
     onExport: () => void;
     canWrite: boolean;
     canInvite: boolean;
+    projects: Project[];
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -27,7 +29,9 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
     const companyName = auth?.companyName;
 
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+    const [isBulkProjectDialogOpen, setIsBulkProjectDialogOpen] = useState(false);
     const [newBulkNotificationDate, setNewBulkNotificationDate] = useState<Date | undefined>();
+    const [newBulkProjectId, setNewBulkProjectId] = useState<string>('none');
 
     const { eligibleCount, pastDateCount } = useMemo(() => {
         let eligible = 0;
@@ -48,30 +52,74 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
     }, [selectedUsers, users]);
 
     const isBulkNotifyDisabled = eligibleCount === 0 || !canInvite;
+    const isBulkActionDisabled = selectedUsers.size === 0 || !canWrite;
 
-    const handleBulkDateChange = () => {
+    const handleBulkDateChange = async () => {
         if (!newBulkNotificationDate || selectedUsers.size === 0 || !companyName) {
             toast({ title: "Error", description: "No date selected or no users selected.", variant: "destructive" });
             return;
         }
 
         let updatedCount = 0;
-        const updatedUsers = users.map(user => {
-            if (selectedUsers.has(user.email)) {
-                updatedCount++;
-                return { ...user, notification_date: format(newBulkNotificationDate, 'yyyy-MM-dd') };
-            }
-            return user;
-        });
+        const updates = Array.from(selectedUsers).map(email => {
+            updatedCount++;
+            return {
+                id: users.find(u => u.email === email)?.id,
+                notification_date: format(newBulkNotificationDate, 'yyyy-MM-dd')
+            };
+        }).filter(u => u.id);
 
-        setUsers(updatedUsers);
-        saveCompanyUsers(companyName, updatedUsers);
-        toast({ title: "Dates Updated", description: `Notification date updated for ${updatedCount} ${updatedCount === 1 ? 'user' : 'users'}.` });
+        const { error } = await supabase.from('company_users').upsert(updates);
+        if (error) {
+            toast({ title: 'Error Updating Users', description: error.message, variant: 'destructive' });
+        } else {
+            const updatedUsers = users.map(user => {
+                if (selectedUsers.has(user.email)) {
+                    return { ...user, notification_date: format(newBulkNotificationDate, 'yyyy-MM-dd') };
+                }
+                return user;
+            });
+            setUsers(updatedUsers);
+            toast({ title: "Dates Updated", description: `Notification date updated for ${updatedCount} ${updatedCount === 1 ? 'user' : 'users'}.` });
+        }
         
         setIsBulkEditDialogOpen(false);
         setNewBulkNotificationDate(undefined);
         setSelectedUsers(new Set());
     };
+    
+    const handleBulkProjectChange = async () => {
+        if (selectedUsers.size === 0 || !companyName) {
+            toast({ title: "Error", description: "No users selected.", variant: "destructive" });
+            return;
+        }
+        
+        const projectId = newBulkProjectId === 'none' ? null : newBulkProjectId;
+        
+        const updates = Array.from(selectedUsers).map(email => ({
+            id: users.find(u => u.email === email)?.id,
+            project_id: projectId
+        })).filter(u => u.id);
+
+        const { error } = await supabase.from('company_users').upsert(updates);
+
+        if (error) {
+            toast({ title: 'Error Assigning Project', description: error.message, variant: 'destructive' });
+        } else {
+             const updatedUsers = users.map(user => {
+                if (selectedUsers.has(user.email)) {
+                    return { ...user, project_id: projectId };
+                }
+                return user;
+            });
+            setUsers(updatedUsers);
+            toast({ title: 'Project Assigned', description: `Project assignment updated for ${selectedUsers.size} users.` });
+        }
+        
+        setIsBulkProjectDialogOpen(false);
+        setNewBulkProjectId('none');
+        setSelectedUsers(new Set());
+    }
 
     const handleNotifyUsers = () => {
         if (!companyName) return;
@@ -90,12 +138,15 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
     };
 
     return (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
             <Button onClick={onExport} disabled={users.length === 0} variant="secondary">
                 <Download className="mr-2" /> Export List
             </Button>
-            <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={selectedUsers.size === 0 || !canWrite} variant="outline">
+            <Button onClick={() => setIsBulkEditDialogOpen(true)} disabled={isBulkActionDisabled} variant="outline">
                 <PencilRuler className="mr-2" /> Change Dates ({selectedUsers.size})
+            </Button>
+            <Button onClick={() => setIsBulkProjectDialogOpen(true)} disabled={isBulkActionDisabled} variant="outline">
+                <VenetianMask className="mr-2" /> Assign Project ({selectedUsers.size})
             </Button>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -146,6 +197,34 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsBulkEditDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleBulkDateChange}>Apply Date</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkProjectDialogOpen} onOpenChange={setIsBulkProjectDialogOpen}>
+                <DialogContent>
+                     <DialogHeader>
+                        <DialogTitle>Bulk Assign Project</DialogTitle>
+                        <DialogDescription>
+                            Assign the {selectedUsers.size} selected users to a project. This will not affect already invited users.
+                        </DialogDescription>
+                    </DialogHeader>
+                     <div className="py-4 space-y-4">
+                        <Select value={newBulkProjectId} onValueChange={setNewBulkProjectId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a project..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None (Company-wide)</SelectItem>
+                                {projects.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                     </div>
+                     <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBulkProjectDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleBulkProjectChange}>Assign Project</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
