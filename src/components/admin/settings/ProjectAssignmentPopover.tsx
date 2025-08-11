@@ -15,7 +15,7 @@ export function ProjectAssignmentPopover({
     onSave,
     disabled,
 }: {
-    item: (Question | MasterTask | MasterTip | Resource) & { typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' },
+    item: (Partial<Question> | Partial<MasterTask> | Partial<MasterTip> | Partial<Resource>) & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' },
     projects: Project[],
     onSave: (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectIds: string[]) => void,
     disabled?: boolean;
@@ -69,7 +69,7 @@ export function ProjectAssignmentPopover({
                             <CommandItem onSelect={() => handleSelect('none', !isNoneSelected)}>
                                 <Checkbox className="mr-2" checked={isNoneSelected} disabled={isAllSelected} /> No Project
                             </CommandItem>
-                            {projects.map(p => {
+                            {(projects || []).map(p => {
                                 const isChecked = !isAllSelected && !isNoneSelected && itemProjectIds.includes(p.id);
                                 return (
                                     <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected || isNoneSelected}>

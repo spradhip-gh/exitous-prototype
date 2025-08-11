@@ -494,6 +494,7 @@ function QuestionEditor({
                     allCompanyTasks={companyConfig?.companyTasks || []}
                     allCompanyTips={companyConfig?.companyTips || []}
                     formType={questionType}
+                    projects={companyAssignmentForHr?.projects || []}
                 />
             </Dialog>
         </>

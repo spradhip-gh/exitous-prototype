@@ -29,7 +29,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
     onOpenChange: (open: boolean) => void;
     onSave: (tip: MasterTip) => void;
     tip: Partial<MasterTip> | null;
-    masterTips: MasterTip[];
+    masterTips?: MasterTip[];
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
@@ -79,7 +79,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                 const textForId = result.revisedDetail || formData.text || '';
                 let suggestedId = textForId.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
 
-                const allKnownTips = [...masterTips, ...(companyAssignmentForHr?.companyTips || [])];
+                const allKnownTips = [...(masterTips || []), ...(companyAssignmentForHr?.companyTips || [])];
                 if (allKnownTips.some(t => t.id === suggestedId)) {
                     suggestedId += `-${format(new Date(), 'MMddyy')}`;
                 }
@@ -214,7 +214,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                             <Label>Project Visibility</Label>
                             <ProjectAssignmentPopover
                                 item={{...(formData as MasterTip), typeLabel: 'Tip' }}
-                                projects={activeProjects}
+                                projects={activeProjects || []}
                                 onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
                             />
                              <p className="text-xs text-muted-foreground">Select which projects this custom tip should appear in. Leave blank for All Projects.</p>

@@ -251,7 +251,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                             <Label>Project Visibility</Label>
                             <ProjectAssignmentPopover
                                 item={{...(formData as MasterTask), typeLabel: 'Task' }}
-                                projects={activeProjects}
+                                projects={activeProjects || []}
                                 onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
                             />
                         </div>
