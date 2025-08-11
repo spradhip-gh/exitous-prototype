@@ -583,16 +583,7 @@ export function useUserData() {
     }, [auth?.userId, auth?.isPreview]);
     
     const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
-        if (!userId) return;
-
-        if (auth?.isPreview) {
-             const userToUpdate = companyConfigs[auth.companyName || '']?.users?.find(u => u.id === userId);
-             if (userToUpdate) {
-                userToUpdate.personal_email = contactInfo.personal_email;
-                userToUpdate.phone = contactInfo.phone;
-             }
-            return;
-        }
+        if (!userId || auth?.isPreview) return;
         
         if (auth?.role === 'end-user') {
             const { error } = await supabase.rpc('update_my_contact_info', {
@@ -623,7 +614,7 @@ export function useUserData() {
                 });
             }
         }
-    }, [auth, companyConfigs]);
+    }, [auth]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (auth?.isPreview) {
@@ -980,37 +971,24 @@ export function useUserData() {
 
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
         const toUpsert: any[] = [];
-        const toDelete: { company_id: string; hr_email: string }[] = [];
-    
-        const allCurrentManagers = new Set(companyAssignments.flatMap(c => c.hrManagers.map(h => `${c.companyId}-${h.email}`)));
-        const allNewManagers = new Set(assignmentsToSave.flatMap(c => c.hrManagers.map(h => `${c.companyId}-${h.email}`)));
-    
-        allCurrentManagers.forEach(managerKey => {
-            if (!allNewManagers.has(managerKey)) {
-                const [companyId, email] = managerKey.split('-');
-                toDelete.push({ company_id: companyId, hr_email: email });
-            }
-        });
     
         for (const updatedAssignment of assignmentsToSave) {
             for (const updatedManager of updatedAssignment.hrManagers) {
-                toUpsert.push({
-                    company_id: updatedAssignment.companyId,
-                    hr_email: updatedManager.email,
-                    is_primary: updatedManager.isPrimary,
-                    permissions: updatedManager.permissions,
-                    project_access: updatedManager.projectAccess,
-                });
+                const currentAssignment = companyAssignments.find(c => c.companyId === updatedAssignment.companyId);
+                const currentManager = currentAssignment?.hrManagers.find(h => h.email === updatedManager.email);
+                
+                if (JSON.stringify(currentManager) !== JSON.stringify(updatedManager)) {
+                     toUpsert.push({
+                        company_id: updatedAssignment.companyId,
+                        hr_email: updatedManager.email,
+                        is_primary: updatedManager.isPrimary,
+                        permissions: updatedManager.permissions,
+                        project_access: updatedManager.projectAccess,
+                    });
+                }
             }
         }
-    
-        if (toDelete.length > 0) {
-            const deletePromises = toDelete.map(d =>
-                supabase.from('company_hr_assignments').delete().match(d)
-            );
-            await Promise.all(deletePromises);
-        }
-    
+        
         if (toUpsert.length > 0) {
             const { error: upsertError } = await supabase.from('company_hr_assignments').upsert(toUpsert, { onConflict: 'company_id, hr_email' });
             if (upsertError) console.error("Error upserting assignments", upsertError);

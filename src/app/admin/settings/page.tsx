@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData, CompanyAssignment, Project, Question, MasterTask, MasterTip, Resource, CompanyConfig } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, Project, Question, MasterTask, MasterTip, Resource, CompanyConfig, HrManager } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,15 +29,20 @@ function ProjectFormDialog({
     isOpen,
     onOpenChange,
     onSave,
+    onAssignManagers,
     project,
     companyDefaults,
+    hrManagers,
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (project: Project) => void;
+    onSave: (project: Project) => Project | null;
+    onAssignManagers: (projectId: string, managerEmails: string[]) => void;
     project: Partial<Project> | null;
     companyDefaults: Partial<CompanyAssignment>;
+    hrManagers: HrManager[];
 }) {
+    const [step, setStep] = useState(1);
     const [name, setName] = useState('');
     const [preEndDateContact, setPreEndDateContact] = useState('');
     const [postEndDateContact, setPostEndDateContact] = useState('');
@@ -48,22 +53,30 @@ function ProjectFormDialog({
     const [inheritPostContact, setInheritPostContact] = useState(true);
     const [inheritDeadline, setInheritDeadline] = useState(true);
 
-    useEffect(() => {
-        if (project) {
-            setName(project.name || '');
-            setPreEndDateContact(project.preEndDateContactAlias || '');
-            setPostEndDateContact(project.postEndDateContactAlias || '');
-            setDeadlineTime(project.severanceDeadlineTime || '');
-            setDeadlineTimezone(project.severanceDeadlineTimezone || '');
+    const [createdProject, setCreatedProject] = useState<Project | null>(null);
+    const [selectedManagers, setSelectedManagers] = useState<Set<string>>(new Set());
 
-            setInheritPreContact(!project.preEndDateContactAlias);
-            setInheritPostContact(!project.postEndDateContactAlias);
-            setInheritDeadline(!project.severanceDeadlineTime && !project.severanceDeadlineTimezone);
-        } else {
-            setName('');
-            setInheritPreContact(true);
-            setInheritPostContact(true);
-            setInheritDeadline(true);
+    useEffect(() => {
+        if (isOpen) {
+            setStep(1);
+            setCreatedProject(null);
+            setSelectedManagers(new Set());
+            if (project) {
+                setName(project.name || '');
+                setPreEndDateContact(project.preEndDateContactAlias || '');
+                setPostEndDateContact(project.postEndDateContactAlias || '');
+                setDeadlineTime(project.severanceDeadlineTime || '');
+                setDeadlineTimezone(project.severanceDeadlineTimezone || '');
+
+                setInheritPreContact(!project.preEndDateContactAlias);
+                setInheritPostContact(!project.postEndDateContactAlias);
+                setInheritDeadline(!project.severanceDeadlineTime && !project.severanceDeadlineTimezone);
+            } else {
+                setName('');
+                setInheritPreContact(true);
+                setInheritPostContact(true);
+                setInheritDeadline(true);
+            }
         }
     }, [project, isOpen]);
 
@@ -82,9 +95,9 @@ function ProjectFormDialog({
         }
     }, [inheritDeadline]);
 
-    const handleSave = () => {
+    const handleSaveProjectDetails = () => {
         if (!name) return;
-        onSave({
+        const savedProject = onSave({
             id: project?.id || uuidv4(),
             name,
             isArchived: project?.isArchived || false,
@@ -93,69 +106,134 @@ function ProjectFormDialog({
             severanceDeadlineTime: inheritDeadline ? null : deadlineTime,
             severanceDeadlineTimezone: inheritDeadline ? null : deadlineTimezone,
         });
+
+        if (savedProject) {
+            if (!project) { // Only go to step 2 for new projects
+                setCreatedProject(savedProject);
+                setStep(2);
+            } else {
+                onOpenChange(false); // Close dialog if editing
+            }
+        }
+    };
+    
+    const handleSaveManagerAssignments = () => {
+        if (!createdProject) return;
+        onAssignManagers(createdProject.id, Array.from(selectedManagers));
         onOpenChange(false);
     };
+
+    const handleManagerSelection = (email: string, checked: boolean) => {
+        setSelectedManagers(prev => {
+            const newSelection = new Set(prev);
+            if (checked) {
+                newSelection.add(email);
+            } else {
+                newSelection.delete(email);
+            }
+            return newSelection;
+        });
+    };
+    
+    const handleSelectAllManagers = (checked: boolean) => {
+        if (checked) {
+            setSelectedManagers(new Set(hrManagers.map(hr => hr.email)));
+        } else {
+            setSelectedManagers(new Set());
+        }
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{project ? 'Edit Project' : 'Create New Project'}</DialogTitle>
+                    {step === 1 && <DialogDescription>Define the details for this project or division.</DialogDescription>}
+                    {step === 2 && <DialogDescription>Select which HR Managers should have access to this new project.</DialogDescription>}
                 </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="project-name">Project/Division Name</Label>
-                        <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
-                    </div>
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-base">Contact Aliases</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="flex items-center space-x-2">
-                                <Checkbox id="inherit-pre" checked={inheritPreContact} onCheckedChange={(c) => setInheritPreContact(!!c)} />
-                                <Label htmlFor="inherit-pre">Inherit Pre-End Date Contact from Company ({companyDefaults.preEndDateContactAlias || 'Not Set'})</Label>
-                            </div>
-                            <div className="space-y-2 pl-6">
-                                <Label htmlFor="pre-contact">Project-Specific Pre-End Date Contact</Label>
-                                <Input id="pre-contact" value={preEndDateContact} onChange={(e) => setPreEndDateContact(e.target.value)} disabled={inheritPreContact} />
-                            </div>
-                             <div className="flex items-center space-x-2">
-                                <Checkbox id="inherit-post" checked={inheritPostContact} onCheckedChange={(c) => setInheritPostContact(!!c)} />
-                                <Label htmlFor="inherit-post">Inherit Post-End Date Contact from Company ({companyDefaults.postEndDateContactAlias || 'Not Set'})</Label>
-                            </div>
-                             <div className="space-y-2 pl-6">
-                                <Label htmlFor="post-contact">Project-Specific Post-End Date Contact</Label>
-                                <Input id="post-contact" value={postEndDateContact} onChange={(e) => setPostEndDateContact(e.target.value)} disabled={inheritPostContact} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-base">Deadline Settings</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                              <div className="flex items-center space-x-2">
-                                <Checkbox id="inherit-deadline" checked={inheritDeadline} onCheckedChange={(c) => setInheritDeadline(!!c)} />
-                                <Label htmlFor="inherit-deadline">Inherit Deadline Time/Zone from Company ({companyDefaults.severanceDeadlineTime} {companyDefaults.severanceDeadlineTimezone})</Label>
-                            </div>
-                             <div className="grid grid-cols-2 gap-4 pl-6">
-                               <div className="space-y-2">
-                                    <Label htmlFor="deadline-time">Project-Specific Time</Label>
-                                    <Input id="deadline-time" type="time" value={deadlineTime} onChange={e => setDeadlineTime(e.target.value)} disabled={inheritDeadline}/>
+                {step === 1 ? (
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="project-name">Project/Division Name</Label>
+                            <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
+                        </div>
+                        <Card>
+                            <CardHeader className="pb-2"><CardTitle className="text-base">Contact Aliases</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 pt-4">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="inherit-pre" checked={inheritPreContact} onCheckedChange={(c) => setInheritPreContact(!!c)} />
+                                    <Label htmlFor="inherit-pre">Inherit Pre-End Date Contact from Company ({companyDefaults.preEndDateContactAlias || 'Not Set'})</Label>
                                 </div>
+                                <div className="space-y-2 pl-6">
+                                    <Label htmlFor="pre-contact">Project-Specific Pre-End Date Contact</Label>
+                                    <Input id="pre-contact" value={preEndDateContact} onChange={(e) => setPreEndDateContact(e.target.value)} disabled={inheritPreContact} />
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="inherit-post" checked={inheritPostContact} onCheckedChange={(c) => setInheritPostContact(!!c)} />
+                                    <Label htmlFor="inherit-post">Inherit Post-End Date Contact from Company ({companyDefaults.postEndDateContactAlias || 'Not Set'})</Label>
+                                </div>
+                                <div className="space-y-2 pl-6">
+                                    <Label htmlFor="post-contact">Project-Specific Post-End Date Contact</Label>
+                                    <Input id="post-contact" value={postEndDateContact} onChange={(e) => setPostEndDateContact(e.target.value)} disabled={inheritPostContact} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2"><CardTitle className="text-base">Deadline Settings</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 pt-4">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="inherit-deadline" checked={inheritDeadline} onCheckedChange={(c) => setInheritDeadline(!!c)} />
+                                    <Label htmlFor="inherit-deadline">Inherit Deadline Time/Zone from Company ({companyDefaults.severanceDeadlineTime} {companyDefaults.severanceDeadlineTimezone})</Label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pl-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="deadline-timezone">Project-Specific Timezone</Label>
-                                    <Select value={deadlineTimezone} onValueChange={setDeadlineTimezone} disabled={inheritDeadline}>
-                                        <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                        <Label htmlFor="deadline-time">Project-Specific Time</Label>
+                                        <Input id="deadline-time" type="time" value={deadlineTime} onChange={e => setDeadlineTime(e.target.value)} disabled={inheritDeadline}/>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="deadline-timezone">Project-Specific Timezone</Label>
+                                        <Select value={deadlineTimezone} onValueChange={setDeadlineTimezone} disabled={inheritDeadline}>
+                                            <SelectTrigger id="deadline-timezone"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                ) : (
+                    <div className="py-4 space-y-4">
+                        <div className="flex items-center space-x-2">
+                           <Checkbox 
+                                id="select-all-managers" 
+                                onCheckedChange={(checked) => handleSelectAllManagers(!!checked)}
+                                checked={selectedManagers.size === hrManagers.length}
+                            />
+                            <Label htmlFor="select-all-managers">Select All</Label>
+                        </div>
+                        <div className="rounded-md border max-h-60 overflow-y-auto p-4 space-y-2">
+                            {hrManagers.map(hr => (
+                                <div key={hr.email} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`hr-access-${hr.email}`}
+                                        checked={selectedManagers.has(hr.email)}
+                                        onCheckedChange={(checked) => handleManagerSelection(hr.email, !!checked)}
+                                    />
+                                    <Label htmlFor={`hr-access-${hr.email}`} className="font-normal flex flex-col">
+                                        <span>{hr.email}</span>
+                                        <span className="text-xs text-muted-foreground">{hr.isPrimary ? 'Primary Manager' : 'Manager'}</span>
+                                    </Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleSave}>Save Project</Button>
+                    {step === 1 && <Button onClick={handleSaveProjectDetails}>{project ? 'Save Changes' : 'Next'}</Button>}
+                    {step === 2 && <Button onClick={handleSaveManagerAssignments}>Save Assignments</Button>}
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -171,6 +249,7 @@ export default function CompanySettingsPage() {
     getAllCompanyConfigs,
     isLoading,
     saveCompanyProjects,
+    saveCompanyAssignments,
   } = useUserData();
 
   const [deadlineTime, setDeadlineTime] = useState('');
@@ -217,8 +296,8 @@ export default function CompanySettingsPage() {
       toast({ title: "Company Upgraded!", description: `${auth.companyName} is now on the Pro version.` });
   }
 
-  const handleSaveProject = (project: Project) => {
-    if (!auth?.companyName) return;
+  const handleSaveProject = (project: Project): Project | null => {
+    if (!auth?.companyName) return null;
     const projects = companyAssignmentForHr?.projects || [];
     const existingIndex = projects.findIndex(p => p.id === project.id);
     let newProjects;
@@ -229,13 +308,40 @@ export default function CompanySettingsPage() {
         newProjects = [...projects, project];
     }
     saveCompanyProjects(auth.companyName, newProjects);
+    return project;
   };
   
   const handleArchiveProject = (project: Project) => {
     const updatedProject = { ...project, isArchived: !project.isArchived };
-    handleSaveProject(updatedProject);
+    const savedProject = handleSaveProject(updatedProject);
+    if(savedProject) toast({ title: `Project ${savedProject.isArchived ? 'archived' : 'restored'}.` });
   };
   
+  const handleAssignManagers = (projectId: string, managerEmails: string[]) => {
+    if (!companyAssignmentForHr) return;
+
+    const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
+        if (managerEmails.includes(hr.email)) {
+            const currentAccess = hr.projectAccess || [];
+            // If they had 'all' access, we need to convert it to a specific list
+            if (currentAccess.length === 0 || currentAccess.includes('all')) {
+                const allOtherProjects = (companyAssignmentForHr.projects || [])
+                    .map(p => p.id)
+                    .filter(id => id !== projectId);
+                return { ...hr, projectAccess: [...allOtherProjects, projectId] };
+            }
+            // Otherwise, just add the new project if it's not there
+            if (!currentAccess.includes(projectId)) {
+                return { ...hr, projectAccess: [...currentAccess, projectId] };
+            }
+        }
+        return hr;
+    });
+
+    saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
+    toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
+  };
+
   const handleEditProjectClick = (project: Project) => {
     setEditingProject(project);
     setIsProjectFormOpen(true);
@@ -474,8 +580,10 @@ export default function CompanySettingsPage() {
         isOpen={isProjectFormOpen}
         onOpenChange={setIsProjectFormOpen}
         onSave={handleSaveProject}
+        onAssignManagers={handleAssignManagers}
         project={editingProject}
         companyDefaults={companyAssignmentForHr}
+        hrManagers={companyAssignmentForHr.hrManagers}
     />
     </>
   );
