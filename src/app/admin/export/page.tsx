@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -45,27 +46,34 @@ export default function ExportUsersPage() {
 
     // 2. Add HR Managers
     companyAssignments.forEach(assignment => {
-      users.push({
-        email: assignment.hrManagers[0]?.email,
-        role: 'HR Manager',
-        company: assignment.companyName,
-        companyId: 'N/A',
-        notificationDate: 'N/A',
-        notified: 'N/A',
-        profileStatus: 'N/A',
-        assessmentStatus: 'N/A',
-      });
+      const primaryManager = assignment.hrManagers.find(hr => hr.isPrimary) || assignment.hrManagers[0];
+      if (primaryManager && primaryManager.email) {
+        users.push({
+            email: primaryManager.email,
+            role: 'HR Manager',
+            company: assignment.companyName,
+            companyId: 'N/A',
+            notificationDate: 'N/A',
+            notified: 'N/A',
+            profileStatus: 'N/A',
+            assessmentStatus: 'N/A',
+        });
+      }
     });
 
     // 3. Add End-Users
     Object.entries(allCompanyConfigs).forEach(([companyName, config]) => {
       config.users?.forEach(user => {
         // Avoid duplicating users who might have multiple roles, though the current data model makes this unlikely.
-        if (!users.some(u => u.email.toLowerCase() === user.email.toLowerCase())) {
+        if (!users.some(u => u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase())) {
           let notificationDateDisplay = 'N/A';
-            if (user.notificationDate) {
-                const date = parse(user.notificationDate, 'yyyy-MM-dd', new Date());
-                notificationDateDisplay = isPast(date) ? 'Past' : 'Future';
+            if (user.notification_date) {
+                try {
+                    const date = parse(user.notification_date, 'yyyy-MM-dd', new Date());
+                    notificationDateDisplay = isPast(date) ? 'Past' : 'Future';
+                } catch(e) {
+                    // Keep 'N/A' if date is invalid
+                }
             }
             
           users.push({
