@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks, Pencil, Edit, Server } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project, QuestionOverride } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
@@ -138,121 +138,216 @@ function LocalMultiSelectPopover({
     );
 }
 
+function AnswerGuidanceForm({
+    guidance,
+    onSave,
+    onCancel,
+    projects,
+    allCompanyTasks,
+    allCompanyTips,
+    onAddNewTask,
+    onAddNewTip,
+}: {
+    guidance: AnswerGuidance & { projectId?: string };
+    onSave: (guidance: AnswerGuidance & { projectId?: string }) => void;
+    onCancel: () => void;
+    projects: Project[];
+    allCompanyTasks: MasterTask[];
+    allCompanyTips: MasterTip[];
+    onAddNewTask: () => void;
+    onAddNewTip: () => void;
+}) {
+    const [localGuidance, setLocalGuidance] = useState(guidance);
+    
+    useEffect(() => {
+        setLocalGuidance(guidance);
+    }, [guidance]);
+
+    return (
+        <div className="p-4 border rounded-md bg-muted/50 space-y-4">
+             <div className="space-y-2">
+                <Label>Apply Guidance To Project</Label>
+                 <Select
+                    value={localGuidance.projectId || 'all'}
+                    onValueChange={(v) => setLocalGuidance(g => ({ ...g, projectId: v === 'all' ? undefined : v }))}
+                    disabled={!!guidance.projectId} // Can't change project once set
+                >
+                    <SelectTrigger>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                         <SelectItem value="all">All Projects (Company Default)</SelectItem>
+                         {projects.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+             </div>
+             <div className="flex items-center space-x-2">
+                <Checkbox 
+                    id="no-guidance-required" 
+                    checked={localGuidance.noGuidanceRequired} 
+                    onCheckedChange={(checked) => setLocalGuidance(g => ({ ...g, noGuidanceRequired: !!checked }))}
+                />
+                <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
+            </div>
+             <fieldset disabled={localGuidance.noGuidanceRequired} className="grid grid-cols-2 gap-4">
+                <LocalMultiSelectPopover
+                    label="Tasks to Assign"
+                    items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
+                    selectedIds={localGuidance.tasks}
+                    onSelectionChange={(v) => setLocalGuidance(g => ({...g, tasks: v}))}
+                    onAddNew={onAddNewTask}
+                    categories={taskCategories}
+                    popoverContentWidth="w-full"
+                />
+                 <LocalMultiSelectPopover
+                    label="Tips to Show"
+                    items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
+                    selectedIds={localGuidance.tips}
+                    onSelectionChange={(v) => setLocalGuidance(g => ({...g, tips: v}))}
+                    onAddNew={onAddNewTip}
+                    categories={tipCategories}
+                    popoverContentWidth="w-full"
+                />
+            </fieldset>
+            <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+                <Button onClick={() => onSave(localGuidance)}>Save Guidance</Button>
+            </div>
+        </div>
+    )
+}
+
 interface AnswerGuidanceDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     questionLabel: string;
     answer: string;
-    onSaveGuidance: (answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean, projectId?: string) => void;
+    onSaveAllGuidance: (answer: string, allGuidance: { default: AnswerGuidance; projects: Record<string, AnswerGuidance>}) => void;
     onAddNewTask: () => void;
     onAddNewTip: () => void;
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
-    currentGuidance: AnswerGuidance;
+    currentDefaultGuidance: AnswerGuidance;
+    currentProjectGuidance: Record<string, AnswerGuidance>;
     projects: Project[];
 }
 
 function AnswerGuidanceDialog({
     isOpen, onOpenChange, questionLabel, answer,
-    onSaveGuidance, onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips,
-    currentGuidance, projects
+    onSaveAllGuidance, onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips,
+    currentDefaultGuidance, currentProjectGuidance, projects
 }: AnswerGuidanceDialogProps) {
 
-    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-    const [selectedTips, setSelectedTips] = useState<string[]>([]);
-    const [noGuidanceRequired, setNoGuidanceRequired] = useState(false);
-    const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+    const [editingGuidance, setEditingGuidance] = useState<(AnswerGuidance & { projectId?: string }) | null>(null);
+    const [isAdding, setIsAdding] = useState(false);
 
     useEffect(() => {
-        if (isOpen) {
-            setSelectedTasks(currentGuidance.tasks || []);
-            setSelectedTips(currentGuidance.tips || []);
-            setNoGuidanceRequired(currentGuidance.noGuidanceRequired || false);
-            setSelectedProjectId(currentGuidance.projectId || 'all');
+        if (!isOpen) {
+            setEditingGuidance(null);
+            setIsAdding(false);
         }
-    }, [isOpen, currentGuidance]);
+    }, [isOpen]);
 
+    const handleSave = (guidanceToSave: AnswerGuidance & { projectId?: string }) => {
+        const { projectId, ...restOfGuidance } = guidanceToSave;
+        
+        let newDefault = currentDefaultGuidance;
+        let newProjectOverrides = { ...currentProjectGuidance };
 
-    const handleSave = () => {
-        onSaveGuidance(answer, selectedTasks, selectedTips, noGuidanceRequired, selectedProjectId);
-        onOpenChange(false);
+        if (projectId) {
+            newProjectOverrides[projectId] = restOfGuidance;
+        } else {
+            newDefault = restOfGuidance;
+        }
+
+        onSaveAllGuidance(answer, { default: newDefault, projects: newProjectOverrides });
+        setEditingGuidance(null);
+        setIsAdding(false);
     }
     
-    if (!isOpen) {
-        return null;
-    }
+    if (!isOpen) return null;
+
+    const existingProjectIds = Object.keys(currentProjectGuidance);
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        Set Guidance for:{" "}
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="font-bold inline-block max-w-xs truncate align-bottom">"{answer}"</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{answer}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        Set Guidance for: <span className="font-bold">"{answer}"</span>
                     </DialogTitle>
                     <DialogDescription>
-                        For the question: "{questionLabel}"
+                        Set default guidance and add project-specific overrides for the question: "{questionLabel}"
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                     <div className="space-y-2">
-                        <Label>Apply Guidance To Project</Label>
-                        <RadioGroup value={selectedProjectId} onValueChange={setSelectedProjectId} className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="all" id="guidance-all-projects" />
-                                <Label htmlFor="guidance-all-projects">All Projects (Company Default)</Label>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-4">
+                            <div className="flex items-center gap-2">
+                                <Server className="h-4 w-4" />
+                                <CardTitle className="text-base">Company Default</CardTitle>
                             </div>
-                            {projects.map(p => (
-                                <div key={p.id} className="flex items-center space-x-2">
-                                    <RadioGroupItem value={p.id} id={`guidance-project-${p.id}`} />
-                                    <Label htmlFor={`guidance-project-${p.id}`}>{p.name}</Label>
-                                </div>
-                            ))}
-                        </RadioGroup>
-                         <p className="text-xs text-muted-foreground">Selecting a specific project will override the company default guidance for users in that project.</p>
-                     </div>
-                     <Separator />
-                     <div className="flex items-center space-x-2">
-                        <Checkbox 
-                            id="no-guidance-required" 
-                            checked={noGuidanceRequired} 
-                            onCheckedChange={(checked) => setNoGuidanceRequired(!!checked)}
+                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance({})}>
+                                <Pencil className="mr-2" /> Edit
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                             <p className="text-xs text-muted-foreground">{currentDefaultGuidance.tasks?.length || 0} tasks, {currentDefaultGuidance.tips?.length || 0} tips</p>
+                        </CardContent>
+                    </Card>
+
+                    {Object.entries(currentProjectGuidance).map(([projectId, guidance]) => {
+                        const project = projects.find(p => p.id === projectId);
+                        return (
+                             <Card key={projectId}>
+                                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                                     <CardTitle className="text-base">{project?.name || 'Unknown Project'}</CardTitle>
+                                    <Button variant="outline" size="sm" onClick={() => setEditingGuidance({ ...guidance, projectId })}>
+                                        <Pencil className="mr-2" /> Edit
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-xs text-muted-foreground">{guidance.tasks?.length || 0} tasks, {guidance.tips?.length || 0} tips</p>
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
+                    
+                     {isAdding && (
+                        <AnswerGuidanceForm
+                            guidance={{}}
+                            onSave={handleSave}
+                            onCancel={() => setIsAdding(false)}
+                            projects={projects.filter(p => !existingProjectIds.includes(p.id))}
+                            allCompanyTasks={allCompanyTasks}
+                            allCompanyTips={allCompanyTips}
+                            onAddNewTask={onAddNewTask}
+                            onAddNewTip={onAddNewTip}
                         />
-                        <Label htmlFor="no-guidance-required">No specific guidance required for this answer</Label>
-                    </div>
-                     <fieldset disabled={noGuidanceRequired} className="grid grid-cols-2 gap-4">
-                        <LocalMultiSelectPopover
-                            label="Tasks to Assign"
-                            items={allCompanyTasks.map(t => ({id: t.id, name: t.name, category: t.category}))}
-                            selectedIds={selectedTasks}
-                            onSelectionChange={setSelectedTasks}
-                            onAddNew={onAddNewTask}
-                            categories={taskCategories}
-                            popoverContentWidth="w-[450px]"
+                    )}
+                    
+                     {editingGuidance && !isAdding && (
+                        <AnswerGuidanceForm
+                            guidance={editingGuidance}
+                            onSave={handleSave}
+                            onCancel={() => setEditingGuidance(null)}
+                            projects={projects}
+                            allCompanyTasks={allCompanyTasks}
+                            allCompanyTips={allCompanyTips}
+                            onAddNewTask={onAddNewTask}
+                            onAddNewTip={onAddNewTip}
                         />
-                         <LocalMultiSelectPopover
-                            label="Tips to Show"
-                            items={allCompanyTips.map(t => ({id: t.id, name: t.text, category: t.category}))}
-                            selectedIds={selectedTips}
-                            onSelectionChange={setSelectedTips}
-                            onAddNew={onAddNewTip}
-                            categories={tipCategories}
-                            popoverContentWidth="w-[450px]"
-                        />
-                    </fieldset>
+                    )}
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Guidance</Button>
+                <DialogFooter className="border-t pt-4">
+                     {!editingGuidance && !isAdding && (
+                        <Button variant="outline" onClick={() => setIsAdding(true)}><PlusCircle className="mr-2" /> Add Project Override</Button>
+                    )}
+                    <DialogClose asChild>
+                        <Button variant="secondary">Close</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -394,17 +489,18 @@ export default function EditQuestionDialog({
         });
     }, []);
     
-    const handleSaveAnswerGuidance = useCallback((answer: string, taskIds: string[], tipIds: string[], noGuidanceRequired: boolean, projectId?: string) => {
+     const handleSaveAllGuidanceForAnswer = useCallback((answer: string, allGuidance: { default: AnswerGuidance; projects: Record<string, AnswerGuidance>}) => {
         setCurrentQuestion(prev => {
             if (!prev) return null;
-            const newGuidance = { ...(prev.answerGuidance || {}) };
-            newGuidance[answer] = { tasks: taskIds, tips: tipIds, noGuidanceRequired };
-             if(projectId && projectId !== 'all') {
-                newGuidance[answer].projectId = projectId;
-            } else {
-                delete newGuidance[answer].projectId;
-            }
-            return { ...prev, answerGuidance: newGuidance };
+            
+            const newAnswerGuidance = { ...(prev.answerGuidance || {}) };
+            newAnswerGuidance[answer] = allGuidance.default;
+
+            const newProjectGuidance = { ...(prev.projectAnswerGuidance || {}) };
+            if(!newProjectGuidance[answer]) newProjectGuidance[answer] = {};
+            newProjectGuidance[answer] = allGuidance.projects;
+
+            return { ...prev, answerGuidance: newAnswerGuidance, projectAnswerGuidance: newProjectGuidance };
         });
     }, []);
     
@@ -414,12 +510,17 @@ export default function EditQuestionDialog({
     }, []);
 
     const getGuidanceSummaryForAnswer = useCallback((answer: string) => {
-        const allGuidance = Object.entries(currentQuestion?.answerGuidance || {})
-            .filter(([key]) => key === answer)
-            .flatMap(([, value]) => Array.isArray(value) ? value : [value]);
-        
-        return allGuidance;
-    }, [currentQuestion?.answerGuidance]);
+        let count = 0;
+        const defaultGuidance = currentQuestion?.answerGuidance?.[answer];
+        if (defaultGuidance && (defaultGuidance.noGuidanceRequired || (defaultGuidance.tasks && defaultGuidance.tasks.length > 0) || (defaultGuidance.tips && defaultGuidance.tips.length > 0))) {
+            count++;
+        }
+        const projectGuidances = currentQuestion?.projectAnswerGuidance?.[answer];
+        if (projectGuidances) {
+            count += Object.values(projectGuidances).filter(g => g.noGuidanceRequired || (g.tasks && g.tasks.length > 0) || (g.tips && g.tips.length > 0)).length;
+        }
+        return count;
+    }, [currentQuestion?.answerGuidance, currentQuestion?.projectAnswerGuidance]);
 
     const handleAddNewOption = () => {
         if (newOption && !currentOptions.includes(newOption)) {
@@ -677,7 +778,7 @@ export default function EditQuestionDialog({
                             const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
                             const isRemovalSuggested = suggestedRemovals.includes(option);
                             const isCompanyAddition = companyAddedOptions.has(option);
-                            const guidanceSummary = getGuidanceSummaryForAnswer(option);
+                            const guidanceCount = getGuidanceSummaryForAnswer(option);
                             return (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`guidance-${option}`} className={cn("font-normal flex items-center gap-2", isRemovalSuggested && "line-through text-destructive")}>
@@ -685,30 +786,9 @@ export default function EditQuestionDialog({
                                         {option}
                                     </Label>
                                     <div className="flex items-center gap-2">
-                                         <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant={guidanceSummary.length > 0 ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                                        <Settings className="mr-2"/> Manage Guidance {guidanceSummary.length > 0 && <Badge variant="default" className="ml-2">{guidanceSummary.length}</Badge>}
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                {guidanceSummary.length > 0 && (
-                                                <TooltipContent className="p-2">
-                                                    <div className="space-y-2 text-xs">
-                                                        <p className="font-bold">Mapped Guidance:</p>
-                                                        {guidanceSummary.map((g, i) => (
-                                                            <div key={i} className="border-t pt-2">
-                                                                <p className="font-semibold text-blue-600">{g.projectId ? projects.find(p=>p.id === g.projectId)?.name : 'Company Default'}</p>
-                                                                {g.tasks && g.tasks.length > 0 && <div><strong>Tasks:</strong> {g.tasks.map(t => allCompanyTasks.find(ct => ct.id === t)?.name || t).join(', ')}</div>}
-                                                                {g.tips && g.tips.length > 0 && <div><strong>Tips:</strong> {g.tips.map(t => allCompanyTips.find(ct => ct.id === t)?.text || t).join(', ')}</div>}
-                                                                {g.noGuidanceRequired && <div className="italic">No guidance required.</div>}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </TooltipContent>
-                                                )}
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        <Button variant={guidanceCount > 0 ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                            <Settings className="mr-2"/> Manage Guidance {guidanceCount > 0 && <Badge variant="default" className="ml-2">{guidanceCount}</Badge>}
+                                        </Button>
                                         {isSuggestionMode && isMasterOption && (
                                              <Button variant="ghost" size="icon" className={cn("h-8 w-8", isRemovalSuggested ? "text-primary" : "text-destructive")} onClick={() => handleToggleRemovalSuggestion(option)}>
                                                 <Trash2 />
@@ -829,24 +909,16 @@ export default function EditQuestionDialog({
             onOpenChange={setIsGuidanceDialogOpen}
             questionLabel={currentQuestion?.label || ''}
             answer={currentAnswerForGuidance}
-            onSaveGuidance={handleSaveAnswerGuidance}
-            onAddNewTask={() => onAddNewTask((newTask: MasterTask) => {
-                const newGuidance = { ...(currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {})};
-                newGuidance.tasks = [...(newGuidance.tasks || []), newTask.id];
-                handleSaveAnswerGuidance(currentAnswerForGuidance, newGuidance.tasks, newGuidance.tips || [], newGuidance.noGuidanceRequired || false);
-            })}
-            onAddNewTip={() => onAddNewTip((newTip: MasterTip) => {
-                 const newGuidance = { ...(currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {})};
-                 newGuidance.tips = [...(newGuidance.tips || []), newTip.id];
-                 handleSaveAnswerGuidance(currentAnswerForGuidance, newGuidance.tasks || [], newGuidance.tips, newGuidance.noGuidanceRequired || false);
-            })}
+            onSaveAllGuidance={handleSaveAllGuidanceForAnswer}
+            onAddNewTask={() => onAddNewTask(() => {})}
+            onAddNewTip={() => onAddNewTip(() => {})}
             allCompanyTasks={allCompanyTasks}
             allCompanyTips={allCompanyTips}
-            currentGuidance={currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {}}
+            currentDefaultGuidance={currentQuestion?.answerGuidance?.[currentAnswerForGuidance] || {}}
+            currentProjectGuidance={currentQuestion?.projectAnswerGuidance?.[currentAnswerForGuidance] || {}}
             projects={projects}
         />
         
         </>
     );
 }
-
