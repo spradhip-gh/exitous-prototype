@@ -1,13 +1,15 @@
 
-
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProjectAssignmentPopover } from './ProjectAssignmentPopover';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Pencil } from 'lucide-react';
 
 export default function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
@@ -16,6 +18,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     canWrite: boolean;
 }) {
     const { saveCompanyConfig } = useUserData();
+    const [editingItem, setEditingItem] = useState<(Partial<any> & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource', name: string }) | null>(null);
 
     const allCustomContent = useMemo(() => {
         const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label }));
@@ -50,45 +53,67 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Project Customization</CardTitle>
-                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Content Title / Text</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Visible To</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {allCustomContent.map(item => (
-                            <TableRow key={`${item.typeLabel}-${item.id}`}>
-                                <TableCell className="font-medium">
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger className="text-left"><p className="truncate max-w-sm">{item.name}</p></TooltipTrigger>
-                                            <TooltipContent><p className="max-w-md">{item.name}</p></TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </TableCell>
-                                <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
-                                <TableCell>
-                                     <ProjectAssignmentPopover
-                                        item={item}
-                                        projects={projects}
-                                        onSave={handleProjectAssignmentSave}
-                                        disabled={!canWrite}
-                                    />
-                                </TableCell>
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Project Customization</CardTitle>
+                    <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Content Title / Text</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {allCustomContent.map(item => (
+                                <TableRow key={`${item.typeLabel}-${item.id}`}>
+                                    <TableCell className="font-medium">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger className="text-left"><p className="truncate max-w-sm">{item.name}</p></TooltipTrigger>
+                                                <TooltipContent><p className="max-w-md">{item.name}</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableCell>
+                                    <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
+                                    <TableCell className="text-right">
+                                         <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)} disabled={!canWrite}>
+                                            <Pencil className="h-4 w-4" />
+                                         </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+             <Dialog open={!!editingItem} onOpenChange={(isOpen) => !isOpen && setEditingItem(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Manage Visibility for "{editingItem?.name}"</DialogTitle>
+                        <DialogDescription>Select which projects this {editingItem?.typeLabel.toLowerCase()} should be visible to.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {editingItem && (
+                            <ProjectAssignmentPopover
+                                item={editingItem}
+                                projects={projects}
+                                onSave={handleProjectAssignmentSave}
+                                disabled={!canWrite}
+                                includeUnassignedOption={true}
+                                popoverContentWidth='w-full'
+                            />
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setEditingItem(null)}>Done</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

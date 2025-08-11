@@ -1,9 +1,8 @@
 
-
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronsUpDown } from 'lucide-react';
@@ -32,17 +31,18 @@ export function ProjectAssignmentPopover({
     const itemProjectIds = useMemo(() => initialProjectIds || item.projectIds || [], [item.projectIds, initialProjectIds]);
 
     const handleSelect = (projectId: string, isSelected: boolean) => {
+        let currentIds = itemProjectIds.includes('all') || itemProjectIds.length === 0 ? [] : [...itemProjectIds];
         let newProjectIds;
-        const currentIds = itemProjectIds.includes('all') ? [] : itemProjectIds;
-
+    
         if (projectId === 'all') {
-            newProjectIds = ['all'];
+            newProjectIds = isSelected ? ['all'] : [];
         } else {
-            let tempIds = currentIds.filter(id => id !== 'all');
+            // Ensure 'all' is not in the list when individual items are selected
+            currentIds = currentIds.filter(id => id !== 'all');
             if (isSelected) {
-                newProjectIds = [...tempIds, projectId];
+                newProjectIds = [...currentIds, projectId];
             } else {
-                newProjectIds = tempIds.filter(id => id !== projectId);
+                newProjectIds = currentIds.filter(id => id !== projectId);
             }
         }
         onSave(item.id, item.typeLabel, newProjectIds);
@@ -75,11 +75,13 @@ export function ProjectAssignmentPopover({
                     <CommandList>
                         <CommandGroup>
                             <CommandItem onSelect={() => handleSelect('all', !isAllSelected)}>
-                                <Checkbox className="mr-2" checked={isAllSelected} /> All Projects
+                                <Checkbox className="mr-2" checked={isAllSelected} id="all-projects-checkbox"/> 
+                                <label htmlFor="all-projects-checkbox" className="w-full">All Projects</label>
                             </CommandItem>
                              {includeUnassignedOption && (
                                 <CommandItem onSelect={() => handleSelect('__none__', !itemProjectIds.includes('__none__'))} disabled={isAllSelected}>
-                                    <Checkbox className="mr-2" checked={itemProjectIds.includes('__none__')} /> Unassigned Users
+                                    <Checkbox className="mr-2" checked={itemProjectIds.includes('__none__')} id="unassigned-checkbox" /> 
+                                    <label htmlFor="unassigned-checkbox" className="w-full">Unassigned Users</label>
                                 </CommandItem>
                             )}
                         </CommandGroup>
@@ -90,7 +92,8 @@ export function ProjectAssignmentPopover({
                                     const isChecked = !isAllSelected && itemProjectIds.includes(p.id);
                                     return (
                                         <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected}>
-                                            <Checkbox className="mr-2" checked={isChecked} /> {p.name}
+                                            <Checkbox className="mr-2" checked={isChecked} id={`project-${p.id}-checkbox`}/> 
+                                            <label htmlFor={`project-${p.id}-checkbox`} className="w-full">{p.name}</label>
                                         </CommandItem>
                                     )
                                 })}

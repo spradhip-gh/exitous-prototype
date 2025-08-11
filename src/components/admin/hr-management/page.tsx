@@ -301,7 +301,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                             initialProjectIds={manager.projectAccess}
                                                             onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(assignment.companyName, projectIds)}
                                                             includeUnassignedOption={true}
-                                                            popoverContentWidth='w-[450px]'
+                                                            popoverContentWidth='w-full'
                                                         />
                                                     </div>
                                                 </fieldset>
