@@ -106,9 +106,8 @@ export function ProjectAssignmentPopover({
                         <h4 className="text-xs font-bold">Debug Info</h4>
                         <pre className="text-[10px] whitespace-pre-wrap break-all">
                             {JSON.stringify({
-                                passedItem: { id: item.id, type: item.typeLabel },
+                                passedItem: { id: item.id, type: item.typeLabel, name: item.name },
                                 passedProjects: projects.map(p => p.name),
-                                initialIds: initialProjectIds,
                                 currentIds: itemProjectIds,
                                 isAllSelected,
                                 includeUnassigned: includeUnassignedOption,

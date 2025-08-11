@@ -557,6 +557,7 @@ export default function EditQuestionDialog({
                             onSave={(itemId, itemType, projectIds) => {
                                 setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                             }}
+                            initialProjectIds={currentQuestion.projectIds}
                             includeUnassignedOption={true}
                             popoverContentWidth='w-full'
                         />
