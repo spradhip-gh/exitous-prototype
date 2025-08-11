@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -843,6 +844,7 @@ export function useUserData() {
             company_tasks: config.companyTasks || [],
             company_tips: config.companyTips || [],
             resources: config.resources || [],
+            project_configs: config.projectConfigs || {},
         }, { onConflict: 'company_id' });
         
         if (error) {
