@@ -66,17 +66,20 @@ export interface HrPermissions {
     formEditor: 'read' | 'write';
     resources: 'read' | 'write';
     companySettings: 'read' | 'write';
+    projectManagement?: 'read' | 'write';
 }
 
 export interface HrManager {
     email: string;
     isPrimary: boolean;
     permissions: HrPermissions;
+    projectAccess?: string[];
 }
 
 export interface CompanyUser {
   id: string; // The UUID from the company_users table
   company_id: string; // The UUID of the company
+  project_id?: string | null;
   email: string;
   company_user_id: string;
   notification_date?: string;
@@ -100,6 +103,8 @@ export interface Resource {
   fileName: string;
   category: 'Benefits' | 'Policies' | 'Career' | 'Other';
   content?: string;
+  projectIds?: string[];
+  summary?: string;
 }
 
 export interface AnswerGuidance {
@@ -144,6 +149,15 @@ export interface QuestionOverride {
     };
 }
 
+export interface Project {
+    id: string;
+    name: string;
+    isArchived: boolean;
+    severanceDeadlineTime?: string | null;
+    severanceDeadlineTimezone?: string | null;
+    preEndDateContactAlias?: string | null;
+    postEndDateContactAlias?: string | null;
+}
 
 export interface CompanyConfig {
     questions?: Record<string, QuestionOverride>;
@@ -151,9 +165,14 @@ export interface CompanyConfig {
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
     resources?: Resource[];
+    projects?: Project[];
     companyTasks?: MasterTask[];
     companyTips?: MasterTip[];
     answerGuidanceOverrides?: Record<string, Record<string, AnswerGuidance>>;
+    projectConfigs?: Record<string, {
+        hiddenQuestions?: string[],
+        hiddenAnswers?: Record<string, string[]>
+    }>;
 }
 
 export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hrManagers'>> & {
@@ -215,6 +234,7 @@ export interface CompanyAssignment {
     severanceDeadlineTimezone?: string;
     preEndDateContactAlias?: string;
     postEndDateContactAlias?: string;
+    projects?: Project[];
 }
 
 export interface PlatformUser {
@@ -389,6 +409,7 @@ export function useUserData() {
                 { data: platformUsersData },
                 { data: reviewQueueData },
                 { data: resourcesData },
+                { data: projectsData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -402,6 +423,7 @@ export function useUserData() {
                 supabase.from('platform_users').select('*'),
                 supabase.from('review_queue').select('*'),
                 supabase.from('external_resources').select('*'),
+                supabase.from('projects').select('*'),
             ]);
             
             setPlatformUsers((platformUsersData as PlatformUser[]) || []);
@@ -414,8 +436,20 @@ export function useUserData() {
                     .map(a => ({
                         email: a.hr_email,
                         isPrimary: a.is_primary,
-                        permissions: a.permissions as HrPermissions
+                        permissions: a.permissions as HrPermissions,
+                        projectAccess: a.project_access || ['all'],
                     }));
+                
+                const companyProjects = (projectsData || []).filter(p => p.company_id === c.id).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    isArchived: p.is_archived,
+                    severanceDeadlineTime: p.severance_deadline_time,
+                    severanceDeadlineTimezone: p.severance_deadline_timezone,
+                    preEndDateContactAlias: p.pre_end_date_contact_alias,
+                    postEndDateContactAlias: p.post_end_date_contact_alias,
+                }));
+
                 return {
                     companyId: c.id,
                     companyName: c.name,
@@ -426,6 +460,7 @@ export function useUserData() {
                     severanceDeadlineTimezone: c.severance_deadline_timezone,
                     preEndDateContactAlias: c.pre_end_date_contact_alias,
                     postEndDateContactAlias: c.post_end_date_contact_alias,
+                    projects: companyProjects,
                 };
             });
             setCompanyAssignments(assignments);
@@ -493,47 +528,11 @@ export function useUserData() {
                     answerGuidanceOverrides: companyConfigDb?.answer_guidance_overrides || {},
                     companyTasks: companyConfigDb?.company_tasks || [],
                     companyTips: companyConfigDb?.company_tips || [],
+                    resources: companyConfigDb?.resources || [],
+                    projectConfigs: companyConfigDb?.project_configs || {},
                 };
             });
             
-            // --- ONE-TIME DATA MIGRATION ---
-            const globexConfig = configs['Globex Corp'];
-            let needsSave = false;
-            if (globexConfig) {
-                if (globexConfig.questions?.['maritalStatus'] && 'options' in globexConfig.questions['maritalStatus']) {
-                    globexConfig.questions['maritalStatus'].optionOverrides = {
-                        add: ['Married (previously divorced)'],
-                        remove: ['Prefer not to answer'],
-                    };
-                    delete (globexConfig.questions['maritalStatus'] as any).options; // Remove incorrect key
-                    needsSave = true;
-                }
-                if (globexConfig.questions?.['state'] && 'options' in globexConfig.questions['state']) {
-                    globexConfig.questions['state'].optionOverrides = {
-                        add: ['Puerto Rico'],
-                        remove: [],
-                    };
-                    delete (globexConfig.questions['state'] as any).options;
-                    needsSave = true;
-                }
-            }
-
-            if (needsSave) {
-                const globexAssignment = assignments.find(a => a.companyName === 'Globex Corp');
-                if (globexAssignment) {
-                    await supabase.from('company_question_configs').upsert({
-                        company_id: globexAssignment.companyId,
-                        question_overrides: globexConfig.questions || {},
-                        custom_questions: globexConfig.customQuestions || {},
-                        question_order_by_section: globexConfig.questionOrderBySection || {},
-                        answer_guidance_overrides: globexConfig.answerGuidanceOverrides || {},
-                        company_tasks: globexConfig.companyTasks || [],
-                        company_tips: globexConfig.companyTips || [],
-                    }, { onConflict: 'company_id' });
-                }
-            }
-            // --- END MIGRATION ---
-
             setCompanyConfigs(configs);
             
             // Fetch user-specific data if authenticated
@@ -1342,6 +1341,46 @@ export function useUserData() {
         return { tasks, tips };
     }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName]);
 
+    const saveCompanyProjects = useCallback(async (companyName: string, newProjects: Project[]) => {
+        if (!companyName) return;
+        const companyId = companyAssignments.find(c => c.companyName === companyName)?.companyId;
+        if (!companyId) return;
+
+        // Separate new from existing to handle upsert logic
+        const toUpsert = newProjects.map(p => ({
+            id: p.id,
+            company_id: companyId,
+            name: p.name,
+            is_archived: p.isArchived,
+            severance_deadline_time: p.severanceDeadlineTime,
+            severance_deadline_timezone: p.severanceDeadlineTimezone,
+            pre_end_date_contact_alias: p.preEndDateContactAlias,
+            post_end_date_contact_alias: p.postEndDateContactAlias,
+        }));
+        
+        // Find projects to delete
+        const currentProjects = companyAssignments.find(c => c.companyName === companyName)?.projects || [];
+        const newProjectIds = new Set(newProjects.map(p => p.id));
+        const toDelete = currentProjects.filter(p => !newProjectIds.has(p.id));
+
+        if (toDelete.length > 0) {
+            const { error: deleteError } = await supabase.from('projects').delete().in('id', toDelete.map(p => p.id));
+            if (deleteError) console.error("Error deleting projects:", deleteError);
+        }
+
+        if (toUpsert.length > 0) {
+             const { error } = await supabase.from('projects').upsert(toUpsert, { onConflict: 'id' });
+            if (error) {
+                console.error("Error saving projects:", error);
+            }
+        }
+       
+        setCompanyAssignments(prev => prev.map(c => 
+            c.companyName === companyName ? { ...c, projects: newProjects } : c
+        ));
+
+    }, [companyAssignments]);
+
     return {
         profileData,
         assessmentData,
@@ -1407,8 +1446,10 @@ export function useUserData() {
         assessmentCompletions: {},
         taskMappings: [],
         tipMappings: [],
+        saveCompanyProjects,
     };
 }
+
 
 
 
