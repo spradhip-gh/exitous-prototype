@@ -408,6 +408,16 @@ export default function HrUserManagement() {
         }
         setSortConfig({ key, direction });
     }, [sortConfig]);
+    
+    const visibleProjectsForAdd = useMemo(() => {
+        const allProjects = companyAssignmentForHr?.projects || [];
+        if (!hrProjectAccess || hrProjectAccess.includes('all')) {
+            return allProjects;
+        }
+        const accessibleProjects = new Set(hrProjectAccess);
+        return allProjects.filter(p => accessibleProjects.has(p.id));
+    }, [companyAssignmentForHr?.projects, hrProjectAccess]);
+
 
     if (isUserDataLoading) {
         return (
@@ -454,7 +464,7 @@ export default function HrUserManagement() {
                                     <SelectTrigger><SelectValue placeholder="Assign to project..." /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">None (Company-wide)</SelectItem>
-                                        {companyAssignmentForHr?.projects?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                        {visibleProjectsForAdd.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
