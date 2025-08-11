@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, Bug, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
@@ -34,27 +35,46 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         return [...questions, ...tasks, ...tips, ...resources];
     }, [localCompanyConfig]);
 
-    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', newProjectIds: string[]) => {
+    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectId: string, isChecked: boolean) => {
         const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
-
+        
         let item: any = null;
+        let itemArray: any[] | undefined = undefined;
+        let itemIndex = -1;
+
         switch (itemType) {
             case 'Question':
                 item = newConfig.customQuestions?.[itemId];
                 break;
             case 'Task':
-                item = newConfig.companyTasks?.find((t: MasterTask) => t.id === itemId);
+                itemArray = newConfig.companyTasks || [];
+                itemIndex = itemArray.findIndex((t: MasterTask) => t.id === itemId);
+                if(itemIndex > -1) item = itemArray[itemIndex];
                 break;
             case 'Tip':
-                item = newConfig.companyTips?.find((t: MasterTip) => t.id === itemId);
+                itemArray = newConfig.companyTips || [];
+                itemIndex = itemArray.findIndex((t: MasterTip) => t.id === itemId);
+                if(itemIndex > -1) item = itemArray[itemIndex];
                 break;
             case 'Resource':
-                item = newConfig.resources?.find((r: Resource) => r.id === itemId);
+                itemArray = newConfig.resources || [];
+                itemIndex = itemArray.findIndex((r: Resource) => r.id === itemId);
+                 if(itemIndex > -1) item = itemArray[itemIndex];
                 break;
         }
-        
+
         if (item) {
-            item.projectIds = newProjectIds;
+            let currentIds = item.projectIds || [];
+            if (isChecked) {
+                currentIds = [...new Set([...currentIds, projectId])];
+            } else {
+                currentIds = currentIds.filter((id: string) => id !== projectId);
+            }
+            item.projectIds = currentIds;
+        }
+
+        if(itemArray && itemIndex > -1) {
+            itemArray[itemIndex] = item;
         }
 
         setLocalCompanyConfig(newConfig);
@@ -65,101 +85,84 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         <Card>
             <CardHeader>
                 <CardTitle>Project Customization</CardTitle>
-                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project.</CardDescription>
+                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project. Leave all boxes unchecked to make an item visible to all projects.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Content Title / Text</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Visible To</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {allCustomContent.map(item => {
-                            const currentProjectIds = item.projectIds || [];
-                            const isAllSelected = currentProjectIds.length === 0;
+                <div className="w-full overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="min-w-[250px]">Content Title / Text</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead className="text-center">
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center justify-center gap-1.5 cursor-help">
+                                                    Unassigned Users
+                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Users who are not allocated to a specific project or division.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableHead>
+                                {projects.map(p => (
+                                    <TableHead key={p.id} className="text-center">{p.name}</TableHead>
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {allCustomContent.map(item => {
+                                const projectIds = item.projectIds || [];
+                                // An empty array signifies visibility to all. For UI, we treat it as if all are checked.
+                                const isVisibleToAll = projectIds.length === 0;
 
-                            const handleCheckboxChange = (projectId: string, isChecked: boolean) => {
-                                let newProjectIds: string[];
-                                if (projectId === 'all') {
-                                    newProjectIds = []; // Empty array means "All Projects"
-                                } else {
-                                    // Start with the current IDs, but remove 'all' if it exists
-                                    let currentIds = isAllSelected ? [] : [...currentProjectIds];
-                                    if (isChecked) {
-                                        newProjectIds = [...currentIds, projectId];
-                                    } else {
-                                        newProjectIds = currentIds.filter(id => id !== projectId);
-                                    }
-                                }
-                                handleProjectAssignmentChange(item.id, item.typeLabel, newProjectIds);
-                            };
-
-                            return (
-                                <TableRow key={`${item.typeLabel}-${item.id}`}>
-                                    <TableCell className="font-medium">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger className="text-left"><p className="truncate max-w-sm">{item.name}</p></TooltipTrigger>
-                                                <TooltipContent><p className="max-w-md">{item.name}</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </TableCell>
-                                    <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-2">
-                                            <div className="flex items-center space-x-2">
+                                return (
+                                    <TableRow key={`${item.typeLabel}-${item.id}`}>
+                                        <TableCell className="font-medium">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger className="text-left"><p className="truncate max-w-xs">{item.name}</p></TooltipTrigger>
+                                                    <TooltipContent><p className="max-w-md">{item.name}</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </TableCell>
+                                        <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
+                                        <TableCell className="text-center">
+                                            <Checkbox
+                                                checked={isVisibleToAll || projectIds.includes('__none__')}
+                                                onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel, '__none__', !!checked)}
+                                                disabled={!canWrite}
+                                            />
+                                        </TableCell>
+                                        {projects.map(p => (
+                                            <TableCell key={p.id} className="text-center">
                                                 <Checkbox
-                                                    id={`all-${item.id}`}
-                                                    checked={isAllSelected}
-                                                    onCheckedChange={(checked) => handleCheckboxChange('all', !!checked)}
+                                                    checked={isVisibleToAll || projectIds.includes(p.id)}
+                                                    onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel, p.id, !!checked)}
                                                     disabled={!canWrite}
                                                 />
-                                                <Label htmlFor={`all-${item.id}`} className="font-semibold">All Projects</Label>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center space-x-2">
-                                                                <Checkbox
-                                                                    id={`unassigned-${item.id}`}
-                                                                    checked={!isAllSelected && currentProjectIds.includes('__none__')}
-                                                                    onCheckedChange={(checked) => handleCheckboxChange('__none__', !!checked)}
-                                                                    disabled={isAllSelected || !canWrite}
-                                                                />
-                                                                <Label htmlFor={`unassigned-${item.id}`} className="font-normal italic flex items-center gap-1.5 cursor-help">
-                                                                    Unassigned Users
-                                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                </Label>
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Users who are not allocated to a specific project or division.</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            {projects.map(p => (
-                                                <div key={p.id} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`${p.id}-${item.id}`}
-                                                        checked={!isAllSelected && currentProjectIds.includes(p.id)}
-                                                        onCheckedChange={(checked) => handleCheckboxChange(p.id, !!checked)}
-                                                        disabled={isAllSelected || !canWrite}
-                                                    />
-                                                    <Label htmlFor={`${p.id}-${item.id}`} className="font-normal">{p.name}</Label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <Collapsible className="mt-6">
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm"><Bug className="mr-2"/> Show Debug Info <ChevronDown className="ml-2"/></Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
+                            {JSON.stringify(localCompanyConfig, null, 2)}
+                        </pre>
+                    </CollapsibleContent>
+                </Collapsible>
             </CardContent>
         </Card>
     );
