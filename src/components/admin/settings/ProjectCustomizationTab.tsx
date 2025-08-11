@@ -1,3 +1,4 @@
+
 'use client';
 import * as React from 'react';
 import { useMemo, useState, useEffect } from 'react';
@@ -104,7 +105,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         <Card>
             <CardHeader>
                 <CardTitle>Project Customization</CardTitle>
-                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project. Leave all boxes unchecked to make an item visible to all projects.</CardDescription>
+                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project. Unchecking all boxes makes the item visible to all projects.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="w-full overflow-x-auto">
@@ -178,7 +179,12 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
-                            {JSON.stringify(localCompanyConfig, null, 2)}
+                            {JSON.stringify({
+                                customQuestions: localCompanyConfig.customQuestions,
+                                companyTasks: localCompanyConfig.companyTasks,
+                                companyTips: localCompanyConfig.companyTips,
+                                resources: localCompanyConfig.resources,
+                            }, null, 2)}
                         </pre>
                     </CollapsibleContent>
                 </Collapsible>
