@@ -594,7 +594,17 @@ export function useUserData() {
                 console.error("Error updating contact info:", error);
             }
         } else {
-             const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
+            const userToUpdate = Object.values(companyConfigs).flatMap(c => c.users || []).find(u => u.id === userId);
+            if (!userToUpdate) {
+                console.error("Could not find user to update contact info for.");
+                return;
+            }
+             const { error } = await supabase.from('company_users').upsert({
+                id: userId,
+                email: userToUpdate.email, // Required field
+                company_user_id: userToUpdate.company_user_id, // Required field
+                ...contactInfo
+            });
             if (error) {
                 console.error("Error updating contact info:", error);
             } else {
@@ -614,7 +624,7 @@ export function useUserData() {
                 });
             }
         }
-    }, [auth]);
+    }, [auth, companyConfigs]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (auth?.isPreview) {
