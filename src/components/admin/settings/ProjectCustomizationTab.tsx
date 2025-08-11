@@ -12,13 +12,13 @@ import { Pencil } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-function ManageVisibilityDialog({ 
-    item, 
-    projects, 
-    open, 
+function ManageVisibilityDialog({
+    item,
+    projects,
+    open,
     onOpenChange,
-    onSave 
-}: { 
+    onSave
+}: {
     item: (Partial<Question | MasterTask | MasterTip | Resource> & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource', name: string, projectIds?: string[] }) | null;
     projects: Project[];
     open: boolean;
@@ -48,7 +48,7 @@ function ManageVisibilityDialog({
             }
         });
     };
-    
+
     if (!item) return null;
 
     return (
@@ -134,7 +134,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                 if (resource) resource.projectIds = projectIds;
                 break;
         }
-        
+
         saveCompanyConfig(companyName, newConfig);
     };
 
@@ -144,11 +144,11 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         }
         const hasUnassigned = projectIds.includes('__none__');
         const assignedProjectCount = projectIds.filter(id => id !== '__none__').length;
-        
+
         const parts = [];
         if (assignedProjectCount > 0) parts.push(`${assignedProjectCount} Project${assignedProjectCount > 1 ? 's' : ''}`);
         if (hasUnassigned) parts.push("Unassigned Users");
-        
+
         return <Badge variant="outline">{parts.join(' + ')}</Badge>;
     }
 
