@@ -103,10 +103,11 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
             const user = users.find(u => u.email === email);
             if (!user) return null;
             return {
+                id: user.id,
                 email: user.email,
                 project_id: projectId
             };
-        }).filter((u): u is { email: string, project_id: string | null } => u !== null);
+        }).filter((u): u is { id:string, email: string, project_id: string | null } => u !== null);
 
         if (updates.length === 0) return;
 

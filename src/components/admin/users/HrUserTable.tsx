@@ -155,7 +155,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         const { data, error } = await supabase.from('company_users').update(updatedUserPayload).eq('id', editingUser.id).select().single();
 
         if (error || !data) {
-             toast({ title: "Error", description: "Failed to update user.", variant: "destructive" });
+             toast({ title: "Error Updating User", description: error?.message || "An unknown error occurred.", variant: "destructive" });
         } else {
             setUsers(prev => prev.map(u => u.id === editingUser.id ? data as CompanyUser : u));
             toast({ title: "User Updated", description: "Changes have been saved." });
