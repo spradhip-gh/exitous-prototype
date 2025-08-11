@@ -10,6 +10,7 @@ import { Project } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import { Label } from '@/components/ui/label';
 
 export function ProjectAssignmentPopover({
     item,
@@ -36,18 +37,18 @@ export function ProjectAssignmentPopover({
     }, [initialProjectIds, item.projectIds, open]);
 
     const handleSelect = (projectId: string) => {
-        const isSelected = itemProjectIds.includes(projectId);
         let newProjectIds: string[];
 
         if (projectId === 'all') {
             newProjectIds = itemProjectIds.includes('all') ? [] : ['all'];
         } else {
-            let currentIds = itemProjectIds.filter(id => id !== 'all');
-            if (isSelected) {
-                newProjectIds = currentIds.filter(id => id !== projectId);
+            const currentIds = new Set(itemProjectIds.filter(id => id !== 'all'));
+            if (currentIds.has(projectId)) {
+                currentIds.delete(projectId);
             } else {
-                newProjectIds = [...currentIds, projectId];
+                currentIds.add(projectId);
             }
+            newProjectIds = Array.from(currentIds);
         }
         
         onSave(item.id, item.typeLabel, newProjectIds);
@@ -88,14 +89,14 @@ export function ProjectAssignmentPopover({
                  <Command>
                     <CommandList>
                         <CommandGroup>
-                            <CommandItem onSelect={() => handleSelect('all')}>
+                            <CommandItem onSelect={(e) => { e.preventDefault(); handleSelect('all'); }}>
                                 <Checkbox className="mr-2" checked={isAllSelected} id={`all-projects-checkbox-${item.id}`}/> 
-                                <label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full cursor-pointer">{item.typeLabel === 'Question' ? 'Hide for All Projects' : 'All Projects'}</label>
+                                <Label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full cursor-pointer font-semibold">{item.typeLabel === 'Question' ? 'Hidden for All Projects' : 'All Projects'}</Label>
                             </CommandItem>
                              {includeUnassignedOption && (
-                                <CommandItem onSelect={() => handleSelect('__none__')} disabled={isAllSelected}>
+                                <CommandItem onSelect={(e) => { e.preventDefault(); handleSelect('__none__'); }} disabled={isAllSelected}>
                                     <Checkbox className="mr-2" checked={!isAllSelected && itemProjectIds.includes('__none__')} id={`unassigned-checkbox-${item.id}`} /> 
-                                    <label htmlFor={`unassigned-checkbox-${item.id}`} className="w-full cursor-pointer">Unassigned Users</label>
+                                    <Label htmlFor={`unassigned-checkbox-${item.id}`} className="w-full cursor-pointer">Unassigned Users</Label>
                                 </CommandItem>
                             )}
                         </CommandGroup>
@@ -105,9 +106,9 @@ export function ProjectAssignmentPopover({
                                 {(projects || []).map(p => {
                                     const isChecked = !isAllSelected && itemProjectIds.includes(p.id);
                                     return (
-                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id)} disabled={isAllSelected}>
+                                        <CommandItem key={p.id} onSelect={(e) => { e.preventDefault(); handleSelect(p.id); }} disabled={isAllSelected}>
                                             <Checkbox className="mr-2" checked={isChecked} id={`project-${p.id}-checkbox-${item.id}`}/> 
-                                            <label htmlFor={`project-${p.id}-checkbox-${item.id}`} className="w-full cursor-pointer">{p.name}</label>
+                                            <Label htmlFor={`project-${p.id}-checkbox-${item.id}`} className="w-full cursor-pointer">{p.name}</Label>
                                         </CommandItem>
                                     )
                                 })}
