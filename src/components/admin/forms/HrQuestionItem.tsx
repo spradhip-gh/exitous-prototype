@@ -103,18 +103,15 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
         const isHidingForAll = projectIds.includes('all');
         const wasHiddenForAll = override?.isActive === false;
 
-        // Ensure questions object exists
         if (!newConfig.questions) newConfig.questions = {};
         if (!newConfig.questions[itemId]) newConfig.questions[itemId] = {};
         
         if (isHidingForAll) {
-            // If "Hidden for All" is selected, set company-level override to inactive
             newConfig.questions[itemId].isActive = false;
         } else {
-            // Otherwise, ensure company-level is active
+            // Un-hiding from all or changing selection means the company-level must be active.
             newConfig.questions[itemId].isActive = true;
 
-            // And update project-specific hidden lists
             if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
             projects.forEach(p => {
                 if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
@@ -254,7 +251,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                             selected={initialProjectIds}
                             onChange={(value) => handleProjectVisibilityChange(question.id, value)}
                             disabled={!canWrite}
-                            placeholder='Visible to All'
+                            allSelectedLabel="Visible to All"
                             className="w-[180px]"
                         />
                     )}

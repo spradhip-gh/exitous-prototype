@@ -27,6 +27,7 @@ interface MultiSelectProps {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  allSelectedLabel?: string;
 }
 
 export function MultiSelect({
@@ -35,7 +36,8 @@ export function MultiSelect({
   onChange,
   className,
   placeholder = "Select...",
-  disabled = false
+  disabled = false,
+  allSelectedLabel,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -47,7 +49,7 @@ export function MultiSelect({
   };
   
   const getDisplayText = () => {
-    if (selected.length === 0) return placeholder;
+    if (selected.length === 0) return allSelectedLabel || placeholder;
     if (selected.length === 1) return options.find(o => o.value === selected[0])?.label || placeholder;
     return `${selected.length} selected`;
   }
