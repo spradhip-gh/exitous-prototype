@@ -18,7 +18,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { useUserData } from '@/hooks/use-user-data';
-import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -56,6 +57,18 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         const num = parseInt(value, 10);
         setFormData(prev => ({ ...prev, [name]: isNaN(num) ? undefined : num }));
     }
+    
+     const handleProjectSelectionChange = (projectId: string, isChecked: boolean) => {
+        setFormData(prev => {
+            const currentProjectIds = prev.projectIds || [];
+            if (isChecked) {
+                return { ...prev, projectIds: [...currentProjectIds, projectId] };
+            } else {
+                return { ...prev, projectIds: currentProjectIds.filter(id => id !== projectId) };
+            }
+        });
+    };
+
 
     const handleSubmit = () => {
         const id = task?.id || formData.id;
@@ -136,8 +149,6 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     }, [task, isOpen, isHr]);
 
     const activeProjects = companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
-    const projectOptions: MultiSelectOption[] = activeProjects.map(p => ({ value: p.id, label: p.name }));
-    projectOptions.push({value: '__none__', label: 'Unassigned Users'});
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -251,12 +262,21 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                     {isHr && (
                         <div className="space-y-2">
                             <Label>Project Visibility</Label>
-                            <MultiSelect 
-                                options={projectOptions}
-                                selected={formData.projectIds || []}
-                                onChange={(projectIds) => setFormData(prev => ({...prev, projectIds}))}
-                                placeholder="Select project visibility..."
-                            />
+                             <ScrollArea className="h-40 rounded-md border">
+                                <div className="p-4 space-y-2">
+                                     <div className="flex items-center space-x-2">
+                                        <Checkbox id="project-unassigned" checked={(formData.projectIds || []).includes('__none__')} onCheckedChange={(c) => handleProjectSelectionChange('__none__', !!c)} />
+                                        <Label htmlFor="project-unassigned" className="font-normal italic">Unassigned Users</Label>
+                                    </div>
+                                    {activeProjects.map(project => (
+                                        <div key={project.id} className="flex items-center space-x-2">
+                                            <Checkbox id={`project-${project.id}`} checked={(formData.projectIds || []).includes(project.id)} onCheckedChange={(c) => handleProjectSelectionChange(project.id, !!c)} />
+                                            <Label htmlFor={`project-${project.id}`} className="font-normal">{project.name}</Label>
+                                        </div>
+                                    ))}
+                                </div>
+                             </ScrollArea>
+                             <p className="text-xs text-muted-foreground">Leave all unchecked to make visible to all projects.</p>
                         </div>
                     )}
                     {isAdmin && (
@@ -280,4 +300,3 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
         </Dialog>
     );
 }
-

@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride, Project } from "@/hooks/use-user-data";
 import { cn } from "@/lib/utils";
-import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit, EyeOff } from "lucide-react";
+import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit, EyeOff, ChevronsUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUserData } from "@/hooks/use-user-data";
 import { useToast } from "@/hooks/use-toast";
-import { useMemo } from "react";
-import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
+import { useMemo, useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
@@ -96,38 +98,34 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
-    const handleProjectVisibilityChange = (itemId: string, projectIds: string[]) => {
+    const handleProjectVisibilityChange = (itemId: string, hiddenProjectIds: string[]) => {
         if (!companyConfig) return;
+        
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
         
-        const isHidingForAll = projectIds.includes('all');
-        const wasHiddenForAll = override?.isActive === false;
+        const isHidingForAll = hiddenProjectIds.includes('all');
 
         if (!newConfig.questions) newConfig.questions = {};
         if (!newConfig.questions[itemId]) newConfig.questions[itemId] = {};
         
-        if (isHidingForAll) {
-            newConfig.questions[itemId].isActive = false;
-        } else {
-            // Un-hiding from all or changing selection means the company-level must be active.
-            newConfig.questions[itemId].isActive = true;
+        // This is the company-level "isActive" flag. If hidden for all, it's inactive. Otherwise, it's active.
+        newConfig.questions[itemId].isActive = !isHidingForAll;
 
-            if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
-            projects.forEach(p => {
-                if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
-                if (!newConfig.projectConfigs[p.id].hiddenQuestions) newConfig.projectConfigs[p.id].hiddenQuestions = [];
+        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
+        
+        projects.forEach(p => {
+            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
+            
+            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions || []);
+            const shouldBeHidden = hiddenProjectIds.includes(p.id);
 
-                const isHidden = projectIds.includes(p.id);
-                const currentlyHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions);
-
-                if (isHidden) {
-                    currentlyHidden.add(itemId);
-                } else {
-                    currentlyHidden.delete(itemId);
-                }
-                newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentlyHidden);
-            });
-        }
+            if (shouldBeHidden) {
+                currentHidden.add(itemId);
+            } else {
+                currentHidden.delete(itemId);
+            }
+            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
+        });
 
         saveCompanyConfig(companyName, newConfig);
         toast({ title: 'Project visibility updated.' });
@@ -183,8 +181,25 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
         )
     };
 
-    const projectOptions: MultiSelectOption[] = (projects || []).map(p => ({value: p.id, label: p.name}));
-    projectOptions.push({value: 'all', label: 'Hidden for All Projects'});
+    const [selectedProjectIds, setSelectedProjectIds] = useState(initialProjectIds);
+    
+    const handleCheckboxChange = (id: string, checked: boolean) => {
+        let newSelection: string[];
+        if (id === 'all') {
+            newSelection = checked ? ['all'] : [];
+        } else {
+            const currentSelection = selectedProjectIds.filter(pid => pid !== 'all');
+            if (checked) {
+                newSelection = [...currentSelection, id];
+            } else {
+                newSelection = currentSelection.filter(pid => pid !== id);
+            }
+        }
+        setSelectedProjectIds(newSelection);
+        handleProjectVisibilityChange(question.id, newSelection);
+    };
+    
+    const isHiddenForAll = selectedProjectIds.includes('all');
 
 
     return (
@@ -246,14 +261,35 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                         </TooltipProvider>
                     )}
                     {!question.isCustom && (
-                        <MultiSelect 
-                            options={projectOptions}
-                            selected={initialProjectIds}
-                            onChange={(value) => handleProjectVisibilityChange(question.id, value)}
-                            disabled={!canWrite}
-                            allSelectedLabel="Visible to All"
-                            className="w-[180px]"
-                        />
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-[180px] justify-between" disabled={!canWrite}>
+                                    <span className="truncate">
+                                        {isHiddenForAll ? "Hidden for All Projects" : 
+                                         selectedProjectIds.length === 0 ? "Visible to All Projects" : 
+                                         `${selectedProjectIds.length} project(s) hidden`}
+                                    </span>
+                                    <ChevronsUpDown className="h-4 w-4 shrink-0" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[200px] p-0">
+                                <ScrollArea className="max-h-60">
+                                <div className="p-4 space-y-2">
+                                     <div className="flex items-center space-x-2">
+                                        <Checkbox id="hide-all" checked={isHiddenForAll} onCheckedChange={(c) => handleCheckboxChange('all', !!c)} />
+                                        <Label htmlFor="hide-all">Hidden for All Projects</Label>
+                                    </div>
+                                    <Separator />
+                                     {projects.map(p => (
+                                        <div key={p.id} className="flex items-center space-x-2">
+                                            <Checkbox id={`hide-${p.id}`} checked={selectedProjectIds.includes(p.id)} onCheckedChange={(c) => handleCheckboxChange(p.id, !!c)} disabled={isHiddenForAll} />
+                                            <Label htmlFor={`hide-${p.id}`} className={cn(isHiddenForAll && "text-muted-foreground")}>{p.name}</Label>
+                                        </div>
+                                     ))}
+                                </div>
+                                </ScrollArea>
+                            </PopoverContent>
+                        </Popover>
                     )}
                     {question.isCustom && (
                         <div className="flex items-center border rounded-md mr-2">

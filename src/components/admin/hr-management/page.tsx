@@ -22,7 +22,6 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -148,12 +147,28 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
         }));
     };
     
-     const handleProjectAccessChange = (companyName: string, projectIds: string[]) => {
+     const handleProjectAccessChange = (companyName: string, projectId: string, isChecked: boolean) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
                 const updatedManagers = a.hrManagers.map(hr => {
                     if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
-                        return { ...hr, projectAccess: projectIds };
+                        const currentAccess = hr.projectAccess || [];
+                        const allProjectIds = a.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
+                        
+                        // If it was "all", create an array with everything except the unchecked one
+                        if (currentAccess.length === 0 || currentAccess.includes('all')) {
+                            return { ...hr, projectAccess: isChecked ? ['all'] : allProjectIds.filter(id => id !== projectId) };
+                        }
+
+                        // Add or remove from current list
+                        let newAccess = isChecked ? [...currentAccess, projectId] : currentAccess.filter(id => id !== projectId);
+
+                        // If everything is checked, revert to "all"
+                        if (newAccess.length === allProjectIds.length) {
+                             newAccess = ['all'];
+                        }
+
+                        return { ...hr, projectAccess: newAccess };
                     }
                     return hr;
                 });
@@ -187,8 +202,9 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
-                                const projectOptions: MultiSelectOption[] = (assignment.projects?.filter(p => !p.isArchived) || []).map(p => ({ value: p.id, label: p.name }));
-                                projectOptions.push({value: '__none__', label: 'Unassigned Users'});
+                                const projectOptions = assignment.projects?.filter(p => !p.isArchived) || [];
+                                const hasProjectAccess = manager.projectAccess;
+                                const isAllProjects = !hasProjectAccess || hasProjectAccess.length === 0 || hasProjectAccess.includes('all');
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -252,60 +268,67 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                 </div>
                                             </div>
                                             {!isPrimaryInThisCompany && (
-                                                <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
-                                                     <div>
-                                                        <Label>User Management</Label>
-                                                        <Select value={manager.permissions.userManagement} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'userManagement', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="invite-only">Invite Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                                <SelectItem value="write-upload">Write & Upload</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                     <div>
-                                                        <Label>Form Editor</Label>
-                                                        <Select value={manager.permissions.formEditor} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'formEditor', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                     <div>
-                                                        <Label>Resources</Label>
-                                                        <Select value={manager.permissions.resources} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'resources', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div>
-                                                        <Label>Company Settings</Label>
-                                                        <Select value={manager.permissions.companySettings} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'companySettings', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="col-span-2">
+                                                <>
+                                                    <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <Label>User Management</Label>
+                                                            <Select value={manager.permissions.userManagement} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'userManagement', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="invite-only">Invite Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                    <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Form Editor</Label>
+                                                            <Select value={manager.permissions.formEditor} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'formEditor', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Resources</Label>
+                                                            <Select value={manager.permissions.resources} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'resources', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Company Settings</Label>
+                                                            <Select value={manager.permissions.companySettings} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'companySettings', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </fieldset>
+                                                    <fieldset disabled={!canEditThisCompany}>
                                                         <Label>Project Access</Label>
-                                                        <MultiSelect 
-                                                            options={projectOptions}
-                                                            selected={manager.projectAccess || []}
-                                                            onChange={(value) => handleProjectAccessChange(assignment.companyName, value)}
-                                                            placeholder="Select project access..."
-                                                            disabled={!canEditThisCompany}
-                                                        />
-                                                    </div>
-                                                </fieldset>
+                                                        <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                                            {projectOptions.map(p => (
+                                                                <div key={p.id} className="flex items-center space-x-2">
+                                                                    <Checkbox id={`edit-project-${p.id}`} checked={isAllProjects || manager.projectAccess?.includes(p.id)} onCheckedChange={(c) => handleProjectAccessChange(assignment.companyName, p.id, !!c)} />
+                                                                    <Label htmlFor={`edit-project-${p.id}`} className="font-normal">{p.name}</Label>
+                                                                </div>
+                                                            ))}
+                                                             <div className="flex items-center space-x-2">
+                                                                <Checkbox id="edit-project-unassigned" checked={isAllProjects || manager.projectAccess?.includes('__none__')} onCheckedChange={(c) => handleProjectAccessChange(assignment.companyName, '__none__', !!c)} />
+                                                                <Label htmlFor="edit-project-unassigned" className="font-normal flex items-center gap-1.5">Unassigned Users <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground"/></TooltipTrigger><TooltipContent><p>Users not in a specific project.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                                                            </div>
+                                                        </div>
+                                                    </fieldset>
+                                                </>
                                             )}
                                         </CardContent>
                                     </Card>
@@ -412,14 +435,24 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
         });
     };
 
-    const handleProjectAccessChange = (companyName: string, projectIds: string[]) => {
-        setAssignments(prev => ({
-            ...prev,
-            [companyName]: {
-                ...prev[companyName],
-                projectAccess: projectIds,
+    const handleProjectAccessChange = (companyName: string, projectId: string, isChecked: boolean) => {
+        setAssignments(prev => {
+            const company = managedCompanies.find(c => c.companyName === companyName);
+            const allProjectIds = company?.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
+            const currentAccess = prev[companyName].projectAccess;
+
+            if (currentAccess.length === 0 || currentAccess.includes('all')) {
+                return { ...prev, [companyName]: { ...prev[companyName], projectAccess: isChecked ? ['all'] : allProjectIds.filter(id => id !== projectId) } };
             }
-        }));
+
+            let newAccess = isChecked ? [...currentAccess, projectId] : currentAccess.filter(id => id !== projectId);
+
+            if (newAccess.length === allProjectIds.length) {
+                 newAccess = ['all'];
+            }
+
+            return { ...prev, [companyName]: { ...prev[companyName], projectAccess: newAccess } };
+        });
     };
 
     const handleSave = () => {
@@ -471,10 +504,23 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                         <Label>Assign to Companies</Label>
                         {managedCompanies.map(company => {
                             const isAssigned = !!assignments[company.companyName];
+                            if (!isAssigned) {
+                                return (
+                                    <Card key={company.companyName}>
+                                         <CardHeader className="flex flex-row items-center justify-between p-4">
+                                            <Label htmlFor={`assign-${company.companyName}`} className="text-base font-semibold">{company.companyName}</Label>
+                                            <Checkbox
+                                                id={`assign-${company.companyName}`}
+                                                checked={false}
+                                                onCheckedChange={(checked) => handleAssignmentChange(company.companyName, !!checked)}
+                                            />
+                                        </CardHeader>
+                                    </Card>
+                                )
+                            }
                             const isPrimary = isAssigned && assignments[company.companyName].isPrimary;
                             const currentPrimaryEmail = allAssignments.find(a => a.companyName === company.companyName)?.hrManagers.find(m => m.isPrimary)?.email;
-                            const projectOptions: MultiSelectOption[] = (company.projects?.filter(p => !p.isArchived) || []).map(p => ({ value: p.id, label: p.name }));
-                            projectOptions.push({value: '__none__', label: 'Unassigned Users'});
+                            const projectOptions = company.projects?.filter(p => !p.isArchived) || [];
 
                             return (
                                 <Card key={company.companyName} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
@@ -525,6 +571,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                 </div>
                                             </div>
                                             {!isPrimary && (
+                                                <>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
                                                         <Label>User Management</Label>
@@ -568,16 +615,27 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
-                                                     <div className="col-span-2">
-                                                        <Label>Project Access</Label>
-                                                        <MultiSelect
-                                                            options={projectOptions}
-                                                            selected={assignments[company.companyName].projectAccess}
-                                                            onChange={(value) => handleProjectAccessChange(company.companyName, value)}
-                                                            placeholder="Select project access..."
-                                                        />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Project Access</Label>
+                                                    <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                                        {projectOptions.map(p => {
+                                                            const currentAccess = assignments[company.companyName].projectAccess;
+                                                            const isAllSelected = currentAccess.length === 0 || currentAccess.includes('all');
+                                                            const isChecked = isAllSelected || currentAccess.includes(p.id);
+                                                            return(
+                                                            <div key={p.id} className="flex items-center space-x-2">
+                                                                <Checkbox id={`add-project-${p.id}`} checked={isChecked} onCheckedChange={(c) => handleProjectAccessChange(company.companyName, p.id, !!c)} />
+                                                                <Label htmlFor={`add-project-${p.id}`} className="font-normal">{p.name}</Label>
+                                                            </div>
+                                                        )})}
+                                                        <div className="flex items-center space-x-2">
+                                                            <Checkbox id="add-project-unassigned" checked={assignments[company.companyName].projectAccess.length === 0 || assignments[company.companyName].projectAccess.includes('all') || assignments[company.companyName].projectAccess.includes('__none__')} onCheckedChange={(c) => handleProjectAccessChange(company.companyName, '__none__', !!c)} />
+                                                            <Label htmlFor="add-project-unassigned" className="font-normal flex items-center gap-1.5">Unassigned Users <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground"/></TooltipTrigger><TooltipContent><p>Users not in a specific project.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                </>
                                             )}
                                         </CardContent>
                                     )}
