@@ -638,7 +638,7 @@ export default function EditQuestionDialog({
                     <Textarea id="suggestion-reason" value={suggestionReason} onChange={e => setSuggestionReason(e.target.value)} placeholder="e.g., We need to add a 'Remote' option because our policy has changed." />
                 </div>
             )}
-             {isCustomQuestion && (
+             {currentQuestion.isCustom && (
                 <div className="space-y-2 pt-4">
                     <Label>Project Visibility</Label>
                      <ProjectAssignmentPopover
