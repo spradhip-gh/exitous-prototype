@@ -99,41 +99,9 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
-    const handleProjectVisibilityChange = (itemId: string, hiddenProjectIds: string[]) => {
-        if (!companyConfig) return;
-        
-        const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        
-        const isHidingForAll = hiddenProjectIds.includes('all');
-
-        if (!newConfig.questions) newConfig.questions = {};
-        if (!newConfig.questions[itemId]) newConfig.questions[itemId] = {};
-        
-        // This is the company-level "isActive" flag. If hidden for all, it's inactive. Otherwise, it's active.
-        newConfig.questions[itemId].isActive = !isHidingForAll;
-
-        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
-        
-        projects.forEach(p => {
-            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
-            
-            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions || []);
-            const shouldBeHidden = hiddenProjectIds.includes(p.id);
-
-            if (shouldBeHidden) {
-                currentHidden.add(itemId);
-            } else {
-                currentHidden.delete(itemId);
-            }
-            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
-        });
-
-        saveCompanyConfig(companyName, newConfig);
-        toast({ title: 'Project visibility updated.' });
-    };
-
-    const initialProjectIds = useMemo(() => {
-        if (!override?.isActive) return ['all'];
+    const initialHiddenProjectIds = useMemo(() => {
+        // If the question is marked inactive at the company level, it's hidden for all.
+        if (override?.isActive === false) return ['all'];
         
         const hiddenInProjects: string[] = [];
         projects.forEach(p => {
@@ -143,6 +111,70 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
         });
         return hiddenInProjects;
     }, [companyConfig, question.id, projects, override]);
+    
+    const [hiddenProjectIds, setHiddenProjectIds] = useState(initialHiddenProjectIds);
+
+    const handleProjectVisibilityChange = (hiddenIds: string[]) => {
+        if (!companyConfig) return;
+        
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+        
+        const isHidingForAll = hiddenIds.includes('all');
+
+        if (!newConfig.questions) newConfig.questions = {};
+        if (!newConfig.questions[question.id]) newConfig.questions[question.id] = {};
+        
+        // This is the company-level "isActive" flag. If hidden for all, it's inactive. Otherwise, it's active.
+        newConfig.questions[question.id].isActive = !isHidingForAll;
+
+        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
+        
+        projects.forEach(p => {
+            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
+            
+            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions || []);
+            const shouldBeHidden = hiddenIds.includes(p.id);
+
+            if (shouldBeHidden) {
+                currentHidden.add(question.id);
+            } else {
+                currentHidden.delete(question.id);
+            }
+            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
+        });
+
+        saveCompanyConfig(companyName, newConfig);
+        setHiddenProjectIds(hiddenIds);
+        toast({ title: 'Project visibility updated.' });
+    };
+
+    const handleCheckboxChange = (id: string, checked: boolean) => {
+        let newSelection: string[];
+        if (id === 'all') {
+            newSelection = checked ? ['all'] : [];
+        } else {
+            const currentSelection = hiddenProjectIds.filter(pid => pid !== 'all');
+            if (checked) {
+                newSelection = [...currentSelection, id];
+            } else {
+                newSelection = currentSelection.filter(pid => pid !== id);
+            }
+        }
+        handleProjectVisibilityChange(newSelection);
+    };
+    
+    const isHiddenForAll = hiddenProjectIds.includes('all');
+
+    const getVisibilityLabel = () => {
+        if (isHiddenForAll) return "Hidden for All Projects";
+        if (hiddenProjectIds.length === 0) return "Visible to All Projects";
+        if (hiddenProjectIds.length === 1) {
+            const projectName = projects.find(p => p.id === hiddenProjectIds[0])?.name;
+            return `Hidden for ${projectName || '1 Project'}`;
+        }
+        return `Hidden for ${hiddenProjectIds.length} projects`;
+    };
+
 
     const SuggestionTooltipContent = () => {
         if (!pendingSuggestion || !pendingSuggestion.change_details) return null;
@@ -181,26 +213,6 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
             </div>
         )
     };
-
-    const [selectedProjectIds, setSelectedProjectIds] = useState(initialProjectIds);
-    
-    const handleCheckboxChange = (id: string, checked: boolean) => {
-        let newSelection: string[];
-        if (id === 'all') {
-            newSelection = checked ? ['all'] : [];
-        } else {
-            const currentSelection = selectedProjectIds.filter(pid => pid !== 'all');
-            if (checked) {
-                newSelection = [...currentSelection, id];
-            } else {
-                newSelection = currentSelection.filter(pid => pid !== id);
-            }
-        }
-        setSelectedProjectIds(newSelection);
-        handleProjectVisibilityChange(question.id, newSelection);
-    };
-    
-    const isHiddenForAll = selectedProjectIds.includes('all');
 
 
     return (
@@ -265,11 +277,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                          <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" size="sm" className="w-[180px] justify-between" disabled={!canWrite}>
-                                    <span className="truncate">
-                                        {isHiddenForAll ? "Hidden for All Projects" : 
-                                         selectedProjectIds.length === 0 ? "Visible to All Projects" : 
-                                         `${selectedProjectIds.length} project(s) hidden`}
-                                    </span>
+                                    <span className="truncate">{getVisibilityLabel()}</span>
                                     <ChevronsUpDown className="h-4 w-4 shrink-0" />
                                 </Button>
                             </PopoverTrigger>
@@ -283,7 +291,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                                     <Separator />
                                      {projects.map(p => (
                                         <div key={p.id} className="flex items-center space-x-2">
-                                            <Checkbox id={`hide-${p.id}`} checked={selectedProjectIds.includes(p.id)} onCheckedChange={(c) => handleCheckboxChange(p.id, !!c)} disabled={isHiddenForAll} />
+                                            <Checkbox id={`hide-${p.id}`} checked={hiddenProjectIds.includes(p.id)} onCheckedChange={(c) => handleCheckboxChange(p.id, !!c)} disabled={isHiddenForAll} />
                                             <Label htmlFor={`hide-${p.id}`} className={cn(isHiddenForAll && "text-muted-foreground")}>{p.name}</Label>
                                         </div>
                                      ))}
