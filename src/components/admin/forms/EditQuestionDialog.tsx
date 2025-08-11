@@ -29,6 +29,7 @@ import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogAction, AlertDialogCancel, AlertDialogFooter } from "@/components/ui/alert-dialog";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -264,6 +265,12 @@ function AnswerGuidanceDialog({
         setIsAdding(false);
     }
     
+    const handleDeleteOverride = (projectId: string) => {
+        const newProjectOverrides = { ...currentProjectGuidance };
+        delete newProjectOverrides[projectId];
+        onSaveAllGuidance(answer, { default: currentDefaultGuidance, projects: newProjectOverrides });
+    }
+
     if (!isOpen) return null;
 
     const existingProjectIds = Object.keys(currentProjectGuidance);
@@ -301,9 +308,28 @@ function AnswerGuidanceDialog({
                              <Card key={projectId}>
                                 <CardHeader className="flex flex-row items-center justify-between pb-4">
                                      <CardTitle className="text-base">{project?.name || 'Unknown Project'}</CardTitle>
-                                    <Button variant="outline" size="sm" onClick={() => setEditingGuidance({ ...guidance, projectId })}>
-                                        <Pencil className="mr-2" /> Edit
-                                    </Button>
+                                     <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => setEditingGuidance({ ...guidance, projectId })}>
+                                            <Pencil className="mr-2" /> Edit
+                                        </Button>
+                                         <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="sm"><Trash2 className="mr-2" /> Delete</Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Delete Project Override?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will remove the specific guidance for "{project?.name}" and it will fall back to the company default.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteOverride(projectId)}>Confirm</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-xs text-muted-foreground">{guidance.tasks?.length || 0} tasks, {guidance.tips?.length || 0} tips</p>
@@ -941,4 +967,3 @@ export default function EditQuestionDialog({
     );
 }
 
-    
