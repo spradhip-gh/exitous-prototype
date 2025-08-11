@@ -1,5 +1,4 @@
 
-
 'use client';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,10 +9,10 @@ import { Question, ReviewQueueItem, CompanyConfig, QuestionOverride, Project } f
 import { cn } from "@/lib/utils";
 import { PlusCircle, Trash2, Pencil, Star, ArrowUp, ArrowDown, CornerDownRight, BellDot, Lock, ArrowUpToLine, ArrowDownToLine, History, Edit, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
 import { useUserData } from "@/hooks/use-user-data";
 import { useToast } from "@/hooks/use-toast";
 import { useMemo } from "react";
+import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
@@ -97,48 +96,55 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
-    const handleProjectVisibilityChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', projectIds: string[]) => {
+    const handleProjectVisibilityChange = (itemId: string, projectIds: string[]) => {
         if (!companyConfig) return;
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
-
-        projects.forEach(p => {
-            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
-            if (!newConfig.projectConfigs[p.id].hiddenQuestions) newConfig.projectConfigs[p.id].hiddenQuestions = [];
-
-            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions);
-            if (projectIds.includes(p.id)) {
-                currentHidden.add(itemId);
-            } else {
-                currentHidden.delete(itemId);
-            }
-            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
-        });
         
-        // Handle "All Projects" case
-        if (projectIds.includes('all')) {
-            onToggleActive(itemId);
+        const isHidingForAll = projectIds.includes('all');
+        const wasHiddenForAll = override?.isActive === false;
+
+        // Ensure questions object exists
+        if (!newConfig.questions) newConfig.questions = {};
+        if (!newConfig.questions[itemId]) newConfig.questions[itemId] = {};
+        
+        if (isHidingForAll) {
+            // If "Hidden for All" is selected, set company-level override to inactive
+            newConfig.questions[itemId].isActive = false;
         } else {
-            // If we uncheck all projects, we should make it active at company level
-            const allProjectsHidden = projects.every(p => projectIds.includes(p.id));
-             if (!allProjectsHidden && override?.isActive === false) {
-                 onToggleActive(itemId);
-             }
+            // Otherwise, ensure company-level is active
+            newConfig.questions[itemId].isActive = true;
+
+            // And update project-specific hidden lists
+            if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
+            projects.forEach(p => {
+                if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
+                if (!newConfig.projectConfigs[p.id].hiddenQuestions) newConfig.projectConfigs[p.id].hiddenQuestions = [];
+
+                const isHidden = projectIds.includes(p.id);
+                const currentlyHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions);
+
+                if (isHidden) {
+                    currentlyHidden.add(itemId);
+                } else {
+                    currentlyHidden.delete(itemId);
+                }
+                newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentlyHidden);
+            });
         }
-        
+
         saveCompanyConfig(companyName, newConfig);
         toast({ title: 'Project visibility updated.' });
     };
 
     const initialProjectIds = useMemo(() => {
         const hiddenInProjects: string[] = [];
+        if (override?.isActive === false) return ['all'];
+        
         projects.forEach(p => {
             if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(question.id)) {
                 hiddenInProjects.push(p.id);
             }
         });
-        if(override?.isActive === false) return ['all'];
-
         return hiddenInProjects;
     }, [companyConfig, question.id, projects, override]);
 
@@ -246,7 +252,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                         <MultiSelect 
                             options={projectOptions}
                             selected={initialProjectIds}
-                            onChange={(value) => handleProjectVisibilityChange(question.id, 'Question', value)}
+                            onChange={(value) => handleProjectVisibilityChange(question.id, value)}
                             disabled={!canWrite}
                             placeholder='Visible to All'
                             className="w-[180px]"
