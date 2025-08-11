@@ -101,6 +101,21 @@ export function ProjectAssignmentPopover({
                         </CommandGroup>
                     </CommandList>
                 </Command>
+                {process.env.NODE_ENV !== 'production' && (
+                    <div className="p-2 border-t mt-1 bg-muted">
+                        <h4 className="text-xs font-bold">Debug Info</h4>
+                        <pre className="text-[10px] whitespace-pre-wrap break-all">
+                            {JSON.stringify({
+                                passedItem: { id: item.id, type: item.typeLabel },
+                                passedProjects: projects.map(p => p.name),
+                                initialIds: initialProjectIds,
+                                currentIds: itemProjectIds,
+                                isAllSelected,
+                                includeUnassigned: includeUnassignedOption,
+                            }, null, 2)}
+                        </pre>
+                    </div>
+                 )}
             </PopoverContent>
         </Popover>
     )

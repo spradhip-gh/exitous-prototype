@@ -547,24 +547,26 @@ export default function EditQuestionDialog({
                         </div>
                     </div>
                 </fieldset>
-
-                {currentQuestion.isCustom && (
-                    <div className="space-y-2 py-4">
-                        <Label>Project Visibility</Label>
-                        <ProjectAssignmentPopover
-                            item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
-                            projects={activeProjects}
-                            onSave={(itemId, itemType, projectIds) => {
-                                setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
-                            }}
-                            disabled={false}
-                            includeUnassignedOption={true}
-                            popoverContentWidth='w-full'
-                        />
-                        <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
-                    </div>
-                )}
                 
+                <fieldset disabled={!isNew && !currentQuestion.isCustom}>
+                    {currentQuestion.isCustom && (
+                        <div className="space-y-2 py-4">
+                            <Label>Project Visibility</Label>
+                            <ProjectAssignmentPopover
+                                item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
+                                projects={activeProjects}
+                                onSave={(itemId, itemType, projectIds) => {
+                                    setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
+                                }}
+                                disabled={!isNew && !currentQuestion.isCustom}
+                                includeUnassignedOption={true}
+                                popoverContentWidth='w-full'
+                            />
+                            <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
+                        </div>
+                    )}
+                </fieldset>
+
                 {/* The rest of the form elements (options, guidance, etc.) */}
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
                 <div className="space-y-4 pt-4">
