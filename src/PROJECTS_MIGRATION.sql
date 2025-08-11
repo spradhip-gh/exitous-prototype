@@ -1,51 +1,86 @@
--- Function to update `updated_at` column
-CREATE OR REPLACE FUNCTION moddatetime()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
--- Add `project_id` to company_users table
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM   information_schema.columns
-        WHERE  table_name = 'company_users'
-        AND    column_name = 'project_id'
-    ) THEN
-        ALTER TABLE "company_users" ADD COLUMN "project_id" UUID;
-    END IF;
-END;
-$$;
+-- Enable Row Level Security
+alter table projects enable row level security;
+-- Add policies
+create policy "Projects are viewable by assigned HR managers" on projects for select using (auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = projects.company_id));
+create policy "Projects can be inserted by assigned HR managers" on projects for insert with check (auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = projects.company_id));
+create policy "Projects can be updated by assigned HR managers" on projects for update using (auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = projects.company_id));
+create policy "Projects can be deleted by assigned HR managers" on projects for delete using (auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = projects.company_id));
 
--- Add foreign key constraint for project_id
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM   information_schema.table_constraints
-        WHERE  constraint_name = 'company_users_project_id_fkey'
-        AND    table_name = 'company_users'
-    ) THEN
-        ALTER TABLE "company_users" ADD CONSTRAINT "company_users_project_id_fkey" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE SET NULL;
-    END IF;
-END;
-$$;
+-- Add project_id to company_users
+alter table company_users add column if not exists project_id uuid references projects(id) on delete set null;
 
--- IMPORTANT: Drop the incorrect trigger from company_users table if it exists
-DROP TRIGGER IF EXISTS handle_updated_at ON "company_users";
+-- Enable RLS for company_users if not already enabled
+alter table company_users enable row level security;
 
--- Drop the incorrect trigger from company_hr_assignments table if it exists
-DROP TRIGGER IF EXISTS handle_updated_at ON "company_hr_assignments";
+-- Drop existing policies on company_users to recreate them with project access logic
+drop policy if exists "Company users are viewable by assigned HR managers" on company_users;
+drop policy if exists "Company users can be inserted by assigned HR managers" on company_users;
+drop policy if exists "Company users can be updated by assigned HR managers" on company_users;
+drop policy if exists "Company users can be deleted by assigned HR managers" on company_users;
 
--- Re-apply triggers ONLY to tables that actually have an `updated_at` column.
--- Based on the schema, this includes: companies, projects, platform_users, user_profiles, user_assessments, master_questions, etc.
--- We will only re-add it to `companies` as an example of correct usage.
-DROP TRIGGER IF EXISTS handle_updated_at ON "companies";
-CREATE TRIGGER handle_updated_at
-BEFORE UPDATE ON "companies"
-FOR EACH ROW
-EXECUTE PROCEDURE moddatetime();
+-- Create new policies with project scoping for HR managers
+create policy "Company users are viewable by assigned HR managers"
+on company_users for select using (
+  (get_hr_project_access(auth.uid(), company_id) ->> 0) = 'all' 
+  OR project_id IS NULL 
+  OR project_id::text IN (select jsonb_array_elements_text(get_hr_project_access(auth.uid(), company_id)))
+);
+
+create policy "Company users can be inserted by assigned HR managers"
+on company_users for insert with check (
+  (get_hr_project_access(auth.uid(), company_id) ->> 0) = 'all' 
+  OR project_id IS NULL 
+  OR project_id::text IN (select jsonb_array_elements_text(get_hr_project_access(auth.uid(), company_id)))
+);
+
+create policy "Company users can be updated by assigned HR managers"
+on company_users for update using (
+  (get_hr_project_access(auth.uid(), company_id) ->> 0) = 'all' 
+  OR project_id IS NULL 
+  OR project_id::text IN (select jsonb_array_elements_text(get_hr_project_access(auth.uid(), company_id)))
+) with check (
+  (get_hr_project_access(auth.uid(), company_id) ->> 0) = 'all' 
+  OR project_id IS NULL 
+  OR project_id::text IN (select jsonb_array_elements_text(get_hr_project_access(auth.uid(), company_id)))
+);
+
+create policy "Company users can be deleted by assigned HR managers"
+on company_users for delete using (
+  (get_hr_project_access(auth.uid(), company_id) ->> 0) = 'all' 
+  OR project_id IS NULL 
+  OR project_id::text IN (select jsonb_array_elements_text(get_hr_project_access(auth.uid(), company_id)))
+);
+
+-- Add project_ids to company_resources
+alter table company_resources add column if not exists project_ids jsonb;
+
+-- Drop existing policies on company_resources
+drop policy if exists "Resources are viewable by assigned HR managers" on company_resources;
+drop policy if exists "Resources can be managed by assigned HR managers" on company_resources;
+
+-- Recreate policies for company_resources with project scoping
+create policy "Resources are viewable by assigned HR managers" on company_resources for select using (
+  auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = company_resources.company_id)
+);
+
+create policy "Resources can be managed by assigned HR managers" on company_resources for all using (
+  (get_hr_permission(auth.uid(), company_id, 'resources') = '"write"')
+);
+
+-- Add project_ids to custom questions, tasks, and tips inside the company_question_configs JSONB
+-- This is handled in application logic, no schema change needed, but RLS needs to be aware.
+
+-- Update RLS for company_question_configs to allow access for HR managers.
+drop policy if exists "Company configs are viewable by assigned HR managers" on company_question_configs;
+drop policy if exists "Company configs can be updated by assigned HR managers" on company_question_configs;
+
+create policy "Company configs are viewable by assigned HR managers" on company_question_configs for select using (
+  auth.uid() IN ( SELECT profiles.id FROM profiles JOIN company_hr_assignments ON profiles.email = company_hr_assignments.hr_email WHERE company_hr_assignments.company_id = company_question_configs.company_id)
+);
+
+create policy "Company configs can be updated by assigned HR managers" on company_question_configs for update using (
+  (get_hr_permission(auth.uid(), company_id, 'formEditor') = '"write"')
+) with check (
+  (get_hr_permission(auth.uid(), company_id, 'formEditor') = '"write"')
+);

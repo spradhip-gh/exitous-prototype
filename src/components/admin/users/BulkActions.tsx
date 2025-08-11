@@ -102,12 +102,12 @@ export default function BulkActions({ selectedUsers, users, setUsers, setSelecte
         const updates = Array.from(selectedUsers).map(email => {
             const user = users.find(u => u.email === email);
             if (!user) return null;
+            // The payload for the update should NOT include the primary key `id`
             return {
-                id: user.id,
-                email: user.email,
+                id: user.id, // For Supabase upsert to identify the row
                 project_id: projectId
             };
-        }).filter((u): u is { id:string, email: string, project_id: string | null } => u !== null);
+        }).filter((u): u is { id: string, project_id: string | null } => u !== null);
 
         if (updates.length === 0) return;
 

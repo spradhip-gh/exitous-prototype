@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -414,6 +413,7 @@ export default function EditQuestionDialog({
     }
 
     const companyAddedOptions = new Set(companyOverride?.optionOverrides?.add || []);
+    const activeProjects = projects.filter(p => !p.isArchived);
 
     return (
         <>
@@ -642,8 +642,8 @@ export default function EditQuestionDialog({
                 <div className="space-y-2 pt-4">
                     <Label>Project Visibility</Label>
                     <ProjectAssignmentPopover
-                        item={{ ...currentQuestion, typeLabel: 'Question' }}
-                        projects={projects}
+                        item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
+                        projects={activeProjects}
                         onSave={(itemId, itemType, projectIds) => {
                             setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                         }}
