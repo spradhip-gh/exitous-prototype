@@ -111,7 +111,6 @@ export interface AnswerGuidance {
     tasks?: string[];
     tips?: string[];
     noGuidanceRequired?: boolean;
-    projectId?: string;
 }
 
 export interface ReviewQueueItem {

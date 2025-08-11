@@ -72,61 +72,50 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
         
         let item: any = null;
-        let itemArray: any[] | undefined = undefined;
-        let itemIndex = -1;
 
         switch (itemType) {
-            case 'Question':
-                item = newConfig.customQuestions?.[itemId];
-                break;
-            case 'Task':
-                itemArray = newConfig.companyTasks || [];
-                itemIndex = itemArray.findIndex((t: MasterTask) => t.id === itemId);
-                if(itemIndex > -1) item = itemArray[itemIndex];
-                break;
-            case 'Tip':
-                itemArray = newConfig.companyTips || [];
-                itemIndex = itemArray.findIndex((t: MasterTip) => t.id === itemId);
-                if(itemIndex > -1) item = itemArray[itemIndex];
-                break;
-            case 'Resource':
-                itemArray = newConfig.resources || [];
-                itemIndex = itemArray.findIndex((r: Resource) => r.id === itemId);
-                 if(itemIndex > -1) item = itemArray[itemIndex];
-                break;
+            case 'Question': item = newConfig.customQuestions?.[itemId]; break;
+            case 'Task': item = (newConfig.companyTasks || []).find((t: MasterTask) => t.id === itemId); break;
+            case 'Tip': item = (newConfig.companyTips || []).find((t: MasterTip) => t.id === itemId); break;
+            case 'Resource': item = (newConfig.resources || []).find((r: Resource) => r.id === itemId); break;
         }
 
         if (item) {
-            const allPossibleProjectIds = projects.map(p => p.id);
-            if (hrManager?.projectAccess?.includes('__none__')) {
-                allPossibleProjectIds.push('__none__');
-            }
-            
-            let currentIds = item.projectIds || [];
-            
-            if (currentIds.length === 0) {
-                currentIds = allPossibleProjectIds;
-            }
-
-            let newProjectIds;
+            const currentIds = new Set(item.projectIds || []);
+            const wasVisibleToAll = currentIds.size === 0;
 
             if (isChecked) {
-                newProjectIds = [...currentIds, projectId];
+                if (wasVisibleToAll) {
+                    currentIds.add(projectId);
+                } else {
+                    currentIds.add(projectId);
+                }
             } else {
-                newProjectIds = currentIds.filter((id: string) => id !== projectId);
+                if (wasVisibleToAll) {
+                    // Unchecking from "All Projects" means selecting all OTHER projects
+                    projects.forEach(p => {
+                        if (p.id !== projectId) currentIds.add(p.id);
+                    });
+                    if (projects.some(p => p.id === '__none__')) currentIds.add('__none__');
+
+                } else {
+                    currentIds.delete(projectId);
+                }
             }
 
-            if (newProjectIds.length === 0 || newProjectIds.length === allPossibleProjectIds.length) {
-                item.projectIds = [];
+            const newProjectIds = Array.from(currentIds);
+
+            // If all projects are selected, revert to an empty array (meaning "All")
+            const allProjectIds = new Set(projects.map(p => p.id));
+            if (projects.some(p => p.id === '__none__')) allProjectIds.add('__none__');
+            
+            if (newProjectIds.length === allProjectIds.size) {
+                 item.projectIds = [];
             } else {
-                item.projectIds = newProjectIds;
+                 item.projectIds = newProjectIds;
             }
         }
 
-
-        if(itemArray && itemIndex > -1 && item) {
-            itemArray[itemIndex] = item;
-        }
 
         setLocalCompanyConfig(newConfig);
         saveCompanyConfig(companyName, newConfig);
@@ -209,11 +198,11 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
-                            {JSON.stringify({
-                                customQuestions: localCompanyConfig.customQuestions,
-                                companyTasks: localCompanyConfig.companyTasks,
-                                companyTips: localCompanyConfig.companyTips,
-                                resources: localCompanyConfig.resources,
+                             {JSON.stringify({
+                                customQuestions: localCompanyConfig?.customQuestions,
+                                companyTasks: localCompanyConfig?.companyTasks,
+                                companyTips: localCompanyConfig?.companyTips,
+                                resources: localCompanyConfig?.resources,
                             }, null, 2)}
                         </pre>
                     </CollapsibleContent>
