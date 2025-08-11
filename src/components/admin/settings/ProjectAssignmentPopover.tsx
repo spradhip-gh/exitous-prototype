@@ -67,7 +67,7 @@ export function ProjectAssignmentPopover({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-between font-normal" disabled={disabled}>
-                    {getDisplayText()} <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
+                    <span className="truncate">{getDisplayText()}</span> <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
                 </Button>
             </PopoverTrigger>
             <PopoverContent className={cn("p-0", popoverContentWidth)}>
@@ -76,12 +76,12 @@ export function ProjectAssignmentPopover({
                         <CommandGroup>
                             <CommandItem onSelect={() => handleSelect('all')}>
                                 <Checkbox className="mr-2" checked={isAllSelected} id={`all-projects-checkbox-${item.id}`}/> 
-                                <label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full">All Projects</label>
+                                <label htmlFor={`all-projects-checkbox-${item.id}`} className="w-full cursor-pointer">All Projects</label>
                             </CommandItem>
                              {includeUnassignedOption && (
                                 <CommandItem onSelect={() => handleSelect('__none__')} disabled={isAllSelected}>
-                                    <Checkbox className="mr-2" checked={itemProjectIds.includes('__none__')} id={`unassigned-checkbox-${item.id}`} /> 
-                                    <label htmlFor={`unassigned-checkbox-${item.id}`} className="w-full">Unassigned Users</label>
+                                    <Checkbox className="mr-2" checked={!isAllSelected && itemProjectIds.includes('__none__')} id={`unassigned-checkbox-${item.id}`} /> 
+                                    <label htmlFor={`unassigned-checkbox-${item.id}`} className="w-full cursor-pointer">Unassigned Users</label>
                                 </CommandItem>
                             )}
                         </CommandGroup>
@@ -93,7 +93,7 @@ export function ProjectAssignmentPopover({
                                     return (
                                         <CommandItem key={p.id} onSelect={() => handleSelect(p.id)} disabled={isAllSelected}>
                                             <Checkbox className="mr-2" checked={isChecked} id={`project-${p.id}-checkbox-${item.id}`}/> 
-                                            <label htmlFor={`project-${p.id}-checkbox-${item.id}`} className="w-full">{p.name}</label>
+                                            <label htmlFor={`project-${p.id}-checkbox-${item.id}`} className="w-full cursor-pointer">{p.name}</label>
                                         </CommandItem>
                                     )
                                 })}

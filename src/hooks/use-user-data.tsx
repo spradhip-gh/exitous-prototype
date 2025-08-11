@@ -179,7 +179,7 @@ export type UpdateCompanyAssignmentPayload = Partial<Omit<CompanyAssignment, 'hr
     newPrimaryManagerEmail?: string;
     hrManagerToRemove?: string;
     hrManagerToAdd?: HrManager;
-    hrManagerToUpdate?: { email: string, permissions: HrPermissions };
+    hrManagerToUpdate?: { email: string, permissions: HrPermissions, projectAccess?: string[] };
     delete?: boolean;
 };
 
@@ -717,7 +717,8 @@ export function useUserData() {
 
         if (payload.hrManagerToUpdate) {
              const { error } = await supabase.from('company_hr_assignments').update({
-                permissions: payload.hrManagerToUpdate.permissions
+                permissions: payload.hrManagerToUpdate.permissions,
+                project_access: payload.hrManagerToUpdate.projectAccess
             })
             .eq('company_id', assignment.companyId)
             .eq('hr_email', payload.hrManagerToUpdate.email);
@@ -1452,6 +1453,7 @@ export function useUserData() {
         saveCompanyProjects,
     };
 }
+
 
 
 
