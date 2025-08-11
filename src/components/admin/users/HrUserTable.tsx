@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import type { SortConfig } from './HrUserManagement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/lib/supabase-client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     isComplete ? (
@@ -68,13 +68,14 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
 }) {
     const { auth } = useAuth();
     const { toast } = useToast();
-    const { saveCompanyUsers, profileCompletions, assessmentCompletions } = useUserData();
+    const { saveCompanyUsers, profileCompletions, assessmentCompletions, companyAssignmentForHr } = useUserData();
     const companyName = auth?.companyName;
 
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<CompanyUser | null>(null);
     const [editedPersonalEmail, setEditedPersonalEmail] = useState('');
     const [editedNotificationDate, setEditedNotificationDate] = useState<Date | undefined>();
+    const [editedProjectId, setEditedProjectId] = useState<string | undefined>();
 
     const selectableUserCount = users.filter(u => !u.is_invited).length;
     const isAllSelected = selectableUserCount > 0 && selectedUsers.size === selectableUserCount;
@@ -138,6 +139,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         setEditingUser(user);
         setEditedPersonalEmail(user.personal_email || '');
         setEditedNotificationDate(user.notification_date ? parse(user.notification_date, 'yyyy-MM-dd', new Date()) : undefined);
+        setEditedProjectId(user.project_id || 'none');
         setIsEditDialogOpen(true);
     };
 
@@ -147,6 +149,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         const updatedUserPayload = {
             personal_email: editedPersonalEmail || undefined,
             notification_date: editedNotificationDate ? format(editedNotificationDate, 'yyyy-MM-dd') : editingUser.notification_date,
+            project_id: editedProjectId === 'none' ? null : editedProjectId,
         };
 
         const { data, error } = await supabase.from('company_users').update(updatedUserPayload).eq('id', editingUser.id).select().single();
@@ -171,6 +174,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                         </TableHead>
                         <SortableHeader sortKey="email" sortConfig={sortConfig} requestSort={requestSort}>Work Email</SortableHeader>
                         <SortableHeader sortKey="company_user_id" sortConfig={sortConfig} requestSort={requestSort}>Company ID</SortableHeader>
+                        <SortableHeader sortKey="project_id" sortConfig={sortConfig} requestSort={requestSort}>Project</SortableHeader>
                         <SortableHeader sortKey="notification_date" sortConfig={sortConfig} requestSort={requestSort}>Notification Date</SortableHeader>
                         <SortableHeader sortKey="profileStatus" sortConfig={sortConfig} requestSort={requestSort}>Profile</SortableHeader>
                         <SortableHeader sortKey="assessmentStatus" sortConfig={sortConfig} requestSort={requestSort}>Assessment</SortableHeader>
@@ -180,16 +184,18 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                 <TableBody>
                     {isLoading ? (
                         [...Array(5)].map((_, i) => (
-                           <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                           <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
                         ))
                     ) : users.length > 0 ? users.map(user => {
                         const notifyDisabled = isNotifyDisabled(user);
                         const isSelectionDisabled = user.is_invited || !canInvite;
+                        const projectName = companyAssignmentForHr?.projects?.find(p => p.id === user.project_id)?.name || 'N/A';
                         return (
                             <TableRow key={user.id} data-selected={selectedUsers.has(user.email)} className={cn(user.is_invited && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell><Checkbox checked={selectedUsers.has(user.email)} onCheckedChange={() => handleToggleSelection(user.email)} aria-label={`Select ${user.email}`} disabled={isSelectionDisabled}/></TableCell>
                                 <TableCell className="font-medium">{user.email}</TableCell>
                                 <TableCell>{user.company_user_id}</TableCell>
+                                <TableCell>{projectName}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
                                         <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
@@ -214,7 +220,7 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                             </TableRow>
                         );
                     }) : (
-                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users added for this company yet.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No users added for this company yet.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>
@@ -226,6 +232,16 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                         <div className="space-y-2"><Label htmlFor="edit-work-email">Work Email</Label><Input id="edit-work-email" value={editingUser?.email || ''} disabled /></div>
                         <div className="space-y-2"><Label htmlFor="edit-company-id">Company ID</Label><Input id="edit-company-id" value={editingUser?.company_user_id || ''} disabled /></div>
                         <div className="space-y-2"><Label htmlFor="edit-personal-email">Personal Email</Label><Input id="edit-personal-email" value={editedPersonalEmail} onChange={(e) => setEditedPersonalEmail(e.target.value)} placeholder="user@personal.com"/></div>
+                        <div className="space-y-2">
+                             <Label htmlFor="edit-project-id">Project / Division</Label>
+                             <Select value={editedProjectId} onValueChange={setEditedProjectId}>
+                                <SelectTrigger><SelectValue placeholder="Assign to project..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None (Company-wide)</SelectItem>
+                                    {companyAssignmentForHr?.projects?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="edit-notification-date">Notification Date</Label>
                              <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !editedNotificationDate && "text-muted-foreground")} disabled={editingUser?.is_invited}><CalendarIcon className="mr-2 h-4 w-4" />{editedNotificationDate ? format(editedNotificationDate, "PPP") : <span>Pick a date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editedNotificationDate} onSelect={setEditedNotificationDate} initialFocus /></PopoverContent></Popover>
@@ -239,3 +255,4 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
         </TooltipProvider>
     );
 }
+

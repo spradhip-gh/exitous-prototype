@@ -8,22 +8,23 @@ This document outlines the proposed database schema for the ExitBetter applicati
 ## Table of Contents
 
 1.  [Companies](#companies)
-2.  [Platform Users](#platform_users)
-3.  [Company HR Assignments](#company_hr_assignments)
-4.  [Company Users](#company_users)
-5.  [User Profiles](#user_profiles)
-6.  [User Assessments](#user_assessments)
-7.  [Master Questions](#master_questions)
-8.  [Master Question Configs](#master_question_configs)
-9.  [Company Question Configs](#company_question_configs)
-10. [Master Tasks](#master_tasks)
-11. [Master Tips](#master_tips)
-12. [Task Mappings](#task_mappings)
-13. [Tip Mappings](#tip_mappings)
-14. [Company Resources](#company_resources)
-15. [External Resources](#external_resources)
-16. [Guidance Rules](#guidance_rules)
-17. [Review Queue](#review_queue)
+2.  [Projects](#projects)
+3.  [Platform Users](#platform_users)
+4.  [Company HR Assignments](#company_hr_assignments)
+5.  [Company Users](#company_users)
+6.  [User Profiles](#user_profiles)
+7.  [User Assessments](#user_assessments)
+8.  [Master Questions](#master_questions)
+9.  [Master Question Configs](#master_question_configs)
+10. [Company Question Configs](#company_question_configs)
+11. [Master Tasks](#master_tasks)
+12. [Master Tips](#master_tips)
+13. [Task Mappings](#task_mappings)
+14. [Tip Mappings](#tip_mappings)
+15. [Company Resources](#company_resources)
+16. [External Resources](#external_resources)
+17. [Guidance Rules](#guidance_rules)
+18. [Review Queue](#review_queue)
 
 ---
 
@@ -44,6 +45,23 @@ Stores information about each client company, their assigned HR manager, and def
 | `created_at`                | `TIMESTAMPTZ` | Timestamp of when the company was created.            |
 | `updated_at`                | `TIMESTAMPTZ` | Timestamp of the last update.                         |
 
+### `projects`
+
+Stores projects or divisions within a company, allowing for separate configurations.
+
+| Column                        | Type          | Description                                                                 |
+| ----------------------------- | ------------- | --------------------------------------------------------------------------- |
+| `id`                          | `UUID`        | **Primary Key**. A unique identifier for the project.                       |
+| `company_id`                  | `UUID`        | **Foreign Key** to `companies.id`.                                          |
+| `name`                        | `TEXT`        | The name of the project or division. Unique per company.                    |
+| `is_archived`                 | `BOOLEAN`     | `true` if the project is archived and hidden. Default: `false`.             |
+| `severance_deadline_time`     | `TIME`        | Project-specific time for severance deadlines. Nullable. Inherits from company. |
+| `severance_deadline_timezone` | `TEXT`        | Project-specific timezone for deadlines. Nullable. Inherits from company.   |
+| `pre_end_date_contact_alias`  | `TEXT`        | Project-specific contact alias. Nullable. Inherits from company.          |
+| `post_end_date_contact_alias` | `TEXT`        | Project-specific contact alias. Nullable. Inherits from company.          |
+| `created_at`                  | `TIMESTAMPTZ` | Timestamp of when the project was created.                                  |
+| `updated_at`                  | `TIMESTAMPTZ` | Timestamp of the last update.                                               |
+
 ### `platform_users`
 
 Stores users with platform-wide access roles, like administrators and consultants.
@@ -58,16 +76,17 @@ Stores users with platform-wide access roles, like administrators and consultant
 
 ### `company_hr_assignments`
 
-Maps HR Managers to the companies they manage and defines their specific permissions for that company.
+Maps HR Managers to the companies they manage and defines their specific permissions.
 
-| Column        | Type      | Description                                                               |
-| ------------- | --------- | ------------------------------------------------------------------------- |
-| `company_id`  | `UUID`    | **Composite PK** and **Foreign Key** to `companies.id`.                   |
-| `hr_email`    | `TEXT`    | **Composite PK**. The email of the assigned HR manager.                   |
-| `is_primary`  | `BOOLEAN` | `true` if this is the primary manager for the company. Default: `false`.  |
-| `permissions` | `JSONB`   | A JSON object defining granular permissions (e.g., `{"userManagement": "write"}`). |
-| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the assignment was created.                            |
-| `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.                                            |
+| Column          | Type      | Description                                                                                               |
+| --------------- | --------- | --------------------------------------------------------------------------------------------------------- |
+| `company_id`    | `UUID`    | **Composite PK** and **Foreign Key** to `companies.id`.                                                   |
+| `hr_email`      | `TEXT`    | **Composite PK**. The email of the assigned HR manager.                                                   |
+| `is_primary`    | `BOOLEAN` | `true` if this is the primary manager for the company. Default: `false`.                                  |
+| `permissions`   | `JSONB`   | A JSON object for permissions (e.g., `{"userManagement": "write", "projectManagement": "write"}`).        |
+| `project_access`| `JSONB`   | An array of project UUIDs this manager can access, or `["all"]` for full access. Default: `["all"]`.      |
+| `created_at`    | `TIMESTAMPTZ`| Timestamp of when the assignment was created.                                                             |
+| `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
 
 ### `company_users`
 
@@ -77,6 +96,7 @@ Stores end-users associated with a specific company. This table tracks who is el
 | ---------------------------- | --------- | ------------------------------------------------------------------------------ |
 | `id`                         | `UUID`    | **Primary Key**.                                                               |
 | `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                                             |
+| `project_id`                 | `UUID`    | **Foreign Key** to `projects.id`. Nullable. If null, user is company-level.    |
 | `email`                      | `TEXT`    | The end-user's primary (work) email.                                           |
 | `company_user_id`            | `TEXT`    | The user's ID within their company's system.                                   |
 | `personal_email`             | `TEXT`    | Optional personal email for post-exit communication. Nullable.                  |
@@ -151,6 +171,7 @@ Stores company-specific customizations for the assessment form. This allows comp
 | `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. |
 | `company_tasks`             | `JSONB`   | A list of company-specific task objects. |
 | `company_tips`              | `JSONB`   | A list of company-specific tip objects. |
+| `project_configs`           | `JSONB`   | Project-specific overrides, e.g., `{"projectId": {"hiddenQuestions": ["qId"], "hiddenAnswers": {"qId": ["ans"]}}}`. |
 | `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
 
 
@@ -231,6 +252,7 @@ Stores documents and links uploaded by an HR Manager for their employees.
 | `category`    | `TEXT`    | Resource category (e.g., 'Benefits').     |
 | `content`     | `TEXT`    | The text content of the uploaded file.    |
 | `summary`     | `TEXT`    | Optional AI-generated summary of the document. |
+| `project_ids` | `JSONB`   | An array of project UUIDs this resource is visible to. Empty array means visible to all. |
 | `created_at`  | `TIMESTAMPTZ`| Timestamp of when the resource was created. |
 | `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.               |
 
@@ -289,3 +311,4 @@ A log of content changes submitted by HR for Admin review.
 | `created_at`       | `TIMESTAMPTZ`| Timestamp of when the item was submitted.                                                         |
 | `reviewed_at`      | `TIMESTAMPTZ`| Timestamp of when the review occurred.                                                              |
 | `reviewer_id`      | `UUID`    | **Foreign Key** to `platform_users.id`. The Admin/Consultant who reviewed it.                       |
+
