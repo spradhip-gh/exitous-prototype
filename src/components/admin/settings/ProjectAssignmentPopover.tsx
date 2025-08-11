@@ -1,14 +1,15 @@
 
+
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronsUpDown } from 'lucide-react';
-import { Project, Question, MasterTask, MasterTip, Resource } from '@/hooks/use-user-data';
+import { Project } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 
 export function ProjectAssignmentPopover({
     item,
@@ -19,7 +20,7 @@ export function ProjectAssignmentPopover({
     includeUnassignedOption = false,
     popoverContentWidth = "w-[200px]",
 }: {
-    item: (Partial<Question> | Partial<MasterTask> | Partial<MasterTip> | Partial<Resource>) & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', name: string },
+    item: { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', name: string, projectIds?: string[] },
     projects: Omit<Project, 'isArchived' | 'severanceDeadlineTime' | 'severanceDeadlineTimezone' | 'preEndDateContactAlias' | 'postEndDateContactAlias'>[],
     onSave: (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', projectIds: string[]) => void,
     disabled?: boolean;
@@ -106,20 +107,6 @@ export function ProjectAssignmentPopover({
                         </CommandGroup>
                     </CommandList>
                 </Command>
-                {process.env.NODE_ENV !== 'production' && (
-                    <div className="p-2 border-t mt-1 bg-muted">
-                        <h4 className="text-xs font-bold">Debug Info</h4>
-                        <pre className="text-[10px] whitespace-pre-wrap break-all">
-                            {JSON.stringify({
-                                passedItem: { id: item.id, type: item.typeLabel, name: item.name },
-                                passedProjects: projects.map(p => p.name),
-                                currentIds: itemProjectIds,
-                                isAllSelected,
-                                includeUnassigned: includeUnassignedOption,
-                            }, null, 2)}
-                        </pre>
-                    </div>
-                 )}
             </PopoverContent>
         </Popover>
     )

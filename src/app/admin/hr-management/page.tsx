@@ -22,7 +22,6 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MultiSelectPopover } from "@/components/admin/forms/GuidanceRuleForm";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -148,12 +147,28 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
         }));
     };
     
-     const handleProjectAccessChange = (companyName: string, projectIds: string[]) => {
+     const handleProjectAccessChange = (companyName: string, projectId: string, isChecked: boolean) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
                 const updatedManagers = a.hrManagers.map(hr => {
                     if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
-                        return { ...hr, projectAccess: projectIds };
+                        const currentAccess = hr.projectAccess || [];
+                        const allProjectIds = a.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
+                        
+                        // If it was "all", create an array with everything except the unchecked one
+                        if (currentAccess.length === 0 || currentAccess.includes('all')) {
+                            return { ...hr, projectAccess: isChecked ? ['all'] : allProjectIds.filter(id => id !== projectId) };
+                        }
+
+                        // Add or remove from current list
+                        let newAccess = isChecked ? [...currentAccess, projectId] : currentAccess.filter(id => id !== projectId);
+
+                        // If everything is checked, revert to "all"
+                        if (newAccess.length === allProjectIds.length) {
+                             newAccess = ['all'];
+                        }
+
+                        return { ...hr, projectAccess: newAccess };
                     }
                     return hr;
                 });
@@ -187,9 +202,9 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
-                                const projectOptions = assignment.projects?.map(p => ({ id: p.id, name: p.name, category: 'Projects' })) || [];
-                                const hasProjectScope = manager.projectAccess && !manager.projectAccess.includes('all');
-
+                                const projectOptions = assignment.projects?.filter(p => !p.isArchived) || [];
+                                const hasProjectAccess = manager.projectAccess;
+                                const isAllProjects = !hasProjectAccess || hasProjectAccess.length === 0 || hasProjectAccess.includes('all');
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -253,60 +268,67 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                 </div>
                                             </div>
                                             {!isPrimaryInThisCompany && (
-                                                <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
-                                                     <div>
-                                                        <Label>User Management</Label>
-                                                        <Select value={manager.permissions.userManagement} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'userManagement', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="invite-only">Invite Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                                <SelectItem value="write-upload">Write & Upload</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                     <div>
-                                                        <Label>Form Editor</Label>
-                                                        <Select value={manager.permissions.formEditor} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'formEditor', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                     <div>
-                                                        <Label>Resources</Label>
-                                                        <Select value={manager.permissions.resources} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'resources', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div>
-                                                        <Label>Company Settings</Label>
-                                                        <Select value={manager.permissions.companySettings} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'companySettings', v)}>
-                                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="read">Read Only</SelectItem>
-                                                                <SelectItem value="write">Write</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="col-span-2">
-                                                        <MultiSelectPopover 
-                                                            label="Project Access"
-                                                            items={[{id: 'all', name: 'All Projects', category: 'General'}, ...projectOptions]}
-                                                            selectedIds={manager.projectAccess || ['all']}
-                                                            onSelectionChange={(ids) => handleProjectAccessChange(assignment.companyName, ids)}
-                                                            onAddNew={() => {}}
-                                                            categories={[]}
-                                                        />
-                                                    </div>
-                                                </fieldset>
+                                                <>
+                                                    <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <Label>User Management</Label>
+                                                            <Select value={manager.permissions.userManagement} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'userManagement', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="invite-only">Invite Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                    <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Form Editor</Label>
+                                                            <Select value={manager.permissions.formEditor} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'formEditor', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Resources</Label>
+                                                            <Select value={manager.permissions.resources} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'resources', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label>Company Settings</Label>
+                                                            <Select value={manager.permissions.companySettings} onValueChange={(v) => handlePermissionChange(assignment.companyName, 'companySettings', v)}>
+                                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="read">Read Only</SelectItem>
+                                                                    <SelectItem value="write">Write</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </fieldset>
+                                                    <fieldset disabled={!canEditThisCompany}>
+                                                        <Label>Project Access</Label>
+                                                        <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                                            {projectOptions.map(p => (
+                                                                <div key={p.id} className="flex items-center space-x-2">
+                                                                    <Checkbox id={`edit-project-${p.id}`} checked={isAllProjects || manager.projectAccess?.includes(p.id)} onCheckedChange={(c) => handleProjectAccessChange(assignment.companyName, p.id, !!c)} />
+                                                                    <Label htmlFor={`edit-project-${p.id}`} className="font-normal">{p.name}</Label>
+                                                                </div>
+                                                            ))}
+                                                             <div className="flex items-center space-x-2">
+                                                                <Checkbox id="edit-project-unassigned" checked={isAllProjects || manager.projectAccess?.includes('__none__')} onCheckedChange={(c) => handleProjectAccessChange(assignment.companyName, '__none__', !!c)} />
+                                                                <Label htmlFor="edit-project-unassigned" className="font-normal flex items-center gap-1.5">Unassigned Users <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground"/></TooltipTrigger><TooltipContent><p>Users not in a specific project.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                                                            </div>
+                                                        </div>
+                                                    </fieldset>
+                                                </>
                                             )}
                                         </CardContent>
                                     </Card>
@@ -348,12 +370,13 @@ type NewAssignment = {
     companyName: string;
     isPrimary: boolean;
     permissions: HrPermissions;
+    projectAccess: string[];
 };
 
 function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allAssignments }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    managedCompanies: string[];
+    managedCompanies: CompanyAssignment[];
     onSave: (updatedAssignments: CompanyAssignment[]) => void;
     allAssignments: CompanyAssignment[];
 }) {
@@ -373,7 +396,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
         setAssignments(prev => {
             const newAssignments = { ...prev };
             if (isAssigned) {
-                newAssignments[companyName] = { companyName, isPrimary: false, permissions: defaultPermissions };
+                newAssignments[companyName] = { companyName, isPrimary: false, permissions: defaultPermissions, projectAccess: ['all'] };
             } else {
                 delete newAssignments[companyName];
             }
@@ -395,21 +418,40 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
         setAssignments(prev => {
             const newAssignments = {...prev};
             
-            // Unset other primaries for this user
             Object.keys(newAssignments).forEach(cn => {
                 if (newAssignments[cn].isPrimary) {
                     newAssignments[cn] = {...newAssignments[cn], isPrimary: false, permissions: defaultPermissions };
                 }
             });
 
-            // Set the new primary
             newAssignments[companyName] = {
                 ...newAssignments[companyName],
                 isPrimary: true,
                 permissions: fullPermissions,
+                projectAccess: ['all'],
             };
 
             return newAssignments;
+        });
+    };
+
+    const handleProjectAccessChange = (companyName: string, projectId: string, isChecked: boolean) => {
+        setAssignments(prev => {
+            const company = managedCompanies.find(c => c.companyName === companyName);
+            const allProjectIds = company?.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
+            const currentAccess = prev[companyName].projectAccess;
+
+            if (currentAccess.length === 0 || currentAccess.includes('all')) {
+                return { ...prev, [companyName]: { ...prev[companyName], projectAccess: isChecked ? ['all'] : allProjectIds.filter(id => id !== projectId) } };
+            }
+
+            let newAccess = isChecked ? [...currentAccess, projectId] : currentAccess.filter(id => id !== projectId);
+
+            if (newAccess.length === allProjectIds.length) {
+                 newAccess = ['all'];
+            }
+
+            return { ...prev, [companyName]: { ...prev[companyName], projectAccess: newAccess } };
         });
     };
 
@@ -419,18 +461,17 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
             return;
         }
 
-        let updatedAssignments = JSON.parse(JSON.stringify(allAssignments)); // deep copy
+        let updatedAssignments = JSON.parse(JSON.stringify(allAssignments));
 
         Object.values(assignments).forEach(newAssignment => {
             const assignmentIndex = updatedAssignments.findIndex((a: CompanyAssignment) => a.companyName === newAssignment.companyName);
             if (assignmentIndex > -1) {
                 const company = updatedAssignments[assignmentIndex];
                 if (company.hrManagers.some((hr: HrManager) => hr.email.toLowerCase() === email.toLowerCase())) {
-                    return; // already assigned
+                    return;
                 }
 
                 if (newAssignment.isPrimary) {
-                    // Demote old primary
                     company.hrManagers.forEach((hr: HrManager) => { if (hr.isPrimary) hr.isPrimary = false; });
                 }
 
@@ -438,7 +479,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                     email,
                     isPrimary: newAssignment.isPrimary,
                     permissions: newAssignment.permissions,
-                    projectAccess: ['all'],
+                    projectAccess: newAssignment.projectAccess,
                 });
             }
         });
@@ -462,18 +503,33 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                     <div className="space-y-4">
                         <Label>Assign to Companies</Label>
                         {managedCompanies.map(company => {
-                            const isAssigned = !!assignments[company];
-                            const isPrimary = isAssigned && assignments[company].isPrimary;
-                            const currentPrimaryEmail = allAssignments.find(a => a.companyName === company)?.hrManagers.find(m => m.isPrimary)?.email;
+                            const isAssigned = !!assignments[company.companyName];
+                            if (!isAssigned) {
+                                return (
+                                    <Card key={company.companyName}>
+                                         <CardHeader className="flex flex-row items-center justify-between p-4">
+                                            <Label htmlFor={`assign-${company.companyName}`} className="text-base font-semibold">{company.companyName}</Label>
+                                            <Checkbox
+                                                id={`assign-${company.companyName}`}
+                                                checked={false}
+                                                onCheckedChange={(checked) => handleAssignmentChange(company.companyName, !!checked)}
+                                            />
+                                        </CardHeader>
+                                    </Card>
+                                )
+                            }
+                            const isPrimary = isAssigned && assignments[company.companyName].isPrimary;
+                            const currentPrimaryEmail = allAssignments.find(a => a.companyName === company.companyName)?.hrManagers.find(m => m.isPrimary)?.email;
+                            const projectOptions = company.projects?.filter(p => !p.isArchived) || [];
 
                             return (
-                                <Card key={company} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
+                                <Card key={company.companyName} className={cn("transition-all", isAssigned && "bg-muted/50", isPrimary && "border-primary")}>
                                     <CardHeader className="flex flex-row items-center justify-between p-4">
-                                        <Label htmlFor={`assign-${company}`} className="text-base font-semibold">{company}</Label>
+                                        <Label htmlFor={`assign-${company.companyName}`} className="text-base font-semibold">{company.companyName}</Label>
                                         <Checkbox
-                                            id={`assign-${company}`}
+                                            id={`assign-${company.companyName}`}
                                             checked={isAssigned}
-                                            onCheckedChange={(checked) => handleAssignmentChange(company, !!checked)}
+                                            onCheckedChange={(checked) => handleAssignmentChange(company.companyName, !!checked)}
                                         />
                                     </CardHeader>
                                     {isAssigned && (
@@ -497,7 +553,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                                 <AlertDialogTitle>Confirm Primary Manager Transfer</AlertDialogTitle>
                                                                 <AlertDialogDescription asChild>
                                                                     <div>
-                                                                        Are you sure you want to make <span className="font-bold">{email}</span> the new Primary Manager for <span className="font-bold">{company}</span>?
+                                                                        Are you sure you want to make <span className="font-bold">{email}</span> the new Primary Manager for <span className="font-bold">{company.companyName}</span>?
                                                                         <Alert variant="destructive" className="mt-4 bg-amber-50 border-amber-200 text-amber-800">
                                                                             <Info className="h-4 w-4 !text-amber-600" />
                                                                             <AlertTitle>Warning</AlertTitle>
@@ -508,17 +564,18 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handlePrimaryChange(company)}>Confirm & Transfer</AlertDialogAction>
+                                                                <AlertDialogAction onClick={() => handlePrimaryChange(company.companyName)}>Confirm & Transfer</AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
                                                 </div>
                                             </div>
                                             {!isPrimary && (
+                                                <>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
                                                         <Label>User Management</Label>
-                                                        <Select value={assignments[company].permissions.userManagement} onValueChange={(v) => handlePermissionChange(company, 'userManagement', v)}>
+                                                        <Select value={assignments[company.companyName].permissions.userManagement} onValueChange={(v) => handlePermissionChange(company.companyName, 'userManagement', v)}>
                                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="read">Read Only</SelectItem>
@@ -530,7 +587,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                     </div>
                                                      <div>
                                                         <Label>Form Editor</Label>
-                                                        <Select value={assignments[company].permissions.formEditor} onValueChange={(v) => handlePermissionChange(company, 'formEditor', v)}>
+                                                        <Select value={assignments[company.companyName].permissions.formEditor} onValueChange={(v) => handlePermissionChange(company.companyName, 'formEditor', v)}>
                                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="read">Read Only</SelectItem>
@@ -540,7 +597,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                     </div>
                                                      <div>
                                                         <Label>Resources</Label>
-                                                        <Select value={assignments[company].permissions.resources} onValueChange={(v) => handlePermissionChange(company, 'resources', v)}>
+                                                        <Select value={assignments[company.companyName].permissions.resources} onValueChange={(v) => handlePermissionChange(company.companyName, 'resources', v)}>
                                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="read">Read Only</SelectItem>
@@ -550,7 +607,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                     </div>
                                                     <div>
                                                         <Label>Company Settings</Label>
-                                                        <Select value={assignments[company].permissions.companySettings} onValueChange={(v) => handlePermissionChange(company, 'companySettings', v)}>
+                                                        <Select value={assignments[company.companyName].permissions.companySettings} onValueChange={(v) => handlePermissionChange(company.companyName, 'companySettings', v)}>
                                                             <SelectTrigger><SelectValue/></SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="read">Read Only</SelectItem>
@@ -559,6 +616,26 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                         </Select>
                                                     </div>
                                                 </div>
+                                                <div className="space-y-2">
+                                                    <Label>Project Access</Label>
+                                                    <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                                                        {projectOptions.map(p => {
+                                                            const currentAccess = assignments[company.companyName].projectAccess;
+                                                            const isAllSelected = currentAccess.length === 0 || currentAccess.includes('all');
+                                                            const isChecked = isAllSelected || currentAccess.includes(p.id);
+                                                            return(
+                                                            <div key={p.id} className="flex items-center space-x-2">
+                                                                <Checkbox id={`add-project-${p.id}`} checked={isChecked} onCheckedChange={(c) => handleProjectAccessChange(company.companyName, p.id, !!c)} />
+                                                                <Label htmlFor={`add-project-${p.id}`} className="font-normal">{p.name}</Label>
+                                                            </div>
+                                                        )})}
+                                                        <div className="flex items-center space-x-2">
+                                                            <Checkbox id="add-project-unassigned" checked={assignments[company.companyName].projectAccess.length === 0 || assignments[company.companyName].projectAccess.includes('all') || assignments[company.companyName].projectAccess.includes('__none__')} onCheckedChange={(c) => handleProjectAccessChange(company.companyName, '__none__', !!c)} />
+                                                            <Label htmlFor="add-project-unassigned" className="font-normal flex items-center gap-1.5">Unassigned Users <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground"/></TooltipTrigger><TooltipContent><p>Users not in a specific project.</p></TooltipContent></Tooltip></TooltipProvider></Label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                </>
                                             )}
                                         </CardContent>
                                     )}
@@ -586,17 +663,16 @@ export default function HrManagementPage() {
     const [isAddHrOpen, setIsAddHrOpen] = useState(false);
 
     const { manageableHrs, managedCompanies } = useMemo(() => {
-        let companiesWherePrimary: string[] = [];
+        let companiesWherePrimary: CompanyAssignment[] = [];
 
         if (auth?.role === 'admin') {
-            companiesWherePrimary = companyAssignments.map(a => a.companyName);
+            companiesWherePrimary = companyAssignments;
         } else if (auth?.role === 'hr' && auth.email) {
             companiesWherePrimary = companyAssignments
-                .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary))
-                .map(a => a.companyName);
+                .filter(a => a.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary));
         }
         
-        const companiesToScan = companyAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
+        const companiesToScan = companiesWherePrimary;
         
         const managers = new Map<string, { email: string, companies: { name: string, projectAccess?: string[] }[] }>();
         companiesToScan.forEach(assignment => {
@@ -630,7 +706,7 @@ export default function HrManagementPage() {
             const currentAssignment = updatedAssignments.find(a => a.companyName === auth.companyName);
             const isNowPrimary = currentAssignment?.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary);
             
-            const wasPrimary = managedCompanies.includes(auth.companyName);
+            const wasPrimary = managedCompanies.some(c => c.companyName === auth.companyName);
             
             if (wasPrimary && !isNowPrimary) {
                 switchCompany(auth.companyName);
@@ -644,8 +720,41 @@ export default function HrManagementPage() {
     };
 
     const assignmentsForDialog = useMemo(() => {
-        return companyAssignments.filter(a => managedCompanies.includes(a.companyName));
+        return companyAssignments.filter(a => managedCompanies.some(mc => mc.companyName === a.companyName));
     }, [companyAssignments, managedCompanies]);
+
+    const getAccessDisplay = (projectAccess: string[] | undefined, projects: any[] | undefined) => {
+        if (!projectAccess || projectAccess.includes('all') || projectAccess.length === 0) return <Badge variant="secondary">All Projects</Badge>;
+        
+        const hasUnassigned = projectAccess.includes('__none__');
+        const assignedProjectCount = projectAccess.filter(id => id !== '__none__').length;
+        
+        const parts = [];
+        if (assignedProjectCount > 0) parts.push(`${assignedProjectCount} Project${assignedProjectCount > 1 ? 's' : ''}`);
+        if (hasUnassigned) parts.push("Unassigned Users");
+        
+        const text = parts.join(' + ');
+
+        const tooltipContent = (
+            <div>
+                {assignedProjectCount > 0 && <div>Projects: {projectAccess.filter(id => id !== '__none__').map(id => projects?.find(p => p.id === id)?.name || 'Unknown Project').join(', ')}</div>}
+                {hasUnassigned && <div>+ Access to users with no project</div>}
+            </div>
+        );
+
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Badge variant="outline">{text}</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {tooltipContent}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    };
 
     return (
         <div className="p-4 md:p-8">
@@ -673,44 +782,26 @@ export default function HrManagementPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Email</TableHead>
-                                    <TableHead>Assignments</TableHead>
+                                    <TableHead>Company Assignments &amp; Project Access</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {manageableHrs.map(manager => {
-                                    const projectsByCompany: Record<string, string[]> = {};
-                                    assignmentsForDialog.forEach(company => {
-                                        const hr = company.hrManagers.find(h => h.email === manager.email);
-                                        if (hr && hr.projectAccess && !hr.projectAccess.includes('all')) {
-                                            projectsByCompany[company.companyName] = hr.projectAccess.map(pId => company.projects?.find(p => p.id === pId)?.name || 'Unknown Project');
-                                        }
-                                    });
-
                                     return (
                                     <TableRow key={manager.email}>
                                         <TableCell className="font-medium">{manager.email}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
-                                            {manager.companies.map(c => (
-                                                <div key={c.name} className="flex items-center gap-2">
-                                                    <span className="font-medium">{c.name}</span>
-                                                    {projectsByCompany[c.name] ? (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Badge variant="outline">{projectsByCompany[c.name].length} Projects</Badge>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{projectsByCompany[c.name].join(', ')}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    ) : (
-                                                        <Badge variant="secondary">All Projects</Badge>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            {manager.companies.map(c => {
+                                                const company = assignmentsForDialog.find(a => a.companyName === c.name);
+                                                return (
+                                                    <div key={c.name} className="flex items-center gap-2">
+                                                        <span className="font-medium">{c.name}</span>
+                                                        {getAccessDisplay(c.projectAccess, company?.projects)}
+                                                    </div>
+                                                )
+                                            })}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">

@@ -34,6 +34,8 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const defaultPermissions: HrPermissions = {
     userManagement: 'read',
@@ -96,7 +98,7 @@ function AddHrManagerDialog({ open, onOpenChange, companyName, onSave, currentMa
             return;
         }
 
-        const newManager: HrManager = { email, isPrimary, permissions };
+        const newManager: HrManager = { email, isPrimary, permissions, projectAccess: ['all'] };
         onSave(companyName, newManager);
         onOpenChange(false);
     };
@@ -179,25 +181,49 @@ function AddHrManagerDialog({ open, onOpenChange, companyName, onSave, currentMa
     );
 }
 
-function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }: {
+function PermissionsDialog({ manager, company, open, onOpenChange, onSave }: {
     manager: HrManager,
-    companyName: string,
+    company: CompanyAssignment,
     open: boolean,
     onOpenChange: (open: boolean) => void,
-    onSave: (email: string, permissions: HrPermissions) => void,
+    onSave: (email: string, permissions: HrPermissions, projectAccess: string[]) => void,
 }) {
     const [editedPermissions, setEditedPermissions] = useState<HrPermissions>(manager.permissions);
+    const [projectAccess, setProjectAccess] = useState<string[]>(manager.projectAccess || []);
 
     useEffect(() => {
         if (manager) {
             setEditedPermissions(manager.permissions);
+            setProjectAccess(manager.projectAccess || []);
         }
     }, [manager]);
 
     const handleSave = () => {
-        onSave(manager.email, editedPermissions);
+        onSave(manager.email, editedPermissions, projectAccess);
         onOpenChange(false);
     }
+    
+     const handleProjectAccessChange = (projectId: string, isChecked: boolean) => {
+        setProjectAccess(prev => {
+            const allPossibleIds = company.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
+            
+            // If was "All", create an array with everything except the one that was unchecked.
+            if (prev.length === 0 || prev.includes('all')) {
+                return isChecked 
+                    ? allPossibleIds // This case shouldn't happen from the UI
+                    : allPossibleIds.filter(id => id !== projectId);
+            }
+            
+            // Add or remove from current list
+            let newAccess = isChecked ? [...prev, projectId] : prev.filter(id => id !== projectId);
+
+            // If all are checked, revert to "All"
+            if (newAccess.length === allPossibleIds.length) {
+                return ['all'];
+            }
+            return newAccess;
+        });
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,52 +231,84 @@ function PermissionsDialog({ manager, companyName, open, onOpenChange, onSave }:
                 <DialogHeader>
                     <DialogTitle>Edit Permissions for {manager.email}</DialogTitle>
                     <DialogDescription>
-                        You are changing permissions for {companyName}.
+                        You are changing permissions for {company.companyName}.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label>User Management</Label>
-                        <Select value={editedPermissions.userManagement} onValueChange={(v) => setEditedPermissions(p => ({...p, userManagement: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="invite-only">Invite Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                                <SelectItem value="write-upload">Write & Upload</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Form Editor</Label>
-                        <Select value={editedPermissions.formEditor} onValueChange={(v) => setEditedPermissions(p => ({...p, formEditor: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Resources</Label>
-                        <Select value={editedPermissions.resources} onValueChange={(v) => setEditedPermissions(p => ({...p, resources: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Company Settings</Label>
-                        <Select value={editedPermissions.companySettings} onValueChange={(v) => setEditedPermissions(p => ({...p, companySettings: v as any}))}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="read">Read Only</SelectItem>
-                                <SelectItem value="write">Write</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-base">Role Permissions</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-4 pt-4">
+                            <div className="space-y-2">
+                                <Label>User Management</Label>
+                                <Select value={editedPermissions.userManagement} onValueChange={(v) => setEditedPermissions(p => ({...p, userManagement: v as any}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="read">Read Only</SelectItem>
+                                        <SelectItem value="invite-only">Invite Only</SelectItem>
+                                        <SelectItem value="write">Write</SelectItem>
+                                        <SelectItem value="write-upload">Write & Upload</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Form Editor</Label>
+                                <Select value={editedPermissions.formEditor} onValueChange={(v) => setEditedPermissions(p => ({...p, formEditor: v as any}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="read">Read Only</SelectItem>
+                                        <SelectItem value="write">Write</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Resources</Label>
+                                <Select value={editedPermissions.resources} onValueChange={(v) => setEditedPermissions(p => ({...p, resources: v as any}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="read">Read Only</SelectItem>
+                                        <SelectItem value="write">Write</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Company Settings</Label>
+                                <Select value={editedPermissions.companySettings} onValueChange={(v) => setEditedPermissions(p => ({...p, companySettings: v as any}))}>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="read">Read Only</SelectItem>
+                                        <SelectItem value="write">Write</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-base">Project Access</CardTitle><CardDescription className="text-xs">Control which projects this HR manager can see and manage users for.</CardDescription></CardHeader>
+                        <CardContent className="pt-4 space-y-2">
+                             {(company.projects || []).map(p => {
+                                const isAllSelected = projectAccess.length === 0 || projectAccess.includes('all');
+                                const isChecked = isAllSelected || projectAccess.includes(p.id);
+                                return (
+                                    <div key={p.id} className="flex items-center space-x-2">
+                                        <Checkbox id={`project-access-${p.id}`} checked={isChecked} onCheckedChange={(c) => handleProjectAccessChange(p.id, !!c)} />
+                                        <Label htmlFor={`project-access-${p.id}`} className="font-normal">{p.name}</Label>
+                                    </div>
+                                )
+                             })}
+                             <div className="flex items-center space-x-2">
+                                 <Checkbox id="project-access-unassigned" checked={projectAccess.length === 0 || projectAccess.includes('all') || projectAccess.includes('__none__')} onCheckedChange={(c) => handleProjectAccessChange('__none__', !!c)} />
+                                 <Label htmlFor="project-access-unassigned" className="font-normal flex items-center gap-1.5">
+                                    Unassigned Users
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                                            <TooltipContent><p>Users who are not allocated to a specific project or division.</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                 </Label>
+                             </div>
+                        </CardContent>
+                    </Card>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -286,6 +344,7 @@ export default function CompanyManagementPage() {
   const [editingCompany, setEditingCompany] = useState<CompanyAssignment | null>(null);
   const [editingManager, setEditingManager] = useState<HrManager | null>(null);
   const [isAddHrDialogOpen, setIsAddHrDialogOpen] = useState(false);
+  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
 
   const existingHrEmails = useMemo(() => {
     if (!companyAssignments) {
@@ -311,7 +370,7 @@ export default function CompanyManagementPage() {
     
     addCompanyAssignment({ 
         companyName: newCompanyName, 
-        hrManagers: [{email: newHrEmail, isPrimary: true, permissions: fullPermissions }],
+        hrManagers: [{email: newHrEmail, isPrimary: true, permissions: fullPermissions, projectAccess: ['all'] }],
         version: newCompanyVersion,
         maxUsers: maxUsersNum,
         severanceDeadlineTime: newDeadlineTime,
@@ -413,12 +472,12 @@ export default function CompanyManagementPage() {
 
     const handlePermissionsEdit = (manager: HrManager) => {
         setEditingManager(manager);
-        setIsEditDialogOpen(true);
+        setIsPermissionsDialogOpen(true);
     };
     
-    const handleSavePermissions = (email: string, permissions: HrPermissions) => {
+    const handleSavePermissions = (email: string, permissions: HrPermissions, projectAccess: string[]) => {
         if (!editingCompany) return;
-        updateCompanyAssignment(editingCompany.companyName, { hrManagerToUpdate: { email, permissions } });
+        updateCompanyAssignment(editingCompany.companyName, { hrManagerToUpdate: { email, permissions, projectAccess } });
         toast({ title: 'Permissions Updated', description: `Permissions for ${email} have been updated.`});
     };
 
@@ -802,10 +861,10 @@ export default function CompanyManagementPage() {
 
         {editingManager && editingCompany && (
             <PermissionsDialog 
-                open={isEditDialogOpen}
-                onOpenChange={setIsEditDialogOpen}
+                open={isPermissionsDialogOpen}
+                onOpenChange={setIsPermissionsDialogOpen}
                 manager={editingManager}
-                companyName={editingCompany.companyName}
+                company={editingCompany}
                 onSave={handleSavePermissions}
             />
         )}
