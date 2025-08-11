@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -28,7 +28,11 @@ export function ProjectAssignmentPopover({
     popoverContentWidth?: string;
 }) {
     const [open, setOpen] = useState(false);
-    const itemProjectIds = useMemo(() => initialProjectIds || item.projectIds || [], [item.projectIds, initialProjectIds]);
+    const [itemProjectIds, setItemProjectIds] = useState<string[]>([]);
+    
+    useEffect(() => {
+        setItemProjectIds(initialProjectIds || item.projectIds || []);
+    }, [initialProjectIds, item.projectIds, open]);
 
     const handleSelect = (projectId: string) => {
         const isSelected = itemProjectIds.includes(projectId);
@@ -46,6 +50,7 @@ export function ProjectAssignmentPopover({
         }
         
         onSave(item.id, item.typeLabel, newProjectIds);
+        setItemProjectIds(newProjectIds); // Update local state to reflect change immediately
     };
 
     const getDisplayText = () => {

@@ -433,7 +433,7 @@ export default function EditQuestionDialog({
             </DialogHeader>
 
             <div className="space-y-6 py-4">
-                <fieldset disabled={isSuggestionMode && !isCustomQuestion}>
+                <fieldset disabled={isSuggestionMode && !isCustomQuestion && !isAdmin}>
                     {isSuggestionMode && (
                         <Alert variant="default" className="border-blue-300 bg-blue-50 text-blue-800 mb-6">
                             <HelpCircle className="h-4 w-4 !text-blue-600"/>
@@ -552,12 +552,12 @@ export default function EditQuestionDialog({
                     <div className="space-y-2 py-4">
                         <Label>Project Visibility</Label>
                         <ProjectAssignmentPopover
-                            item={{ ...(currentQuestion as Question), typeLabel: 'Question' }}
+                            item={{ ...(currentQuestion as Question), typeLabel: 'Question', name: currentQuestion.label || 'New Question' }}
                             projects={activeProjects}
+                            initialProjectIds={currentQuestion.projectIds}
                             onSave={(itemId, itemType, projectIds) => {
                                 setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                             }}
-                            initialProjectIds={currentQuestion.projectIds}
                             includeUnassignedOption={true}
                             popoverContentWidth='w-full'
                         />
@@ -576,7 +576,7 @@ export default function EditQuestionDialog({
                                 : "Enter one option per line and map tasks/tips."
                             }
                         </p>
-                        {!isSuggestionMode && <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} rows={5}/>}
+                        {(!isSuggestionMode || isCustomQuestion) && <Textarea value={optionsText} onChange={(e) => setOptionsText(e.target.value)} rows={5}/>}
                     </div>
 
                     {isSuggestionMode && (
@@ -659,7 +659,7 @@ export default function EditQuestionDialog({
                     </div>
                 )}
 
-                {!isSuggestionMode && (
+                {(!isSuggestionMode || isCustomQuestion) && (
                     <Collapsible>
                         <CollapsibleTrigger asChild>
                             <Button variant="link" className="p-0 h-auto flex items-center gap-2">
