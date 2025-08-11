@@ -582,33 +582,22 @@ export function useUserData() {
         if (!userId || auth?.isPreview) {
             return;
         }
-
-        const { error } = await supabase.rpc('update_my_contact_info', {
-            new_personal_email: contactInfo.personal_email,
-            new_phone: contactInfo.phone,
-        });
-
-        if (error) {
-            console.error("Error updating contact info:", error);
+        
+        if (auth?.role === 'end-user') {
+            const { error } = await supabase.rpc('update_my_contact_info', {
+                new_personal_email: contactInfo.personal_email,
+                new_phone: contactInfo.phone,
+            });
+             if (error) {
+                console.error("Error updating contact info:", error);
+            }
         } else {
-             setCompanyConfigs(prev => {
-                const newConfigs = {...prev};
-                for (const companyName in newConfigs) {
-                    const company = newConfigs[companyName];
-                    if (company.users) {
-                        const userIndex = company.users.findIndex(u => u.id === userId);
-                        if (userIndex !== -1) {
-                            newConfigs[companyName].users![userIndex] = {
-                                ...newConfigs[companyName].users![userIndex],
-                                ...contactInfo
-                            };
-                        }
-                    }
-                }
-                return newConfigs;
-             });
+             const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
+            if (error) {
+                console.error("Error updating contact info:", error);
+            }
         }
-    }, [auth?.isPreview]);
+    }, [auth?.isPreview, auth?.role]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         setAssessmentData(data); // Optimistic update for all users
@@ -1021,6 +1010,14 @@ export function useUserData() {
                 if (projectConfig?.hiddenQuestions?.includes(id)) {
                     isCompanyActive = false;
                 }
+            } else if (forEndUser && !auth?.isPreview) { // For real end-users
+                const companyUser = getCompanyUser(auth?.email)?.user;
+                if (companyUser?.project_id) {
+                    const projectConfig = companyConfig?.projectConfigs?.[companyUser.project_id];
+                    if (projectConfig?.hiddenQuestions?.includes(id)) {
+                        isCompanyActive = false;
+                    }
+                }
             }
     
             if (!forEndUser || isCompanyActive) {
@@ -1053,20 +1050,36 @@ export function useUserData() {
         for(const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
             if(customQ.formType === formType && customQ.isActive) {
-                // In preview mode, filter custom questions by project ID
-                if (auth?.isPreview && auth.previewProjectId) {
-                    if (customQ.projectIds && customQ.projectIds.length > 0 && !customQ.projectIds.includes(auth.previewProjectId)) {
-                        continue; // Skip if it's assigned to other projects
+                
+                let isVisibleForProject = true;
+                const projectIds = customQ.projectIds || [];
+
+                if (projectIds.length > 0) {
+                    let targetProjectId: string | undefined | null = null;
+                    if(auth?.isPreview) {
+                        targetProjectId = auth.previewProjectId;
+                    } else if (forEndUser) {
+                        targetProjectId = getCompanyUser(auth?.email)?.user.project_id;
+                    }
+
+                    if (targetProjectId) {
+                        isVisibleForProject = projectIds.includes(targetProjectId);
+                    } else {
+                        // User is unassigned, check if __none__ is in the list
+                        isVisibleForProject = projectIds.includes('__none__');
                     }
                 }
-                finalQuestions.push({ ...customQ, isCustom: true });
+
+                if(isVisibleForProject) {
+                    finalQuestions.push({ ...customQ, isCustom: true });
+                }
             }
         }
     
         const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
         
         return questionTree;
-    }, [companyConfigs, masterQuestions, masterProfileQuestions, auth?.isPreview, auth?.previewProjectId]);
+    }, [companyConfigs, masterQuestions, masterProfileQuestions, auth, getCompanyUser]);
     
     
     const getCompanyUser = useMemo(() => (email: string | undefined) => {
@@ -1462,12 +1475,23 @@ export function useUserData() {
         updateCompanyUserContact,
         saveCompanyAssignments,
         isAssessmentComplete: !!assessmentData?.workStatus,
-        clearRecommendations: () => setRecommendations(null),
-        saveRecommendations: (recs: PersonalizedRecommendationsOutput) => setRecommendations(recs),
+        clearRecommendations: () => {
+            if (auth?.isPreview) return;
+            setRecommendations(null);
+        },
+        saveRecommendations: (recs: PersonalizedRecommendationsOutput) => {
+            if (auth?.isPreview) return;
+            setRecommendations(recs)
+        },
         toggleTaskCompletion: () => {},
         updateTaskDate: () => {},
         addCustomDeadline: () => {},
-        clearData: () => {},
+        clearData: () => {
+            if (!auth?.isPreview) return;
+            setProfileData(null);
+            setAssessmentData(null);
+            setRecommendations(null);
+        },
         getProfileCompletion,
         getAssessmentCompletion,
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
