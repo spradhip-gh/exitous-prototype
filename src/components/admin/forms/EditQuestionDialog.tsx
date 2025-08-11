@@ -28,6 +28,7 @@ import TipForm from '../tips/TipForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -167,21 +168,18 @@ function AnswerGuidanceForm({
         <div className="p-4 border rounded-md bg-muted/50 space-y-4">
              <div className="space-y-2">
                 <Label>Apply Guidance To Project</Label>
-                 <Select
-                    value={localGuidance.projectId || 'all'}
-                    onValueChange={(v) => setLocalGuidance(g => ({ ...g, projectId: v === 'all' ? undefined : v }))}
-                    disabled={!!guidance.projectId} // Can't change project once set
-                >
-                    <SelectTrigger>
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                         <SelectItem value="all">All Projects (Company Default)</SelectItem>
-                         {projects.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                 <RadioGroup value={localGuidance.projectId || 'all'} onValueChange={(v) => setLocalGuidance(g => ({...g, projectId: v === 'all' ? undefined : v}))} disabled={!!guidance.projectId}>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="all" id="guidance-all" />
+                        <Label htmlFor="guidance-all">All Projects (Company Default)</Label>
+                    </div>
+                    {projects.map(p => (
+                        <div key={p.id} className="flex items-center space-x-2">
+                            <RadioGroupItem value={p.id} id={`guidance-${p.id}`} />
+                            <Label htmlFor={`guidance-${p.id}`}>{p.name}</Label>
+                        </div>
+                    ))}
+                 </RadioGroup>
              </div>
              <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -289,7 +287,7 @@ function AnswerGuidanceDialog({
                                 <Server className="h-4 w-4" />
                                 <CardTitle className="text-base">Company Default</CardTitle>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance({})}>
+                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance(currentDefaultGuidance)}>
                                 <Pencil className="mr-2" /> Edit
                             </Button>
                         </CardHeader>
@@ -510,17 +508,23 @@ export default function EditQuestionDialog({
     }, []);
 
     const getGuidanceSummaryForAnswer = useCallback((answer: string) => {
-        let count = 0;
+        const summary: {scope: string, tasks: number, tips: number}[] = [];
+        
         const defaultGuidance = currentQuestion?.answerGuidance?.[answer];
         if (defaultGuidance && (defaultGuidance.noGuidanceRequired || (defaultGuidance.tasks && defaultGuidance.tasks.length > 0) || (defaultGuidance.tips && defaultGuidance.tips.length > 0))) {
-            count++;
+            summary.push({scope: 'Company Default', tasks: defaultGuidance.tasks?.length || 0, tips: defaultGuidance.tips?.length || 0});
         }
         const projectGuidances = currentQuestion?.projectAnswerGuidance?.[answer];
         if (projectGuidances) {
-            count += Object.values(projectGuidances).filter(g => g.noGuidanceRequired || (g.tasks && g.tasks.length > 0) || (g.tips && g.tips.length > 0)).length;
+             Object.entries(projectGuidances).forEach(([projectId, guidance]) => {
+                const project = projects.find(p => p.id === projectId);
+                if (project && (guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0))) {
+                    summary.push({scope: project.name, tasks: guidance.tasks?.length || 0, tips: guidance.tips?.length || 0});
+                }
+            });
         }
-        return count;
-    }, [currentQuestion?.answerGuidance, currentQuestion?.projectAnswerGuidance]);
+        return summary;
+    }, [currentQuestion?.answerGuidance, currentQuestion?.projectAnswerGuidance, projects]);
 
     const handleAddNewOption = () => {
         if (newOption && !currentOptions.includes(newOption)) {
@@ -778,7 +782,7 @@ export default function EditQuestionDialog({
                             const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
                             const isRemovalSuggested = suggestedRemovals.includes(option);
                             const isCompanyAddition = companyAddedOptions.has(option);
-                            const guidanceCount = getGuidanceSummaryForAnswer(option);
+                            const guidanceSummary = getGuidanceSummaryForAnswer(option);
                             return (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`guidance-${option}`} className={cn("font-normal flex items-center gap-2", isRemovalSuggested && "line-through text-destructive")}>
@@ -786,9 +790,24 @@ export default function EditQuestionDialog({
                                         {option}
                                     </Label>
                                     <div className="flex items-center gap-2">
-                                        <Button variant={guidanceCount > 0 ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                            <Settings className="mr-2"/> Manage Guidance {guidanceCount > 0 && <Badge variant="default" className="ml-2">{guidanceCount}</Badge>}
-                                        </Button>
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant={guidanceSummary.length > 0 ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                                        <Settings className="mr-2"/> Manage Guidance {guidanceSummary.length > 0 && <Badge variant="default" className="ml-2">{guidanceSummary.length}</Badge>}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                {guidanceSummary.length > 0 && (
+                                                    <TooltipContent>
+                                                        <div className="space-y-1 p-1 text-xs">
+                                                            {guidanceSummary.map(g => (
+                                                                <p key={g.scope}><strong>{g.scope}:</strong> {g.tasks} tasks, {g.tips} tips</p>
+                                                            ))}
+                                                        </div>
+                                                    </TooltipContent>
+                                                )}
+                                            </Tooltip>
+                                        </TooltipProvider>
                                         {isSuggestionMode && isMasterOption && (
                                              <Button variant="ghost" size="icon" className={cn("h-8 w-8", isRemovalSuggested ? "text-primary" : "text-destructive")} onClick={() => handleToggleRemovalSuggestion(option)}>
                                                 <Trash2 />
