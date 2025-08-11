@@ -189,13 +189,13 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
                     ) : users.length > 0 ? users.map(user => {
                         const notifyDisabled = isNotifyDisabled(user);
                         const isSelectionDisabled = user.is_invited || !canInvite;
-                        const projectName = companyAssignmentForHr?.projects?.find(p => p.id === user.project_id)?.name || 'N/A';
+                        const projectName = companyAssignmentForHr?.projects?.find(p => p.id === user.project_id)?.name;
                         return (
                             <TableRow key={user.id} data-selected={selectedUsers.has(user.email)} className={cn(user.is_invited && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell><Checkbox checked={selectedUsers.has(user.email)} onCheckedChange={() => handleToggleSelection(user.email)} aria-label={`Select ${user.email}`} disabled={isSelectionDisabled}/></TableCell>
                                 <TableCell className="font-medium">{user.email}</TableCell>
                                 <TableCell>{user.company_user_id}</TableCell>
-                                <TableCell>{projectName}</TableCell>
+                                <TableCell>{projectName || 'N/A'}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
                                         <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>

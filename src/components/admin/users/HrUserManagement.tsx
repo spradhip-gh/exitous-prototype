@@ -68,6 +68,7 @@ export default function HrUserManagement() {
     const [newPersonalEmail, setNewPersonalEmail] = useState("");
     const [newProjectId, setNewProjectId] = useState<string | undefined>();
     const [newNotificationDate, setNewNotificationDate] = useState<Date | undefined>();
+    const [bulkUploadProjectId, setBulkUploadProjectId] = useState<string>('none');
 
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
 
@@ -196,7 +197,7 @@ export default function HrUserManagement() {
             email: newUserEmail, 
             company_user_id: newCompanyId,
             personal_email: newPersonalEmail || undefined,
-            project_id: newProjectId || undefined,
+            project_id: newProjectId === 'none' ? undefined : newProjectId,
             notification_date: format(newNotificationDate, 'yyyy-MM-dd'),
             is_invited: false,
         };
@@ -212,12 +213,11 @@ export default function HrUserManagement() {
         }
     }, [newUserEmail, newCompanyId, newPersonalEmail, newProjectId, newNotificationDate, addUser, toast]);
 
-    const processCsvRow = useCallback((row: any): { userFromCsv?: Partial<CompanyUser>, error?: string } => {
+    const processCsvRow = useCallback((row: any, assignedProjectId: string | undefined): { userFromCsv?: Partial<CompanyUser>, error?: string } => {
         const email = String(row["email"] || '').trim();
         const companyId = String(row["companyId"] || '').trim();
         const notificationDateStr = String(row["notificationDate"] || '').trim();
-        const projectName = String(row["project"] || '').trim();
-
+        
         if (!email) return { error: "A row was skipped because the 'email' field was missing." };
         if (!companyId) return { error: `Row for ${email} skipped. Reason: Missing companyId.` };
         if (!notificationDateStr) return { error: `Row for ${email} skipped. Reason: Missing notificationDate.` };
@@ -225,12 +225,6 @@ export default function HrUserManagement() {
         const notificationDate = parseDateFromCsv(notificationDateStr);
         if (!notificationDate) return { error: `Invalid date format for ${email}. Date must be YYYY-MM-DD.` };
         
-        let projectId: string | undefined = undefined;
-        if (projectName) {
-            projectId = companyAssignmentForHr?.projects?.find(p => p.name.toLowerCase() === projectName.toLowerCase())?.id;
-            if (!projectId) return { error: `Project "${projectName}" not found for user ${email}.` };
-        }
-
         const optionalFields: (keyof CompanyUser['prefilled_assessment_data'])[] = ['finalDate', 'severanceAgreementDeadline', 'medicalCoverageEndDate', 'dentalCoverageEndDate', 'visionCoverageEndDate', 'eapCoverageEndDate'];
         const prefilledData: any = {};
         
@@ -250,13 +244,13 @@ export default function HrUserManagement() {
             email,
             company_user_id: companyId,
             personal_email: String(row["personalEmail"] || '').trim() || undefined,
-            project_id: projectId,
+            project_id: assignedProjectId,
             notification_date: format(notificationDate, 'yyyy-MM-dd'),
             is_invited: false,
             prefilled_assessment_data: Object.keys(prefilledData).length > 0 ? prefilledData : undefined
         };
         return { userFromCsv };
-    }, [companyAssignmentForHr]);
+    }, []);
 
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -278,8 +272,10 @@ export default function HrUserManagement() {
                 let toAdd: Partial<CompanyUser>[] = [];
                 let toUpdate: Partial<CompanyUser>[] = [];
 
+                const projectIdForUpload = bulkUploadProjectId === 'none' ? undefined : bulkUploadProjectId;
+
                 for (const row of jsonData as any[]) {
-                    const { userFromCsv, error } = processCsvRow(row);
+                    const { userFromCsv, error } = processCsvRow(row, projectIdForUpload);
                     if (error) {
                         toast({ title: "Skipping Row", description: error, variant: "destructive" });
                         continue;
@@ -325,7 +321,7 @@ export default function HrUserManagement() {
         reader.readAsBinaryString(file);
         
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [companyName, companyAssignmentForHr, toast, users, processCsvRow]);
+    }, [companyName, companyAssignmentForHr, toast, users, processCsvRow, bulkUploadProjectId]);
 
 
     const handleDownloadTemplate = useCallback(() => {
@@ -333,7 +329,6 @@ export default function HrUserManagement() {
             { Column: "email", Required: "Yes", Description: "The employee's work email address. This is used for login and must be unique per company." },
             { Column: "companyId", Required: "Yes", Description: "The employee's unique ID within your company's system (e.g., employee number)." },
             { Column: "notificationDate", Required: "Yes", Description: "The date the employee was notified of their exit. Must be in YYYY-MM-DD format." },
-            { Column: "project", Required: "No", Description: "The exact name of the project/division to assign this user to. Must match an existing project." },
             { Column: "personalEmail", Required: "No", Description: "A personal email for post-exit communication." },
             { Column: "finalDate", Required: "No", Description: "The employee's last day of employment. Must be in YYYY-MM-DD format." },
             { Column: "severanceAgreementDeadline", Required: "No", Description: "The deadline to sign the severance agreement. Must be in YYYY-MM-DD format." },
@@ -349,7 +344,6 @@ export default function HrUserManagement() {
             email: "user@company.com",
             companyId: "EMP123",
             notificationDate: "2025-12-31",
-            project: "Project Alpha",
             personalEmail: "user@personal.com",
             finalDate: "2026-01-31",
             severanceAgreementDeadline: "2026-02-15",
@@ -475,9 +469,24 @@ export default function HrUserManagement() {
                          <fieldset disabled={!canUpload}>
                             <div className="space-y-2">
                                 <Label>Bulk Upload User Data</Label>
-                                <p className="text-sm text-muted-foreground">Upload an Excel file. This will add new users or update existing, non-invited users.</p>
+                                <p className="text-sm text-muted-foreground">Assign all users in a file to a specific project. This will update existing, non-invited users, and add new ones.</p>
                                 <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload File</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
+                                <div className="flex items-center gap-4">
+                                     <div className="space-y-2">
+                                        <Label htmlFor="bulkUploadProjectId" className="text-xs">Project Assignment</Label>
+                                        <Select value={bulkUploadProjectId} onValueChange={setBulkUploadProjectId}>
+                                            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None (Company-wide)</SelectItem>
+                                                {visibleProjectsForAdd.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-center gap-2 self-end">
+                                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload File</Button>
+                                        <Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button>
+                                    </div>
+                                </div>
                             </div>
                         </fieldset>
                     </CardFooter>
