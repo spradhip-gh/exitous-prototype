@@ -641,14 +641,14 @@ export default function EditQuestionDialog({
              {currentQuestion.isCustom && (
                 <div className="space-y-2 pt-4">
                     <Label>Project Visibility</Label>
-                     <ProjectAssignmentPopover
+                    <ProjectAssignmentPopover
                         item={{ ...currentQuestion, typeLabel: 'Question' }}
                         projects={projects}
                         onSave={(itemId, itemType, projectIds) => {
                             setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
                         }}
                     />
-                     <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
+                    <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
                 </div>
             )}
 
