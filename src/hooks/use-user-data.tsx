@@ -584,45 +584,37 @@ export function useUserData() {
     
     const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
         if (!userId || auth?.isPreview) return;
-        
-        if (auth?.role === 'end-user') {
-            const { error } = await supabase.rpc('update_my_contact_info', {
-                new_personal_email: contactInfo.personal_email,
-                new_phone: contactInfo.phone,
-            });
-             if (error) {
-                console.error("Error updating contact info:", error);
-            }
+
+        const userToUpdate = Object.values(companyConfigs).flatMap(c => c.users || []).find(u => u.id === userId);
+        if (!userToUpdate) {
+            console.error("Could not find user to update contact info for.");
+            return;
+        }
+
+        const { error } = await supabase.from('company_users').upsert({
+            id: userId,
+            email: userToUpdate.email,
+            company_user_id: userToUpdate.company_user_id,
+            ...contactInfo
+        });
+
+        if (error) {
+            console.error("Error updating contact info:", error);
         } else {
-            const userToUpdate = Object.values(companyConfigs).flatMap(c => c.users || []).find(u => u.id === userId);
-            if (!userToUpdate) {
-                console.error("Could not find user to update contact info for.");
-                return;
-            }
-             const { error } = await supabase.from('company_users').upsert({
-                id: userId,
-                email: userToUpdate.email, // Required field
-                company_user_id: userToUpdate.company_user_id, // Required field
-                ...contactInfo
-            });
-            if (error) {
-                console.error("Error updating contact info:", error);
-            } else {
-                 setCompanyConfigs(prev => {
-                    const newConfigs = {...prev};
-                    for (const companyName in newConfigs) {
-                        const userIndex = newConfigs[companyName].users?.findIndex(u => u.id === userId);
-                        if(userIndex !== -1 && newConfigs[companyName].users) {
-                            newConfigs[companyName].users![userIndex] = {
-                                ...newConfigs[companyName].users![userIndex],
-                                ...contactInfo
-                            };
-                            break;
-                        }
+            setCompanyConfigs(prev => {
+                const newConfigs = {...prev};
+                for (const companyName in newConfigs) {
+                    const userIndex = newConfigs[companyName].users?.findIndex(u => u.id === userId);
+                    if(userIndex !== -1 && newConfigs[companyName].users) {
+                        newConfigs[companyName].users![userIndex] = {
+                            ...newConfigs[companyName].users![userIndex],
+                            ...contactInfo
+                        };
+                        break;
                     }
-                    return newConfigs;
-                });
-            }
+                }
+                return newConfigs;
+            });
         }
     }, [auth, companyConfigs]);
 
