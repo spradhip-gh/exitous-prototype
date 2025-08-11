@@ -944,7 +944,6 @@ export function useUserData() {
     }, []);
 
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
-        // This function is complex. It needs to figure out what was added, updated, or removed.
         const allCurrentAssignments = companyAssignments || [];
         const toUpsert: any[] = [];
         const toDelete: { company_id: string; hr_email: string }[] = [];
@@ -953,7 +952,6 @@ export function useUserData() {
             const updatedAssignment = assignmentsToSave.find(a => a.companyId === currentAssignment.companyId);
             
             for (const currentManager of currentAssignment.hrManagers) {
-                // If a manager that existed before is no longer in the updated list for that company, mark for deletion.
                 const managerStillExists = updatedAssignment?.hrManagers.some(hr => hr.email === currentManager.email);
                 if (!managerStillExists) {
                     toDelete.push({ company_id: currentAssignment.companyId, hr_email: currentManager.email });
@@ -968,6 +966,7 @@ export function useUserData() {
                     hr_email: updatedManager.email,
                     is_primary: updatedManager.isPrimary,
                     permissions: updatedManager.permissions,
+                    project_access: updatedManager.projectAccess,
                 });
             }
         }
@@ -1453,6 +1452,7 @@ export function useUserData() {
         saveCompanyProjects,
     };
 }
+
 
 
 

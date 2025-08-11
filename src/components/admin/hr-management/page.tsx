@@ -187,7 +187,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
-                                const projectOptions = assignment.projects?.map(p => ({ id: p.id, name: p.name, category: 'Projects' })) || [];
+                                const projectOptions = assignment.projects?.filter(p => !p.isArchived) || [];
                                 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -296,7 +296,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                     </div>
                                                     <div className="col-span-2">
                                                         <ProjectAssignmentPopover
-                                                            item={{id: manager.email, typeLabel: 'User' as any}}
+                                                            item={{id: manager.email, typeLabel: 'User' as any, name: manager.email}}
                                                             projects={projectOptions}
                                                             initialProjectIds={manager.projectAccess}
                                                             onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(assignment.companyName, projectIds)}
@@ -475,7 +475,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                             const isAssigned = !!assignments[company.companyName];
                             const isPrimary = isAssigned && assignments[company.companyName].isPrimary;
                             const currentPrimaryEmail = allAssignments.find(a => a.companyName === company.companyName)?.hrManagers.find(m => m.isPrimary)?.email;
-                            const projectOptions = company.projects?.map(p => ({ id: p.id, name: p.name, category: 'Projects' })) || [];
+                            const projectOptions = company.projects?.filter(p => !p.isArchived) || [];
 
 
                             return (
@@ -572,7 +572,7 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                                                     </div>
                                                      <div className="col-span-2">
                                                         <ProjectAssignmentPopover
-                                                            item={{id: email, typeLabel: 'User' as any}}
+                                                            item={{id: email, typeLabel: 'User' as any, name: email}}
                                                             projects={projectOptions}
                                                             initialProjectIds={assignments[company.companyName].projectAccess}
                                                             onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(company.companyName, projectIds)}
@@ -634,7 +634,7 @@ export default function HrManagementPage() {
 
         return {
             manageableHrs: Array.from(managers.values()),
-            managedCompanies,
+            managedCompanies: companiesWherePrimary,
         };
     }, [companyAssignments, auth]);
     
