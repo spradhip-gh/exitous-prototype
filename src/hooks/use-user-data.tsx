@@ -586,21 +586,26 @@ export function useUserData() {
         if (!userId || auth?.isPreview) return;
 
         const userToUpdate = Object.values(companyConfigs).flatMap(c => c.users || []).find(u => u.id === userId);
+        
         if (!userToUpdate) {
             console.error("Could not find user to update contact info for.");
             return;
         }
 
-        const { error } = await supabase.from('company_users').upsert({
+        // Always include email and company_user_id to satisfy constraints
+        const payload = {
             id: userId,
             email: userToUpdate.email,
             company_user_id: userToUpdate.company_user_id,
             ...contactInfo
-        });
+        };
 
+        const { error } = await supabase.from('company_users').upsert(payload);
+        
         if (error) {
             console.error("Error updating contact info:", error);
         } else {
+            // Optimistically update local state
             setCompanyConfigs(prev => {
                 const newConfigs = {...prev};
                 for (const companyName in newConfigs) {
@@ -1038,6 +1043,12 @@ export function useUserData() {
                 if (companyUser?.project_id) {
                     const projectConfig = companyConfig?.projectConfigs?.[companyUser.project_id];
                     if (projectConfig?.hiddenQuestions?.includes(id)) {
+                        isCompanyActive = false;
+                    }
+                } else {
+                    // Handle unassigned users
+                    const projectConfig = companyConfig?.projectConfigs?.['__none__'];
+                     if (projectConfig?.hiddenQuestions?.includes(id)) {
                         isCompanyActive = false;
                     }
                 }
