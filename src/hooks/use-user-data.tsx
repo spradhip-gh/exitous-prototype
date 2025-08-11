@@ -554,13 +554,11 @@ export function useUserData() {
     }, [auth?.userId, auth?.role]);
     
     const saveProfileData = useCallback(async (data: ProfileData) => {
-        if (!auth?.userId) return;
-        if (auth.isPreview) {
-            setProfileData(data);
+        setProfileData(data); // Optimistic update for all users
+        if (auth?.isPreview || !auth?.userId) {
             return;
         }
 
-        setProfileData(data); // Optimistic update
         const { error: userError } = await supabase
             .from('company_users')
             .update({ profile_completed_at: new Date().toISOString() })
@@ -581,10 +579,7 @@ export function useUserData() {
     }, [auth?.userId, auth?.isPreview]);
     
     const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
-        if (!userId) return;
-        if (auth?.isPreview) { // Added preview check
-            // In preview, just update local state if needed, or do nothing.
-            // This part might need more logic depending on how previews should work for this.
+        if (!userId || auth?.isPreview) {
             return;
         }
 
@@ -616,12 +611,10 @@ export function useUserData() {
     }, [auth?.isPreview]);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
-        if (!auth?.userId) return;
-        if (auth.isPreview) {
-            setAssessmentData(data);
+        setAssessmentData(data); // Optimistic update for all users
+        if (auth?.isPreview || !auth?.userId) {
             return;
         }
-        setAssessmentData(data); // Optimistic update
     
         const { data: companyUser, error: userError } = await supabase
             .from('company_users')
