@@ -169,6 +169,13 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               {companyName}
             </h2>
             <div className="space-y-1">
+               <Link href="/admin/settings">
+                <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
+                  <Settings className="mr-2" />
+                  Company Settings
+                  {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                </Button>
+              </Link>
               <Link href="/admin/users">
                 <Button variant={getVariant('/admin/users')} className="w-full justify-start">
                   <Users className="mr-2" />
@@ -204,13 +211,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                 <Button variant={getVariant('/admin/analytics')} className="w-full justify-start">
                   <BarChart className="mr-2" />
                   Analytics
-                </Button>
-              </Link>
-               <Link href="/admin/settings">
-                <Button variant={getVariant('/admin/settings')} className="w-full justify-start relative">
-                  <Settings className="mr-2" />
-                  Company Settings
-                  {!companySettingsComplete && <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
                 </Button>
               </Link>
             </div>
