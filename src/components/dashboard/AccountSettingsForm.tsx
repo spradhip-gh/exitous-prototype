@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,45 +16,74 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 import { accountSettingsSchema } from '@/lib/schemas';
+import { useEffect, useMemo, useState } from 'react';
 
 type AccountSettingsFormData = z.infer<typeof accountSettingsSchema>;
 
 export default function AccountSettingsForm() {
   const { auth } = useAuth();
-  const { profileData, saveProfileData } = useUserData();
+  const { profileData, getCompanyUser, updateCompanyUserContact, isLoading } = useUserData();
   const { toast } = useToast();
+  
+  const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth, getCompanyUser]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true)
+  }, []);
 
   const form = useForm<AccountSettingsFormData>({
     resolver: zodResolver(accountSettingsSchema),
     defaultValues: {
-      personalEmail: profileData?.personalEmail || '',
-      phone: profileData?.phone || '',
-      notificationEmail: profileData?.notificationEmail || auth?.email,
+      personalEmail: '',
+      phone: '',
+      notificationEmail: '',
       notificationSettings: {
-        email: {
-          all: profileData?.notificationSettings?.email?.all ?? true,
-          taskReminders: profileData?.notificationSettings?.email?.taskReminders ?? false,
-          unsureReminders: profileData?.notificationSettings?.email?.unsureReminders ?? false,
-          criticalDateReminders: profileData?.notificationSettings?.email?.criticalDateReminders ?? false,
-        },
-        sms: {
-          all: profileData?.notificationSettings?.sms?.all ?? false,
-          taskReminders: profileData?.notificationSettings?.sms?.taskReminders ?? false,
-          unsureReminders: profileData?.notificationSettings?.sms?.unsureReminders ?? false,
-          criticalDateReminders: profileData?.notificationSettings?.sms?.criticalDateReminders ?? false,
-        },
+        email: { all: true },
+        sms: { all: false },
       },
     },
   });
+  
+  const { reset } = form;
 
-  function onSubmit(data: AccountSettingsFormData) {
-    if (!profileData) {
-        toast({ title: 'Profile not found', description: 'Please complete your profile first.', variant: 'destructive'});
+  useEffect(() => {
+      if (!isClient || !auth || !companyUser) return;
+        
+      const personalEmail = companyUser?.user.personal_email || '';
+      const phone = companyUser?.user.phone || '';
+      const notificationEmail = profileData?.notificationEmail || personalEmail || auth.email;
+
+      reset({
+          personalEmail: personalEmail,
+          phone: phone,
+          notificationEmail: notificationEmail,
+          notificationSettings: profileData?.notificationSettings || {
+              email: { all: true },
+              sms: { all: false },
+          },
+      });
+
+  }, [companyUser, profileData, auth?.email, reset, isClient, auth]);
+
+  async function onSubmit(data: AccountSettingsFormData) {
+    if (!companyUser?.user.id || !profileData) {
+        toast({ title: 'Profile not found', description: "Complete your profile before managing settings.", variant: 'destructive'});
         return;
     }
+    
+    // Update contact info in company_users
+    await updateCompanyUserContact(companyUser.user.id, {
+        personal_email: data.personalEmail,
+        phone: data.phone,
+    });
 
-    const updatedProfile = { ...profileData, ...data };
-    saveProfileData(updatedProfile);
+    // Update notification settings in user_profiles
+    await useUserData().saveProfileData({
+        ...profileData,
+        notificationEmail: data.notificationEmail,
+        notificationSettings: data.notificationSettings,
+    });
 
     toast({
       title: 'Settings Saved',
@@ -61,10 +91,12 @@ export default function AccountSettingsForm() {
     });
   }
 
-  const emailOptions = [auth?.email];
-  if(profileData?.personalEmail) {
-    emailOptions.push(profileData.personalEmail);
-  }
+  const emailOptions = useMemo(() => {
+    const options = new Set<string>();
+    if (auth?.email) options.add(auth.email);
+    if (companyUser?.user.personal_email) options.add(companyUser.user.personal_email);
+    return Array.from(options).filter(Boolean);
+  }, [auth?.email, companyUser]);
 
   return (
     <Form {...form}>
@@ -72,7 +104,7 @@ export default function AccountSettingsForm() {
         <Card>
             <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
-                <CardDescription>Manage the contact details we use to communicate with you.</CardDescription>
+                <CardDescription>This is where we'll send important updates after your access to work systems ends.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                  <FormField
@@ -84,7 +116,6 @@ export default function AccountSettingsForm() {
                         <FormControl>
                             <Input placeholder="your.name@personal.com" {...field} />
                         </FormControl>
-                         <FormDescription>This is where we'll send important updates after your access to your work email ends.</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -94,10 +125,11 @@ export default function AccountSettingsForm() {
                     name="phone"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Phone Number (for SMS alerts)</FormLabel>
+                        <FormLabel>Phone Number</FormLabel>
                         <FormControl>
                             <Input placeholder="(555) 123-4567" {...field} />
                         </FormControl>
+                        <FormDescription>Used for critical SMS alerts if you opt-in.</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -116,7 +148,7 @@ export default function AccountSettingsForm() {
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Send Notifications To</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select an email" />

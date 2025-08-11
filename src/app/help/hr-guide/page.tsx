@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Key, Users, Users2 } from "lucide-react";
+import { Info, Key, Users, Users2, BarChart } from "lucide-react";
 
 export default function HrManagerGuidePage() {
     return (
@@ -27,7 +27,7 @@ export default function HrManagerGuidePage() {
                     </p>
                     <ul>
                         <li><strong>Adding Users Manually:</strong> <em>(Requires Write permission).</em> Use the "Add New User" form to add employees one by one. You must provide their Work Email, Company ID, and Notification Date.</li>
-                        <li><strong>Bulk Upload via CSV:</strong> <em>(Requires Write & Upload permission).</em> For adding multiple users at once, download the template to see all available columns. You can pre-fill key assessment dates and even custom contact aliases for individual users to override the company defaults.</li>
+                        <li><strong>Bulk Upload via Excel:</strong> <em>(Requires Write & Upload permission).</em> For adding multiple users at once, download the Excel template. It includes a tab with detailed instructions for each column and a separate tab for you to fill in with your user data. You can pre-fill key assessment dates and even custom contact aliases for individual users to override the company defaults.</li>
                         <li><strong>Sending Invitations:</strong> Users can only log in after their "Notification Date" has passed and an invitation has been sent. You can send invitations individually or in bulk.</li>
                     </ul>
 
@@ -48,6 +48,11 @@ export default function HrManagerGuidePage() {
                         <li><strong>My Suggestions:</strong> This tab shows a history of all the suggestions you've submitted for review and their current status (Pending, Approved, or Rejected).</li>
                     </ul>
                     
+                    <h2><BarChart className="inline-block -mt-1 mr-2" /> Analytics</h2>
+                    <p>
+                        The analytics page provides insights into your employees' initial assessment responses. It highlights the questions that were most frequently answered with "I'm not sure," helping you identify areas where communication or the questions themselves could be clearer.
+                    </p>
+
                     <h2>Company Resources & Settings</h2>
                     <h3>Resources</h3>
                     <p>

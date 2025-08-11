@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildAssessmentSchema, type AssessmentData } from '@/lib/schemas';
-import { useUserData } from '@/hooks/use-user-data';
+import { useUserData, CompanyConfig } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
@@ -29,7 +30,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { CalendarIcon, Info, Star } from 'lucide-react';
+import { CalendarIcon, Info, Star, Bug, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
 
 
 const safeFormatDate = (value: any, formatString: string) => {
@@ -261,10 +263,16 @@ const QuestionRenderer = ({ question, form, companyName, companyDeadline }: { qu
 };
 
 
-function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: AssessmentData, profileData: any }) {
+function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profileData, companyConfig }: { 
+    questions: Question[], 
+    dynamicSchema: z.ZodObject<any>, 
+    initialData: AssessmentData, 
+    profileData: any,
+    companyConfig: CompanyConfig | null,
+}) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { saveAssessmentData, companyAssignments, getTargetTimezone } = useUserData();
+    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig, clearRecommendations } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -358,6 +366,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     function onSubmit(data: AssessmentData) {
         const isEditingSection = searchParams.has('section');
         saveAssessmentData({ ...data, companyName: auth?.companyName });
+        clearRecommendations(); // Clear AI recommendations on save
         setIsDirty(false);
         // If editing, go back to review page. Otherwise, go to dashboard timeline.
         router.push(isEditingSection ? '/dashboard/assessment' : '/dashboard');
@@ -381,6 +390,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     const handleSaveForLater = () => {
         const data = getValues();
         saveAssessmentData({ ...data, companyName: auth?.companyName });
+        clearRecommendations();
         setIsDirty(false);
         toast({
             title: "Progress Saved",
@@ -392,10 +402,11 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     const companyName = auth?.companyName || "your previous company";
     const editingSection = searchParams.get('section');
 
-    const groupedQuestions = useMemo(() => {
-        const sections: Record<string, Question[]> = {};
+    const orderedSections = useMemo(() => {
+        const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig('assessment');
+        const sectionOrder = masterConfig?.section_order || [];
         
-        // If editing a specific section, only include that section's questions.
         const questionsToProcess = editingSection 
             ? questions.filter(q => q.section === editingSection)
             : questions;
@@ -403,26 +414,41 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
         questionsToProcess.forEach(q => {
             if (q.parentId) return;
 
-            // Handle cross-form dependencies
-            if(q.dependsOn && q.dependencySource === 'profile' && profileData) {
+            if (q.dependsOn && q.dependencySource === 'profile' && profileData) {
                 const dependencyValue = profileData[q.dependsOn as keyof typeof profileData];
                 let isTriggered = false;
-                if(Array.isArray(q.dependsOnValue)) {
+                if (Array.isArray(q.dependsOnValue)) {
                     isTriggered = q.dependsOnValue.includes(dependencyValue as string);
                 } else {
                     isTriggered = dependencyValue === q.dependsOnValue;
                 }
-                if(!isTriggered) return; // Don't render the question if dependency not met
+                if (!isTriggered) return;
             }
             
             const sectionName = q.section || "Uncategorized";
-            if (!sections[sectionName]) {
-                sections[sectionName] = [];
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
             }
-            sections[sectionName].push(q);
+            sectionsMap[sectionName].push(q);
         });
-        return sections;
-    }, [questions, profileData, editingSection]);
+        
+        // Add custom sections to the order if they don't exist
+        const masterSectionSet = new Set(sectionOrder);
+        Object.keys(sectionsMap).forEach(sectionName => {
+            if (!masterSectionSet.has(sectionName)) {
+                sectionOrder.push(sectionName);
+                masterSectionSet.add(sectionName);
+            }
+        });
+
+        return sectionOrder
+            .map(sectionName => ({
+                name: sectionName,
+                questions: sectionsMap[sectionName]?.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            }))
+            .filter(section => section.questions && section.questions.length > 0);
+
+    }, [questions, profileData, editingSection, getMasterQuestionConfig]);
     
      useEffect(() => {
         const section = searchParams.get('section');
@@ -450,7 +476,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                 </div>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                        {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+                        {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
                             <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
                                 <CardHeader>
                                     <CardTitle>{section}</CardTitle>
@@ -488,13 +514,58 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                         }
                     </form>
                 </Form>
+                {process.env.NODE_ENV !== 'production' && (
+                     <Collapsible>
+                        <Card className="border-destructive">
+                             <CollapsibleTrigger asChild>
+                                <CardHeader className="cursor-pointer">
+                                    <CardTitle className="flex items-center justify-between">
+                                        <span className="flex items-center gap-2">
+                                            <Bug className="text-destructive" />
+                                            Assessment Debug Info
+                                        </span>
+                                        <ChevronDown className="h-4 w-4" />
+                                    </CardTitle>
+                                </CardHeader>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <CardContent>
+                                     <Collapsible className="mt-2">
+                                        <CollapsibleTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto">
+                                                Show Custom Questions from Config <ChevronDown className="ml-1 h-4 w-4"/>
+                                            </Button>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                            <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
+                                                {JSON.stringify(companyConfig?.customQuestions, null, 2)}
+                                            </pre>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                     <Collapsible className="mt-2">
+                                        <CollapsibleTrigger asChild>
+                                            <Button variant="link" className="p-0 h-auto">
+                                                Show Final Merged Question List ({questions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
+                                            </Button>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                            <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                                {questions.map(q => <li key={q.id}>{q.label} ({q.id}) {q.isCustom && <strong className="text-amber-600">CUSTOM</strong>}</li>)}
+                                            </ul>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                </CardContent>
+                            </CollapsibleContent>
+                        </Card>
+                    </Collapsible>
+                )}
             </div>
         </div>
     );
 }
 
 export default function AssessmentFormWrapper() {
-    const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData, profileData } = useUserData();
+    const { getCompanyConfig, isLoading: isUserDataLoading, assessmentData, profileData, getAllCompanyConfigs } = useUserData();
     const { auth } = useAuth();
     
     const [questions, setQuestions] = useState<Question[] | null>(null);
@@ -502,10 +573,11 @@ export default function AssessmentFormWrapper() {
     const [isLoading, setIsLoading] = useState(true);
     
     const initialData = useMemo(() => assessmentData, [assessmentData]);
+    const companyConfig = useMemo(() => auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null, [auth?.companyName, getAllCompanyConfigs]);
 
     useEffect(() => {
         if (!isUserDataLoading && auth?.companyName) {
-            const companyQuestions = getCompanyConfig(auth.companyName, true);
+            const companyQuestions = getCompanyConfig(auth.companyName, true, 'assessment');
             setQuestions(companyQuestions);
             setDynamicSchema(buildAssessmentSchema(companyQuestions, profileData));
             setIsLoading(false);
@@ -532,5 +604,5 @@ export default function AssessmentFormWrapper() {
         )
     }
 
-    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} />;
+    return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} companyConfig={companyConfig} />;
 }

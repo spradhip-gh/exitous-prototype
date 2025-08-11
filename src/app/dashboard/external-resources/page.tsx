@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Suspense, useState, useEffect, useMemo } from 'react';
@@ -19,12 +20,13 @@ const categories = ["Finances", "Legal", "Career", "Well-being"];
 
 const ResourceCard = ({ resource, companyVersion }: { resource: ExternalResource; companyVersion: 'basic' | 'pro' }) => {
     const offerText = companyVersion === 'pro' ? resource.proOffer : resource.basicOffer;
+    const imageUrl = resource.imageUrl || 'https://placehold.co/600x400.png';
     
     return (
         <Card className="flex flex-col h-full overflow-hidden shadow-lg transition-transform hover:scale-105 group">
             <div className="relative h-40 w-full">
                 <Image
-                    src={resource.imageUrl}
+                    src={imageUrl}
                     alt={resource.name}
                     fill
                     className="object-cover"

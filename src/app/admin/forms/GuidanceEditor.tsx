@@ -85,18 +85,23 @@ export default function GuidanceEditor({ questions, guidanceRules, saveGuidanceR
         const counts: Record<string, { mapped: number, total: number }> = {};
         questions.forEach(q => {
             if (q.options && q.options.length > 0) {
-                const mappedAnswers = new Set<string>();
-                guidanceRules.forEach(rule => {
-                    const isRelevantDirectRule = rule.type === 'direct' && rule.questionId === q.id;
-                    if (isRelevantDirectRule) {
+                const rulesForQuestion = guidanceRules.filter(rule => rule.questionId === q.id && rule.type === 'direct');
+                const catchAllRule = rulesForQuestion.find(rule => rule.conditions.some(c => c.answer === undefined));
+                
+                if (catchAllRule) {
+                    // If a catch-all exists, all options are considered mapped.
+                    counts[q.id] = { mapped: q.options.length, total: q.options.length };
+                } else {
+                    const mappedAnswers = new Set<string>();
+                    rulesForQuestion.forEach(rule => {
                         rule.conditions.forEach(c => {
                             if (c.answer) {
                                 mappedAnswers.add(c.answer);
                             }
                         });
-                    }
-                });
-                counts[q.id] = { mapped: mappedAnswers.size, total: q.options.length };
+                    });
+                    counts[q.id] = { mapped: mappedAnswers.size, total: q.options.length };
+                }
             }
         });
         return counts;

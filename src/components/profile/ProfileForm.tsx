@@ -3,12 +3,12 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usStates } from '@/lib/states';
 import { profileSchema as buildStaticProfileSchema, buildProfileSchema, type ProfileData } from '@/lib/schemas';
-import { useUserData, buildQuestionTreeFromMap } from '@/hooks/use-user-data';
+import { useUserData, buildQuestionTreeFromMap, CompanyConfig } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Question } from '@/lib/questions';
 import { useAuth } from '@/hooks/use-auth';
 import type { z } from 'zod';
@@ -16,7 +16,7 @@ import { useFormState } from '@/hooks/use-form-state';
 
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,8 +30,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { CalendarIcon, Info, Star } from 'lucide-react';
+import { CalendarIcon, Info, Star, Bug, ChevronDown } from 'lucide-react';
 import { convertStringsToDates } from '@/hooks/use-user-data';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
 
 const renderFormControl = (question: Question, field: any, form: any) => {
     const { masterProfileQuestions } = useUserData();
@@ -216,19 +217,28 @@ const QuestionRenderer = ({ question, form }: { question: Question, form: any })
 };
 
 
-function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questions: Question[], dynamicSchema: z.ZodObject<any>, initialData: ProfileData }) {
+function ProfileFormRenderer({ questions, dynamicSchema, initialData, companyUser, companyConfig }: { 
+    questions: Question[], 
+    dynamicSchema: z.ZodObject<any>, 
+    initialData: Partial<ProfileData>,
+    companyUser: any,
+    companyConfig?: CompanyConfig
+}) {
     const router = useRouter();
-    const { saveProfileData } = useUserData();
+    const searchParams = useSearchParams();
+    const { saveProfileData, updateCompanyUserContact, getMasterQuestionConfig, clearRecommendations } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
     
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
     const form = useForm<ProfileData>({
         resolver: zodResolver(dynamicSchema),
         values: {
             ...initialData,
-            personalEmail: initialData?.personalEmail || '', // ensure personalEmail is controlled
-            phone: initialData?.phone || '',
+            personalEmail: companyUser?.personal_email || '',
+            phone: companyUser?.phone || '',
         },
     });
 
@@ -236,18 +246,27 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
 
     useEffect(() => {
         setIsDirty(isDirty);
-        // On unmount, reset the dirty state
         return () => setIsDirty(false);
     }, [isDirty, setIsDirty]);
 
-    function onSubmit(data: ProfileData) {
-        saveProfileData(data);
+    async function onSubmit(data: ProfileData) {
+        if (!auth?.userId) return;
+
+        const { personalEmail, phone, ...profileAnswers } = data;
+        
+        // Save contact info to company_users table
+        await updateCompanyUserContact(auth.userId, { personal_email: personalEmail, phone });
+
+        // Save the rest of the profile data
+        saveProfileData(profileAnswers as ProfileData);
+        clearRecommendations(); // Clear recommendations on profile change
+
         toast({
           title: "Profile Saved",
           description: "Your profile has been successfully saved.",
         });
         setIsDirty(false);
-        router.push('/dashboard/assessment');
+        router.push(searchParams.has('section') ? '/dashboard/profile' : '/dashboard/assessment');
     }
 
     const onInvalid = (errors: any) => {
@@ -258,102 +277,123 @@ function ProfileFormRenderer({ questions, dynamicSchema, initialData }: { questi
             variant: "destructive",
         });
     };
+
+    const editingSection = searchParams.get('section');
     
-    const groupedQuestions = useMemo(() => {
-        const sections: Record<string, Question[]> = {};
-        questions.forEach(q => {
-            if (q.parentId) return;
-            const sectionName = q.section || "Uncategorized";
-            if (!sections[sectionName]) {
-                sections[sectionName] = [];
+    const orderedSections = useMemo(() => {
+        const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig('profile');
+        const sectionOrder = masterConfig?.section_order || [];
+
+        // If editing a specific section, only process questions from that section.
+        const questionsToProcess = editingSection 
+            ? questions.filter(q => q.section === editingSection)
+            : questions;
+
+        // Add any custom sections not in the master order to the end
+        const masterSectionSet = new Set(sectionOrder);
+        questionsToProcess.forEach(q => {
+            if (q.section && !masterSectionSet.has(q.section)) {
+                sectionOrder.push(q.section);
+                masterSectionSet.add(q.section);
             }
-            sections[sectionName].push(q);
         });
-        return sections;
-    }, [questions]);
+        
+        questionsToProcess.forEach(q => {
+            if (!q.isActive || q.parentId) return;
+            const sectionName = q.section || "Uncategorized";
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
+            }
+            sectionsMap[sectionName].push(q);
+        });
+        
+        return sectionOrder
+            .map(sectionName => ({
+                name: sectionName,
+                questions: sectionsMap[sectionName]?.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            }))
+            .filter(section => section.questions && section.questions.length > 0);
 
+    }, [questions, editingSection, getMasterQuestionConfig]);
+    
+     useEffect(() => {
+        if (editingSection && sectionRefs.current[editingSection]) {
+            setTimeout(() => {
+                sectionRefs.current[editingSection]?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+            }, 100);
+        }
+    }, [editingSection]);
 
+    const pageTitle = editingSection ? `Edit: ${editingSection}` : 'Create Your Profile';
+    const pageDescription = editingSection
+        ? 'Update your answers below and save your changes.'
+        : 'Exits can be challenging and we are here to help. Your answers help us create a personalized roadmap for you. All information entered in confidential and personal info is never shared';
+    
     return (
+        <>
+        <div>
+          <h1 className="font-headline text-3xl font-bold">{pageTitle}</h1>
+          <p className="text-muted-foreground">{pageDescription}</p>
+        </div>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Contact Information</CardTitle>
-                        <CardDescription>
-                            Please provide a personal email address. We'll use this to send you important updates and notifications after your access to your work email ends.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <FormField
-                            control={form.control}
-                            name="personalEmail"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Personal Email Address</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="your.name@personal.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        <FormField
-                            control={form.control}
-                            name="phone"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Phone Number (for SMS alerts)</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="(555) 123-4567" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </CardContent>
-                 </Card>
-
-                 {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
-                    <Card key={section}>
+                 {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
+                    <Card key={section} ref={(el) => (sectionRefs.current[section] = el)}>
                         <CardHeader>
                             <CardTitle>{section}</CardTitle>
-                             {section === 'Basic Information' && (
-                                 <CardDescription>
-                                    Your company is: <span className="font-bold">{auth?.companyName || 'N/A'}</span>
+                             {section === 'Contact Information' && !editingSection && (
+                                <CardDescription>
+                                    This is where we'll send important updates after your access to your work email ends.
                                 </CardDescription>
                              )}
                         </CardHeader>
                         <CardContent className="space-y-6">
                            {sectionQuestions.map(q => <QuestionRenderer key={q.id} question={q} form={form} />)}
                         </CardContent>
+                        {editingSection && (
+                            <CardFooter>
+                                <Button type="submit" disabled={form.formState.isSubmitting}>
+                                    {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </CardFooter>
+                        )}
                     </Card>
                 ))}
                 
-                {questions.length > 0 &&
+                {!editingSection && questions.length > 0 &&
                     <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? 'Saving...' : 'Save and Continue'}
                     </Button>
                 }
             </form>
         </Form>
+        </>
     );
 }
 
 export default function ProfileForm() {
-    const { masterProfileQuestions, profileData, isUserDataLoading } = useUserData();
+    const { getCompanyConfig, profileData, isUserDataLoading, getCompanyUser, isLoading, getAllCompanyConfigs } = useUserData();
+    const { auth } = useAuth();
     
-    const questions = useMemo(() => buildQuestionTreeFromMap(masterProfileQuestions), [masterProfileQuestions]);
+    const companyConfig = useMemo(() => {
+        if (!auth?.companyName) return undefined;
+        return getAllCompanyConfigs()[auth.companyName];
+    }, [auth?.companyName, getAllCompanyConfigs]);
+    
+    const questions = useMemo(() => {
+        if (!auth?.companyName) return [];
+        return getCompanyConfig(auth.companyName, true, 'profile');
+    }, [getCompanyConfig, auth?.companyName]);
+
     const dynamicSchema = useMemo(() => buildProfileSchema(questions), [questions]);
     
-    const [isLoading, setIsLoading] = useState(true);
+    const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email) : null, [auth?.email, getCompanyUser]);
 
-    useEffect(() => {
-        if (!isUserDataLoading) {
-            setIsLoading(false);
-        }
-    }, [isUserDataLoading]);
-
-    if (isLoading || !questions || !dynamicSchema) {
+    if (isLoading || isUserDataLoading || !questions || !dynamicSchema) {
          return (
             <div className="space-y-6">
                 {[...Array(3)].map((_, i) => (
@@ -369,5 +409,5 @@ export default function ProfileForm() {
         )
     }
 
-    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} />;
+    return <ProfileFormRenderer questions={questions} dynamicSchema={dynamicSchema} initialData={profileData || {}} companyUser={companyUser?.user} companyConfig={companyConfig} />;
 }

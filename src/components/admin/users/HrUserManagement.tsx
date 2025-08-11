@@ -1,5 +1,3 @@
-
-
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -16,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse, isValid } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { CalendarIcon } from "lucide-react";
 import HrUserTable from "./HrUserTable";
 import BulkActions from "./BulkActions";
@@ -221,21 +219,23 @@ export default function HrUserManagement() {
         const file = event.target.files?.[0];
         if (!file || !companyName) return;
 
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                const requiredHeaders = ["email", "companyid", "notificationdate"];
-                const fileHeaders = results.meta.fields?.map(h => h.trim().toLowerCase()) || [];
-                if (!requiredHeaders.every(h => fileHeaders.includes(h))) {
-                    toast({ title: "Invalid CSV format", description: "CSV must include columns: email, companyId, notificationDate.", variant: "destructive"});
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const templateSheetName = 'Upload Template';
+                const worksheet = workbook.Sheets[templateSheetName];
+                if (!worksheet) {
+                    toast({ title: 'Invalid File', description: `Could not find a sheet named "${templateSheetName}".`, variant: 'destructive'});
                     return;
                 }
-                
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
                 let toAdd: Partial<CompanyUser>[] = [];
                 let toUpdate: Partial<CompanyUser>[] = [];
 
-                for (const row of results.data as any[]) {
+                for (const row of jsonData as any[]) {
                     const { userFromCsv, error } = processCsvRow(row);
                     if (error) {
                         toast({ title: "Skipping Row", description: error, variant: "destructive" });
@@ -275,24 +275,57 @@ export default function HrUserManagement() {
                 } else {
                     toast({ title: "Upload Failed", description: "An error occurred during the database operation.", variant: "destructive" });
                 }
+            } catch (error) {
+                 toast({ title: "File Read Error", description: "Could not process the uploaded file.", variant: "destructive" });
             }
-        });
+        };
+        reader.readAsBinaryString(file);
         
         if (fileInputRef.current) fileInputRef.current.value = "";
-    }, [companyName, companyAssignmentForHr, saveCompanyUsers, toast, users, processCsvRow]);
+    }, [companyName, companyAssignmentForHr, toast, users, processCsvRow]);
 
 
     const handleDownloadTemplate = useCallback(() => {
-        const headers = ["email", "companyId", "notificationDate", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
-        const sampleRow = ["user@company.com", "EMP123", "2025-12-31", "user@personal.com", "2026-01-31", "2026-02-15", "", "", "", "", "Your HR Business Partner", "alumni-support@company.com"];
-        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', 'user_upload_template.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const instructionsData = [
+            { Column: "email", Required: "Yes", Description: "The employee's work email address. This is used for login and must be unique per company." },
+            { Column: "companyId", Required: "Yes", Description: "The employee's unique ID within your company's system (e.g., employee number)." },
+            { Column: "notificationDate", Required: "Yes", Description: "The date the employee was notified of their exit. Must be in YYYY-MM-DD format." },
+            { Column: "personalEmail", Required: "No", Description: "A personal email for post-exit communication." },
+            { Column: "finalDate", Required: "No", Description: "The employee's last day of employment. Must be in YYYY-MM-DD format." },
+            { Column: "severanceAgreementDeadline", Required: "No", Description: "The deadline to sign the severance agreement. Must be in YYYY-MM-DD format." },
+            { Column: "medicalCoverageEndDate", Required: "No", Description: "End date for medical coverage. Must be in YYYY-MM-DD format." },
+            { Column: "dentalCoverageEndDate", Required: "No", Description: "End date for dental coverage. Must be in YYYY-MM-DD format." },
+            { Column: "visionCoverageEndDate", Required: "No", Description: "End date for vision coverage. Must be in YYYY-MM-DD format." },
+            { Column: "eapCoverageEndDate", Required: "No", Description: "End date for EAP coverage. Must be in YYYY-MM-DD format." },
+            { Column: "preEndDateContactAlias", Required: "No", Description: "Overrides the default company contact alias for this user before their end date." },
+            { Column: "postEndDateContactAlias", Required: "No", Description: "Overrides the default company contact alias for this user after their end date." },
+        ];
+        
+        const templateSampleRow = {
+            email: "user@company.com",
+            companyId: "EMP123",
+            notificationDate: "2025-12-31",
+            personalEmail: "user@personal.com",
+            finalDate: "2026-01-31",
+            severanceAgreementDeadline: "2026-02-15",
+            medicalCoverageEndDate: "",
+            dentalCoverageEndDate: "",
+            visionCoverageEndDate: "",
+            eapCoverageEndDate: "",
+            preEndDateContactAlias: "Your HR Business Partner",
+            postEndDateContactAlias: "alumni-support@company.com"
+        };
+
+
+        const wb = XLSX.utils.book_new();
+        const instructionsSheet = XLSX.utils.json_to_sheet(instructionsData);
+        const templateSheet = XLSX.utils.json_to_sheet([templateSampleRow]);
+        
+        XLSX.utils.book_append_sheet(wb, instructionsSheet, "Instructions");
+        XLSX.utils.book_append_sheet(wb, templateSheet, "Upload Template");
+        
+        XLSX.writeFile(wb, "user_upload_template.xlsx");
+
     }, []);
 
     const handleExportUsers = useCallback(() => {
@@ -300,7 +333,6 @@ export default function HrUserManagement() {
             toast({ title: "No users to export", variant: "destructive" });
             return;
         }
-        const headers = ["email", "companyId", "notificationDate", "notified", "personalEmail", "finalDate", "severanceAgreementDeadline", "medicalCoverageEndDate", "dentalCoverageEndDate", "visionCoverageEndDate", "eapCoverageEndDate", "preEndDateContactAlias", "postEndDateContactAlias"];
         const dataToExport = users.map(user => ({
             email: user.email,
             companyId: user.company_user_id,
@@ -316,14 +348,11 @@ export default function HrUserManagement() {
             preEndDateContactAlias: user.prefilled_assessment_data?.preEndDateContactAlias || '',
             postEndDateContactAlias: user.prefilled_assessment_data?.postEndDateContactAlias || '',
         }));
-        const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `${companyName}_user_export.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+        XLSX.writeFile(workbook, `${companyName}_user_export.xlsx`);
     }, [users, toast, companyName]);
     
     const requestSort = useCallback((key: SortConfig['key']) => {
@@ -383,9 +412,9 @@ export default function HrUserManagement() {
                          <fieldset disabled={!canUpload}>
                             <div className="space-y-2">
                                 <Label>Bulk Upload User Data</Label>
-                                <p className="text-sm text-muted-foreground">Upload a CSV file with "email", "companyId", and "notificationDate". All date columns must be in YYYY-MM-DD format. This will add new users or update existing, non-invited users.</p>
-                                <input type="file" accept=".csv,.tsv,.txt" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload CSV</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
+                                <p className="text-sm text-muted-foreground">Upload an Excel file. This will add new users or update existing, non-invited users.</p>
+                                <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                <div className="flex items-center gap-2"><Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Upload File</Button><Button variant="link" onClick={handleDownloadTemplate} className="text-muted-foreground"><Download className="mr-2" /> Download Template</Button></div>
                             </div>
                         </fieldset>
                     </CardFooter>

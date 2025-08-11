@@ -1,107 +1,35 @@
-# Product Requirements Document: ExitBetter Platform
 
-**Author:** App Prototyper AI
-**Version:** 0.2-20250722
-**Status:** In Development
-**Date:** July 22, 2025
+# ExitBetter Platform - Database Schema
+
+This document outlines the proposed database schema for the ExitBetter application, designed to support the features and user roles defined in the product requirements.
 
 ---
 
-## 1. Introduction & Vision
+## Table of Contents
 
-### 1.1. Problem Statement
-Navigating a layoff is an overwhelming, confusing, and emotionally draining experience for employees. They are faced with complex documents, critical deadlines for benefits and severance, and the immediate pressure of finding their next role, all with little personalized guidance. Companies, in turn, struggle to provide scalable, compassionate, and effective offboarding support that goes beyond a generic checklist.
+1.  [Companies](#companies)
+2.  [Platform Users](#platform_users)
+3.  [Company HR Assignments](#company_hr_assignments)
+4.  [Company Users](#company_users)
+5.  [User Profiles](#user_profiles)
+6.  [User Assessments](#user_assessments)
+7.  [Master Questions](#master_questions)
+8.  [Master Question Configs](#master_question_configs)
+9.  [Company Question Configs](#company_question_configs)
+10. [Master Tasks](#master_tasks)
+11. [Master Tips](#master_tips)
+12. [Task Mappings](#task_mappings)
+13. [Tip Mappings](#tip_mappings)
+14. [Company Resources](#company_resources)
+15. [External Resources](#external_resources)
+16. [Guidance Rules](#guidance_rules)
+17. [Review Queue](#review_queue)
 
-### 1.2. Product Vision
-The **ExitBetter Platform** is a comprehensive web application designed to transform the layoff experience from a moment of crisis into a managed transition. By leveraging personalized, AI-driven guidance, ExitBetter empowers exiting employees with a clear, actionable timeline of next steps. For companies, it offers a customizable and scalable platform to deliver superior offboarding support, enhancing their brand reputation and maintaining goodwill with former employees.
-
-## 2. User Roles & Personas
-
-The platform is designed to serve four distinct user roles:
-
-| Role             | Description                                                                                             | Key Goals                                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **End-User**     | An employee who has been notified of their exit from a company.                                         | - Understand critical deadlines (severance, benefits).<br>- Receive a personalized, step-by-step action plan.<br>- Connect with vetted professional resources.<br>- Securely manage personal and exit-related data. |
-| **HR Manager**   | A human resources professional at a client company.                                                     | - Manage the list of exiting employees for their company.<br>- Customize the assessment questionnaire.<br>- Suggest edits to locked questions.<br>- Create and map company-specific tasks and tips.<br>- Upload company-specific resources.<br>- Analyze assessment data to identify areas of confusion.<br>- Preview the end-user experience. |
-| **Platform Admin**| A super-user responsible for managing the entire ExitBetter platform.                                  | - Onboard new companies and their HR managers.<br>- Manage the master list of assessment questions, tasks, and tips.<br>- Manage the default order of form sections.<br>- Create and manage deterministic guidance rules.<br>- Review and approve HR suggestions.<br>- Curate the external professional resources directory.<br>- Oversee all platform users and data. |
-| **Consultant**   | An external or internal expert tasked with quality control.                                             | - Review and approve AI-generated content and recommendations to ensure quality, accuracy, and empathy.<br>- Convert high-quality recommendations into reusable guidance rules. |
-
-## 3. Key Features & Functionality
-
-### 3.1. End-User Flow
-- **Secure Login:** Users log in with a unique email and company ID provided by their HR manager.
-- **Profile Creation:** A guided form to collect personal and demographic information that helps tailor the AI recommendations (e.g., marital status, dependents, location).
-- **Assessment Form (Exit Details):** A dynamic form where users input details about their specific exit situation (e.g., final day, severance deadlines, benefits information). This form is populated with any data pre-filled by their HR manager. For date-related questions where the user may not know the answer (e.g., specific coverage end dates), they have the option to select "I'm not sure" to proceed.
-- **Personalized AI Dashboard:**
-    - **Timeline View:** An interactive, AI-generated timeline that visualizes all critical deadlines and recommended actions based on the user's profile and assessment data.
-    - **Categorized Recommendations:** Tasks are categorized (e.g., Healthcare, Finances, Legal, Job Search) and sorted by urgency.
-    - **Task Management:** Users can mark tasks as complete, and the UI dynamically updates to reflect their progress.
-- **Resource Center:**
-    - **Company Resources:** View and download company-specific documents (e.g., benefits guides, policies) uploaded by their HR manager.
-    - **External Resources:** Browse a directory of vetted professional services (e.g., financial planners, lawyers), view AI-powered "Top Matches," and connect with experts.
-
-### 3.2. HR Manager Flow
-- **Secure Login & Company Switching:** HR Managers log in with their company email and can switch between multiple assigned companies.
-- **User Management:**
-    - Add, remove, and manage the list of end-users for their company.
-    - Bulk upload users via a CSV file, with support for pre-filling key assessment data to streamline the user's experience.
-    - View the invitation and completion status of all their users.
-- **Form Customization (Pro Feature):**
-    - Enable or disable questions from the master list.
-    - Override the text and options of master questions to match company-specific terminology.
-    - Add new, company-specific custom questions to the assessment.
-    - **Suggest Edits:** Submit suggestions to an Admin for changes to locked, platform-wide questions.
-    - Receive notifications for when a master question has been updated by a Platform Admin.
-- **Custom Content Management:**
-    - Create, edit, and delete company-specific tasks and tips.
-    - Map custom guidance (tasks and tips) to answers on any question, which is then sent for Admin review.
-- **Resource Management:** Upload and manage documents and resources for their employees.
-- **Analytics Dashboard:** View analytics on the most common "Unsure" answers from employees, providing insight into areas of confusion.
-- **HR Team Management (Primary HR Only):** A Primary HR Manager can add other HR managers to the companies they oversee and assign granular permissions for each module.
-- **User Preview Mode:** The ability to enter a "preview" mode to see the platform exactly as an end-user would.
-- **Company Settings:** Configure default settings like the timezone for severance deadlines.
-
-### 3.3. Platform Admin Flow
-- **Secure Login:** Admins log in with their platform email.
-- **Company Management:**
-    - Create new company accounts and assign HR Managers.
-    - Set user limits and subscription tiers (e.g., Basic vs. Pro) for each company.
-- **Content Management:**
-    - **Master Form Editor:** Create, edit, and delete questions in the master (default) assessment template.
-    - **Section Ordering:** Set the global display order for the sections within the Profile and Assessment forms.
-    - **Task Management:** Create, edit, and bulk-manage (via CSV) the master list of all actionable tasks.
-    - **Tips Management:** Create, edit, and bulk-manage (via CSV) a master list of "Did you know..." tips that provide contextual advice.
-- **Guidance & Review:**
-    - **Guidance Rules:** Create complex, deterministic rules to assign specific tasks and tips based on user answers or calculated values (e.g., tenure, age).
-    - **Suggestion Queue:** Review, approve, or reject suggestions submitted by HR Managers for locked questions and custom guidance.
-    - **Review Queue (AI):** Review, approve, or reject AI-generated recommendations to ensure quality.
-- **External Resources Management:** Build and manage the full directory of external resources, including adding partners, editing details, and marking them as "Verified."
-- **Platform-wide Analytics:** View aggregated analytics on "Unsure" answers across all companies.
-- **Platform User Management:** Grant or revoke Admin and Consultant access to the platform.
-- **Data Export:** View and export a comprehensive list of all users across the entire platform.
-
-### 3.4. Consultant Flow
-- **Review Queue:** Review AI-generated recommendations from real user data in a dedicated queue.
-- **Guidance Editor:** Approve, reject, or convert high-quality recommendations into reusable, rule-based guidance to improve the system over time.
-- *Note: This feature is currently deactivated in the main prototype and is undergoing separate testing.*
-
-### 3.5. AI & Technology
-- **Genkit Integration:** The platform uses Google's Genkit framework for all AI functionality.
-- **Personalized Recommendations:** A core AI flow analyzes a user's profile and assessment data to generate a structured, personalized list of action items. The prompt is engineered to have the AI act as a panel of experts, providing empathetic and actionable advice.
-- **Data Schema:** The AI uses strongly-typed Zod schemas for both input and output, a process which ensures the generated data is structured, predictable, and can be reliably rendered in the UI.
-
-## 4. Technical Architecture
-
-- **Frontend:** Next.js (App Router), React, TypeScript
-- **UI:** ShadCN UI components, Tailwind CSS for styling
-- **State Management:** React Context API combined with custom hooks (`useAuth`, `useUserData`) for centralized and persistent state.
-- **Forms:** React Hook Form with Zod for robust, schema-based validation.
-- **AI Backend:** Genkit with Google's Gemini models.
-- **Data Persistence (Prototype):** User-specific data is stored in `localStorage` to provide a personalized experience. Shared platform data (companies, master questions) is stored in a simulated in-memory database attached to the global scope to persist across hot reloads in development.
-
-## 5. Data Model / Schema
+---
 
 ### `companies`
+
+Stores information about each client company, their assigned HR manager, and default settings.
 
 | Column                        | Type          | Description                                           |
 | --------------------------- | ------------- | ----------------------------------------------------- |
@@ -110,13 +38,15 @@ The platform is designed to serve four distinct user roles:
 | `version`                   | `TEXT`        | Subscription tier ('basic' or 'pro').                 |
 | `max_users`                 | `INTEGER`     | The maximum number of end-users for this company.     |
 | `severance_deadline_time`   | `TIME`        | Default time for severance deadlines (e.g., '17:00'). |
-| `severance_deadline_timezone`| `TEXT`       | Default timezone for deadlines.                      |
+| `severance_deadline_timezone`| `TEXT`       | Default timezone for deadlines (e.g., 'America/Chicago'). |
 | `pre_end_date_contact_alias`| `TEXT`        | Default contact alias before a user's end date.      |
 | `post_end_date_contact_alias`| `TEXT`       | Default contact alias after a user's end date.       |
 | `created_at`                | `TIMESTAMPTZ` | Timestamp of when the company was created.            |
 | `updated_at`                | `TIMESTAMPTZ` | Timestamp of the last update.                         |
 
 ### `platform_users`
+
+Stores users with platform-wide access roles, like administrators and consultants.
 
 | Column      | Type      | Description                           |
 | ----------- | --------- | ------------------------------------- |
@@ -127,6 +57,8 @@ The platform is designed to serve four distinct user roles:
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.         |
 
 ### `company_hr_assignments`
+
+Maps HR Managers to the companies they manage and defines their specific permissions for that company.
 
 | Column        | Type      | Description                                                               |
 | ------------- | --------- | ------------------------------------------------------------------------- |
@@ -139,30 +71,41 @@ The platform is designed to serve four distinct user roles:
 
 ### `company_users`
 
-| Column                       | Type      | Description                                                    |
-| ---------------------------- | --------- | -------------------------------------------------------------- |
-| `id`                         | `UUID`    | **Primary Key**.                                               |
-| `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                             |
-| `email`                      | `TEXT`    | The end-user's primary (work) email.                           |
-| `company_user_id`            | `TEXT`    | The user's ID within their company's system.                   |
-| `personal_email`             | `TEXT`    | Optional personal email for the user.                          |
-| `notification_date`          | `DATE`    | The date the user was notified of their exit.                  |
-| `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.       |
-| `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.      |
-| `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.        |
-| `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment.     |
-| `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                        |
-| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                |
+Stores end-users associated with a specific company. This table tracks who is eligible to use the platform.
+
+| Column                       | Type      | Description                                                                    |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------ |
+| `id`                         | `UUID`    | **Primary Key**.                                                               |
+| `company_id`                 | `UUID`    | **Foreign Key** to `companies.id`.                                             |
+| `email`                      | `TEXT`    | The end-user's primary (work) email.                                           |
+| `company_user_id`            | `TEXT`    | The user's ID within their company's system.                                   |
+| `personal_email`             | `TEXT`    | Optional personal email for post-exit communication. Nullable.                  |
+| `phone`                      | `TEXT`    | Optional phone number for SMS alerts. Nullable.                                |
+| `notification_date`          | `DATE`    | The date the user was notified of their exit.                                  |
+| `is_invited`                 | `BOOLEAN` | `true` if an invitation has been sent. Default: `false`.                       |
+| `prefilled_assessment_data`  | `JSONB`   | Optional JSON object of assessment data pre-filled by HR.                      |
+| `profile_completed_at`       | `TIMESTAMPTZ` | Timestamp of when the user completed their profile.                          |
+| `assessment_completed_at`    | `TIMESTAMPTZ` | Timestamp of when the user completed their assessment for the first time.      |
+| `initial_unsure_answers`     | `JSONB`   | An array of question IDs that were marked "Unsure" upon first completion.      |
+| `all_answers_resolved_at`    | `TIMESTAMPTZ` | Timestamp for when the last "Unsure" answer was updated to a definitive value. |
+| `created_at`                 | `TIMESTAMPTZ` | Timestamp of when the user was added.                                          |
+| `updated_at`                 | `TIMESTAMPTZ` | Timestamp of the last update.                                                  |
+
+*Composite unique key on (`company_id`, `email`).*
 
 ### `user_profiles`
+
+Stores the profile form data for each end-user. This is a one-to-one relationship with `company_users`.
 
 | Column      | Type      | Description                                  |
 | ----------- | --------- | -------------------------------------------- |
 | `user_id`   | `UUID`    | **Primary Key** and **Foreign Key** to `company_users.id`. |
-| `data`      | `JSONB`   | The complete JSON object of the user's profile form. |
+| `data`      | `JSONB`   | The complete JSON object of the user's profile form (excluding PII like personal email/phone). |
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.                |
 
 ### `user_assessments`
+
+Stores the assessment (exit details) form data for each end-user. This is a one-to-one relationship with `company_users`.
 
 | Column      | Type      | Description                                      |
 | ----------- | --------- | ------------------------------------------------ |
@@ -170,17 +113,23 @@ The platform is designed to serve four distinct user roles:
 | `data`      | `JSONB`   | The complete JSON object of the user's assessment form. |
 | `updated_at`| `TIMESTAMPTZ` | Timestamp of the last update.                    |
 
+
 ### `master_questions`
+
+Stores the master list of all possible questions for both Profile and Assessment forms, acting as the global template.
 
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
 | `id`            | `TEXT`    | **Primary Key**. The unique ID of the question (e.g., 'workStatus'). |
 | `form_type`     | `TEXT`    | The form this question belongs to ('profile' or 'assessment').    |
-| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, etc.). |
+| `sort_order`    | `INTEGER` | An integer to define the display order of the question within its section. |
+| `question_data` | `JSONB`   | A JSON object containing all question properties (label, type, section, options, parentId, triggerValue, description, etc.). |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the question was created.                      |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                    |
 
 ### `master_question_configs`
+
+Stores the global configuration for the forms, such as the display order of sections.
 
 | Column                  | Type    | Description                                                                       |
 | ----------------------- | ------- | --------------------------------------------------------------------------------- |
@@ -188,7 +137,10 @@ The platform is designed to serve four distinct user roles:
 | `section_order`         | `JSONB` | An ordered array of section names (e.g., `["Section A", "Section B"]`).           |
 | `updated_at`            | `TIMESTAMPTZ`| Timestamp of the last update.                                                      |
 
+
 ### `company_question_configs`
+
+Stores company-specific customizations for the assessment form. This allows companies to override, disable, or add questions.
 
 | Column                      | Type      | Description                                                                                               |
 | --------------------------- | --------- | --------------------------------------------------------------------------------------------------------- |
@@ -197,11 +149,14 @@ The platform is designed to serve four distinct user roles:
 | `custom_questions`          | `JSONB`   | JSON object of new questions specific to this company.                                                    |
 | `question_order_by_section` | `JSONB`   | JSON object defining the display order of questions by section.                                           |
 | `answer_guidance_overrides` | `JSONB`   | JSON object mapping custom tasks/tips to specific answers, overriding `task_mappings`. |
-| `company_tasks`             | `JSONB`   | A list of company-specific task objects.                                                                  |
-| `company_tips`              | `JSONB`   | A list of company-specific tip objects.                                                                   |
+| `company_tasks`             | `JSONB`   | A list of company-specific task objects. |
+| `company_tips`              | `JSONB`   | A list of company-specific tip objects. |
 | `updated_at`                | `TIMESTAMPTZ`| Timestamp of the last update.                                                                             |
 
+
 ### `master_tasks`
+
+Stores the master list of all possible tasks that can be assigned to users based on their answers.
 
 | Column                        | Type      | Description                                                               |
 | ----------------------------- | --------- | ------------------------------------------------------------------------- |
@@ -212,10 +167,15 @@ The platform is designed to serve four distinct user roles:
 | `detail`                      | `TEXT`    | A more detailed Markdown description of what the task involves.           |
 | `deadline_type`               | `TEXT`    | The event that triggers the deadline ('notification_date' or 'termination_date'). |
 | `deadline_days`               | `INTEGER` | The number of days from the `deadline_type` event that the task is due.   |
+| `linkedResourceId`            | `TEXT`    | Optional foreign key to `external_resources.id`.                          |
+| `isCompanySpecific`           | `BOOLEAN` | Flag to indicate if this is a company-specific task.                      |
+| `isActive`                    | `BOOLEAN` | Flag to indicate if the task is active and can be used in mappings. Default: `true`. |
 | `created_at`                  | `TIMESTAMPTZ`| Timestamp of when the task was created.                                   |
 | `updated_at`                  | `TIMESTAMPTZ`| Timestamp of the last update.                                             |
 
 ### `master_tips`
+
+Stores the master list of all "Did you know..." tips that can be mapped to answers.
 
 | Column          | Type      | Description                                                       |
 | --------------- | --------- | ----------------------------------------------------------------- |
@@ -224,10 +184,14 @@ The platform is designed to serve four distinct user roles:
 | `priority`      | `TEXT`    | The display priority ('High', 'Medium', 'Low').                   |
 | `category`      | `TEXT`    | Category for UI grouping (e.g., 'Financial', 'Career', 'Health'). |
 | `text`          | `TEXT`    | The content of the tip.                                           |
+| `isCompanySpecific` | `BOOLEAN` | Flag to indicate if this is a company-specific tip.             |
+| `isActive`      | `BOOLEAN` | Flag to indicate if the tip is active and can be used in mappings. Default: `true`. |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the tip was created.                            |
 | `updated_at`    | `TIMESTAMPTZ`| Timestamp of the last update.                                     |
 
 ### `task_mappings`
+
+Maps tasks from `master_tasks` to specific question answers. This creates the logic for task generation.
 
 | Column          | Type      | Description                                                          |
 | --------------- | --------- | -------------------------------------------------------------------- |
@@ -237,7 +201,11 @@ The platform is designed to serve four distinct user roles:
 | `task_id`       | `TEXT`    | **Foreign Key** to `master_tasks.id`.                                |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
 
+*Composite unique key on (`question_id`, `answer_value`, `task_id`).*
+
 ### `tip_mappings`
+
+Maps tips from `master_tips` to specific question answers.
 
 | Column          | Type      | Description                                                          |
 | --------------- | --------- | -------------------------------------------------------------------- |
@@ -247,7 +215,11 @@ The platform is designed to serve four distinct user roles:
 | `tip_id`        | `TEXT`    | **Foreign Key** to `master_tips.id`.                                 |
 | `created_at`    | `TIMESTAMPTZ`| Timestamp of when the mapping was created.                           |
 
+*Composite unique key on (`question_id`, `answer_value`, `tip_id`).*
+
 ### `company_resources`
+
+Stores documents and links uploaded by an HR Manager for their employees.
 
 | Column        | Type      | Description                               |
 | ------------- | --------- | ----------------------------------------- |
@@ -263,6 +235,8 @@ The platform is designed to serve four distinct user roles:
 | `updated_at`  | `TIMESTAMPTZ`| Timestamp of the last update.               |
 
 ### `external_resources`
+
+Stores the curated directory of professional services and partners that can be recommended to users.
 
 | Column              | Type    | Description                                            |
 | ------------------- | ------- | ------------------------------------------------------ |
@@ -284,10 +258,12 @@ The platform is designed to serve four distinct user roles:
 
 ### `guidance_rules`
 
+Stores consultant-created rules to provide deterministic, high-quality guidance when specific conditions are met.
+
 | Column          | Type      | Description                                       |
 | --------------- | --------- | ------------------------------------------------- |
 | `id`            | `UUID`    | **Primary Key**.                                  |
-| `question_id`    | `TEXT`   | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
+| `question_id`   | `TEXT`    | **Foreign Key** to `master_questions.id`. The question this rule is based on. |
 | `name`          | `TEXT`    | An internal name for the rule (e.g., "COBRA Advice"). |
 | `type`          | `TEXT`    | The type of rule: 'direct' (answer-based) or 'calculated' (range-based). |
 | `conditions`    | `JSONB`   | For 'direct' rules, an array of condition objects that must all be true. |
@@ -299,13 +275,17 @@ The platform is designed to serve four distinct user roles:
 
 ### `review_queue`
 
-| Column        | Type      | Description                                       |
-| ------------- | --------- | ------------------------------------------------- |
-| `id`          | `UUID`    | **Primary Key**.                                  |
-| `user_email`  | `TEXT`    | The email of the user whose data was used.        |
-| `input_data`  | `JSONB`   | The user profile/assessment data sent to the AI.  |
-| `output_data` | `JSONB`   | The recommendation list received from the AI.     |
-| `status`      | `TEXT`    | 'pending', 'approved', or 'rejected'.             |
-| `created_at`  | `TIMESTAMPTZ`| Timestamp of when the recommendation was generated. |
-| `reviewed_at` | `TIMESTAMPTZ`| Timestamp of when the review occurred.            |
-| `reviewer_id` | `UUID`    | **Foreign Key** to `platform_users.id`.           |
+A log of content changes submitted by HR for Admin review.
+
+| Column             | Type      | Description                                                                                         |
+| ------------------ | --------- | --------------------------------------------------------------------------------------------------- |
+| `id`               | `UUID`    | **Primary Key**.                                                                                    |
+| `company_id`       | `UUID`    | **Foreign Key** to `companies.id`. The company this review item belongs to.                         |
+| `user_email`       | `TEXT`    | The email of the HR user who submitted the item.                                                    |
+| `type`             | `TEXT`    | The type of review item (`custom_question_guidance` or `question_edit_suggestion`).                 |
+| `status`           | `TEXT`    | The current status ('pending', 'approved', 'rejected', 'withdrawn').                                |
+| `change_details`   | `JSONB`   | A structured object with the details of the suggested change.                                       |
+| `rejection_reason` | `TEXT`    | An optional text field for an Admin to provide feedback when rejecting a change. Nullable.          |
+| `created_at`       | `TIMESTAMPTZ`| Timestamp of when the item was submitted.                                                         |
+| `reviewed_at`      | `TIMESTAMPTZ`| Timestamp of when the review occurred.                                                              |
+| `reviewer_id`      | `UUID`    | **Foreign Key** to `platform_users.id`. The Admin/Consultant who reviewed it.                       |

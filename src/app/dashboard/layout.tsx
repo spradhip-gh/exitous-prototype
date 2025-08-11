@@ -25,9 +25,6 @@ export default function DashboardLayout({
               <Alert variant="default" className="border-orange-300 bg-transparent">
                 <TriangleAlert className="h-4 w-4 !text-orange-600" />
                 <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
-                <AlertDescription className="text-orange-700">
-                  Please Note: Data and changes made may refresh to default state at anytime.
-                </AlertDescription>
               </Alert>
             </div>
             {children}

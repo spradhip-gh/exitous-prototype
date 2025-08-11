@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Pencil, Link as LinkIcon, Download, Upload, Replace, Archive, ArchiveRestore } from 'lucide-react';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import TaskForm from '@/components/admin/tasks/TaskForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -129,73 +130,79 @@ export default function TaskManagementPage() {
 
      const handleDownloadTemplate = useCallback(() => {
         const headers = ["id", "type", "name", "category", "detail", "deadlineType", "deadlineDays", "linkedResourceId"];
-        const sampleRow = ["sample-task-id", "layoff", "Sample Task Name", "Basics", "This is a sample task description.", "notification_date", "14", ""];
-        const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', 'tasks_template.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const sampleData = [{
+            id: "sample-task-id",
+            type: "layoff",
+            name: "Sample Task Name",
+            category: "Basics",
+            detail: "This is a sample task description.",
+            deadlineType: "notification_date",
+            deadlineDays: 14,
+            linkedResourceId: ""
+        }];
+        const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Tasks");
+        XLSX.writeFile(workbook, "tasks_template.xlsx");
     }, []);
     
     const processCsvFile = useCallback((file: File, replace: boolean) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const requiredHeaders = ["id", "name", "category", "detail", "deadlinetype"];
-                const fileHeaders = results.meta.fields?.map(h => h.toLowerCase().replace(/\s/g, '')) || [];
-                const missingHeaders = requiredHeaders.filter(h => !fileHeaders.includes(h));
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const results = XLSX.utils.sheet_to_json(worksheet);
 
-                if (missingHeaders.length > 0) {
-                    toast({ title: "Invalid CSV format", description: `Missing required columns: ${missingHeaders.join(', ')}`, variant: "destructive" });
-                    return;
-                }
-                
-                let updatedCount = 0;
-                let addedCount = 0;
-                let newMasterTasks = replace ? [] : [...(masterTasks || [])];
+            const requiredHeaders = ["id", "name", "category", "detail", "deadlineType"];
+            const fileHeaders = Object.keys(results[0] as object).map(h => h.toLowerCase().replace(/\s/g, '')) || [];
+            const missingHeaders = requiredHeaders.filter(h => !fileHeaders.includes(h));
 
-                results.data.forEach((row: any) => {
-                    const id = row.id?.trim();
-                    if (!id) return; // Skip rows without an id
-
-                    const task: MasterTask = {
-                        id,
-                        type: ['layoff', 'anxious'].includes(row.type) ? row.type : 'layoff',
-                        name: row.name || 'Unnamed Task',
-                        category: ['Financial', 'Career', 'Health', 'Basics'].includes(row.category) ? row.category : 'Basics',
-                        detail: row.detail || '',
-                        deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
-                        deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
-                        linkedResourceId: row.linkedResourceId || undefined,
-                        isCompanySpecific: false, // Default value
-                        isActive: true, // Default to active on import
-                    };
-                    
-                    const existingIndex = newMasterTasks.findIndex(t => t.id === id);
-                    if (existingIndex !== -1) {
-                        newMasterTasks[existingIndex] = task;
-                        updatedCount++;
-                    } else {
-                        newMasterTasks.push(task);
-                        addedCount++;
-                    }
-                });
-
-                saveMasterTasks(newMasterTasks);
-                if(replace) {
-                    toast({ title: "Upload Complete", description: `Task list replaced with ${addedCount} tasks from the file.` });
-                } else {
-                    toast({ title: "Upload Complete", description: `${addedCount} tasks added, ${updatedCount} tasks updated.` });
-                }
-            },
-            error: (error) => {
-                toast({ title: "Upload Error", description: error.message, variant: "destructive" });
+            if (missingHeaders.length > 0) {
+                toast({ title: "Invalid Excel format", description: `Missing required columns: ${missingHeaders.join(', ')}`, variant: "destructive" });
+                return;
             }
-        });
+            
+            let updatedCount = 0;
+            let addedCount = 0;
+            let newMasterTasks = replace ? [] : [...(masterTasks || [])];
+
+            results.forEach((row: any) => {
+                const id = row.id?.trim();
+                if (!id) return; // Skip rows without an id
+
+                const task: MasterTask = {
+                    id,
+                    type: ['layoff', 'anxious'].includes(row.type) ? row.type : 'layoff',
+                    name: row.name || 'Unnamed Task',
+                    category: ['Financial', 'Career', 'Health', 'Basics'].includes(row.category) ? row.category : 'Basics',
+                    detail: row.detail || '',
+                    deadlineType: ['notification_date', 'termination_date'].includes(row.deadlineType) ? row.deadlineType : 'notification_date',
+                    deadlineDays: row.deadlineDays ? parseInt(row.deadlineDays, 10) : undefined,
+                    linkedResourceId: row.linkedResourceId || undefined,
+                    isCompanySpecific: false,
+                    isActive: true,
+                };
+                
+                const existingIndex = newMasterTasks.findIndex(t => t.id === id);
+                if (existingIndex !== -1) {
+                    newMasterTasks[existingIndex] = task;
+                    updatedCount++;
+                } else {
+                    newMasterTasks.push(task);
+                    addedCount++;
+                }
+            });
+
+            saveMasterTasks(newMasterTasks);
+            if(replace) {
+                toast({ title: "Upload Complete", description: `Task list replaced with ${addedCount} tasks from the file.` });
+            } else {
+                toast({ title: "Upload Complete", description: `${addedCount} tasks added, ${updatedCount} tasks updated.` });
+            }
+        };
+        reader.readAsBinaryString(file);
     }, [masterTasks, saveMasterTasks, toast]);
 
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,18 +277,18 @@ export default function TaskManagementPage() {
                             <CardContent>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
-                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with CSV</Button>
-                                    <input type="file" accept=".csv" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+                                    <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with Excel</Button>
+                                    <input type="file" accept=".xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via CSV</Button>
+                                            <Button variant="destructive"><Replace className="mr-2" /> Replace via Excel</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This action will completely delete all current master tasks and replace them with the content of your uploaded CSV file. This cannot be undone.
+                                                    This action will completely delete all current master tasks and replace them with the content of your uploaded Excel file. This cannot be undone.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>

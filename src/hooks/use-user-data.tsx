@@ -7,10 +7,12 @@ import { ProfileData, AssessmentData, buildAssessmentSchema, buildProfileSchema 
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import type { ExternalResource } from '../lib/external-resources';
-import { PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
+import { PersonalizedRecommendationsOutput, RecommendationItem, TipItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from '@/hooks/use-toast';
-import { addDays } from 'date-fns';
+import { addDays, parse, parseISO, differenceInYears } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
+import { v4 as uuidv4 } from 'uuid';
+import { tenureOptions } from '@/lib/guidance-helpers';
 
 const PROFILE_KEY = 'exitbetter-profile';
 const ASSESSMENT_KEY = 'exitbetter-assessment';
@@ -77,13 +79,18 @@ export interface CompanyUser {
   company_id: string; // The UUID of the company
   email: string;
   company_user_id: string;
-  personal_email?: string;
   notification_date?: string;
+  personal_email?: string;
+  phone?: string;
   is_invited?: boolean;
   prefilled_assessment_data?: Partial<Record<keyof AssessmentData, string | string[]>> & {
     preEndDateContactAlias?: string;
     postEndDateContactAlias?: string;
   };
+  assessment_completed_at?: string;
+  profile_completed_at?: string;
+  initial_unsure_answers?: string[];
+  all_answers_resolved_at?: string;
 }
 
 export interface Resource {
@@ -103,18 +110,43 @@ export interface AnswerGuidance {
 
 export interface ReviewQueueItem {
     id: string;
-    userEmail: string;
-    inputData: any;
-    output: PersonalizedRecommendationsOutput;
-    status: 'pending' | 'approved' | 'rejected' | 'reviewed';
-    createdAt: string;
-    reviewedAt?: string;
-    reviewerId?: string;
-    changeDetails?: any;
+    company_id: string;
+    user_email: string;
+    type: 'custom_question_guidance' | 'question_edit_suggestion' | 'ai_recommendation_audit';
+    status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
+    change_details: {
+        questionId?: string;
+        questionLabel?: string;
+        reason?: string;
+        optionsToAdd?: { option: string; guidance?: AnswerGuidance }[];
+        optionsToRemove?: string[];
+        guidanceOverrides?: Record<string, AnswerGuidance>;
+        question?: Question;
+        newSectionName?: string;
+    };
+    rejection_reason?: string;
+    created_at: string;
+    reviewed_at?: string;
+    reviewer_id?: string;
+    input_data?: any;
+    output_data?: any;
+    companyName?: string;
 }
 
+export interface QuestionOverride {
+    label?: string;
+    description?: string;
+    isActive?: boolean;
+    lastUpdated?: string;
+    optionOverrides?: {
+        add: string[];
+        remove: string[];
+    };
+}
+
+
 export interface CompanyConfig {
-    questions?: Record<string, Partial<Question>>;
+    questions?: Record<string, QuestionOverride>;
     customQuestions?: Record<string, Question>;
     questionOrderBySection?: Record<string, string[]>;
     users?: CompanyUser[];
@@ -149,9 +181,9 @@ export interface MasterTask {
 
 export interface TaskMapping {
     id: string;
-    questionId: string;
-    answerValue: string;
-    taskId: string;
+    question_id: string;
+    answer_value: string;
+    task_id: string;
 }
 
 export interface MasterTip {
@@ -168,9 +200,9 @@ export interface MasterTip {
 
 export interface TipMapping {
     id: string;
-    questionId: string;
-    answerValue: string;
-    tipId: string;
+    question_id: string;
+    answer_value: string;
+    tip_id: string;
 }
 
 export interface CompanyAssignment {
@@ -261,6 +293,61 @@ export const convertDatesToStrings = (obj: any): any => {
     return obj;
 };
 
+const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profileDataForDeps: ProfileData | null): Question[] => {
+    const applicable: Question[] = [];
+
+    const traverse = (questions: Question[], parentIsActive: boolean = true) => {
+        for (const q of questions) {
+            if (!q.isActive || !parentIsActive) continue;
+
+            let isDependencyMet = true;
+            if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
+                const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
+                isDependencyMet = false; // Default to false
+                if (Array.isArray(q.dependsOnValue)) {
+                    isDependencyMet = q.dependsOnValue.includes(dependencyValue as string);
+                } else {
+                    isDependencyMet = dependencyValue === q.dependsOnValue;
+                }
+            }
+            
+            if (isDependencyMet) {
+                applicable.push(q);
+                 if (q.subQuestions) {
+                    const parentValue = allAnswers[q.id];
+                    let isParentTriggered = false;
+                     if (Array.isArray(parentValue)) {
+                        isParentTriggered = parentValue.length > 0;
+                    } else if (parentValue) {
+                        isParentTriggered = true;
+                    }
+                    
+                    if (isParentTriggered) {
+                        q.subQuestions.forEach(subQ => {
+                             let isSubTriggered = false;
+                            if (q.type === 'checkbox') {
+                                if (subQ.triggerValue === 'NOT_NONE') {
+                                    isSubTriggered = Array.isArray(parentValue) && parentValue.length > 0 && !parentValue.includes('None of the above');
+                                } else {
+                                    isSubTriggered = Array.isArray(parentValue) && parentValue.includes(subQ.triggerValue);
+                                }
+                            } else {
+                                isSubTriggered = parentValue === subQ.triggerValue;
+                            }
+
+                            if(isSubTriggered && subQ.isActive) {
+                                traverse([subQ], true);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    };
+    
+    traverse(allQuestions);
+    return applicable;
+};
 export function useUserData() {
     const { auth } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
@@ -280,6 +367,9 @@ export function useUserData() {
     const [guidanceRules, setGuidanceRules] = useState<GuidanceRule[]>([]);
     const [masterTasks, setMasterTasks] = useState<MasterTask[]>([]);
     const [masterTips, setMasterTips] = useState<MasterTip[]>([]);
+    const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+    const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
+    const [externalResources, setExternalResources] = useState<ExternalResource[]>([]);
     
     // This hook will now be responsible for fetching ALL data from Supabase on initial load.
     useEffect(() => {
@@ -296,6 +386,9 @@ export function useUserData() {
                 { data: masterConfigsData },
                 { data: tasksData },
                 { data: tipsData },
+                { data: platformUsersData },
+                { data: reviewQueueData },
+                { data: resourcesData },
             ] = await Promise.all([
                 supabase.from('companies').select('*'),
                 supabase.from('company_hr_assignments').select('*'),
@@ -306,7 +399,14 @@ export function useUserData() {
                 supabase.from('master_question_configs').select('*'),
                 supabase.from('master_tasks').select('id, type, name, category, detail, deadline_type, deadline_days, "linkedResourceId", "isCompanySpecific", "isActive", created_at, updated_at'),
                 supabase.from('master_tips').select('id, type, priority, category, text, "isCompanySpecific", "isActive", created_at, updated_at'),
+                supabase.from('platform_users').select('*'),
+                supabase.from('review_queue').select('*'),
+                supabase.from('external_resources').select('*'),
             ]);
+            
+            setPlatformUsers((platformUsersData as PlatformUser[]) || []);
+            setReviewQueue((reviewQueueData as ReviewQueueItem[]) || []);
+            setExternalResources((resourcesData as ExternalResource[]) || []);
 
             const assignments: CompanyAssignment[] = (companiesData || []).map(c => {
                 const managers = (hrAssignmentsData || [])
@@ -333,7 +433,7 @@ export function useUserData() {
             const assessmentQuestionsMap: Record<string, Question> = {};
             const profileQuestionsMap: Record<string, Question> = {};
             questionsData?.forEach(q => {
-                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type } as Question;
+                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type, sortOrder: q.sort_order } as Question;
                 if(question.formType === 'profile') {
                     profileQuestionsMap[q.id] = question;
                 } else {
@@ -351,7 +451,7 @@ export function useUserData() {
             }));
             setGuidanceRules(mappedRules as GuidanceRule[] || []);
 
-            const mappedTasks = (tasksData || []).map(t => ({
+            const mappedTasks = (tasksData || []).map((t: any) => ({
                 ...t,
                 deadlineType: t.deadline_type,
                 deadlineDays: t.deadline_days,
@@ -362,7 +462,7 @@ export function useUserData() {
             setMasterTasks(mappedTasks);
 
 
-            const mappedTips = (tipsData || []).map(t => ({
+            const mappedTips = (tipsData || []).map((t: any) => ({
                 ...t,
                 isCompanySpecific: t.isCompanySpecific,
                 isActive: t.isActive,
@@ -382,7 +482,7 @@ export function useUserData() {
                 return acc;
             }, {} as Record<string, CompanyUser[]>);
 
-            const configs: Record<string, CompanyConfig> = {};
+            let configs: Record<string, CompanyConfig> = {};
             (companiesData || []).forEach(company => {
                 const companyConfigDb = companyConfigsData?.find(c => c.company_id === company.id);
                 configs[company.name] = {
@@ -395,6 +495,45 @@ export function useUserData() {
                     companyTips: companyConfigDb?.company_tips || [],
                 };
             });
+            
+            // --- ONE-TIME DATA MIGRATION ---
+            const globexConfig = configs['Globex Corp'];
+            let needsSave = false;
+            if (globexConfig) {
+                if (globexConfig.questions?.['maritalStatus'] && 'options' in globexConfig.questions['maritalStatus']) {
+                    globexConfig.questions['maritalStatus'].optionOverrides = {
+                        add: ['Married (previously divorced)'],
+                        remove: ['Prefer not to answer'],
+                    };
+                    delete (globexConfig.questions['maritalStatus'] as any).options; // Remove incorrect key
+                    needsSave = true;
+                }
+                if (globexConfig.questions?.['state'] && 'options' in globexConfig.questions['state']) {
+                    globexConfig.questions['state'].optionOverrides = {
+                        add: ['Puerto Rico'],
+                        remove: [],
+                    };
+                    delete (globexConfig.questions['state'] as any).options;
+                    needsSave = true;
+                }
+            }
+
+            if (needsSave) {
+                const globexAssignment = assignments.find(a => a.companyName === 'Globex Corp');
+                if (globexAssignment) {
+                    await supabase.from('company_question_configs').upsert({
+                        company_id: globexAssignment.companyId,
+                        question_overrides: globexConfig.questions || {},
+                        custom_questions: globexConfig.customQuestions || {},
+                        question_order_by_section: globexConfig.questionOrderBySection || {},
+                        answer_guidance_overrides: globexConfig.answerGuidanceOverrides || {},
+                        company_tasks: globexConfig.companyTasks || [],
+                        company_tips: globexConfig.companyTips || [],
+                    }, { onConflict: 'company_id' });
+                }
+            }
+            // --- END MIGRATION ---
+
             setCompanyConfigs(configs);
             
             // Fetch user-specific data if authenticated
@@ -414,6 +553,15 @@ export function useUserData() {
     const saveProfileData = useCallback(async (data: ProfileData) => {
         if (!auth?.userId) return;
         setProfileData(data); // Optimistic update
+        const { error: userError } = await supabase
+            .from('company_users')
+            .update({ profile_completed_at: new Date().toISOString() })
+            .eq('id', auth.userId);
+
+        if (userError) {
+            console.error("Error updating profile completion timestamp:", userError);
+        }
+
         const { error } = await supabase.from('user_profiles').upsert({
             user_id: auth.userId,
             data: convertDatesToStrings(data)
@@ -423,16 +571,70 @@ export function useUserData() {
             // Optionally revert optimistic update
         }
     }, [auth?.userId]);
+    
+    const updateCompanyUserContact = useCallback(async (userId: string, contactInfo: { personal_email?: string, phone?: string }) => {
+        if (!userId) return;
+        const { error } = await supabase.from('company_users').update(contactInfo).eq('id', userId);
+        if (error) {
+            console.error("Error updating contact info:", error);
+        } else {
+             setCompanyConfigs(prev => {
+                const newConfigs = {...prev};
+                for (const companyName in newConfigs) {
+                    const company = newConfigs[companyName];
+                    if (company.users) {
+                        const userIndex = company.users.findIndex(u => u.id === userId);
+                        if (userIndex !== -1) {
+                            newConfigs[companyName].users![userIndex] = {
+                                ...newConfigs[companyName].users![userIndex],
+                                ...contactInfo
+                            };
+                        }
+                    }
+                }
+                return newConfigs;
+             });
+        }
+    }, []);
 
     const saveAssessmentData = useCallback(async (data: AssessmentData) => {
         if (!auth?.userId) return;
         setAssessmentData(data); // Optimistic update
-        const { error } = await supabase.from('user_assessments').upsert({
+    
+        const { data: companyUser, error: userError } = await supabase
+            .from('company_users')
+            .select('assessment_completed_at, initial_unsure_answers')
+            .eq('id', auth.userId) 
+            .single();
+    
+        if (userError) {
+            console.warn("Could not fetch user for analytics. This may not be an error.", userError);
+        } else if (companyUser) {
+            const now = new Date().toISOString();
+            const updates: Partial<CompanyUser> = {};
+            const unsureQuestions = Object.entries(data).filter(([, value]) => value === 'Unsure').map(([key]) => key);
+    
+            if (!companyUser.assessment_completed_at) {
+                updates.assessment_completed_at = now;
+                updates.initial_unsure_answers = unsureQuestions;
+            }
+    
+            if (companyUser.initial_unsure_answers && unsureQuestions.length === 0) {
+                updates.all_answers_resolved_at = now;
+            }
+    
+            if (Object.keys(updates).length > 0) {
+                await supabase.from('company_users').update(updates).eq('id', auth.userId);
+            }
+        }
+    
+        const { error: saveError } = await supabase.from('user_assessments').upsert({
             user_id: auth.userId,
             data: convertDatesToStrings(data)
         }, { onConflict: 'user_id' });
-        if (error) {
-            console.error("Error saving assessment:", error);
+    
+        if (saveError) {
+            console.error("Error saving assessment:", saveError);
         }
     }, [auth?.userId]);
     
@@ -480,16 +682,120 @@ export function useUserData() {
 
     }, []);
 
+    const updateCompanyAssignment = useCallback(async (companyName: string, payload: UpdateCompanyAssignmentPayload) => {
+        const assignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!assignment) return;
+        
+        if (payload.delete) {
+            const { error } = await supabase.from('companies').delete().eq('id', assignment.companyId);
+            if (error) {
+                 console.error("Error deleting company", error);
+            } else {
+                 setCompanyAssignments(prev => prev.filter(a => a.companyName !== companyName));
+            }
+            return;
+        }
+
+        if (payload.hrManagerToAdd) {
+             const { error } = await supabase.from('company_hr_assignments').insert({
+                company_id: assignment.companyId,
+                hr_email: payload.hrManagerToAdd.email,
+                is_primary: payload.hrManagerToAdd.isPrimary,
+                permissions: payload.hrManagerToAdd.permissions,
+            });
+            if (error) console.error("Error adding HR Manager", error);
+        }
+
+        if (payload.hrManagerToRemove) {
+             const { error } = await supabase.from('company_hr_assignments').delete()
+                .eq('company_id', assignment.companyId)
+                .eq('hr_email', payload.hrManagerToRemove);
+             if (error) console.error("Error removing HR Manager", error);
+        }
+
+        if (payload.hrManagerToUpdate) {
+             const { error } = await supabase.from('company_hr_assignments').update({
+                permissions: payload.hrManagerToUpdate.permissions
+            })
+            .eq('company_id', assignment.companyId)
+            .eq('hr_email', payload.hrManagerToUpdate.email);
+            if (error) console.error("Error updating permissions", error);
+        }
+
+        if (payload.newPrimaryManagerEmail) {
+            const currentPrimary = assignment.hrManagers.find(hr => hr.isPrimary);
+            if (currentPrimary) {
+                await supabase.from('company_hr_assignments').update({ is_primary: false })
+                    .eq('company_id', assignment.companyId)
+                    .eq('hr_email', currentPrimary.email);
+            }
+             await supabase.from('company_hr_assignments').update({ is_primary: true })
+                .eq('company_id', assignment.companyId)
+                .eq('hr_email', payload.newPrimaryManagerEmail);
+        }
+        
+        const companyUpdatePayload = {
+            version: payload.version,
+            max_users: payload.maxUsers,
+            severance_deadline_time: payload.severanceDeadlineTime,
+            severance_deadline_timezone: payload.severanceDeadlineTimezone,
+            pre_end_date_contact_alias: payload.preEndDateContactAlias,
+            post_end_date_contact_alias: payload.postEndDateContactAlias,
+        };
+        const definedUpdates = Object.fromEntries(Object.entries(companyUpdatePayload).filter(([, v]) => v !== undefined));
+
+        if (Object.keys(definedUpdates).length > 0) {
+             const { error } = await supabase.from('companies').update(definedUpdates).eq('id', assignment.companyId);
+             if(error) console.error("Error updating company settings", error);
+        }
+
+         const { data, error } = await supabase
+            .from('companies')
+            .select('*, company_hr_assignments!inner(*)')
+            .eq('name', companyName)
+            .single();
+
+         if (data) {
+            const updatedAssignment: CompanyAssignment = {
+                companyId: data.id,
+                companyName: data.name,
+                version: data.version,
+                maxUsers: data.max_users,
+                severanceDeadlineTime: data.severance_deadline_time,
+                severanceDeadlineTimezone: data.severance_deadline_timezone,
+                preEndDateContactAlias: data.pre_end_date_contact_alias,
+                postEndDateContactAlias: data.post_end_date_contact_alias,
+                hrManagers: data.company_hr_assignments.map((a: any) => ({
+                    email: a.hr_email,
+                    isPrimary: a.is_primary,
+                    permissions: a.permissions
+                }))
+            };
+            setCompanyAssignments(prev => prev.map(a => a.companyName === companyName ? updatedAssignment : a));
+         }
+
+    }, [companyAssignments]);
+
     const saveMasterQuestions = useCallback(async (questionsToSave: Record<string, Question>, formType: 'profile' | 'assessment') => {
         const setFn = formType === 'profile' ? setMasterProfileQuestions : setMasterQuestions;
 
-        const upserts = Object.values(questionsToSave).map(q => ({
+        const questionList = Object.values(questionsToSave);
+
+        questionList.forEach((q, index) => {
+            if (q.sortOrder === undefined || q.sortOrder === null) {
+                q.sortOrder = index;
+            }
+        });
+
+        const upserts = questionList.map(q => ({
             id: q.id,
             form_type: q.formType,
+            sort_order: q.sortOrder,
             question_data: {
                 ...q,
-                id: undefined, // Don't store id inside the jsonb
-                formType: undefined, // Don't store formType inside the jsonb
+                id: undefined, 
+                formType: undefined,
+                sortOrder: undefined,
             }
         }));
 
@@ -557,8 +863,9 @@ export function useUserData() {
                 ...t,
                 deadline_type: t.deadlineType,
                 deadline_days: t.deadlineDays,
-                linkedResourceId: t.linkedResourceId,
-                isCompanySpecific: t.isCompanySpecific,
+                "linkedResourceId": t.linkedResourceId,
+                "isCompanySpecific": t.isCompanySpecific,
+                "isActive": t.isActive,
             };
         });
         const { error } = await supabase.from('master_tasks').upsert(tasksToSave);
@@ -573,7 +880,8 @@ export function useUserData() {
         const tipsToSave = tips.map(t => {
             return {
                 ...t,
-                isCompanySpecific: t.isCompanySpecific,
+                "isCompanySpecific": t.isCompanySpecific,
+                "isActive": t.isActive,
             };
         });
         const { error } = await supabase.from('master_tips').upsert(tipsToSave);
@@ -585,29 +893,456 @@ export function useUserData() {
     }, []);
     
     const saveGuidanceRules = useCallback(async (rules: GuidanceRule[]) => {
-        const rulesToSave = rules.map(r => {
-            const { questionId, ...rest } = r;
-            return {
-                ...rest,
-                question_id: questionId
-            };
-        });
-        const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
+        const existingIds = new Set(guidanceRules.map(r => r.id));
+        const newIds = new Set(rules.map(r => r.id));
+        const idsToDelete = [...existingIds].filter(id => !newIds.has(id));
+
+        if (idsToDelete.length > 0) {
+            const { error: deleteError } = await supabase.from('guidance_rules').delete().in('id', idsToDelete);
+            if (deleteError) {
+                console.error("Error deleting guidance rules:", deleteError);
+                return;
+            }
+        }
+
+        if (rules.length > 0) {
+            const rulesToSave = rules.map(r => {
+                const { questionId, ...rest } = r;
+                return { ...rest, question_id: questionId };
+            });
+
+            const { error } = await supabase.from('guidance_rules').upsert(rulesToSave);
+            if (error) {
+                console.error("Error saving guidance rules:", error);
+                return;
+            }
+        }
+        
+        setGuidanceRules(rules);
+
+    }, [guidanceRules]);
+    
+    const addPlatformUser = useCallback(async (user: Omit<PlatformUser, 'id'>) => {
+        const { data, error } = await supabase.from('platform_users').insert(user).select().single();
         if (error) {
-            console.error("Error saving guidance rules:", error);
-        } else {
-            setGuidanceRules(rules);
+            console.error("Error adding platform user:", error);
+        } else if (data) {
+            setPlatformUsers(prev => [...prev, data as PlatformUser]);
         }
     }, []);
 
+    const deletePlatformUser = useCallback(async (email: string) => {
+        const { error } = await supabase.from('platform_users').delete().eq('email', email);
+        if (error) {
+            console.error("Error deleting platform user:", error);
+        } else {
+            setPlatformUsers(prev => prev.filter(u => u.email !== email));
+        }
+    }, []);
 
-    // Placeholder implementations for other write functions
-    const getCompanyConfig = (companyName: string | undefined, activeOnly = true, formType: 'assessment' | 'profile' | 'all' = 'assessment'): Question[] => {
-        return [];
-    };
+    const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        // This function is complex. It needs to figure out what was added, updated, or removed.
+        const allCurrentAssignments = companyAssignments || [];
+        const toUpsert: any[] = [];
+        const toDelete: { company_id: string; hr_email: string }[] = [];
+
+        for (const currentAssignment of allCurrentAssignments) {
+            const updatedAssignment = assignmentsToSave.find(a => a.companyId === currentAssignment.companyId);
+            
+            for (const currentManager of currentAssignment.hrManagers) {
+                // If a manager that existed before is no longer in the updated list for that company, mark for deletion.
+                const managerStillExists = updatedAssignment?.hrManagers.some(hr => hr.email === currentManager.email);
+                if (!managerStillExists) {
+                    toDelete.push({ company_id: currentAssignment.companyId, hr_email: currentManager.email });
+                }
+            }
+        }
+        
+        for (const updatedAssignment of assignmentsToSave) {
+            for (const updatedManager of updatedAssignment.hrManagers) {
+                toUpsert.push({
+                    company_id: updatedAssignment.companyId,
+                    hr_email: updatedManager.email,
+                    is_primary: updatedManager.isPrimary,
+                    permissions: updatedManager.permissions,
+                });
+            }
+        }
+
+        if (toDelete.length > 0) {
+            const deletePromises = toDelete.map(d => 
+                supabase.from('company_hr_assignments').delete().match({ company_id: d.company_id, hr_email: d.hr_email })
+            );
+            await Promise.all(deletePromises);
+        }
+
+        if (toUpsert.length > 0) {
+            const { error: upsertError } = await supabase.from('company_hr_assignments').upsert(toUpsert, { onConflict: 'company_id, hr_email' });
+            if (upsertError) console.error("Error upserting assignments", upsertError);
+        }
+
+        setCompanyAssignments(assignmentsToSave);
+
+    }, [companyAssignments]);
+
+    const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'assessment' | 'profile' = 'assessment'): Question[] => {
+        if (!companyName) return [];
+        const companyConfig = companyConfigs[companyName];
+        const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        
+        let finalQuestions: Question[] = [];
+    
+        for (const id in masterSource) {
+            const masterQ = { ...masterSource[id] };
+            if (!masterQ.isActive) continue; // Skip inactive master questions
+            if (masterQ.formType !== formType) continue;
+            
+            const override = companyConfig?.questions?.[id];
+            const isCompanyActive = override?.isActive === undefined ? true : override.isActive;
+    
+            if (!forEndUser || isCompanyActive) {
+                let finalQuestion: Question = { ...masterQ };
+                
+                if (override) {
+                    finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
+                    if (override.label) finalQuestion.label = override.label;
+                    if (override.description) finalQuestion.description = override.description;
+                    
+                    if (override.optionOverrides) {
+                        const baseOptions = masterQ.options || [];
+                        const toRemove = new Set(override.optionOverrides.remove || []);
+                        const toAdd = override.optionOverrides.add || [];
+                        
+                        let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
+                        newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+                        finalQuestion.options = newOptions;
+                    }
+    
+                    if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
+                }
+                
+                finalQuestion.isActive = forEndUser ? (masterQ.isActive && isCompanyActive) : isCompanyActive;
+                finalQuestions.push(finalQuestion);
+            }
+        }
+        
+        const companyCustomQuestions = companyConfig?.customQuestions || {};
+        for(const id in companyCustomQuestions) {
+            const customQ = companyCustomQuestions[id];
+            if(customQ.formType === formType && customQ.isActive) {
+                finalQuestions.push({ ...customQ, isCustom: true });
+            }
+        }
+    
+        const questionTree = buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
+        
+        return questionTree;
+    }, [companyConfigs, masterQuestions, masterProfileQuestions]);
+    
+    
+    const getCompanyUser = useMemo(() => (email: string | undefined) => {
+        if (!email || !companyConfigs) return null;
+        for (const companyName in companyConfigs) {
+            const user = companyConfigs[companyName]?.users?.find(
+                (u) => u.email.toLowerCase() === email.toLowerCase()
+            );
+            if (user) {
+                return { companyName, user };
+            }
+        }
+        return null;
+    }, [companyConfigs]);
+    
+     const getProfileCompletion = useCallback(() => {
+        const rootQuestions = getCompanyConfig(auth?.companyName, true, 'profile');
+        const companyUser = getCompanyUser(auth?.email)?.user;
+        const allAnswers = {
+            ...profileData,
+            personalEmail: companyUser?.personal_email,
+            phone: companyUser?.phone,
+        };
+
+        const applicableQuestions = getApplicableQuestions(rootQuestions, allAnswers, profileData);
+        
+        const isAnswered = (q: Question) => {
+            const value = allAnswers[q.id as keyof typeof allAnswers];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        }
+
+        const completedQuestions = applicableQuestions.filter(isAnswered);
+        const incompleteQuestions = applicableQuestions.filter(q => !isAnswered(q));
+        
+        const percentage = applicableQuestions.length > 0 ? (completedQuestions.length / applicableQuestions.length) * 100 : 100;
+        
+        return {
+            percentage,
+            isComplete: completedQuestions.length === applicableQuestions.length,
+            totalApplicable: applicableQuestions.length,
+            completed: completedQuestions.length,
+            incompleteQuestions,
+        };
+    }, [profileData, getCompanyConfig, getCompanyUser, auth?.email, auth?.companyName]);
+
+    const getAssessmentCompletion = useCallback(() => {
+        if (!auth?.companyName) return { percentage: 0, sections: [], isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+        
+        const allCompanyQuestions = getCompanyConfig(auth.companyName, true, 'assessment');
+        if (allCompanyQuestions.length === 0) return { percentage: 100, sections: [], isComplete: true, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+
+        const rootQuestions = allCompanyQuestions.filter(q => !q.parentId);
+
+        const applicableQuestions = getApplicableQuestions(rootQuestions, { ...profileData, ...assessmentData }, profileData);
+        
+        const sectionsMap: Record<string, { total: number, completed: number }> = {};
+
+         const isAnswered = (q: Question) => {
+            const value = (assessmentData as any)?.[q.id];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        }
+        
+        const incompleteQuestions = applicableQuestions.filter(q => !isAnswered(q));
+
+        for (const q of applicableQuestions) {
+            if (!q.section) continue;
+            if (!sectionsMap[q.section]) {
+                sectionsMap[q.section] = { total: 0, completed: 0 };
+            }
+            sectionsMap[q.section].total++;
+            if (isAnswered(q)) {
+                sectionsMap[q.section].completed++;
+            }
+        }
+        
+        let totalQuestions = applicableQuestions.length;
+        let totalCompleted = totalQuestions - incompleteQuestions.length;
+        
+        const sectionsArray = Object.entries(sectionsMap).map(([name, counts]) => ({
+            name,
+            ...counts,
+            percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
+        }));
+
+        const overallPercentage = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
+
+        return {
+            percentage: overallPercentage,
+            sections: sectionsArray,
+            isComplete: overallPercentage === 100,
+            totalApplicable: totalQuestions,
+            completed: totalCompleted,
+            incompleteQuestions,
+        };
+
+    }, [auth?.companyName, getCompanyConfig, assessmentData, profileData]);
+
+    const addReviewQueueItem = useCallback(async (item: Omit<ReviewQueueItem, 'id'|'created_at'|'company_id'> & { companyName?: string }) => {
+        const companyId = companyAssignments.find(c => c.companyName === item.companyName)?.companyId;
+        if (!companyId) {
+            console.error("Error adding to review queue: Could not find company ID for review item");
+            return;
+        }
+
+        const { companyName, ...restOfItem } = item;
+        const payload = { ...restOfItem, company_id: companyId };
+        
+        const { data, error } = await supabase.from('review_queue').insert(payload).select().single();
+        if (error) {
+            console.error("Error adding to review queue", error);
+        } else if(data) {
+            setReviewQueue(prev => [...prev, data as ReviewQueueItem]);
+        }
+    }, [companyAssignments]);
+
+    const processReviewQueueItem = useCallback(async (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string): Promise<boolean> => {
+        const reviewerId = auth?.userId;
+        if (!reviewerId) {
+            console.error("No reviewer ID found, cannot process queue item.");
+            return false;
+        }
+    
+        if (status === 'approved' && item.type === 'question_edit_suggestion') {
+            const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
+            if (!companyName) return false;
+            
+            const currentConfig = companyConfigs[companyName] || {};
+            const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            const { questionId, optionsToAdd = [], optionsToRemove = [] } = item.change_details || {};
+            if (!questionId) return false;
+    
+            if (!newConfig.questions) newConfig.questions = {};
+            const override = newConfig.questions[questionId] || {};
+            
+            if (!override.optionOverrides) {
+                override.optionOverrides = { add: [], remove: [] };
+            }
+            delete (override as any).options; 
+
+            const additions = new Set(override.optionOverrides.add || []);
+            const newAdditions = optionsToAdd.map((o: {option: string}) => o.option);
+            newAdditions.forEach(item => additions.add(item));
+
+            const removals = new Set(override.optionOverrides.remove || []);
+            (optionsToRemove || []).forEach((item: string) => removals.add(item));
+            
+            // Ensure no item is in both add and remove
+            additions.forEach(a => { if(removals.has(a)) removals.delete(a); });
+            removals.forEach(r => { if(additions.has(r)) additions.delete(r); });
+
+            override.optionOverrides.add = Array.from(additions);
+            override.optionOverrides.remove = Array.from(removals);
+            
+            newConfig.questions[questionId] = { ...override, lastUpdated: new Date().toISOString() };
+    
+            if (optionsToAdd.length > 0) {
+                optionsToAdd.forEach((suggestion: { option: string; guidance?: AnswerGuidance }) => {
+                    if (suggestion.guidance) {
+                        if (!newConfig.answerGuidanceOverrides) newConfig.answerGuidanceOverrides = {};
+                        if (!newConfig.answerGuidanceOverrides[questionId]) newConfig.answerGuidanceOverrides[questionId] = {};
+                        newConfig.answerGuidanceOverrides[questionId][suggestion.option] = suggestion.guidance;
+                    }
+                });
+            }
+    
+            await saveCompanyConfig(companyName, newConfig);
+        }
+        
+        if (status === 'rejected' && item.type === 'custom_question_guidance') {
+            const companyName = companyAssignments.find(c => c.companyId === item.company_id)?.companyName;
+            if (!companyName) return false;
+            const currentConfig = companyConfigs[companyName];
+            const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            const { question } = item.change_details || {};
+            if (!question?.id || !newConfig.customQuestions?.[question.id]) return false;
+    
+            newConfig.customQuestions[question.id].isActive = false;
+            await saveCompanyConfig(companyName, newConfig);
+        }
+    
+        const { data: updatedItem, error } = await supabase
+            .from('review_queue')
+            .update({ status, reviewed_at: new Date().toISOString(), reviewer_id: reviewerId, rejection_reason: rejectionReason })
+            .eq('id', item.id)
+            .select()
+            .single();
+    
+        if (error) {
+            console.error('Error updating review item status:', error);
+            return false;
+        }
+        
+        setReviewQueue(prev => prev.map(i => i.id === item.id ? (updatedItem as ReviewQueueItem) : i));
+        return true;
+    }, [auth?.userId, companyAssignments, companyConfigs, saveCompanyConfig]);
+    
+    const saveExternalResources = useCallback(async (resources: ExternalResource[]) => {
+        const { error } = await supabase.from('external_resources').upsert(resources);
+        if (error) {
+            console.error("Error saving external resources:", error);
+        } else {
+            setExternalResources(resources);
+        }
+    }, []);
+
+    const getMappedRecommendations = useCallback(() => {
+        if (!profileData || !assessmentData || !auth?.companyName) return { tasks: [], tips: [] };
+
+        const allUserAnswers = { ...profileData, ...assessmentData };
+        const companyConfig = companyConfigs[auth.companyName];
+        const allCompanyTasks = [...masterTasks, ...(companyConfig?.companyTasks || [])];
+        const allCompanyTips = [...masterTips, ...(companyConfig?.companyTips || [])];
+        
+        const tasks: RecommendationItem[] = [];
+        const tips: TipItem[] = [];
+        const addedTaskIds = new Set<string>();
+        const addedTipIds = new Set<string>();
+
+        // 1. Evaluate Guidance Rules (master rules)
+        guidanceRules.forEach(rule => {
+            let isMatch = false;
+            if (rule.type === 'direct') {
+                isMatch = rule.conditions.every(cond => {
+                    if (cond.type !== 'question' || !cond.questionId || !cond.answer) return false;
+                    const userAnswer = allUserAnswers[cond.questionId as keyof typeof allUserAnswers];
+                    return Array.isArray(userAnswer) ? userAnswer.includes(cond.answer) : userAnswer === cond.answer;
+                });
+            } else if (rule.type === 'calculated') {
+                 let calculatedValue: number | null = null;
+                if (rule.calculation?.type === 'age' && profileData.birthYear) {
+                    calculatedValue = new Date().getFullYear() - profileData.birthYear;
+                } else if (rule.calculation?.type === 'tenure' && assessmentData.startDate && assessmentData.finalDate) {
+                     try {
+                        const start = assessmentData.startDate instanceof Date ? assessmentData.startDate : parseISO(assessmentData.startDate as string);
+                        const end = assessmentData.finalDate instanceof Date ? assessmentData.finalDate : parseISO(assessmentData.finalDate as string);
+                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                            calculatedValue = differenceInYears(end, start);
+                        }
+                    } catch {}
+                }
+                 if (calculatedValue !== null) {
+                    const matchingRange = rule.ranges?.find(range => calculatedValue! >= range.from && calculatedValue! < range.to);
+                    if (matchingRange && !matchingRange.assignments.noGuidanceRequired) {
+                        (matchingRange.assignments.taskIds || []).forEach(taskId => addedTaskIds.add(taskId));
+                        (matchingRange.assignments.tipIds || []).forEach(tipId => addedTipIds.add(tipId));
+                    }
+                }
+            }
+            if (isMatch && !rule.assignments.noGuidanceRequired) {
+                (rule.assignments.taskIds || []).forEach(taskId => addedTaskIds.add(taskId));
+                (rule.assignments.tipIds || []).forEach(tipId => addedTipIds.add(tipId));
+            }
+        });
+        
+        // 2. Evaluate Company-specific Answer Guidance Overrides
+        Object.entries(allUserAnswers).forEach(([questionId, answer]) => {
+            if (!answer) return;
+            
+            const handleAnswer = (ans: string) => {
+                const guidance = companyConfig?.answerGuidanceOverrides?.[questionId]?.[ans];
+                if (guidance && !guidance.noGuidanceRequired) {
+                    (guidance.tasks || []).forEach(taskId => addedTaskIds.add(taskId));
+                    (guidance.tips || []).forEach(tipId => addedTipIds.add(tipId));
+                }
+            };
+
+            if (Array.isArray(answer)) {
+                answer.forEach(handleAnswer);
+            } else {
+                handleAnswer(String(answer));
+            }
+        });
+
+        // 3. Compile the final lists from the collected IDs
+        addedTaskIds.forEach(taskId => {
+            const task = allCompanyTasks.find(t => t.id === taskId);
+            if (task) {
+                tasks.push({
+                    taskId: task.id,
+                    task: task.name,
+                    category: task.category,
+                    timeline: '', // AI will fill this
+                    details: task.detail,
+                    isCompanySpecific: task.isCompanySpecific,
+                });
+            }
+        });
+
+        addedTipIds.forEach(tipId => {
+            const tip = allCompanyTips.find(t => t.id === tipId);
+            if (tip) {
+                tips.push({
+                    tipId: tip.id,
+                    text: tip.text,
+                    category: tip.category,
+                    priority: tip.priority,
+                    isCompanySpecific: tip.isCompanySpecific,
+                });
+            }
+        });
+
+        return { tasks, tips };
+    }, [profileData, assessmentData, guidanceRules, companyConfigs, masterTasks, masterTips, auth?.companyName]);
 
     return {
-        // --- DATA ---
         profileData,
         assessmentData,
         completedTasks,
@@ -622,12 +1357,14 @@ export function useUserData() {
         masterTips,
         companyAssignments,
         companyConfigs,
-        externalResources: [],
-
-        // --- FUNCTIONS ---
+        externalResources,
+        platformUsers,
+        reviewQueue,
+        setReviewQueue,
         saveProfileData,
         saveAssessmentData,
         addCompanyAssignment,
+        updateCompanyAssignment,
         saveMasterQuestions,
         saveMasterQuestionConfig,
         saveCompanyConfig,
@@ -638,39 +1375,41 @@ export function useUserData() {
         getCompanyConfig,
         getAllCompanyConfigs: useCallback(() => companyConfigs, [companyConfigs]),
         saveGuidanceRules,
+        addPlatformUser,
+        deletePlatformUser,
+        getCompanyUser,
+        updateCompanyUserContact,
+        saveCompanyAssignments,
         isAssessmentComplete: !!assessmentData?.workStatus,
-        clearRecommendations: () => {},
-        saveRecommendations: () => {},
+        clearRecommendations: () => setRecommendations(null),
+        saveRecommendations: (recs: PersonalizedRecommendationsOutput) => setRecommendations(recs),
         toggleTaskCompletion: () => {},
         updateTaskDate: () => {},
         addCustomDeadline: () => {},
         clearData: () => {},
-        getProfileCompletion: () => ({ percentage: 0, sections: [], isComplete: false }),
-        getAssessmentCompletion: () => ({ percentage: 0, sections: [], isComplete: false }),
+        getProfileCompletion,
+        getAssessmentCompletion,
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
-        getMappedRecommendations: () => [],
+        getMappedRecommendations,
         getTargetTimezone: () => 'UTC',
         saveCompanyUsers: async () => {},
         saveCompanyResources: async () => {},
-        addReviewQueueItem: async () => {},
-        saveExternalResources: async () => {},
-        saveReviewQueue: async () => {},
+        addReviewQueueItem,
+        processReviewQueueItem,
+        saveExternalResources,
         saveTaskMappings: async () => {},
         saveTipMappings: async () => {},
-        updateCompanyAssignment: async () => {},
-        saveCompanyAssignments: async () => {},
         deleteCompanyAssignment: async () => {},
-        addPlatformUser: async () => {},
-        deletePlatformUser: async () => {},
         getCompaniesForHr: () => [],
-        getCompanyUser: () => null,
         getPlatformUserRole: () => null,
         companyAssignmentForHr: companyAssignments.find(c => c.companyName === auth?.companyName),
-        profileCompletions: {}, // Placeholder
-        assessmentCompletions: {}, // Placeholder
-        taskMappings: [], // Placeholder
-        tipMappings: [], // Placeholder
-        reviewQueue: [], // Placeholder
-        platformUsers: [], // Placeholder
+        profileCompletions: {},
+        assessmentCompletions: {},
+        taskMappings: [],
+        tipMappings: [],
     };
 }
+
+
+
+

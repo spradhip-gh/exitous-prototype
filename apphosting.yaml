@@ -5,3 +5,11 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+# Pass secrets as environment variables to the Next.js server instances.
+# You will be prompted to set the secret value on your first deploy.
+# To manage secrets, see: https://firebase.google.com/docs/app-hosting/manage-secrets
+env:
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    secret: SUPABASE_URL
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    secret: SUPABASE_ANON_KEY

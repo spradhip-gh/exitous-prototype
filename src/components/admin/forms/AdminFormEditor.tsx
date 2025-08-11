@@ -181,8 +181,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="profile"
                             questions={masterProfileQuestions}
-                            saveFn={(q) => saveMasterQuestions(q, 'profile')}
-                            defaultQuestionsFn={getDefaultProfileQuestions}
+                            saveMasterQuestions={saveMasterQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
                             masterTasks={masterTasks}
@@ -193,8 +192,7 @@ export default function AdminFormEditor() {
                         <QuestionEditor
                             questionType="assessment"
                             questions={masterQuestions}
-                            saveFn={(q) => saveMasterQuestions(q, 'assessment')}
-                            defaultQuestionsFn={getDefaultQuestions}
+                            saveMasterQuestions={saveMasterQuestions}
                             onAddNewTask={handleAddNewTask}
                             onAddNewTip={handleAddNewTip}
                             masterTasks={masterTasks}
@@ -319,6 +317,7 @@ export default function AdminFormEditor() {
                 task={null}
                 onSave={handleSaveNewTask}
                 allResources={externalResources}
+                masterTasks={masterTasks}
             />
 
              <TipForm 
@@ -326,6 +325,7 @@ export default function AdminFormEditor() {
                 onOpenChange={setIsTipFormOpen}
                 tip={null}
                 onSave={handleSaveNewTip}
+                masterTips={masterTips}
             />
         </div>
     );
@@ -355,11 +355,10 @@ function SortableSection({ section, children }: { section: OrderedSection, child
     );
 }
 
-function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
+function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNewTask, onAddNewTip, masterTasks, masterTips }: {
     questionType: 'profile' | 'assessment';
     questions: Record<string, Question>;
-    saveFn: (questions: Record<string, Question>) => void;
-    defaultQuestionsFn: () => Question[];
+    saveMasterQuestions: (questions: Record<string, Question>, type: 'profile' | 'assessment') => void;
     onAddNewTask: (callback: (item: any) => void) => void;
     onAddNewTip: (callback: (item: any) => void) => void;
     masterTasks: MasterTask[];
@@ -376,6 +375,10 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     const sensors = useSensors(
         useSensor(PointerSensor)
     );
+    const defaultQuestionsFn = useMemo(() => {
+        return questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
+    }, [questionType]);
+
 
     const activeQuestions = useMemo(() => {
         if (!questions) return {};
@@ -396,13 +399,11 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         }
 
         const rootQuestions = buildQuestionTreeFromMap(activeQuestions);
-        
         const sectionsMap: Record<string, Question[]> = {};
         
         const masterQuestionConfig = getMasterQuestionConfig(questionType);
         const savedSectionOrder = masterQuestionConfig?.section_order;
-
-        const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
+        
         let finalSectionOrder: string[];
 
         if (savedSectionOrder) {
@@ -414,6 +415,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
             });
 
         } else {
+             const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
              const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
              const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
              finalSectionOrder = [...defaultSectionOrder];
@@ -431,7 +433,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         
         const sections = finalSectionOrder.map(sectionName => ({
             id: sectionName,
-            questions: sectionsMap[sectionName] || []
+            questions: (sectionsMap[sectionName] || []).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         })).filter(s => s.questions.length > 0);
         
         setOrderedSections(sections);
@@ -453,7 +455,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         } else {
             section = orderedSections[0]?.id || '';
         }
-        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '', formType: questionType });
+        setCurrentQuestion({ parentId, id: '', label: '', section, type: 'text', isActive: true, options: [], description: '', formType: questionType, sortOrder: 999 });
         setIsNewQuestion(true);
         setIsEditing(true);
     };
@@ -476,7 +478,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
 
         archiveRecursive(questionId);
         
-        saveFn(newMaster);
+        saveMasterQuestions(newMaster, questionType);
         toast({ title: "Question Archived", description: "The question and all its sub-questions have been archived." });
     };
 
@@ -499,7 +501,7 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
         const newMaster = { ...questions };
         newMaster[finalQuestion.id] = { ...newMaster[finalQuestion.id], ...finalQuestion };
 
-        saveFn(newMaster);
+        saveMasterQuestions(newMaster, questionType);
         toast({ title: "Master Configuration Saved" });
 
         setIsEditing(false);
@@ -507,48 +509,40 @@ function QuestionEditor({ questionType, questions, saveFn, defaultQuestionsFn, o
     };
 
     const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
-        let newMaster = JSON.parse(JSON.stringify(questions));
-        const questionsArray = Object.values(newMaster).filter((q: any) => !q.parentId && q.isActive);
-        const index = questionsArray.findIndex((q: any) => q.id === questionId);
+        const newMaster = { ...questions };
+        let questionSection = '';
+        let questionParentId: string | undefined = undefined;
 
-        if (index === -1) return;
-
-        const question = questionsArray[index] as Question;
-        const questionsInSection = questionsArray.filter((q: any) => q.section === question.section);
-        const sectionIndex = questionsInSection.findIndex((q: any) => q.id === questionId);
-
-        const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
-
-        if (targetIndex >= 0 && targetIndex < questionsInSection.length) {
-            const [moved] = questionsInSection.splice(sectionIndex, 1);
-            questionsInSection.splice(targetIndex, 0, moved);
-
-            const allSections = [...new Set(questionsArray.map((q: any) => q.section))];
-            const finalOrderedQuestions: Question[] = [];
-
-            allSections.forEach(section => {
-                if (section === question.section) {
-                    finalOrderedQuestions.push(...questionsInSection as Question[]);
-                } else {
-                    finalOrderedQuestions.push(...questionsArray.filter((q: any) => q.section === section) as Question[]);
-                }
-            });
-
-            const finalMaster: Record<string, Question> = {};
-            const allQuestions = Object.values(newMaster) as Question[];
-
-            finalOrderedQuestions.forEach(q => {
-                const fullQuestion = allQuestions.find(fullQ => fullQ.id === q.id);
-                if (fullQuestion) finalMaster[q.id] = fullQuestion;
-            });
-
-            allQuestions.forEach(q => {
-                if (!finalMaster[q.id]) finalMaster[q.id] = q;
-            });
-
-            saveFn(finalMaster);
-            toast({ title: "Master Configuration Saved" });
+        // Find the question and its context (section or parent)
+        for (const id in newMaster) {
+            if (newMaster[id].id === questionId) {
+                questionSection = newMaster[id].section || '';
+                questionParentId = newMaster[id].parentId;
+                break;
+            }
         }
+        
+        let siblings: Question[];
+        if (questionParentId) {
+             siblings = Object.values(newMaster).filter(q => q.parentId === questionParentId).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        } else {
+             siblings = Object.values(newMaster).filter(q => !q.parentId && q.section === questionSection).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        }
+        
+        const currentIndex = siblings.findIndex(q => q.id === questionId);
+        if (currentIndex === -1) return;
+
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= siblings.length) return;
+        
+        // Swap sort orders
+        const currentSortOrder = siblings[currentIndex].sortOrder || currentIndex;
+        const targetSortOrder = siblings[targetIndex].sortOrder || targetIndex;
+
+        newMaster[siblings[currentIndex].id].sortOrder = targetSortOrder;
+        newMaster[siblings[targetIndex].id].sortOrder = currentSortOrder;
+        
+        saveMasterQuestions(newMaster, questionType);
     };
     
     const handleDragEnd = (event: DragEndEvent) => {

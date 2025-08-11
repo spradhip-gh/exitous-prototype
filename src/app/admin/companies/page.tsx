@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { timezones } from '@/lib/timezones';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -367,11 +367,9 @@ export default function CompanyManagementPage() {
         toast({ title: "No companies to export", variant: "destructive" });
         return;
     }
-    const headers = ["Company Name", "HR Manager", "Version", "Max Users", "Users Added", "Users Invited", "Assessments Completed", "Custom Questions", "Deadline Time", "Deadline Timezone", "Pre-End Date Contact", "Post-End Date Contact"];
-    
     const dataToExport = companyDataWithStats.map(c => ({
         "Company Name": c.companyName,
-        "HR Manager": c.hrManagers.find(hr => hr.isPrimary)?.email || c.hrManagers[0]?.email || 'N/A',
+        "Primary HR Manager": c.hrManagers.find(hr => hr.isPrimary)?.email || c.hrManagers[0]?.email || 'N/A',
         "Version": c.version,
         "Max Users": c.maxUsers,
         "Users Added": c.usersAdded,
@@ -384,14 +382,10 @@ export default function CompanyManagementPage() {
         "Post-End Date Contact": c.postEndDateContactAlias || '',
     }));
 
-    const csv = Papa.unparse(dataToExport, { header: true, columns: headers });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', 'all_companies_export.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Companies");
+    XLSX.writeFile(workbook, "all_companies_export.xlsx");
   };
   
     const handleMakePrimary = (companyName: string, newPrimaryEmail: string) => {
@@ -564,7 +558,7 @@ export default function CompanyManagementPage() {
                     <CardDescription>List of all companies and their designated HR managers.</CardDescription>
                 </div>
                 <Button variant="outline" onClick={handleExportCompanies}>
-                    <Download className="mr-2" /> Export to CSV
+                    <Download className="mr-2" /> Export to Excel
                 </Button>
             </CardHeader>
             <CardContent>

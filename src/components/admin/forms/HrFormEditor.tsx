@@ -1,16 +1,17 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource, CompanyAssignment } from "@/hooks/use-user-data";
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +24,6 @@ import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
 import { Pencil, Trash2 } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-
 
 interface HrOrderedSection {
     id: string;
@@ -44,19 +44,19 @@ function findQuestion(sections: HrOrderedSection[], questionId: string): Questio
 
 function MySuggestionsTab() {
     const { auth } = useAuth();
-    const { reviewQueue, saveReviewQueue } = useUserData();
+    const { reviewQueue, saveReviewQueue, companyAssignments } = useUserData();
     const { toast } = useToast();
 
+    const companyAssignmentForHr = useMemo(() => {
+        return companyAssignments.find(c => c.companyName === auth?.companyName);
+    }, [companyAssignments, auth?.companyName]);
+
     const mySuggestions = useMemo(() => {
-        if (!auth?.email || !auth.companyName) return [];
+        if (!companyAssignmentForHr?.companyId) return [];
         return reviewQueue
-            .filter(item =>
-                (item.inputData?.type === 'question_edit_suggestion' || item.inputData?.type === 'custom_question_guidance') &&
-                item.userEmail.toLowerCase() === auth.email!.toLowerCase() &&
-                item.inputData?.companyName === auth.companyName
-            )
-            .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-    }, [reviewQueue, auth]);
+            .filter(item => item.company_id === companyAssignmentForHr.companyId)
+            .sort((a, b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
+    }, [reviewQueue, companyAssignmentForHr?.companyId]);
 
     const handleWithdraw = (itemId: string) => {
         const updatedQueue = reviewQueue.filter(item => item.id !== itemId);
@@ -92,15 +92,17 @@ function MySuggestionsTab() {
                     <TableBody>
                         {mySuggestions.length > 0 ? mySuggestions.map(item => (
                             <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.inputData.questionLabel}</TableCell>
+                                <TableCell className="font-medium">{item.change_details?.questionLabel}</TableCell>
                                 <TableCell>
                                     <div className="text-xs space-y-1">
-                                        {item.inputData.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
-                                        {item.inputData.suggestions?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.inputData.suggestions.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
-                                        {item.inputData.suggestions?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.inputData.suggestions.optionsToRemove.join(', ')}</div>}
+                                        {item.type === 'custom_question_guidance' && <div className="text-blue-700">New Question Guidance</div>}
+                                        {item.change_details?.reason && <div className="italic text-muted-foreground">Reason: "{item.change_details.reason}"</div>}
+                                        {item.change_details?.optionsToAdd?.length > 0 && <div className="text-green-700">+ Add: {item.change_details.optionsToAdd.map((o: any) => `"${o.option}"`).join(', ')}</div>}
+                                        {item.change_details?.optionsToRemove?.length > 0 && <div className="text-red-700">- Remove: {item.change_details.optionsToRemove.join(', ')}</div>}
+                                        {item.rejection_reason && <div className="text-red-700">Rejection Reason: "{item.rejection_reason}"</div>}
                                     </div>
                                 </TableCell>
-                                <TableCell>{format(parseISO(item.createdAt), 'PPp')}</TableCell>
+                                <TableCell>{format(parseISO(item.created_at), 'PPp')}</TableCell>
                                 <TableCell>{getStatusBadge(item.status)}</TableCell>
                                 <TableCell className="text-right">
                                     {item.status === 'pending' && (
@@ -158,7 +160,10 @@ function QuestionEditor({
         masterProfileQuestions,
         isLoading,
         getCompanyConfig,
-        addReviewQueueItem
+        addReviewQueueItem,
+        getMasterQuestionConfig,
+        reviewQueue,
+        companyAssignments,
     } = useUserData();
 
     const [orderedSections, setOrderedSections] = useState<HrOrderedSection[]>([]);
@@ -166,161 +171,98 @@ function QuestionEditor({
     const [isNewCustom, setIsNewCustom] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
 
-    const questionTree = useMemo(() => {
-        if (!isLoading) {
-            return getCompanyConfig(companyName, false, questionType);
-        }
-        return [];
-    }, [companyName, isLoading, getCompanyConfig, questionType]);
+    const companyAssignmentForHr = useMemo(() => {
+        return companyAssignments.find(c => c.companyName === auth?.companyName);
+    }, [companyAssignments, auth?.companyName]);
+
+    const pendingSuggestionsByQuestionId = useMemo(() => {
+        const map = new Map<string, ReviewQueueItem>();
+        if (!companyAssignmentForHr?.companyId) return map;
+
+        reviewQueue.forEach(item => {
+            if (item.company_id === companyAssignmentForHr.companyId && item.status === 'pending' && item.change_details?.questionId) {
+                map.set(item.change_details.questionId, item);
+            }
+        });
+        return map;
+    }, [reviewQueue, companyAssignmentForHr?.companyId]);
 
     useEffect(() => {
-        if (questionTree.length === 0) {
+        if (isLoading || !companyName) {
             setOrderedSections([]);
             return;
         }
 
-        const companyQuestionOrder = companyConfig?.questionOrderBySection || {};
-        const defaultQuestionsFn = questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
-
+        const questionTree = getCompanyConfig(companyName, true, questionType);
+        
         const sectionsMap: Record<string, Question[]> = {};
+        const masterConfig = getMasterQuestionConfig(questionType);
+        const sectionOrder = masterConfig?.section_order || [];
+        
         questionTree.forEach(q => {
-            if (!q.section) return;
-            if (!sectionsMap[q.section]) sectionsMap[q.section] = [];
-            sectionsMap[q.section].push(q);
-        });
-
-        const masterSectionOrder = [...new Set(defaultQuestionsFn().filter(q => !q.parentId).map(q => q.section))];
-        Object.keys(sectionsMap).forEach(s => {
-            if (!masterSectionOrder.includes(s)) masterSectionOrder.push(s);
-        });
-
-        const sections = masterSectionOrder.map(sectionName => {
-            const questionsInSection = sectionsMap[sectionName];
-            if (!questionsInSection || questionsInSection.length === 0) return null;
-
-            let savedOrder = (companyQuestionOrder[sectionName] || []).filter(id => questionsInSection.some(q => q.id === id));
-
-            if (savedOrder.length === 0) {
-                const defaultOrderedIds = defaultQuestionsFn()
-                    .filter(q => q.section === sectionName && !q.parentId)
-                    .map(q => q.id);
-                savedOrder = [...defaultOrderedIds, ...questionsInSection.filter(q => q.isCustom).map(q => q.id)];
-            } else {
-                const orderedIdSet = new Set(savedOrder);
-                questionsInSection.forEach(q => {
-                    if (!orderedIdSet.has(q.id)) {
-                        const masterIdsInSection = new Set(defaultQuestionsFn().filter(q => q.section === sectionName).map(q => q.id));
-                        let lastMasterIndex = -1;
-                        for (let i = savedOrder.length - 1; i >= 0; i--) {
-                            if (masterIdsInSection.has(savedOrder[i])) {
-                                lastMasterIndex = i;
-                                break;
-                            }
-                        }
-                        if (lastMasterIndex !== -1) {
-                            savedOrder.splice(lastMasterIndex + 1, 0, q.id);
-                        } else {
-                            savedOrder.push(q.id);
-                        }
-                    }
-                });
-                savedOrder = savedOrder.filter(id => questionsInSection.some(q => q.id === id));
+            if (q.parentId) return;
+            const sectionName = q.section || "Uncategorized";
+            if (!sectionsMap[sectionName]) {
+                sectionsMap[sectionName] = [];
             }
+            sectionsMap[sectionName].push(q);
+        });
+        
+        // Add any custom sections not in the master order to the end
+        const masterSectionSet = new Set(sectionOrder);
+        Object.keys(sectionsMap).forEach(sectionName => {
+            if (!masterSectionSet.has(sectionName)) {
+                sectionOrder.push(sectionName);
+                masterSectionSet.add(sectionName);
+            }
+        });
 
-            const questionsForSection = savedOrder
-                .map(id => questionsInSection.find(q => q.id === id))
-                .filter((q): q is Question => !!q);
+        const sections = sectionOrder
+            .map(sectionName => {
+                const questionsInSection = sectionsMap[sectionName];
+                if (!questionsInSection || questionsInSection.length === 0) return null;
+                
+                const topCustom = questionsInSection.filter(q => q.isCustom && q.position === 'top').sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const master = questionsInSection.filter(q => !q.isCustom).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                const bottomCustom = questionsInSection.filter(q => q.isCustom && q.position !== 'top').sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
-
-            return { id: sectionName, questions: questionsForSection };
-        }).filter((s): s is HrOrderedSection => s !== null);
+                return { id: sectionName, questions: [...topCustom, ...master, ...bottomCustom] };
+            })
+            .filter((s): s is HrOrderedSection => s !== null);
 
         setOrderedSections(sections);
 
-    }, [questionTree, companyConfig, questionType]);
-
-    const generateAndSaveConfig = useCallback((sections: HrOrderedSection[], isAutoApproved: boolean = false) => {
-        if (!companyName) return;
-
-        const allCompanyConfigs = getAllCompanyConfigs();
-        const currentConfig = allCompanyConfigs[companyName] || {};
-
-        let newConfig: CompanyConfig = JSON.parse(JSON.stringify(currentConfig));
-
-        const companyOverrides: Record<string, Partial<Question>> = newConfig.questions || {};
-        const customQuestions: Record<string, Question> = newConfig.customQuestions || {};
-        const questionOrderBySection: Record<string, string[]> = newConfig.questionOrderBySection || {};
-
-        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
-
-        const processQuestionForSave = (q: Question) => {
-            if (q.isCustom) {
-                customQuestions[q.id] = q;
-            } else {
-                const masterQ = allMasterQuestions[q.id];
-                if (!masterQ) {
-                    if (q.parentId) { // It's a custom sub-question on a master question
-                        customQuestions[q.id] = q;
-                    }
-                } else {
-                    const override: Partial<Question> = {};
-                    let hasChanged = false;
-                    const fieldsToCompare: (keyof Question)[] = ['isActive', 'label', 'defaultValue', 'options', 'description'];
-                    fieldsToCompare.forEach(field => {
-                        if (JSON.stringify(q[field]) !== JSON.stringify(masterQ[field])) {
-                            (override as any)[field] = q[field];
-                            hasChanged = true;
-                        }
-                    });
-                    if (q.lastUpdated) override.lastUpdated = q.lastUpdated;
-
-                    if (hasChanged) {
-                        companyOverrides[q.id] = override;
-                    } else {
-                        delete companyOverrides[q.id]; // Remove override if it matches master
-                    }
-                }
-            }
-            q.subQuestions?.forEach(processQuestionForSave);
-        };
-
-        sections.forEach(section => {
-            questionOrderBySection[section.id] = section.questions.map(q => q.id);
-            section.questions.forEach(processQuestionForSave);
-        });
-
-        newConfig = {
-            ...newConfig,
-            questions: companyOverrides,
-            customQuestions,
-            questionOrderBySection,
-        };
-
-        saveCompanyConfig(companyName, newConfig);
-        if (isAutoApproved) {
-            toast({ title: "Configuration Saved", description: `Settings for ${companyName} have been updated.` });
-        }
-
-    }, [companyName, masterQuestions, masterProfileQuestions, getAllCompanyConfigs, saveCompanyConfig, toast]);
+    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, getMasterQuestionConfig]);
 
 
     const handleToggleQuestion = (questionId: string) => {
-        const newSections = JSON.parse(JSON.stringify(orderedSections));
-        const findAndToggle = (questions: Question[]) => {
-            for (const q of questions) {
-                if (q.id === questionId) {
-                    q.isActive = !q.isActive;
-                    return true;
-                }
-                if (q.subQuestions && findAndToggle(q.subQuestions)) {
-                    return true;
-                }
-            }
-            return false;
+        if (!companyConfig) return;
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+        
+        if (!newConfig.questions) {
+            newConfig.questions = {};
         }
-        newSections.forEach((s: HrOrderedSection) => findAndToggle(s.questions));
-        setOrderedSections(newSections);
-        generateAndSaveConfig(newSections, true);
+
+        const currentOverride = newConfig.questions[questionId] || {};
+        const masterQuestion = masterQuestions[questionId] || masterProfileQuestions[questionId];
+        
+        const currentIsActive = currentOverride.isActive === undefined ? masterQuestion.isActive : currentOverride.isActive;
+        currentOverride.isActive = !currentIsActive;
+        
+        newConfig.questions[questionId] = currentOverride;
+
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: 'Configuration Saved' });
+    };
+    
+    const handleDeleteCustom = (questionId: string) => {
+        if (!companyConfig) return;
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+        if (newConfig.customQuestions && newConfig.customQuestions[questionId]) {
+            delete newConfig.customQuestions[questionId];
+        }
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: 'Custom Question Deleted' });
     };
 
     const handleEditClick = (question: Question) => {
@@ -340,106 +282,143 @@ function QuestionEditor({
             isCustom: true,
             options: [],
             triggerValue: '',
+            formType: questionType,
+            position: 'bottom', // Default to bottom
         });
         setIsNewCustom(true);
         setIsEditing(true);
     };
 
-    const handleDeleteCustom = (questionId: string) => {
-        const newSections = JSON.parse(JSON.stringify(orderedSections));
-        const findAndDelete = (questions: Question[]) => {
-            for (let i = 0; i < questions.length; i++) {
-                if (questions[i].id === questionId) {
-                    questions.splice(i, 1);
-                    return true;
-                }
-                if (questions[i].subQuestions && findAndDelete(questions[i].subQuestions!)) {
-                    return true;
-                }
-            }
-            return false;
-        };
-        newSections.forEach((s: HrOrderedSection) => findAndDelete(s.questions));
-        setOrderedSections(newSections);
-        generateAndSaveConfig(newSections, true);
-    };
-
-    const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string, suggestedEdits?: any, isAutoApproved: boolean = false) => {
+    const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string) => {
         if (!questionToSave || !companyName) return;
-
-        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(getAllCompanyConfigs()[companyName]));
-        
-        const masterQuestion = masterQuestions[questionToSave.id!] || masterProfileQuestions[questionToSave.id!];
-        
-        const isSuggestionMode = !questionToSave.isCustom && !isNewCustom;
-
+    
+        const companyConfig = getAllCompanyConfigs()[companyName] || {};
+        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(companyConfig));
+    
+        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+        const masterQuestion = allMasterQuestions[questionToSave.id!];
+    
+        const isSuggestionMode = !!masterQuestion?.isLocked && !questionToSave.isCustom;
+    
         if (isSuggestionMode) {
-            const reviewItem = {
-                id: `review-suggestion-${Date.now()}`,
-                userEmail: auth?.email || 'unknown-hr',
-                inputData: {
-                    type: 'question_edit_suggestion',
-                    companyName: auth?.companyName,
-                    questionId: questionToSave.id,
-                    questionLabel: masterQuestion.label,
-                    suggestions: {
-                        optionsToAdd: suggestedEdits?.optionsToAdd || [],
-                        optionsToRemove: suggestedEdits?.optionsToRemove || [],
-                    }
-                },
-                output: {},
-                status: 'pending',
-                createdAt: new Date().toISOString(),
-            } as unknown as ReviewQueueItem;
+            const suggestedOptionsToAdd = (questionToSave.options || []).filter(opt => !(masterQuestion?.options || []).includes(opt));
+             
+             if (suggestedOptionsToAdd.length === 0 && !questionToSave.answerGuidance) {
+                toast({ title: "No Changes Suggested", description: "Please suggest an addition, removal, or guidance mapping.", variant: "destructive" });
+                return;
+            }
 
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> & { companyName?: string } = {
+                user_email: auth?.email || 'unknown-hr',
+                type: 'question_edit_suggestion',
+                status: 'pending',
+                companyName: auth?.companyName,
+                change_details: {
+                    questionId: questionToSave.id,
+                    questionLabel: questionToSave.label,
+                    optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: questionToSave.answerGuidance?.[opt] })),
+                },
+            };
             addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
+        } else {
+            let finalQuestion: Question = {
+                ...questionToSave,
+                lastUpdated: new Date().toISOString(),
+                formType: questionType,
+            } as Question;
+    
+            if (finalQuestion.isCustom) {
+                 if (isNewCustom) {
+                    finalQuestion.id = finalQuestion.id || `custom-${uuidv4()}`;
+                    const customQuestionsInSection = Object.values(companyConfig.customQuestions || {}).filter(q => q.section === finalQuestion.section && q.position === finalQuestion.position);
+                    finalQuestion.sortOrder = (customQuestionsInSection.length > 0 ? Math.max(...customQuestionsInSection.map(q => q.sortOrder || 0)) : 0) + 1;
+                }
+                if (newSectionName) {
+                    finalQuestion.section = newSectionName;
+                }
+                if (!finalConfig.customQuestions) {
+                    finalConfig.customQuestions = {};
+                }
+                finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
+            } else {
+                if (!finalConfig.questions) {
+                    finalConfig.questions = {};
+                }
+                const override: Partial<QuestionOverride> = {};
+                if (finalQuestion.label !== masterQuestion.label) override.label = finalQuestion.label;
+                if (finalQuestion.description !== masterQuestion.description) override.description = finalQuestion.description;
+                
+                 if (!override.optionOverrides) {
+                    override.optionOverrides = { add: [], remove: [] };
+                }
 
-        } else { // HR is editing a custom question or adding a new one
-            let finalQuestion: Question = { ...questionToSave, lastUpdated: new Date().toISOString() } as Question;
-            if (!finalQuestion.id) {
-                finalQuestion.id = `custom-${uuidv4()}`;
-            }
+                const masterOptions = new Set(masterQuestion.options || []);
+                const finalOptions = new Set(finalQuestion.options || []);
 
-            if(newSectionName) {
-                finalQuestion.section = newSectionName;
-            }
+                const added = (finalQuestion.options || []).filter(o => !masterOptions.has(o));
+                const removed = (masterQuestion.options || []).filter(o => !finalOptions.has(o));
 
-            if (!finalConfig.customQuestions) {
-                finalConfig.customQuestions = {};
+                if (added.length > 0) override.optionOverrides.add = added;
+                if (removed.length > 0) override.optionOverrides.remove = removed;
+
+                if(added.length === 0 && removed.length === 0) {
+                     delete override.optionOverrides;
+                }
+                
+                override.lastUpdated = finalQuestion.lastUpdated;
+                finalConfig.questions[finalQuestion.id] = override;
             }
-             finalConfig.customQuestions[finalQuestion.id] = finalQuestion;
-             saveCompanyConfig(companyName, finalConfig);
-             toast({ title: "Custom Question Saved" });
-        }
-        
-        // Save guidance overrides
-        if (questionToSave.answerGuidance && Object.keys(questionToSave.answerGuidance).length > 0) {
-            if (!finalConfig.answerGuidanceOverrides) finalConfig.answerGuidanceOverrides = {};
-            finalConfig.answerGuidanceOverrides[questionToSave.id!] = questionToSave.answerGuidance;
+    
+            if (finalQuestion.answerGuidance && Object.keys(finalQuestion.answerGuidance).length > 0) {
+                if (!finalConfig.answerGuidanceOverrides) {
+                    finalConfig.answerGuidanceOverrides = {};
+                }
+                finalConfig.answerGuidanceOverrides[finalQuestion.id] = {
+                    ...(finalConfig.answerGuidanceOverrides[finalQuestion.id] || {}),
+                    ...finalQuestion.answerGuidance,
+                };
+            }
+    
             saveCompanyConfig(companyName, finalConfig);
-            toast({ title: "Guidance Mapped", description: "Your task and tip mappings have been saved for this question."})
+            toast({ title: "Question Saved", description: "Your changes have been saved to the company configuration." });
         }
-
+    
         setIsEditing(false);
         setCurrentQuestion(null);
     };
 
-    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down') => {
-        const newSections = JSON.parse(JSON.stringify(orderedSections));
-        for (const section of newSections) {
-            const index = section.questions.findIndex((q: Question) => q.id === questionId);
-            if (index !== -1) {
-                const targetIndex = direction === 'up' ? index - 1 : index + 1;
-                if (targetIndex >= 0 && targetIndex < section.questions.length) {
-                    const [movedQuestion] = section.questions.splice(index, 1);
-                    section.questions.splice(targetIndex, 0, movedQuestion);
-                    setOrderedSections(newSections);
-                    generateAndSaveConfig(newSections, true);
-                }
-                break;
-            }
+    const handleMoveQuestion = (questionId: string, direction: 'up' | 'down' | 'to_top' | 'to_bottom') => {
+        if (!companyConfig?.customQuestions) return;
+
+        const currentQuestion = companyConfig.customQuestions[questionId];
+        if (!currentQuestion) return;
+
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+
+        if (direction === 'to_top' || direction === 'to_bottom') {
+            newConfig.customQuestions[questionId].position = direction === 'to_top' ? 'top' : 'bottom';
+        } else {
+            const siblings = Object.values(newConfig.customQuestions as Record<string, Question>)
+                .filter(q => q.section === currentQuestion.section && q.position === currentQuestion.position)
+                .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+            const currentIndex = siblings.findIndex(q => q.id === questionId);
+            if (currentIndex === -1) return;
+
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= siblings.length) return;
+
+            // Swap sortOrder
+            const currentSortOrder = siblings[currentIndex].sortOrder || 0;
+            const targetSortOrder = siblings[targetIndex].sortOrder || 0;
+
+            newConfig.customQuestions[questionId].sortOrder = targetSortOrder;
+            newConfig.customQuestions[siblings[targetIndex].id].sortOrder = currentSortOrder;
         }
+
+        saveCompanyConfig(companyName, newConfig);
+        toast({ title: 'Order Saved' });
     };
 
     const masterQuestionForEdit = useMemo(() => {
@@ -454,38 +433,49 @@ function QuestionEditor({
             <Card>
                 <CardHeader>
                     <CardTitle>Manage Questions</CardTitle>
-                    <CardDescription>Enable, disable, or edit questions. Use arrows to reorder custom questions. Questions marked with <Star className="inline h-4 w-4 text-amber-500" /> are custom to your company.</CardDescription>
+                    <CardDescription>Enable, disable, or edit questions. For custom questions (<Star className="inline h-4 w-4 text-amber-500" />), you can use the arrows to reorder them within their position (top/bottom of section).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {orderedSections.map(({ id: section, questions: sectionQuestions }) => (
-                        <div key={section}>
-                            <h3 className="font-semibold mb-4 text-lg">{section}</h3>
-                            <div className="space-y-2">
-                                {sectionQuestions.map((question, index) => {
-                                    const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
-                                    const masterQ = allMasterQuestions[question.id];
-                                    const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
+                    {orderedSections.map((section) => {
+                        const customQuestionsTop = section.questions.filter(q => q.isCustom && q.position === 'top');
+                        const customQuestionsBottom = section.questions.filter(q => q.isCustom && q.position !== 'top');
 
-                                    return (
-                                        <HrQuestionItem
-                                            key={question.id}
-                                            question={question}
-                                            onToggleActive={handleToggleQuestion}
-                                            onEdit={handleEditClick}
-                                            onDelete={handleDeleteCustom}
-                                            onAddSub={handleAddNewCustomClick}
-                                            hasBeenUpdated={hasBeenUpdated}
-                                            onMove={handleMoveQuestion}
-                                            isFirst={index === 0 || !question.isCustom}
-                                            isLast={index === sectionQuestions.length - 1 || !question.isCustom}
-                                            canWrite={canWrite}
-                                        />
-                                    )
-                                })}
+                        return (
+                            <div key={section.id} className="space-y-2">
+                                <h3 className="font-semibold text-lg">{section.id}</h3>
+                                <div className="pl-2 space-y-2 py-2">
+                                    {section.questions.map((question, index) => {
+                                        const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
+                                        const masterQ = allMasterQuestions[question.id];
+                                        const hasBeenUpdated = !!(masterQ && question.lastUpdated && masterQ.lastUpdated && new Date(masterQ.lastUpdated) > new Date(question.lastUpdated));
+                                        
+                                        const relevantCustomGroup = question.position === 'top' ? customQuestionsTop : customQuestionsBottom;
+                                        const customIndex = relevantCustomGroup.findIndex(q => q.id === question.id);
+                                        const pendingSuggestion = pendingSuggestionsByQuestionId.get(question.id);
+
+                                        return (
+                                            <HrQuestionItem
+                                                key={question.id}
+                                                question={question}
+                                                onToggleActive={handleToggleQuestion}
+                                                onEdit={handleEditClick}
+                                                onDelete={handleDeleteCustom}
+                                                onAddSub={handleAddNewCustomClick}
+                                                hasBeenUpdated={hasBeenUpdated}
+                                                onMove={handleMoveQuestion}
+                                                canWrite={canWrite}
+                                                isFirstCustom={question.isCustom && customIndex === 0}
+                                                isLastCustom={question.isCustom && customIndex === relevantCustomGroup.length - 1}
+                                                pendingSuggestion={pendingSuggestion}
+                                                companyConfig={companyConfig}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                                <Separator className="my-6" />
                             </div>
-                            <Separator className="my-6" />
-                        </div>
-                    ))}
+                        )
+                    })}
                 </CardContent>
                 <CardFooter className="border-t pt-6">
                     <Button variant="outline" onClick={() => handleAddNewCustomClick()} disabled={!canWrite}><PlusCircle className="mr-2" /> Add Custom Question</Button>
@@ -727,12 +717,13 @@ export default function HrFormEditor() {
                     <p className="text-muted-foreground">Manage the Profile and Assessment forms for <span className="font-bold">{companyName}</span>. Changes are saved automatically.</p>
                 </div>
                 <Tabs defaultValue="assessment-questions">
-                    <TabsList className="grid w-full grid-cols-5">
+                    <TabsList className="grid w-full grid-cols-6">
                         <TabsTrigger value="assessment-questions">Assessment Questions</TabsTrigger>
                         <TabsTrigger value="profile-questions">Profile Questions</TabsTrigger>
                         <TabsTrigger value="company-tasks">Company Tasks</TabsTrigger>
                         <TabsTrigger value="company-tips">Company Tips</TabsTrigger>
                         <TabsTrigger value="suggestions">My Suggestions</TabsTrigger>
+                        <TabsTrigger value="debug" className="text-destructive"><Bug className="mr-2" /> Debug</TabsTrigger>
                     </TabsList>
                     <TabsContent value="assessment-questions" className="mt-6">
                         <QuestionEditor questionType="assessment" canWrite={canWrite} onAddNewTask={handleAddNewTask} onAddNewTip={handleAddNewTip} companyConfig={companyConfig} companyName={companyName} />
@@ -753,6 +744,19 @@ export default function HrFormEditor() {
                     <TabsContent value="suggestions" className="mt-6">
                         <MySuggestionsTab />
                     </TabsContent>
+                    <TabsContent value="debug" className="mt-6">
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Debug Info</CardTitle>
+                                <CardDescription>Raw JSON configuration for {companyName}.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto">
+                                    {JSON.stringify(companyConfig.questions, null, 2)}
+                                </pre>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
                 <TaskForm
                     isOpen={isTaskFormOpen}
@@ -771,3 +775,5 @@ export default function HrFormEditor() {
         </div>
     );
 }
+
+    

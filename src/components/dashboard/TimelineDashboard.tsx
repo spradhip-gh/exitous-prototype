@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation';
 import { format, parse, differenceInDays, isSameDay, startOfToday, parseISO, startOfMonth, isValid } from 'date-fns';
 import { format as formatInTz } from 'date-fns-tz';
 import { useUserData, CompanyAssignment, GuidanceRule, Condition } from '@/hooks/use-user-data';
-import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem } from '@/ai/flows/personalized-recommendations';
+import { getPersonalizedRecommendations, PersonalizedRecommendationsOutput, RecommendationItem, TipItem } from '@/ai/flows/personalized-recommendations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb, Star, AlertCircle } from 'lucide-react';
+import { Terminal, Calendar, ListChecks, Briefcase, HeartHandshake, Banknote, Scale, Edit, Bell, CalendarX2, Stethoscope, Smile, Eye, HandCoins, Key, Info, ChevronDown, Layers, PlusCircle, CalendarPlus, Handshake, RefreshCw, Lightbulb, Star, AlertCircle, Bug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -158,7 +158,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   const isFullyComplete = isProfileComplete && isAssessmentComplete;
 
   const mappedRecommendations = useMemo(() => {
-      if (!isFullyComplete) return [];
+      if (!isFullyComplete) return { tasks: [], tips: [] };
       return getMappedRecommendations();
   }, [isFullyComplete, getMappedRecommendations]);
 
@@ -179,11 +179,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
         return;
       }
       
-      const effectiveProfileData = profileData || {
-          birthYear: 1990, state: 'N/A', gender: 'N/A', maritalStatus: 'N/A',
-          hasChildrenUnder13: false, hasExpectedChildren: false, impactedPeopleCount: '0',
-          livingStatus: 'N/A', citizenshipStatus: 'N/A', pastLifeEvents: [], hasChildrenAges18To26: false,
-      };
+      const effectiveProfileData = profileData || {};
 
       try {
         setIsLoading(true);
@@ -247,15 +243,22 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
   }, [profileData, assessmentData, isPreview, isFullyComplete, auth, recommendations, saveRecommendations]);
 
   const { tasks, tips } = useMemo(() => {
-    const aiRecs = recommendations?.recommendations || [];
-    const manualRecs = mappedRecommendations || [];
+    const aiTasks = recommendations?.recommendations || [];
+    const aiTips = recommendations?.tips || [];
+    
+    const manualTasks = mappedRecommendations?.tasks || [];
+    const manualTips = mappedRecommendations?.tips || [];
 
-    const manualTaskIds = new Set(manualRecs.map(rec => rec.taskId));
+    const manualTaskIds = new Set(manualTasks.map(rec => rec.taskId));
+    const manualTipIds = new Set(manualTips.map(tip => tip.tipId));
     
     // Filter out AI recommendations that are duplicates of manual ones
-    const deduplicatedAiRecs = aiRecs.filter(rec => !manualTaskIds.has(rec.taskId));
+    const deduplicatedAiTasks = aiTasks.filter(rec => !manualTaskIds.has(rec.taskId));
+    const deduplicatedAiTips = aiTips.filter(tip => !manualTipIds.has(tip.tipId));
     
-    const combined = [...manualRecs, ...deduplicatedAiRecs];
+    const combinedTasks = [...manualTasks, ...deduplicatedAiTasks];
+    const combinedTips = [...manualTips, ...deduplicatedAiTips];
+
 
     const getDateValue = (dateStr: string | undefined) => {
       if (!dateStr) return Infinity;
@@ -270,7 +273,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       return Infinity;
     };
 
-    const sorted = combined.sort((a, b) => {
+    const sortedTasks = combinedTasks.sort((a, b) => {
       const aDate = taskDateOverrides[a.taskId] || a.endDate;
       const bDate = taskDateOverrides[b.taskId] || b.endDate;
       
@@ -287,9 +290,12 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
       return 0;
     });
 
+    const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+    const sortedTips = combinedTips.sort((a,b) => (priorityOrder[a.priority as keyof typeof priorityOrder] || 4) - (priorityOrder[b.priority as keyof typeof priorityOrder] || 4));
+
     return {
-      tasks: sorted.filter(item => !item.taskId.startsWith('tip-')),
-      tips: sorted.filter(item => item.taskId.startsWith('tip-')),
+      tasks: sortedTasks,
+      tips: sortedTips,
     };
 
   }, [recommendations, mappedRecommendations, taskDateOverrides]);
@@ -447,7 +453,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                               {tips.length > 0 ? (
                                  <div className="space-y-4">
                                   {tips.map(tip => (
-                                    <Alert key={tip.taskId}>
+                                    <Alert key={tip.tipId}>
                                       <Lightbulb className="h-4 w-4" />
                                       <div className="flex items-center gap-2">
                                         <AlertTitle>{tip.category}</AlertTitle>
@@ -465,7 +471,7 @@ export default function TimelineDashboard({ isPreview = false }: { isPreview?: b
                                         )}
                                       </div>
                                       <AlertDescription>
-                                        <ReactMarkdown className="prose prose-sm">{tip.task.replace('Did you know: ', '')}</ReactMarkdown>
+                                        <ReactMarkdown className="prose prose-sm">{tip.text.replace('Did you know: ', '')}</ReactMarkdown>
                                       </AlertDescription>
                                     </Alert>
                                   ))}

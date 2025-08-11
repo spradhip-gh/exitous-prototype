@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getExternalResources } from '@/lib/demo-data';
+import { supabase } from '@/lib/supabase-client';
 import type { ExternalResource } from '@/lib/external-resources';
 
 const ProfileDataSchema = z.object({
@@ -75,9 +75,15 @@ const findExpertMatchesFlow = ai.defineFlow(
     outputSchema: ExpertMatchOutputSchema,
   },
   async (input) => {
-    // In a real app, this would be a more sophisticated search/retrieval step from a database.
-    // For the prototype, we get the list from our in-memory store.
-    const allResources = getExternalResources();
+    // Fetch external resources from Supabase
+    const { data: allResources, error: resourceError } = await supabase
+        .from('external_resources')
+        .select('*');
+    
+    if (resourceError) {
+        console.error("Error fetching external resources:", resourceError);
+        throw new Error("Could not retrieve external resources from the database.");
+    }
 
     const prompt = `You are an expert career and life transition counselor. Your task is to analyze a user's profile and layoff details to identify their most pressing needs. Then, you will match them with the most relevant external resources from the provided list.
 
@@ -125,5 +131,3 @@ Keywords: {{#each this.keywords}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each
     return output!;
   }
 );
-
-    

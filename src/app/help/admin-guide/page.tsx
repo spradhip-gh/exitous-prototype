@@ -23,7 +23,7 @@ export default function AdminGuidePage() {
                         <li><strong>Editing Company Details:</strong> From the company list, you can click the "Edit" pencil icon to open a dialog where you can manage that company's settings, HR team, and plan.</li>
                         <li><strong>Managing HR Teams:</strong> Within the edit dialog, you can add new HR managers to a company, remove existing ones, and set a "Primary Manager". The Primary Manager has full permissions for that company.</li>
                         <li><strong>Upgrading to Pro:</strong> You can upgrade a company from Basic to Pro at any time, which unlocks advanced features for their HR Manager.</li>
-                        <li><strong>Exporting Data:</strong> A CSV export of all companies and their key statistics (user counts, version, etc.) is available.</li>
+                        <li><strong>Exporting Data:</strong> An Excel export of all companies and their key statistics (user counts, version, etc.) is available.</li>
                     </ul>
                      <h3>User Management (Admin View)</h3>
                     <p>
@@ -39,14 +39,15 @@ export default function AdminGuidePage() {
                         As an Admin, you control the "source of truth" for all default content on the platform.
                     </p>
                     <h3>Master Form Editor</h3>
-                    <p>This is the heart of the platform's assessment tool. The editor is tabbed for easier navigation between "Profile Questions," "Assessment Questions," and "Guidance Rules."</p>
+                    <p>This is the heart of the platform's assessment tool. The editor is tabbed for easier navigation between "Profile Questions," "Assessment Questions," "Guidance Rules," and "Archived" items.</p>
                     <ul>
                         <li><strong>Editing Questions:</strong> You can modify the text, type, and options of any question in the master list. Be aware that these changes will be flagged to HR Managers who may have overridden that question, prompting them to review and accept the update.</li>
                         <li><strong>Adding Questions:</strong> New questions added here will become available to all companies. They can then choose to enable or disable them in their own form editor.</li>
+                        <li><strong>Archiving & Deleting:</strong> You can archive questions to hide them from the form editor or permanently delete them from the "Archived" tab.</li>
                         <li><strong>Guidance Rules:</strong> This powerful editor allows you to create deterministic rules that assign specific tasks or tips when certain conditions are met (e.g., if a user's tenure is over 10 years, assign the "401k Review" task).</li>
                     </ul>
                      <h3>Task & Tip Management</h3>
-                    <p>These pages allow you to create and manage the master lists of all possible user tasks and "Did you know..." tips. You can add items individually through a form or manage them in bulk by uploading a CSV file.</p>
+                    <p>These pages allow you to create and manage the master lists of all possible user tasks and "Did you know..." tips. You can add items individually through a form or manage them in bulk by uploading an Excel file.</p>
                      <h3>External Resources Management</h3>
                     <p>This page allows you to curate the directory of professional services that are recommended to users. The <code>relatedTaskIds</code> field is critical for linking a resource to a specific task, enabling the "Connect with a Professional" feature.</p>
 
@@ -55,12 +56,12 @@ export default function AdminGuidePage() {
                     <p>This is your queue for moderating content. You can review, approve, or reject suggestions submitted by HR Managers for locked questions and custom guidance mappings. This ensures platform-wide content quality and consistency.</p>
                     <h3>Assessment Analytics</h3>
                     <p>
-                        This page gives you high-level insights into how employees across the entire platform are interacting with the assessment. You can see the questions most frequently answered with "Unsure" and drill down to see a company-by-company breakdown.
+                        This page gives you high-level insights into how employees across the entire platform are interacting with the assessment. You can see the questions most frequently answered with "Unsure" on initial completion. This data is invaluable for identifying confusing questions or areas where more guidance is needed. You can click on any question in the chart to see a company-by-company breakdown of the "Unsure" counts.
                     </p>
 
                     <h2>4. Data Export</h2>
                     <p>
-                        This feature provides a comprehensive export of every single user on the platform, including End-Users, HR Managers, and Platform Admins/Consultants, along with their status and company affiliation.
+                        This feature provides a comprehensive export of every single user on the platform, including End-Users, HR Managers, and Platform Admins/Consultants, along with their status and company affiliation, in an Excel format.
                     </p>
 
                 </article>

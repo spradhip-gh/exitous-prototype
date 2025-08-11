@@ -3,61 +3,53 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
-import { Skeleton } from '@/components/ui/skeleton';
 import Login from '@/components/auth/Login';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import { useAuth } from '@/hooks/use-auth';
+import Image from 'next/image';
 
-export default function Home() {
+export default function HomePage() {
   const { auth, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && auth?.role) {
-      switch (auth.role) {
-        case 'end-user':
-          router.push('/dashboard');
-          break;
-        case 'admin':
-        case 'hr':
-          // Redirect both admin and HR to the user management page by default
-          router.push('/admin/users');
-          break;
-        case 'consultant':
-          router.push('/admin/review');
-          break;
-        default:
-          // Remain on the login page if the role is not recognized
-          break;
+    if (!loading) {
+      if (auth?.role === 'admin' || auth?.role === 'consultant') {
+        router.push('/admin/dashboard');
+      } else if (auth?.role === 'hr') {
+        router.push('/admin/users');
+      } else if (auth?.role === 'end-user') {
+        router.push('/dashboard');
       }
     }
   }, [auth, loading, router]);
 
-  if (loading || auth?.role) {
+  // Render nothing or a loading spinner while checking auth state
+  if (loading || auth) {
     return (
-      <div className="flex min-h-screen w-full flex-col">
-        <Header />
-        <main className="flex flex-1 items-center justify-center p-4">
-            <div className="w-full max-w-md space-y-4">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        </main>
-        <Footer />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
+        <Image
+            src="/logo.png"
+            alt="ExitBetter Logo"
+            width={240}
+            height={62}
+            priority
+        />
       </div>
     );
   }
 
   return (
-     <div className="flex min-h-screen w-full flex-col">
-       <Header />
-       <main className="flex flex-1 items-center justify-center p-4">
-         <Login />
-       </main>
-       <Footer />
-     </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-muted/40">
+       <div className="absolute top-8 left-8">
+         <Image
+            src="/logo.png"
+            alt="ExitBetter Logo"
+            width={180}
+            height={46}
+            priority
+        />
+       </div>
+      <Login />
+    </main>
   );
 }

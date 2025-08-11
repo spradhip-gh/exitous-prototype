@@ -257,7 +257,7 @@ export default function EditQuestionDialog({
     
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { addReviewQueueItem, companyConfigs } = useUserData();
+    const { addReviewQueueItem } = useUserData();
     
     const [currentQuestion, setCurrentQuestion] = useState<Partial<Question> | null>(null);
     const [optionsText, setOptionsText] = useState('');
@@ -276,11 +276,6 @@ export default function EditQuestionDialog({
     const isLockedMasterQuestion = !!masterQuestionForEdit?.isLocked;
     const isCustomQuestion = !!question?.isCustom;
     const isSuggestionMode = isHrEditing && isLockedMasterQuestion && !isCustomQuestion;
-
-    const companyOverride = useMemo(() => {
-        if (!auth?.companyName || !question?.id) return null;
-        return companyConfigs[auth.companyName]?.questions?.[question.id];
-    }, [auth?.companyName, question?.id, companyConfigs]);
         
     const dependencyQuestions = useMemo(() => {
         const profileQs = buildQuestionTreeFromMap(masterProfileQuestions);
@@ -305,12 +300,12 @@ export default function EditQuestionDialog({
     useEffect(() => {
         setCurrentQuestion(question);
         setOptionsText(question?.options?.join('\n') || '');
-        setSuggestedRemovals(companyOverride?.optionOverrides?.remove || []);
+        setSuggestedRemovals([]);
         setIsCreatingNewSection(false);
         setNewSectionName("");
         setNewOption('');
         setSuggestionReason('');
-    }, [question, companyOverride]);
+    }, [question]);
     
     const handleSave = useCallback(() => {
         if (!currentQuestion) return;
@@ -329,11 +324,12 @@ export default function EditQuestionDialog({
                 return;
             }
 
-             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> & { companyName?: string } = {
+             const reviewItem: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> = {
                 user_email: auth?.email || 'unknown-hr',
                 type: 'question_edit_suggestion',
-                status: 'pending',
-                companyName: auth?.companyName,
+                input_data: { 
+                    companyName: auth?.companyName,
+                },
                 change_details: {
                     questionId: currentQuestion.id,
                     questionLabel: currentQuestion.label,
@@ -341,7 +337,10 @@ export default function EditQuestionDialog({
                     optionsToAdd: suggestedOptionsToAdd.map(opt => ({ option: opt, guidance: finalQuestion.answerGuidance?.[opt] })),
                     optionsToRemove: suggestedRemovals,
                 },
+                output_data: {}, // Not used for this type
+                status: 'pending',
             };
+
             addReviewQueueItem(reviewItem);
             toast({ title: "Suggestion Submitted", description: "Your suggested changes have been sent for review."});
             onClose();
@@ -410,8 +409,6 @@ export default function EditQuestionDialog({
     if (!currentQuestion) {
         return null;
     }
-
-    const companyAddedOptions = new Set(companyOverride?.optionOverrides?.add || []);
 
     return (
         <>
@@ -599,11 +596,10 @@ export default function EditQuestionDialog({
                         {currentOptions.length > 0 ? currentOptions.map(option => {
                             const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
                             const isRemovalSuggested = suggestedRemovals.includes(option);
-                            const isCompanyAddition = companyAddedOptions.has(option);
                             return (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`guidance-${option}`} className={cn("font-normal flex items-center gap-2", isRemovalSuggested && "line-through text-destructive")}>
-                                        {(isCustomQuestion || isCompanyAddition) && <Star className="h-4 w-4 text-amber-500 fill-current" />}
+                                        {!isMasterOption && !isSuggestionMode && <Star className="h-4 w-4 text-amber-500 fill-current" />}
                                         {option}
                                     </Label>
                                     <div className="flex items-center gap-2">

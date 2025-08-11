@@ -68,16 +68,12 @@ function AnswerDisplay({ label, value, subDetails }: { label: string; value: any
                     <dl className="mt-2 space-y-1">
                         {subDetails.map(detail => {
                             const subDisplayValue = getDisplayValue(detail.value);
-                            const isSubUnsure = detail.value === 'Unsure';
                             if (!subDisplayValue) return null;
                             
                             return (
                                 <div key={detail.label} className="grid grid-cols-3">
                                     <dt className="text-xs text-muted-foreground col-span-1">{detail.label}</dt>
-                                    <dd className={cn("text-xs col-span-2 flex items-center gap-1.5", isSubUnsure && "text-amber-600 font-semibold")}>
-                                       {isSubUnsure && <AlertCircle className="h-3.5 w-3.5" />}
-                                       <span>{subDisplayValue}</span>
-                                    </dd>
+                                    <dd className="text-xs col-span-2">{subDisplayValue}</dd>
                                 </div>
                             )
                         })}
@@ -88,61 +84,35 @@ function AnswerDisplay({ label, value, subDetails }: { label: string; value: any
     );
 }
 
-export default function AssessmentReview() {
-    const { getCompanyConfig, assessmentData, isLoading, getMasterQuestionConfig } = useUserData();
+export default function ProfileReview() {
+    const { getCompanyConfig, profileData, isLoading, getMasterQuestionConfig, getCompanyUser } = useUserData();
     const { auth } = useAuth();
     const router = useRouter();
 
     const companyName = auth?.companyName;
     const questions = useMemo(() => {
-        return companyName ? getCompanyConfig(companyName, true) : [];
+        return companyName ? getCompanyConfig(companyName, true, 'profile') : [];
     }, [companyName, getCompanyConfig]);
 
-    const tenure = useMemo(() => {
-        if (!assessmentData?.startDate || !assessmentData?.finalDate) return null;
-        try {
-            const start = assessmentData.startDate instanceof Date ? assessmentData.startDate : parseISO(assessmentData.startDate as string);
-            const end = assessmentData.finalDate instanceof Date ? assessmentData.finalDate : parseISO(assessmentData.finalDate as string);
-            
-            if (isNaN(start.getTime()) || isNaN(end.getTime())) return "N/A";
-            
-            const years = differenceInYears(end, start);
-            const months = differenceInMonths(end, start) % 12;
-            const remainingDays = differenceInDays(end, new Date(start.getFullYear() + years, start.getMonth() + months));
-            
-            const parts = [];
-            if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
-            if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
-            if (remainingDays > 0 && years === 0) parts.push(`${remainingDays} day${remainingDays > 1 ? 's' : ''}`);
+    const companyUser = useMemo(() => auth?.email ? getCompanyUser(auth.email)?.user : null, [auth?.email, getCompanyUser]);
 
-            return parts.length > 0 ? parts.join(', ') : "Less than a day";
-        } catch (e) {
-            console.error("Error calculating tenure", e);
-            return "N/A";
-        }
-    }, [assessmentData]);
-    
     const getAnswerComponent = (question: Question) => {
-        const value = assessmentData?.[question.id as keyof typeof assessmentData];
+        const value = profileData?.[question.id as keyof typeof profileData];
         let subDetails: SubDetail[] = [];
 
         if (question.subQuestions && question.subQuestions.length > 0) {
             question.subQuestions.forEach(subQ => {
-                const parentValue = assessmentData?.[question.id as keyof typeof assessmentData];
+                const parentValue = profileData?.[question.id as keyof typeof profileData];
                 let isTriggered = false;
 
                 if (Array.isArray(parentValue)) {
-                    if (subQ.triggerValue === 'NOT_NONE') {
-                        isTriggered = parentValue.length > 0 && !parentValue.includes('None of the above');
-                    } else {
-                        isTriggered = parentValue.includes(subQ.triggerValue);
-                    }
+                    isTriggered = parentValue.includes(subQ.triggerValue);
                 } else {
                     isTriggered = parentValue === subQ.triggerValue;
                 }
                 
                 if (isTriggered) {
-                    const subValue = assessmentData?.[subQ.id as keyof typeof assessmentData];
+                    const subValue = profileData?.[subQ.id as keyof typeof profileData];
                     subDetails.push({ label: subQ.label, value: subValue });
                 }
             });
@@ -151,7 +121,7 @@ export default function AssessmentReview() {
         return (
             <AnswerDisplay 
                 key={question.id} 
-                label={question.label.replace('{companyName}', companyName || 'your company')} 
+                label={question.label} 
                 value={value}
                 subDetails={subDetails}
             />
@@ -160,12 +130,18 @@ export default function AssessmentReview() {
 
     const orderedSections = useMemo(() => {
         const sectionsMap: Record<string, Question[]> = {};
-        const masterConfig = getMasterQuestionConfig('assessment');
+        const masterConfig = getMasterQuestionConfig('profile');
         const sectionOrder = masterConfig?.section_order || [];
+
+        const allData = {
+            ...profileData,
+            personalEmail: companyUser?.personal_email,
+            phone: companyUser?.phone,
+        };
 
         const allQuestionsWithAnswers = questions.filter(q => {
             if (q.parentId) return false;
-            const value = assessmentData?.[q.id as keyof typeof assessmentData];
+            const value = (allData as any)[q.id];
             return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         });
 
@@ -183,10 +159,10 @@ export default function AssessmentReview() {
                 questions: sectionsMap[sectionName] || [],
             }))
             .filter(section => section.questions.length > 0);
-    }, [questions, assessmentData, getMasterQuestionConfig]);
+    }, [questions, profileData, companyUser, getMasterQuestionConfig]);
     
     const handleEditClick = (sectionId: string) => {
-        router.push(`/dashboard/assessment?section=${encodeURIComponent(sectionId)}`);
+        router.push(`/dashboard/profile?section=${encodeURIComponent(sectionId)}`);
     }
 
     if (isLoading) {
@@ -194,36 +170,40 @@ export default function AssessmentReview() {
     }
 
     return (
-        <div className="p-4 md:p-8">
-            <div className="mx-auto max-w-2xl space-y-6">
-                <div>
-                    <h1 className="font-headline text-3xl font-bold">Your Assessment Summary</h1>
-                    <p className="text-muted-foreground">
-                        Here are the answers you provided. You can edit any section if your details change.
-                    </p>
-                </div>
-
-                {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
-                     <Card key={section}>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1.5">
-                                <CardTitle>{section}</CardTitle>
-                            </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(section)}>
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                             <dl className="divide-y divide-border">
-                                {section === 'Work & Employment Details' && (
-                                    <AnswerDisplay label="Tenure" value={tenure} />
-                                )}
-                                {sectionQuestions.map(q => getAnswerComponent(q))}
-                            </dl>
-                        </CardContent>
-                    </Card>
-                ))}
+        <>
+            <div>
+                <h1 className="font-headline text-3xl font-bold">Your Profile Summary</h1>
+                <p className="text-muted-foreground">
+                    Here are the answers you provided. You can edit any section if your details change.
+                </p>
             </div>
-        </div>
+
+            {orderedSections.map(({ name: section, questions: sectionQuestions }) => (
+                 <Card key={section}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div className="space-y-1.5">
+                            <CardTitle>{section}</CardTitle>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(section)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                         <dl className="divide-y divide-border">
+                            {sectionQuestions.map(q => {
+                                 // Special handling for contact info from the companyUser object
+                                if (q.id === 'personalEmail') {
+                                    return <AnswerDisplay key={q.id} label={q.label} value={companyUser?.personal_email} />;
+                                }
+                                if (q.id === 'phone') {
+                                    return <AnswerDisplay key={q.id} label={q.label} value={companyUser?.phone} />;
+                                }
+                                return getAnswerComponent(q)
+                            })}
+                        </dl>
+                    </CardContent>
+                </Card>
+            ))}
+        </>
     );
 }

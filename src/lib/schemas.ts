@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import type { Question } from './questions';
 
@@ -18,30 +19,28 @@ const profileBaseShape = {
     citizenshipStatus: z.string().min(1, 'Citizenship status is required.'),
     pastLifeEvents: z.array(z.string()).min(1, 'Please select at least one option.'),
     hasChildrenAges18To26: z.string().min(1, 'This field is required.'),
-    // Fields moved from Account Settings to be part of the core profile
-    personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
-    phone: z.string().optional(),
-    // Notification settings remain separate conceptually but are part of the same data object
+    personalEmail: z.string().email({ message: "Please enter a valid personal email address." }).optional().or(z.literal('')),
+    phone: z.string().min(10, { message: "Please enter a valid phone number." }).optional().or(z.literal('')),
     notificationEmail: z.string().email().optional(),
     notificationSettings: z.object({
         email: z.object({
-            all: z.boolean().optional(),
-            taskReminders: z.boolean().optional(),
-            unsureReminders: z.boolean().optional(),
-            criticalDateReminders: z.boolean().optional(),
-        }).optional(),
+          all: z.boolean().optional(),
+          taskReminders: z.boolean().optional(),
+          unsureReminders: z.boolean().optional(),
+          criticalDateReminders: z.boolean().optional(),
+        }),
         sms: z.object({
-            all: z.boolean().optional(),
-            taskReminders: z.boolean().optional(),
-            unsureReminders: z.boolean().optional(),
-            criticalDateReminders: z.boolean().optional(),
-        }).optional(),
-    }).optional(),
+          all: z.boolean().optional(),
+          taskReminders: z.boolean().optional(),
+          unsureReminders: z.boolean().optional(),
+          criticalDateReminders: z.boolean().optional(),
+        }),
+      }).optional(),
 };
 
 export const accountSettingsSchema = z.object({
-  personalEmail: z.string().email({ message: "Please enter a valid email address." }).optional().or(z.literal('')),
-  phone: z.string().optional(),
+  personalEmail: z.string().email({ message: "Please enter a valid personal email address." }).optional().or(z.literal('')),
+  phone: z.string().min(10, { message: "Please enter a valid phone number." }).optional().or(z.literal('')),
   notificationEmail: z.string().email().optional(),
   notificationSettings: z.object({
     email: z.object({
@@ -77,12 +76,19 @@ export function buildProfileSchema(questions: Question[]) {
 
     const buildShape = (qList: Question[]) => {
         qList.forEach(q => {
+            if (!q.isActive) return; // <-- This is the fix. Skip inactive questions.
+
             const key = q.id as keyof ProfileData;
             switch(q.type) {
                 case 'text':
                     if (q.id === 'birthYear') {
                         shape[key] = profileBaseShape.birthYear;
-                    } else {
+                    } else if (q.id === 'personalEmail') {
+                        shape[key] = profileBaseShape.personalEmail;
+                    } else if (q.id === 'phone') {
+                        shape[key] = profileBaseShape.phone;
+                    }
+                    else {
                         shape[key] = z.string().optional();
                     }
                     break;
@@ -104,19 +110,10 @@ export function buildProfileSchema(questions: Question[]) {
     };
     buildShape(questions);
 
-    // First, create the full object with all fields, including the static account ones.
-    const fullShape = {
-        ...shape,
-        personalEmail: profileBaseShape.personalEmail,
-        phone: profileBaseShape.phone,
-        notificationEmail: profileBaseShape.notificationEmail,
-        notificationSettings: profileBaseShape.notificationSettings,
-    };
-    
-    let baseSchema = z.object(fullShape);
+    let baseSchema = z.object(shape);
 
     // Now, apply refinements to the complete object schema.
-    const genderQuestion = questions.find(q => q.id === 'gender');
+    const genderQuestion = questions.find(q => q.id === 'gender' && q.isActive);
     if (genderQuestion) {
          baseSchema = baseSchema.refine((data: any) => data.gender !== 'Prefer to self-describe' || (data.genderSelfDescribe && data.genderSelfDescribe.length > 0), {
             message: 'Please specify your gender identity.',

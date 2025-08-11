@@ -1,10 +1,10 @@
 
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { HrPermissions, CompanyAssignment, ProfileData } from './use-user-data';
 import { supabase } from '@/lib/supabase-client';
+import { v4 as uuidv4 } from 'uuid';
 
 export type UserRole = 'end-user' | 'hr' | 'consultant' | 'admin' | null;
 
@@ -28,7 +28,7 @@ interface AuthContextType {
   loading: boolean;
   login: (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string) => Promise<boolean>;
   logout: () => void;
-  startUserView: (user: any) => void;
+  startUserView: () => void;
   stopUserView: () => void;
   switchCompany: (newCompanyName: string) => void;
   updateEmail: (newEmail: string) => void;
@@ -36,6 +36,13 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const fullPermissions: HrPermissions = {
+    userManagement: 'write-upload',
+    formEditor: 'write',
+    resources: 'write',
+    companySettings: 'write',
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuthState] = useState<AuthState | null>(null);
@@ -74,13 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (authData.role === 'end-user' && authData.email && companyIdentifier) {
         const { data: userData, error } = await supabase
             .from('company_users')
-            .select(`
-                id,
-                email,
-                company_user_id,
-                is_invited,
-                companies (id, name)
-            `)
+            .select(`*`)
             .eq('email', authData.email)
             .eq('company_user_id', companyIdentifier)
             .single();
@@ -94,42 +95,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn('User not invited yet:', userData.email);
             return false;
         }
+        
+        const { data: companyData, error: companyError } = await supabase.from('companies').select('id, name').eq('id', userData.company_id).single();
+        if(companyError || !companyData) {
+            console.error('Could not find company for user:', companyError);
+            return false;
+        }
 
         finalAuthData = {
             role: 'end-user',
             email: userData.email,
             userId: userData.id,
             companyUserId: userData.company_user_id,
-            companyId: userData.companies?.id,
-            companyName: userData.companies?.name
+            companyId: companyData?.id,
+            companyName: companyData?.name
         };
 
     } else if (authData.role === 'hr' && authData.email) {
         const { data: hrAssignments, error } = await supabase
             .from('company_hr_assignments')
-            .select(`
-                is_primary,
-                permissions,
-                companies (id, name)
-            `)
+            .select(`*`)
             .eq('hr_email', authData.email);
 
         if (error || !hrAssignments || hrAssignments.length === 0) {
             console.error('HR login error:', error);
             return false;
         }
+        
+        const companyIds = hrAssignments.map(a => a.company_id);
+        const {data: companies, error: companiesError } = await supabase.from('companies').select('id, name').in('id', companyIds);
+        if (companiesError || !companies) {
+            console.error('HR login company fetch error:', companiesError);
+            return false;
+        }
 
-        const primaryAssignment = hrAssignments.find(a => a.is_primary);
-        const defaultAssignment = primaryAssignment || hrAssignments[0];
+        const assignmentsWithCompany = hrAssignments.map(a => {
+            const company = companies.find(c => c.id === a.company_id);
+            return {...a, companyName: company?.name};
+        }).filter(a => a.companyName);
+
+        const primaryAssignment = assignmentsWithCompany.find(a => a.is_primary);
+        const defaultAssignment = primaryAssignment || assignmentsWithCompany[0];
+
+        if (!defaultAssignment) {
+            console.error("HR login error: Could not determine a default company assignment.");
+            return false;
+        }
 
         finalAuthData = {
             role: 'hr',
             email: authData.email,
-            companyId: defaultAssignment.companies?.id,
-            companyName: defaultAssignment.companies?.name,
-            assignedCompanyNames: hrAssignments.map(a => a.companies?.name || '').filter(Boolean),
+            companyId: defaultAssignment.company_id,
+            companyName: defaultAssignment.companyName,
+            assignedCompanyNames: assignmentsWithCompany.map(a => a.companyName || '').filter(Boolean),
             permissions: defaultAssignment.is_primary 
-                ? { userManagement: 'write-upload', formEditor: 'write', resources: 'write', companySettings: 'write' }
+                ? fullPermissions
                 : defaultAssignment.permissions as HrPermissions
         };
 
@@ -174,16 +194,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const startUserView = useCallback((user: any) => {
+  const startUserView = useCallback(() => {
     if (!auth || auth.role !== 'hr') return;
 
     const originalAuth = { ...auth, isPreview: undefined };
+    
+    // Create a temporary, generic user session for the preview
     const previewAuth: AuthState = {
         role: 'end-user',
-        email: user.email,
-        userId: user.id,
-        companyUserId: user.company_user_id,
-        companyId: user.company_id,
+        email: 'hr-preview@exitbetter.com',
+        userId: `preview-${uuidv4()}`,
+        companyUserId: 'PREVIEW_USER',
+        companyId: auth.companyId,
         companyName: auth.companyName,
         isPreview: true,
     };
@@ -217,23 +239,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchCompany = useCallback(async (companyName: string) => {
     if (!auth || auth.role !== 'hr' || !auth.email) return;
 
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('name', companyName)
+      .single();
+
+    if (companyError || !companyData) {
+      console.error("Error finding company:", companyError?.message || 'Company not found.');
+      return;
+    }
+
     const { data: hrAssignment, error } = await supabase
-        .from('company_hr_assignments')
-        .select('is_primary, permissions, companies (id, name)')
-        .eq('hr_email', auth.email)
-        .eq('companies.name', companyName)
-        .single();
-    
+      .from('company_hr_assignments')
+      .select('is_primary, permissions, company_id')
+      .eq('hr_email', auth.email)
+      .eq('company_id', companyData.id)
+      .single();
+
     if (error || !hrAssignment) {
-        console.error("Error switching company:", error);
+        console.error("Error switching company:", error?.message || 'Assignment not found.');
         return;
     }
     
     const newPermissions = hrAssignment.is_primary 
-        ? { userManagement: 'write-upload' as const, formEditor: 'write' as const, resources: 'write' as const, companySettings: 'write' as const } 
+        ? fullPermissions
         : hrAssignment.permissions as HrPermissions;
 
-    const newAuth = { ...auth, companyName, companyId: hrAssignment.companies?.id, permissions: newPermissions };
+    const newAuth = { ...auth, companyName, companyId: hrAssignment.company_id, permissions: newPermissions };
     localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
     setAuthState(newAuth);
   }, [auth]);

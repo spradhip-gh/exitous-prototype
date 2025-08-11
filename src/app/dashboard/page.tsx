@@ -16,7 +16,7 @@ import { format, parseISO, differenceInDays, isSameDay, startOfToday, startOfMon
 import { format as formatInTz } from 'date-fns-tz';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bell, CalendarX2, Stethoscope, Eye, HandCoins, Key, Info, ChevronDown, Layers, CalendarPlus } from 'lucide-react';
+import { Bell, CalendarX2, Stethoscope, Eye, HandCoins, Key, Info, ChevronDown, Layers, CalendarPlus, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ProgressTracker from '@/components/dashboard/ProgressTracker';
 
@@ -331,6 +331,77 @@ function ImportantDates() {
     );
 }
 
+function DebugCard() {
+    const { getProfileCompletion, getAssessmentCompletion } = useUserData();
+
+    const profileCompletion = getProfileCompletion();
+    const assessmentCompletion = getAssessmentCompletion();
+
+    if (process.env.NODE_ENV === 'production') {
+        return null;
+    }
+
+    return (
+        <Collapsible>
+            <Card className="border-destructive">
+                <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer">
+                        <CardTitle className="flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                                <Bug className="text-destructive" />
+                                Developer Debug Info
+                            </span>
+                            <ChevronDown className="h-4 w-4" />
+                        </CardTitle>
+                    </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="font-semibold">Profile Completion</h4>
+                                <p className="text-sm">Total Applicable: {profileCompletion.totalApplicable}</p>
+                                <p className="text-sm">Completed: {profileCompletion.completed}</p>
+                                <p className="text-sm">Percentage: {profileCompletion.percentage.toFixed(2)}%</p>
+                                <Collapsible className="mt-2">
+                                    <CollapsibleTrigger asChild>
+                                        <Button variant="link" className="p-0 h-auto">
+                                            Show Incomplete ({profileCompletion.incompleteQuestions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
+                                        </Button>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                            {profileCompletion.incompleteQuestions.map(q => <li key={q.id}>{q.label} ({q.id})</li>)}
+                                        </ul>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </div>
+                             <div>
+                                <h4 className="font-semibold">Assessment Completion</h4>
+                                <p className="text-sm">Total Applicable: {assessmentCompletion.totalApplicable}</p>
+                                <p className="text-sm">Completed: {assessmentCompletion.completed}</p>
+                                <p className="text-sm">Percentage: {assessmentCompletion.percentage.toFixed(2)}%</p>
+                                <Collapsible className="mt-2">
+                                    <CollapsibleTrigger asChild>
+                                        <Button variant="link" className="p-0 h-auto">
+                                            Show Incomplete ({assessmentCompletion.incompleteQuestions.length}) <ChevronDown className="ml-1 h-4 w-4"/>
+                                        </Button>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                            {assessmentCompletion.incompleteQuestions.map(q => <li key={q.id}>{q.label} ({q.id})</li>)}
+                                        </ul>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </div>
+                        </div>
+                    </CardContent>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
+    )
+}
+
 export default function DashboardPage() {
   const { auth } = useAuth();
   const { profileData, isLoading, assessmentData, isAssessmentComplete } = useUserData();
@@ -384,6 +455,8 @@ export default function DashboardPage() {
         ) : (
           <ProgressTracker />
         )}
+        
+        <DebugCard />
       </div>
     </main>
   )

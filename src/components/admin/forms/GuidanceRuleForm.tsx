@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useUserData, Question, MasterTask, MasterTip, GuidanceRule, Condition, Calculation, ExternalResource } from "@/hooks/use-user-data";
@@ -209,12 +208,12 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                 setRuleName(rule.name);
                 setRuleType(rule.type);
                 if (rule.type === 'direct') {
-                    const answers = rule.conditions.map(c => c.answer || '');
+                    const answers = rule.conditions.map(c => c.answer).filter((a): a is string => !!a);
                     setDirectAnswers(answers);
                     setDirectTasks(rule.assignments?.taskIds || []);
                     setDirectTips(rule.assignments?.tipIds || []);
                     setIsNoGuidanceDirect(rule.assignments?.noGuidanceRequired || false);
-                    setIsCatchAll(answers.length === 0 && rule.conditions.some(c => c.answer === undefined));
+                    setIsCatchAll(answers.length > 0 && answers.length === (question?.options?.length || 0));
                 } else if (rule.type === 'calculated') {
                     setCalculationType(rule.calculation?.type || 'tenure');
                     setCalculationUnit(rule.calculation?.unit || 'years');
@@ -228,7 +227,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
         } else {
             resetForm();
         }
-    }, [selectedRuleId, existingRules]);
+    }, [selectedRuleId, existingRules, question]);
 
     useEffect(() => {
         if (pendingItem) {
@@ -244,10 +243,10 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     useEffect(() => {
         if (ruleType === 'direct' && !selectedRuleId) {
             if (isCatchAll) {
-                setRuleName(`${question?.label} - All Answers`);
+                 setRuleName(`All Answers - ${question?.label}`);
             } else if (directAnswers.length > 0) {
                 const answerText = directAnswers.length > 2 ? `${directAnswers.length} answers` : directAnswers.join(', ');
-                setRuleName(`${question?.label} - ${answerText}`);
+                 setRuleName(`${answerText} - ${question?.label}`);
             } else {
                 setRuleName('');
             }
@@ -256,77 +255,94 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
     
     if (!question) return null;
 
-    const mappedAnswersInOtherRules = new Set(
+    const mappedAnswersInOtherRules = useMemo(() => {
+        const mapped = new Map<string, string>(); // Map answer to ruleId
         existingRules
             .filter(r => r.id !== selectedRuleId)
-            .flatMap(r => r.conditions.map(c => c.answer))
-    );
-
-    const finishSave = (finalTasks: string[], finalTips: string[], finalIsNoGuidance: boolean) => {
-        const id = selectedRuleId || uuidv4();
-        const rule: GuidanceRule = {
-            id,
+            .forEach(r => {
+                r.conditions.forEach(c => {
+                    if (c.answer) {
+                        mapped.set(c.answer, r.id);
+                    }
+                });
+            });
+        return mapped;
+    }, [existingRules, selectedRuleId]);
+    
+    const finishSave = (answers: string[], tasks: string[], tips: string[], isNoGuidance: boolean, conflictingRuleToUpdate: GuidanceRule | null = null) => {
+        
+        // This is the new or edited rule
+        const newOrUpdatedRule: GuidanceRule = {
+            id: selectedRuleId || uuidv4(),
             questionId: question.id,
-            name: ruleName || `${question.label} - ${isCatchAll ? 'All Answers' : directAnswers.join(', ')}`,
+            name: ruleName || `${isCatchAll ? 'All Answers' : answers.join(', ')} - ${question.label}`,
             type: 'direct',
-            conditions: isCatchAll ? [{ type: 'question', questionId: question.id }] : directAnswers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
-            assignments: { taskIds: finalTasks, tipIds: finalTips, noGuidanceRequired: finalIsNoGuidance }
+            conditions: answers.map(ans => ({ type: 'question', questionId: question.id, answer: ans })),
+            assignments: { taskIds: tasks, tipIds: tips, noGuidanceRequired: isNoGuidance }
         };
-        onSave(rule);
+        
+        onSave(newOrUpdatedRule);
+
+        if (conflictingRuleToUpdate) {
+            onSave(conflictingRuleToUpdate);
+        }
+
         setSelectedRuleId(null);
         resetForm();
     }
     
     const handleSaveDirectRule = () => {
-        if (!isCatchAll && directAnswers.length === 0 && !isNoGuidanceDirect) {
-            toast({ title: "No answers selected", description: "Please select at least one answer to map or check 'Apply to all'.", variant: "destructive" });
+        const answersToMap = isCatchAll ? (question.options || []) : directAnswers;
+        if (answersToMap.length === 0) {
+            toast({ title: "No answers selected", description: "Please select at least one answer to map.", variant: "destructive" });
             return;
         }
 
-        const otherRules = existingRules.filter(r => r.id !== selectedRuleId);
-        
-        // --- CHECK FOR CONFLICTS ---
-        // 1. Check if trying to create a catch-all when one already exists.
-        if (isCatchAll) {
-            if (otherRules.some(r => r.conditions.some(c => c.answer === undefined))) {
-                toast({ title: "Mapping Conflict", description: "A 'catch-all' rule already exists for this question.", variant: "destructive" });
-                return;
-            }
-        } else {
-        // 2. Check if a specific answer is already mapped in another rule.
-            const conflict = directAnswers.find(ans => mappedAnswersInOtherRules.has(ans));
-            if (conflict) {
-                toast({ title: "Mapping Conflict", description: `The answer "${conflict}" is already mapped in another rule.`, variant: "destructive" });
+        // Check for conflicts
+        const conflictingAnswers = answersToMap.filter(ans => mappedAnswersInOtherRules.has(ans));
+        if (conflictingAnswers.length > 0) {
+            const conflictingRuleId = mappedAnswersInOtherRules.get(conflictingAnswers[0]);
+            const rule = existingRules.find(r => r.id === conflictingRuleId);
+            if (rule) {
+                setConflictingRule(rule);
+                setIsMergeDialogOpen(true);
                 return;
             }
         }
 
-        // 3. Check if any selected answer is already covered by a catch-all rule
-        const catchAllRule = otherRules.find(r => r.conditions.some(c => c.answer === undefined));
-        if (catchAllRule && !isCatchAll && directAnswers.length > 0) {
-            setConflictingRule(catchAllRule);
-            setIsMergeDialogOpen(true);
-            return;
-        }
-        
-        // --- If no conflicts, save directly ---
-        finishSave(directTasks, directTips, isNoGuidanceDirect);
+        // If no conflicts, save directly
+        const newRule = {
+            id: selectedRuleId || uuidv4(),
+            questionId: question.id,
+            name: ruleName || `${isCatchAll ? 'All Answers' : answersToMap.join(', ')} - ${question?.label}`,
+            type: 'direct' as const,
+            conditions: answersToMap.map(ans => ({ type: 'question' as const, questionId: question.id, answer: ans })),
+            assignments: { taskIds: directTasks, tipIds: directTips, noGuidanceRequired: isNoGuidanceDirect }
+        };
+        onSave(newRule);
+        setSelectedRuleId(null);
+        resetForm();
     }
     
-    const handleMergeDecision = (decision: 'merge' | 'replace') => {
+    const handleMergeConflict = (strategy: 'merge' | 'replace') => {
         if (!conflictingRule) return;
-
+        
         let finalTasks = directTasks;
         let finalTips = directTips;
-
-        if (decision === 'merge') {
-            const baseTasks = conflictingRule.assignments?.taskIds || [];
-            const baseTips = conflictingRule.assignments?.tipIds || [];
-            finalTasks = [...new Set([...baseTasks, ...directTasks])];
-            finalTips = [...new Set([...baseTips, ...directTips])];
-        }
         
-        finishSave(finalTasks, finalTips, isNoGuidanceDirect);
+        if (strategy === 'merge') {
+            finalTasks = [...new Set([...(conflictingRule.assignments.taskIds || []), ...directTasks])];
+            finalTips = [...new Set([...(conflictingRule.assignments.tipIds || []), ...directTips])];
+        }
+
+        // The rule that was conflicted with needs to be updated to no longer include the answers
+        // that are now being handled by the new, more specific rule.
+        const conflictingRuleToUpdate: GuidanceRule = {
+            ...conflictingRule,
+            conditions: conflictingRule.conditions.filter(c => !directAnswers.includes(c.answer!)),
+        };
+        
+        finishSave(finalTasks, finalTips, isNoGuidanceDirect, conflictingRuleToUpdate);
         setIsMergeDialogOpen(false);
         setConflictingRule(null);
     }
@@ -357,7 +373,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             ranges: ranges.map(r => ({
                 from: r.from,
                 to: r.to,
-                assignments: { taskIds: r.tasks, tipIds: r.tips, noGuidanceRequired: r.noGuidanceRequired || false }
+                assignments: { taskIds: r.tasks, tips: r.tips, noGuidanceRequired: r.noGuidanceRequired || false }
             })),
             assignments: { taskIds: [], tipIds: [] } // Base assignments not used for calculated rules
         };
@@ -390,7 +406,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
             resetForm();
         }
     };
-
+    
     return (
         <div>
             <CardContent className="space-y-6">
@@ -400,7 +416,7 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         <ScrollArea className="h-96">
                             <div className="space-y-1 pr-2">
                                 {existingRules.map(rule => (
-                                    <TooltipProvider key={rule.id}>
+                                    <TooltipProvider key={rule.id} delayDuration={100}>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Button variant={selectedRuleId === rule.id ? 'secondary' : 'ghost'} className="w-full justify-start text-left h-auto py-1" onClick={() => setSelectedRuleId(rule.id)}>
@@ -452,40 +468,49 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                         
                         {ruleType === 'direct' && (
                              <div className="space-y-4 p-4 border rounded-md mt-4">
-                                {mappedAnswersInOtherRules.size > 0 && (
-                                    <Alert>
-                                        <Info className="h-4 w-4" />
-                                        <p className="text-xs">
-                                            {mappedAnswersInOtherRules.size} answer(s) already have guidance in other rules and cannot be selected.
-                                        </p>
-                                    </Alert>
-                                )}
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <Label>Answers to Map</Label>
-                                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDirectAnswers(question.options?.filter(o => !mappedAnswersInOtherRules.has(o)) || [])} disabled={isCatchAll}>Select All Available</Button>
+                                         <div className="flex items-center space-x-2">
+                                            <Label htmlFor="catch-all" className="text-sm font-normal">Apply to all available answers</Label>
+                                            <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
+                                        </div>
                                     </div>
                                     <p className="text-xs text-muted-foreground">Select one or more answers to apply the same guidance to.</p>
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox id="catch-all" checked={isCatchAll} onCheckedChange={(c) => setIsCatchAll(!!c)} />
-                                        <Label htmlFor="catch-all">Apply this rule to all answers for this question</Label>
-                                    </div>
                                     <ScrollArea className="h-40">
-                                        <fieldset disabled={isCatchAll}>
+                                        <fieldset>
                                             <div className="grid grid-cols-2 gap-2 p-4 border rounded-md">
                                                 {question.options?.map(option => {
-                                                    const isMapped = mappedAnswersInOtherRules.has(option);
+                                                    const mappedElsewhereRuleId = mappedAnswersInOtherRules.get(option);
+                                                    const isMappedElsewhere = !!mappedElsewhereRuleId;
+                                                    const isChecked = isCatchAll ? !isMappedElsewhere : directAnswers.includes(option);
+                                                    
                                                     return (
-                                                        <div key={option} className={cn("flex items-center space-x-2", isMapped && "text-muted-foreground")}>
+                                                        <div 
+                                                            key={option} 
+                                                            className={cn(
+                                                                "flex items-center space-x-2 p-2 rounded-md border transition-colors", 
+                                                                !isCatchAll && isMappedElsewhere && "text-muted-foreground bg-muted/50",
+                                                                isChecked && "bg-primary/10 border-primary"
+                                                            )}
+                                                        >
                                                             <Checkbox
                                                                 id={`answer-${option}`}
-                                                                checked={directAnswers.includes(option)}
+                                                                checked={isChecked}
                                                                 onCheckedChange={(checked) => {
                                                                     setDirectAnswers(prev => checked ? [...prev, option] : prev.filter(a => a !== option));
                                                                 }}
-                                                                disabled={isMapped}
+                                                                disabled={isCatchAll || (!isCatchAll && isMappedElsewhere)}
                                                             />
-                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal", isMapped && "line-through")}>{option}</Label>
+                                                            <Label htmlFor={`answer-${option}`} className={cn("font-normal flex-1", isMappedElsewhere && "line-through")}>{option}</Label>
+                                                            {isMappedElsewhere && !isCatchAll && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild><Info className="h-4 w-4" /></TooltipTrigger>
+                                                                        <TooltipContent>This answer is covered by another rule.</TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                         </div>
                                                     )
                                                 })}
@@ -515,9 +540,9 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                                         categories={tipCategories}
                                     />
                                 </fieldset>
-                                <div className="space-y-2">
+                                 <div className="space-y-2">
                                     <Label htmlFor="rule-name">Rule Name</Label>
-                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} placeholder="e.g., Tenure-based COBRA advice" />
+                                    <Input id="rule-name" value={ruleName} onChange={e => setRuleName(e.target.value)} />
                                 </div>
                                 <Button onClick={handleSaveDirectRule}>Save Direct Rule</Button>
                             </div>
@@ -634,14 +659,23 @@ export default function GuidanceRuleForm({ question, allQuestions, existingRules
                     <AlertDialogHeader>
                         <AlertDialogTitle>Guidance Conflict Detected</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The answer(s) you selected are already covered by a general "Apply to all answers" rule.
-                            How would you like to handle the tasks and tips for this new, more specific rule?
+                            The answer(s) you selected are already covered by another rule. How would you like to resolve this?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                     <div className="p-4 rounded-md border text-sm">
+                        <p className="font-semibold">Current Guidance (from rule "{conflictingRule?.name}"):</p>
+                        <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                            {(conflictingRule?.assignments.taskIds || []).map(id => <li key={id}>{masterTasks.find(t=>t.id===id)?.name}</li>)}
+                        </ul>
+                         <p className="font-semibold mt-4">New Guidance:</p>
+                        <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+                             {directTasks.map(id => <li key={id}>{masterTasks.find(t=>t.id===id)?.name}</li>)}
+                        </ul>
+                    </div>
                     <AlertDialogFooter>
-                        <AlertDialogAction variant="secondary" onClick={() => handleMergeDecision('replace')}>Replace</AlertDialogAction>
-                        <AlertDialogAction onClick={() => handleMergeDecision('merge')}>Merge</AlertDialogAction>
                         <AlertDialogCancel onClick={() => setConflictingRule(null)}>Cancel</AlertDialogCancel>
+                        <Button variant="outline" onClick={() => handleMergeConflict('merge')}>Merge (Keep Old + Add New)</Button>
+                        <AlertDialogAction onClick={() => handleMergeConflict('replace')}>Replace (Use New Only)</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

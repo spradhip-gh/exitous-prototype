@@ -44,20 +44,16 @@ function AdminSubQuestionItem({ question, level, onEdit, onArchive, onAddSubQues
                     </AlertDialog>
                 </div>
             </div>
-             {question.subQuestions && question.subQuestions.length > 0 && (
-                <div className="space-y-2">
-                    {question.subQuestions.map(subQ => (
-                        <AdminSubQuestionItem
-                            key={subQ.id}
-                            question={subQ}
-                            level={level + 1}
-                            onEdit={onEdit}
-                            onArchive={onArchive}
-                            onAddSubQuestion={onAddSubQuestion}
-                        />
-                    ))}
-                </div>
-            )}
+             {question.subQuestions && question.subQuestions.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(subQ => (
+                <AdminSubQuestionItem
+                    key={subQ.id}
+                    question={subQ}
+                    level={level + 1}
+                    onEdit={onEdit}
+                    onArchive={onArchive}
+                    onAddSubQuestion={onAddSubQuestion}
+                />
+            ))}
         </div>
     );
 }
@@ -105,21 +101,16 @@ export default function AdminQuestionItem({ question, onEdit, onArchive, onAddSu
                     </AlertDialog>
                 </div>
             </div>
-             {question.subQuestions && question.subQuestions.length > 0 && (
-                <div className="pl-12 pt-2 space-y-2">
-                     {question.subQuestions.map(subQ => (
-                        <AdminSubQuestionItem 
-                            key={subQ.id} 
-                            question={subQ}
-                            level={0}
-                            onEdit={onEdit}
-                            onArchive={onArchive}
-                            onAddSubQuestion={onAddSubQuestion}
-                         />
-                    ))}
-                </div>
-            )}
+             {question.subQuestions && question.subQuestions.sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(subQ => (
+                <AdminSubQuestionItem 
+                    key={subQ.id} 
+                    question={subQ}
+                    level={0}
+                    onEdit={onEdit}
+                    onArchive={onArchive}
+                    onAddSubQuestion={onAddSubQuestion}
+                 />
+            ))}
         </div>
     );
 }
-
