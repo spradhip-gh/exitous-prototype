@@ -1,4 +1,3 @@
-
 'use client';
 import * as React from 'react';
 import { useMemo, useState, useEffect } from 'react';
@@ -64,16 +63,36 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         }
 
         if (item) {
+            const allPossibleProjectIds = projects.map(p => p.id);
+            allPossibleProjectIds.push('__none__'); // For "Unassigned Users"
+
             let currentIds = item.projectIds || [];
-            if (isChecked) {
-                currentIds = [...new Set([...currentIds, projectId])];
-            } else {
-                currentIds = currentIds.filter((id: string) => id !== projectId);
+            
+            // If currentIds is empty, it implies "All Projects".
+            // For the first interaction, we need to treat it as if all were selected.
+            if (currentIds.length === 0) {
+                currentIds = allPossibleProjectIds;
             }
-            item.projectIds = currentIds;
+
+            let newProjectIds;
+
+            if (isChecked) {
+                newProjectIds = [...currentIds, projectId];
+            } else {
+                newProjectIds = currentIds.filter((id: string) => id !== projectId);
+            }
+
+            // If the resulting array contains all possible projects, or is empty, it means "All Projects".
+            // We represent "All Projects" with an empty array.
+            if (newProjectIds.length === 0 || newProjectIds.length === allPossibleProjectIds.length) {
+                item.projectIds = [];
+            } else {
+                item.projectIds = newProjectIds;
+            }
         }
 
-        if(itemArray && itemIndex > -1) {
+
+        if(itemArray && itemIndex > -1 && item) {
             itemArray[itemIndex] = item;
         }
 
