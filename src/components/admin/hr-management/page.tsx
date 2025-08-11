@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MultiSelectPopover } from "@/components/admin/forms/GuidanceRuleForm";
+import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -188,9 +188,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
                                 const projectOptions = assignment.projects?.map(p => ({ id: p.id, name: p.name, category: 'Projects' })) || [];
-                                const hasProjectScope = manager.projectAccess && !manager.projectAccess.includes('all');
-
-
+                                
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
                                         <CardHeader className="flex flex-row items-center justify-between p-4">
@@ -297,13 +295,13 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                         </Select>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <MultiSelectPopover 
-                                                            label="Project Access"
-                                                            items={[{id: 'all', name: 'All Projects', category: 'General'}, ...projectOptions]}
-                                                            selectedIds={manager.projectAccess || ['all']}
-                                                            onSelectionChange={(ids) => handleProjectAccessChange(assignment.companyName, ids)}
-                                                            onAddNew={() => {}}
-                                                            categories={[]}
+                                                        <ProjectAssignmentPopover
+                                                            item={{id: manager.email, typeLabel: 'User' as any}}
+                                                            projects={projectOptions}
+                                                            initialProjectIds={manager.projectAccess}
+                                                            onSave={(itemId, itemType, projectIds) => handleProjectAccessChange(assignment.companyName, projectIds)}
+                                                            includeUnassignedOption={true}
+                                                            popoverContentWidth='w-[450px]'
                                                         />
                                                     </div>
                                                 </fieldset>
@@ -647,6 +645,41 @@ export default function HrManagementPage() {
         return companyAssignments.filter(a => managedCompanies.includes(a.companyName));
     }, [companyAssignments, managedCompanies]);
 
+    const getAccessDisplay = (projectAccess: string[] | undefined, projects: any[] | undefined) => {
+        if (!projectAccess || projectAccess.includes('all')) return <Badge variant="secondary">All Projects</Badge>;
+        
+        const hasUnassigned = projectAccess.includes('__none__');
+        const assignedProjects = projectAccess
+            .filter(id => id !== '__none__')
+            .map(id => projects?.find(p => p.id === id)?.name || 'Unknown Project');
+            
+        const displayParts = [];
+        if (assignedProjects.length > 0) displayParts.push(`${assignedProjects.length} Project(s)`);
+        if (hasUnassigned) displayParts.push('Unassigned Users');
+        
+        const text = displayParts.join(' + ');
+
+        const tooltipContent = (
+            <div>
+                {assignedProjects.length > 0 && <div>Projects: {assignedProjects.join(', ')}</div>}
+                {hasUnassigned && <div>+ Access to users with no project</div>}
+            </div>
+        );
+
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Badge variant="outline">{text}</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {tooltipContent}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    };
+
     return (
         <div className="p-4 md:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
@@ -673,42 +706,26 @@ export default function HrManagementPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Email</TableHead>
-                                    <TableHead>Company Assignments</TableHead>
+                                    <TableHead>Company Assignments &amp; Project Access</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {manageableHrs.map(manager => {
-                                    const projectsByCompany: Record<string, string[]> = {};
-                                    assignmentsForDialog.forEach(company => {
-                                        const hr = company.hrManagers.find(h => h.email === manager.email);
-                                        if (hr && hr.projectAccess && !hr.projectAccess.includes('all')) {
-                                            projectsByCompany[company.companyName] = hr.projectAccess.map(pId => company.projects?.find(p => p.id === pId)?.name || 'Unknown Project');
-                                        }
-                                    });
-
                                     return (
                                     <TableRow key={manager.email}>
                                         <TableCell className="font-medium">{manager.email}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
-                                            {manager.companies.map(c => (
-                                                <div key={c.name} className="flex items-center gap-2">
-                                                    <span className="font-medium">{c.name}</span>
-                                                    {projectsByCompany[c.name] && (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Badge variant="outline">{projectsByCompany[c.name].length} Projects</Badge>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{projectsByCompany[c.name].join(', ')}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )}
-                                                </div>
-                                            ))}
+                                            {manager.companies.map(c => {
+                                                const company = assignmentsForDialog.find(a => a.companyName === c.name);
+                                                return (
+                                                    <div key={c.name} className="flex items-center gap-2">
+                                                        <span className="font-medium">{c.name}</span>
+                                                        {getAccessDisplay(c.projectAccess, company?.projects)}
+                                                    </div>
+                                                )
+                                            })}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">

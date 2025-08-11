@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -15,69 +16,80 @@ export function ProjectAssignmentPopover({
     projects,
     onSave,
     disabled,
+    initialProjectIds,
+    includeUnassignedOption = false,
+    popoverContentWidth = "w-[200px]",
 }: {
-    item: (Partial<Question> | Partial<MasterTask> | Partial<MasterTip> | Partial<Resource>) & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' },
-    projects: Project[],
-    onSave: (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectIds: string[]) => void,
+    item: (Partial<Question> | Partial<MasterTask> | Partial<MasterTip> | Partial<Resource>) & { id: string, typeLabel: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User' },
+    projects: Omit<Project, 'isArchived' | 'severanceDeadlineTime' | 'severanceDeadlineTimezone' | 'preEndDateContactAlias' | 'postEndDateContactAlias'>[],
+    onSave: (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource' | 'User', projectIds: string[]) => void,
     disabled?: boolean;
+    initialProjectIds?: string[];
+    includeUnassignedOption?: boolean;
+    popoverContentWidth?: string;
 }) {
     const [open, setOpen] = useState(false);
-    const itemProjectIds = useMemo(() => item.projectIds || [], [item.projectIds]);
+    const itemProjectIds = useMemo(() => initialProjectIds || item.projectIds || [], [item.projectIds, initialProjectIds]);
 
     const handleSelect = (projectId: string, isSelected: boolean) => {
         let newProjectIds;
+        const currentIds = itemProjectIds.includes('all') ? [] : itemProjectIds;
+
         if (projectId === 'all') {
-            newProjectIds = [];
-        } else if (projectId === 'none') {
-            newProjectIds = ['none'];
+            newProjectIds = ['all'];
         } else {
-            const current = (itemProjectIds.includes('all') || itemProjectIds.length === 0) ? [] : itemProjectIds.filter(id => id !== 'none');
+            let tempIds = currentIds.filter(id => id !== 'all');
             if (isSelected) {
-                newProjectIds = [...current, projectId];
+                newProjectIds = [...tempIds, projectId];
             } else {
-                newProjectIds = current.filter(id => id !== projectId);
+                newProjectIds = tempIds.filter(id => id !== projectId);
             }
         }
         onSave(item.id, item.typeLabel, newProjectIds);
     };
 
     const getDisplayText = () => {
-        if (itemProjectIds.length === 0) return "All Projects";
-        if (itemProjectIds.includes('none')) return "No Project";
-        if (itemProjectIds.length === 1) {
-            return projects.find(p => p.id === itemProjectIds[0])?.name || "1 Project";
-        }
-        return `${itemProjectIds.length} Projects`;
+        if (itemProjectIds.includes('all') || itemProjectIds.length === 0) return "All Projects";
+        
+        const hasUnassigned = itemProjectIds.includes('__none__');
+        const assignedProjectCount = itemProjectIds.filter(id => id !== '__none__').length;
+        
+        const parts = [];
+        if (assignedProjectCount > 0) parts.push(`${assignedProjectCount} Project${assignedProjectCount > 1 ? 's' : ''}`);
+        if (hasUnassigned) parts.push("Unassigned");
+        
+        return parts.join(' + ');
     };
 
-    const isAllSelected = itemProjectIds.length === 0;
-    const isNoneSelected = itemProjectIds.includes('none');
+    const isAllSelected = itemProjectIds.includes('all') || itemProjectIds.length === 0;
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[150px] justify-between font-normal" disabled={disabled}>
+                <Button variant="outline" className="w-full justify-between font-normal" disabled={disabled}>
                     {getDisplayText()} <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-0">
+            <PopoverContent className={cn("p-0", popoverContentWidth)}>
                  <Command>
                     <CommandList>
                         <CommandGroup>
                             <CommandItem onSelect={() => handleSelect('all', !isAllSelected)}>
                                 <Checkbox className="mr-2" checked={isAllSelected} /> All Projects
                             </CommandItem>
-                            <CommandItem onSelect={() => handleSelect('none', !isNoneSelected)}>
-                                <Checkbox className="mr-2" checked={isNoneSelected} disabled={isAllSelected} /> No Project
-                            </CommandItem>
+                             {includeUnassignedOption && (
+                                <CommandItem onSelect={() => handleSelect('__none__', !itemProjectIds.includes('__none__'))} disabled={isAllSelected}>
+                                    <Checkbox className="mr-2" checked={itemProjectIds.includes('__none__')} /> Unassigned Users
+                                </CommandItem>
+                            )}
                         </CommandGroup>
                         <CommandSeparator />
                          <CommandGroup>
                             <ScrollArea className="h-32">
                                 {(projects || []).map(p => {
-                                    const isChecked = !isAllSelected && !isNoneSelected && itemProjectIds.includes(p.id);
+                                    const isChecked = !isAllSelected && itemProjectIds.includes(p.id);
                                     return (
-                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected || isNoneSelected}>
+                                        <CommandItem key={p.id} onSelect={() => handleSelect(p.id, !isChecked)} disabled={isAllSelected}>
                                             <Checkbox className="mr-2" checked={isChecked} /> {p.name}
                                         </CommandItem>
                                     )

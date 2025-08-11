@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -98,10 +99,24 @@ export default function HrUserManagement() {
         if (!hasScopedProjectAccess || !hrProjectAccess) {
             return users; // No scoping, show all
         }
-        return users.filter(user => 
-            !user.project_id || hrProjectAccess.includes(user.project_id)
-        );
+
+        const canSeeUnassigned = hrProjectAccess.includes('__none__');
+        const accessibleProjects = new Set(hrProjectAccess);
+
+        return users.filter(user => {
+            if (!user.project_id) {
+                return canSeeUnassigned;
+            }
+            return accessibleProjects.has(user.project_id);
+        });
     }, [users, hasScopedProjectAccess, hrProjectAccess]);
+    
+    const visibleUserCountText = useMemo(() => {
+        if (!hasScopedProjectAccess) {
+            return `You have added ${users.length} of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`;
+        }
+        return `You are viewing ${visibleUsers.length} of ${users.length} total users in this company.`;
+    }, [hasScopedProjectAccess, users.length, visibleUsers.length, companyAssignmentForHr?.maxUsers]);
 
     const sortedUsers = useMemo(() => {
         const invitedUsers = visibleUsers.filter(u => u.is_invited);
@@ -426,13 +441,7 @@ export default function HrUserManagement() {
                 <fieldset disabled={!canWrite}>
                     <CardHeader>
                         <CardTitle>Add New User</CardTitle>
-                        <CardDescription>
-                            Add an employee who will need to access the assessment for <span className="font-bold">{companyName}</span>.
-                            {hasScopedProjectAccess
-                                ? `You are viewing ${visibleUsers.length} of ${users.length} total users.`
-                                : `You have added ${users.length} of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`
-                            }
-                        </CardDescription>
+                        <CardDescription>{visibleUserCountText}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
