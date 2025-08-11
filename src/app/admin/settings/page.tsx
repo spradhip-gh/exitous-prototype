@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useUserData, CompanyAssignment, Project } from '@/hooks/use-user-data';
+import { useUserData, CompanyAssignment, Project, Question, MasterTask, MasterTip, Resource } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { timezones } from '@/lib/timezones';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ShieldAlert, ShieldCheck, Info, PlusCircle, Pencil, Trash2, Archive, ArchiveRestore } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Info, PlusCircle, Pencil, Trash2, Archive, ArchiveRestore, ChevronsUpDown } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,6 +22,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function ProjectFormDialog({
     isOpen,
@@ -160,6 +164,162 @@ function ProjectFormDialog({
     );
 }
 
+function ProjectAssignmentPopover({
+    item,
+    projects,
+    onSave,
+}: {
+    item: (Question | MasterTask | MasterTip | Resource) & { typeLabel: string },
+    projects: Project[],
+    onSave: (itemId: string, itemType: string, projectIds: string[]) => void,
+}) {
+    const [open, setOpen] = useState(false);
+    const itemProjects = (item as any).projectIds || [];
+    const isAllProjects = itemProjects.length === 0;
+
+    const handleSelect = (projectId: string) => {
+        let newProjectIds;
+        if (projectId === 'all') {
+            newProjectIds = [];
+        } else if (projectId === 'none') {
+            newProjectIds = ['none'];
+        }
+        else {
+            const current = isAllProjects ? [] : [...itemProjects];
+            if (current.includes(projectId)) {
+                newProjectIds = current.filter(id => id !== projectId);
+            } else {
+                newProjectIds = [...current.filter(id => id !== 'none'), projectId];
+            }
+        }
+        onSave(item.id, item.typeLabel, newProjectIds);
+    };
+
+    const getDisplayText = () => {
+        if (isAllProjects) return "All Projects";
+        if (itemProjects.includes('none')) return "No Project";
+        if (itemProjects.length === 1) {
+            return projects.find(p => p.id === itemProjects[0])?.name || "1 Project";
+        }
+        return `${itemProjects.length} Projects`;
+    };
+    
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[150px] justify-between font-normal">
+                    {getDisplayText()} <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                 <Command>
+                    <CommandList>
+                        <CommandGroup>
+                            <CommandItem onSelect={() => handleSelect('all')}>
+                                <Checkbox className="mr-2" checked={isAllProjects} /> All Projects
+                            </CommandItem>
+                            <CommandItem onSelect={() => handleSelect('none')}>
+                                <Checkbox className="mr-2" checked={itemProjects.includes('none')} /> No Project
+                            </CommandItem>
+                            {projects.map(p => (
+                                <CommandItem key={p.id} onSelect={() => handleSelect(p.id)}>
+                                    <Checkbox className="mr-2" checked={!isAllProjects && itemProjects.includes(p.id)} /> {p.name}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
+    companyConfig: CompanyConfig;
+    companyName: string;
+    projects: Project[];
+    canWrite: boolean;
+}) {
+    const { saveCompanyConfig } = useUserData();
+
+    const allCustomContent = useMemo(() => {
+        const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' }));
+        const tasks = (companyConfig?.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' }));
+        const tips = (companyConfig?.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' }));
+        const resources = (companyConfig?.resources || []).map(r => ({ ...r, typeLabel: 'Resource' }));
+        return [...questions, ...tasks, ...tips, ...resources];
+    }, [companyConfig]);
+
+    const handleProjectAssignmentSave = (itemId: string, itemType: string, projectIds: string[]) => {
+        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+
+        switch (itemType) {
+            case 'Question':
+                if (newConfig.customQuestions?.[itemId]) newConfig.customQuestions[itemId].projectIds = projectIds;
+                break;
+            case 'Task':
+                const task = newConfig.companyTasks?.find((t: MasterTask) => t.id === itemId);
+                if (task) task.projectIds = projectIds;
+                break;
+            case 'Tip':
+                const tip = newConfig.companyTips?.find((t: MasterTip) => t.id === itemId);
+                if (tip) tip.projectIds = projectIds;
+                break;
+            case 'Resource':
+                const resource = newConfig.resources?.find((r: Resource) => r.id === itemId);
+                if (resource) resource.projectIds = projectIds;
+                break;
+        }
+        
+        saveCompanyConfig(companyName, newConfig);
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Project Customization</CardTitle>
+                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Content Title / Text</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Visible To</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {allCustomContent.map(item => (
+                            <TableRow key={`${item.typeLabel}-${item.id}`}>
+                                <TableCell className="font-medium">
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger className="text-left"><p className="truncate max-w-sm">{item.label || item.name || item.text || item.title}</p></TooltipTrigger>
+                                            <TooltipContent><p className="max-w-md">{item.label || item.name || item.text || item.title}</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
+                                <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
+                                <TableCell>
+                                    <fieldset disabled={!canWrite}>
+                                         <ProjectAssignmentPopover
+                                            item={item}
+                                            projects={projects}
+                                            onSave={handleProjectAssignmentSave}
+                                        />
+                                    </fieldset>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export default function CompanySettingsPage() {
   const { toast } = useToast();
   const { auth } = useAuth();
@@ -179,8 +339,9 @@ export default function CompanySettingsPage() {
   const [editingProject, setEditingProject] = useState<Partial<Project> | null>(null);
   
   const canWrite = auth?.permissions?.companySettings === 'write';
+  const companyName = auth?.companyName || '';
+  const companyConfig = companyName ? getAllCompanyConfigs()[companyName] : null;
 
-  const companyConfig = auth?.companyName ? getAllCompanyConfigs()[auth.companyName] : null;
   const userCount = companyConfig?.users?.length ?? 0;
   const maxUsers = companyAssignmentForHr?.maxUsers ?? 0;
   const userProgress = maxUsers > 0 ? (userCount / maxUsers) * 100 : 0;
@@ -215,6 +376,7 @@ export default function CompanySettingsPage() {
   }
 
   const handleSaveProject = (project: Project) => {
+    if (!auth?.companyName) return;
     const projects = companyAssignmentForHr?.projects || [];
     const existingIndex = projects.findIndex(p => p.id === project.id);
     let newProjects;
@@ -224,7 +386,7 @@ export default function CompanySettingsPage() {
     } else {
         newProjects = [...projects, project];
     }
-    saveCompanyProjects(auth?.companyName!, newProjects);
+    saveCompanyProjects(auth.companyName, newProjects);
   };
   
   const handleArchiveProject = (project: Project) => {
@@ -242,10 +404,10 @@ export default function CompanySettingsPage() {
     setIsProjectFormOpen(true);
   };
 
-  if (isLoading || companyAssignmentForHr === undefined) {
+  if (isLoading || companyAssignmentForHr === undefined || !companyConfig) {
     return (
       <div className="p-4 md:p-8">
-        <div className="mx-auto max-w-2xl space-y-8">
+        <div className="mx-auto max-w-4xl space-y-8">
             <Skeleton className="h-12 w-1/3" />
             <Skeleton className="h-64 w-full" />
             <Skeleton className="h-48 w-full" />
@@ -306,9 +468,10 @@ export default function CompanySettingsPage() {
         )}
 
         <Tabs defaultValue="settings">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="projects">Projects/Divisions</TabsTrigger>
+                <TabsTrigger value="projects">Projects</TabsTrigger>
+                <TabsTrigger value="customizations">Project Customization</TabsTrigger>
             </TabsList>
             <TabsContent value="settings" className="mt-6">
                 <div className="space-y-8">
@@ -436,6 +599,14 @@ export default function CompanySettingsPage() {
                         </CardContent>
                     </Card>
                  </fieldset>
+            </TabsContent>
+             <TabsContent value="customizations" className="mt-6">
+                <ProjectCustomizationTab 
+                    companyConfig={companyConfig} 
+                    companyName={companyName}
+                    projects={activeProjects} 
+                    canWrite={canWrite}
+                />
             </TabsContent>
         </Tabs>
       </div>

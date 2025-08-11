@@ -196,6 +196,7 @@ export interface MasterTask {
     isActive: boolean;
     created_at?: string;
     updated_at?: string;
+    projectIds?: string[];
 }
 
 export interface TaskMapping {
@@ -215,6 +216,7 @@ export interface MasterTip {
     isActive: boolean;
     created_at?: string;
     updated_at?: string;
+    projectIds?: string[];
 }
 
 export interface TipMapping {
@@ -323,12 +325,13 @@ const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profi
             let isDependencyMet = true;
             if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
                 const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
-                isDependencyMet = false; // Default to false
+                let isTriggered = false;
                 if (Array.isArray(q.dependsOnValue)) {
-                    isDependencyMet = q.dependsOnValue.includes(dependencyValue as string);
+                    isTriggered = q.dependsOnValue.includes(dependencyValue as string);
                 } else {
-                    isDependencyMet = dependencyValue === q.dependsOnValue;
+                    isTriggered = dependencyValue === q.dependsOnValue;
                 }
+                if (!isTriggered) return;
             }
             
             if (isDependencyMet) {
@@ -840,6 +843,7 @@ export function useUserData() {
             answer_guidance_overrides: config.answerGuidanceOverrides || {},
             company_tasks: config.companyTasks || [],
             company_tips: config.companyTips || [],
+            resources: config.resources || [],
         }, { onConflict: 'company_id' });
         
         if (error) {
@@ -1449,6 +1453,7 @@ export function useUserData() {
         saveCompanyProjects,
     };
 }
+
 
 
 
