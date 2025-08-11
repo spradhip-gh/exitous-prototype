@@ -91,10 +91,18 @@ export default function HrUserTable({ users, setUsers, selectedUsers, setSelecte
     const handleNotifyUsers = async (emailsToNotify: string[]) => {
         if (!companyName) return;
         
-        const updates = emailsToNotify.map(email => ({
-          id: users.find(u => u.email === email)?.id,
-          is_invited: true,
-        })).filter(u => u.id);
+        const updates = emailsToNotify.map(email => {
+            const user = users.find(u => u.email === email);
+            if (!user) return null;
+            return {
+                id: user.id,
+                email: user.email,
+                company_user_id: user.company_user_id,
+                is_invited: true,
+            };
+        }).filter((u): u is { id: string; email: string, company_user_id: string, is_invited: boolean } => u !== null);
+
+        if (updates.length === 0) return;
 
         const { error } = await supabase.from('company_users').upsert(updates);
 
