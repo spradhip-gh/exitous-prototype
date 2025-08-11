@@ -1,62 +1,188 @@
--- Migration script to add Projects/Divisions functionality to the ExitBetter database.
+--
+-- PROJECTS_MIGRATION.sql
+--
+-- This script migrates an existing ExitBetter database schema to support the new Projects/Divisions feature.
+-- WARNING: Always back up your database before running a migration script.
+--
 
--- 1. Create the new 'projects' table
--- This table will store the individual projects or divisions associated with a company.
+-- 1. Create the moddatetime function to automatically update 'updated_at' columns.
+-- This function is called by triggers on various tables.
+CREATE OR REPLACE FUNCTION moddatetime()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- 2. Create the new 'projects' table
+-- This table will store information about projects or divisions within a company.
 CREATE TABLE IF NOT EXISTS projects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    is_archived BOOLEAN DEFAULT false,
+    is_archived BOOLEAN DEFAULT FALSE,
     severance_deadline_time TIME,
     severance_deadline_timezone TEXT,
     pre_end_date_contact_alias TEXT,
     post_end_date_contact_alias TEXT,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(company_id, name)
 );
 
-COMMENT ON TABLE projects IS 'Stores projects or divisions within a company, allowing for separate configurations.';
-COMMENT ON COLUMN projects.is_archived IS 'True if the project is archived and hidden.';
+-- Add a trigger to automatically update the 'updated_at' timestamp on the 'projects' table.
+DROP TRIGGER IF EXISTS handle_updated_at ON projects;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
 
 
--- 2. Add 'project_id' to the 'company_users' table
--- This creates the link between an end-user and a specific project.
--- It is nullable, so existing users are not affected and can remain at the company level.
+-- 3. Alter the 'company_users' table
+-- Add a nullable 'project_id' to associate users with a specific project.
 ALTER TABLE company_users
 ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
 
-COMMENT ON COLUMN company_users.project_id IS 'Foreign Key to projects.id. If null, user is company-level.';
 
-
--- 3. Add 'project_access' to the 'company_hr_assignments' table
--- This JSONB column will control which projects an HR manager has permissions for.
+-- 4. Alter the 'company_hr_assignments' table
+-- Add a 'project_access' column to control which projects an HR manager can access.
+-- Also adds a 'projectManagement' permission to the 'permissions' JSONB.
 ALTER TABLE company_hr_assignments
 ADD COLUMN IF NOT EXISTS project_access JSONB DEFAULT '["all"]'::jsonb;
 
-COMMENT ON COLUMN company_hr_assignments.project_access IS 'An array of project UUIDs this manager can access, or ["all"] for full access.';
+-- Note: Updating the permissions JSONB for existing rows must be done carefully.
+-- This example adds 'projectManagement: "write"' if it doesn't exist.
+-- You may need to adjust this logic based on your specific requirements.
+UPDATE company_hr_assignments
+SET permissions = permissions || '{"projectManagement": "write"}'::jsonb
+WHERE permissions->>'projectManagement' IS NULL;
 
 
--- 4. Add 'project_configs' to the 'company_question_configs' table
--- This JSONB column will store project-specific form customizations.
+-- 5. Alter the 'company_question_configs' table
+-- Add a 'project_configs' column to store project-specific question visibility and answer hiding.
 ALTER TABLE company_question_configs
 ADD COLUMN IF NOT EXISTS project_configs JSONB;
 
-COMMENT ON COLUMN company_question_configs.project_configs IS 'Project-specific overrides, e.g., {"projectId": {"hiddenQuestions": ["qId"], "hiddenAnswers": {"qId": ["ans"]}}}.';
 
-
--- 5. Add 'project_ids' to the 'company_resources' table
--- This JSONB column will control which projects a specific resource is visible to.
+-- 6. Alter the 'company_resources' table
+-- Add a 'project_ids' column to control which projects a resource is visible to.
 ALTER TABLE company_resources
 ADD COLUMN IF NOT EXISTS project_ids JSONB DEFAULT '[]'::jsonb;
 
-COMMENT ON COLUMN company_resources.project_ids IS 'An array of project UUIDs this resource is visible to. Empty array means visible to all.';
+-- This command sets existing resources to be visible to all projects by default.
+UPDATE company_resources SET project_ids = '[]'::jsonb WHERE project_ids IS NULL;
 
 
--- Optional: Add a trigger to update 'updated_at' on projects table changes
-CREATE OR REPLACE TRIGGER on_project_update
-BEFORE UPDATE ON projects
-FOR EACH ROW
-EXECUTE FUNCTION moddatetime(updated_at);
+-- 7. Add 'updated_at' triggers to existing tables if they don't have them.
+-- This ensures consistency across the schema.
 
--- End of migration script
+-- companies
+DROP TRIGGER IF EXISTS handle_updated_at ON companies;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON companies
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- platform_users
+DROP TRIGGER IF EXISTS handle_updated_at ON platform_users;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON platform_users
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- company_hr_assignments
+DROP TRIGGER IF EXISTS handle_updated_at ON company_hr_assignments;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON company_hr_assignments
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- company_users
+DROP TRIGGER IF EXISTS handle_updated_at ON company_users;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON company_users
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- user_profiles
+DROP TRIGGER IF EXISTS handle_updated_at ON user_profiles;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- user_assessments
+DROP TRIGGER IF EXISTS handle_updated_at ON user_assessments;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON user_assessments
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- master_questions
+DROP TRIGGER IF EXISTS handle_updated_at ON master_questions;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON master_questions
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- master_question_configs
+DROP TRIGGER IF EXISTS handle_updated_at ON master_question_configs;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON master_question_configs
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- company_question_configs
+DROP TRIGGER IF EXISTS handle_updated_at ON company_question_configs;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON company_question_configs
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- master_tasks
+DROP TRIGGER IF EXISTS handle_updated_at ON master_tasks;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON master_tasks
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- master_tips
+DROP TRIGGER IF EXISTS handle_updated_at ON master_tips;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON master_tips
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- company_resources
+DROP TRIGGER IF EXISTS handle_updated_at ON company_resources;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON company_resources
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- external_resources
+DROP TRIGGER IF EXISTS handle_updated_at ON external_resources;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON external_resources
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- guidance_rules
+DROP TRIGGER IF EXISTS handle_updated_at ON guidance_rules;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON guidance_rules
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+-- review_queue
+DROP TRIGGER IF EXISTS handle_updated_at ON review_queue;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON review_queue
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime();
+
+---
+--- End of Migration
+---
