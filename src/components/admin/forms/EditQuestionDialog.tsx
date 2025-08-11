@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule } from "@/hooks/use-user-data";
+import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
 import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -248,11 +249,12 @@ interface EditQuestionDialogProps {
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
     formType?: 'profile' | 'assessment';
+    projects: Project[];
 }
 
 export default function EditQuestionDialog({
     isNew, question, existingSections, onSave, onClose, masterQuestionForEdit,
-    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType
+    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType, projects
 }: EditQuestionDialogProps) {
     
     const { toast } = useToast();
@@ -634,6 +636,19 @@ export default function EditQuestionDialog({
                 <div className="space-y-2 pt-4">
                     <Label htmlFor="suggestion-reason">Reason for change (optional)</Label>
                     <Textarea id="suggestion-reason" value={suggestionReason} onChange={e => setSuggestionReason(e.target.value)} placeholder="e.g., We need to add a 'Remote' option because our policy has changed." />
+                </div>
+            )}
+             {isCustomQuestion && (
+                <div className="space-y-2 pt-4">
+                    <Label>Project Visibility</Label>
+                     <ProjectAssignmentPopover
+                        item={{ ...currentQuestion, typeLabel: 'Question' }}
+                        projects={projects}
+                        onSave={(itemId, itemType, projectIds) => {
+                            setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
+                        }}
+                    />
+                     <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
                 </div>
             )}
 

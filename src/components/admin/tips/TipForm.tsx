@@ -16,6 +16,9 @@ import { Loader2, Wand2, Terminal, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
+import { useUserData } from '@/hooks/use-user-data';
+import { ProjectAssignmentPopover } from '../settings/ProjectAssignmentPopover';
 
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipTypes = ['layoff', 'anxious'];
@@ -29,12 +32,15 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
     masterTips: MasterTip[];
 }) {
     const { toast } = useToast();
+    const { auth } = useAuth();
+    const { companyAssignmentForHr } = useUserData();
     const [formData, setFormData] = React.useState<Partial<MasterTip>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedDetail: string; } | null>(null);
     const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
 
     const isNewTip = !tip?.id;
+    const isHr = auth?.role === 'hr';
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -73,7 +79,8 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                 const textForId = result.revisedDetail || formData.text || '';
                 let suggestedId = textForId.toLowerCase().split(' ').slice(0, 4).join('-').replace(/[^a-z0-9-]/g, '');
 
-                if (masterTips.some(t => t.id === suggestedId)) {
+                const allKnownTips = [...masterTips, ...(companyAssignmentForHr?.companyTips || [])];
+                if (allKnownTips.some(t => t.id === suggestedId)) {
                     suggestedId += `-${format(new Date(), 'MMddyy')}`;
                 }
 
@@ -108,11 +115,15 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                     priority: 'Medium',
                     text: '',
                     isActive: true, // Default to active for new tips
+                    isCompanySpecific: isHr,
+                    projectIds: [],
                 });
                 setHasBeenReviewed(false);
             }
         }
-    }, [tip, isOpen]);
+    }, [tip, isOpen, isHr]);
+
+    const activeProjects = companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -198,6 +209,17 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                         </div>
                         <Input id="id" name="id" value={formData.id || ''} onChange={handleInputChange} placeholder="e.g., rollover-401k-tip" disabled={isNewTip} />
                     </div>
+                     {isHr && (
+                        <div className="space-y-2 md:col-span-2">
+                            <Label>Project Visibility</Label>
+                            <ProjectAssignmentPopover
+                                item={{...(formData as MasterTip), typeLabel: 'Tip' }}
+                                projects={activeProjects}
+                                onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
+                            />
+                             <p className="text-xs text-muted-foreground">Select which projects this custom tip should appear in. Leave blank for All Projects.</p>
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

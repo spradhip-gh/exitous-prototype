@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,10 +23,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ProjectAssignmentPopover } from './ProjectAssignmentPopover';
 
 function ProjectFormDialog({
     isOpen,
@@ -164,76 +163,6 @@ function ProjectFormDialog({
     );
 }
 
-function ProjectAssignmentPopover({
-    item,
-    projects,
-    onSave,
-}: {
-    item: (Question | MasterTask | MasterTip | Resource) & { typeLabel: string },
-    projects: Project[],
-    onSave: (itemId: string, itemType: string, projectIds: string[]) => void,
-}) {
-    const [open, setOpen] = useState(false);
-    const itemProjects = (item as any).projectIds || [];
-    const isAllProjects = itemProjects.length === 0;
-
-    const handleSelect = (projectId: string) => {
-        let newProjectIds;
-        if (projectId === 'all') {
-            newProjectIds = [];
-        } else if (projectId === 'none') {
-            newProjectIds = ['none'];
-        }
-        else {
-            const current = isAllProjects ? [] : [...itemProjects];
-            if (current.includes(projectId)) {
-                newProjectIds = current.filter(id => id !== projectId);
-            } else {
-                newProjectIds = [...current.filter(id => id !== 'none'), projectId];
-            }
-        }
-        onSave(item.id, item.typeLabel, newProjectIds);
-    };
-
-    const getDisplayText = () => {
-        if (isAllProjects) return "All Projects";
-        if (itemProjects.includes('none')) return "No Project";
-        if (itemProjects.length === 1) {
-            return projects.find(p => p.id === itemProjects[0])?.name || "1 Project";
-        }
-        return `${itemProjects.length} Projects`;
-    };
-    
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[150px] justify-between font-normal">
-                    {getDisplayText()} <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/>
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-0">
-                 <Command>
-                    <CommandList>
-                        <CommandGroup>
-                            <CommandItem onSelect={() => handleSelect('all')}>
-                                <Checkbox className="mr-2" checked={isAllProjects} /> All Projects
-                            </CommandItem>
-                            <CommandItem onSelect={() => handleSelect('none')}>
-                                <Checkbox className="mr-2" checked={itemProjects.includes('none')} /> No Project
-                            </CommandItem>
-                            {projects.map(p => (
-                                <CommandItem key={p.id} onSelect={() => handleSelect(p.id)}>
-                                    <Checkbox className="mr-2" checked={!isAllProjects && itemProjects.includes(p.id)} /> {p.name}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
-    )
-}
-
 function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
     companyName: string;
@@ -243,14 +172,14 @@ function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrit
     const { saveCompanyConfig } = useUserData();
 
     const allCustomContent = useMemo(() => {
-        const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' }));
-        const tasks = (companyConfig?.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' }));
-        const tips = (companyConfig?.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' }));
-        const resources = (companyConfig?.resources || []).map(r => ({ ...r, typeLabel: 'Resource' }));
+        const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const }));
+        const tasks = (companyConfig?.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const }));
+        const tips = (companyConfig?.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const }));
+        const resources = (companyConfig?.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const }));
         return [...questions, ...tasks, ...tips, ...resources];
     }, [companyConfig]);
 
-    const handleProjectAssignmentSave = (itemId: string, itemType: string, projectIds: string[]) => {
+    const handleProjectAssignmentSave = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectIds: string[]) => {
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
 
         switch (itemType) {
@@ -302,13 +231,12 @@ function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrit
                                 </TableCell>
                                 <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
                                 <TableCell>
-                                    <fieldset disabled={!canWrite}>
-                                         <ProjectAssignmentPopover
-                                            item={item}
-                                            projects={projects}
-                                            onSave={handleProjectAssignmentSave}
-                                        />
-                                    </fieldset>
+                                     <ProjectAssignmentPopover
+                                        item={item}
+                                        projects={projects}
+                                        onSave={handleProjectAssignmentSave}
+                                        disabled={!canWrite}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))}

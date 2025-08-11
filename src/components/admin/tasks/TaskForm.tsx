@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ExternalResource, MasterTask } from '@/hooks/use-user-data';
+import { ExternalResource, MasterTask, Project } from '@/hooks/use-user-data';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { reviewContent } from '@/ai/flows/content-review';
 import { Loader2, Wand2, Terminal, Info, HelpCircle } from 'lucide-react';
@@ -17,6 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/use-auth';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
+import { ProjectAssignmentPopover } from '../settings/ProjectAssignmentPopover';
+import { useUserData } from '@/hooks/use-user-data';
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const taskTypes = ['layoff', 'anxious'];
@@ -31,12 +33,14 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
 }) {
     const { toast } = useToast();
     const { auth } = useAuth();
+    const { companyAssignmentForHr } = useUserData();
     const [formData, setFormData] = React.useState<Partial<MasterTask>>({});
     const [isReviewing, setIsReviewing] = React.useState(false);
     const [aiSuggestion, setAiSuggestion] = React.useState<{ revisedName?: string; revisedDetail: string; } | null>(null);
     const [hasBeenReviewed, setHasBeenReviewed] = React.useState(false);
     
     const isAdmin = auth?.role === 'admin';
+    const isHr = auth?.role === 'hr';
     const isNewTask = !task?.id;
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -84,8 +88,9 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                 const nameForId = result.revisedName || formData.name || '';
                 let suggestedId = nameForId.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-                // Check for uniqueness and append date if necessary
-                if ((masterTasks || []).some(t => t.id === suggestedId)) {
+                const allKnownTasks = [...(masterTasks || []), ...(companyAssignmentForHr?.companyTasks || [])];
+
+                if (allKnownTasks.some(t => t.id === suggestedId)) {
                     suggestedId += `-${format(new Date(), 'MMddyy')}`;
                 }
                 
@@ -122,11 +127,15 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                     category: 'Financial',
                     deadlineType: 'notification_date',
                     isActive: true, // Default to active for new tasks
+                    isCompanySpecific: isHr,
+                    projectIds: [],
                 });
                 setHasBeenReviewed(false);
             }
         }
-    }, [task, isOpen]);
+    }, [task, isOpen, isHr]);
+
+    const activeProjects = companyAssignmentForHr?.projects?.filter(p => !p.isArchived) || [];
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -237,6 +246,16 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                         <Label htmlFor="deadlineDays">Deadline Days After Event</Label>
                         <Input id="deadlineDays" name="deadlineDays" type="number" value={formData.deadlineDays || ''} onChange={(e) => handleNumberChange('deadlineDays', e.target.value)} placeholder="e.g., 30"/>
                     </div>
+                    {isHr && (
+                        <div className="space-y-2">
+                            <Label>Project Visibility</Label>
+                            <ProjectAssignmentPopover
+                                item={{...(formData as MasterTask), typeLabel: 'Task' }}
+                                projects={activeProjects}
+                                onSave={(itemId, itemType, projectIds) => setFormData(prev => ({ ...prev, projectIds }))}
+                            />
+                        </div>
+                    )}
                     {isAdmin && (
                          <div className="space-y-2">
                             <Label htmlFor="linkedResourceId">Linked Resource (Optional)</Label>
