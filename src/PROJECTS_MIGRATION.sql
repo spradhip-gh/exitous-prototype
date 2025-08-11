@@ -1,12 +1,10 @@
---
--- PROJECTS_MIGRATION.sql
---
--- This script migrates an existing ExitBetter database schema to support the new Projects/Divisions feature.
--- WARNING: Always back up your database before running a migration script.
---
 
--- 1. Create the moddatetime function to automatically update 'updated_at' columns.
--- This function is called by triggers on various tables.
+-- Enable Row Level Security
+ALTER TABLE company_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE company_hr_assignments ENABLE ROW LEVEL SECURITY;
+-- Add more tables as needed that contain sensitive company or user data.
+
+-- Create the function to update `updated_at` columns
 CREATE OR REPLACE FUNCTION moddatetime()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -15,11 +13,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
--- 2. Create the new 'projects' table
--- This table will store information about projects or divisions within a company.
-CREATE TABLE IF NOT EXISTS projects (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-- Create Projects Table
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     is_archived BOOLEAN DEFAULT FALSE,
@@ -27,162 +23,58 @@ CREATE TABLE IF NOT EXISTS projects (
     severance_deadline_timezone TEXT,
     pre_end_date_contact_alias TEXT,
     post_end_date_contact_alias TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(company_id, name)
 );
 
--- Add a trigger to automatically update the 'updated_at' timestamp on the 'projects' table.
-DROP TRIGGER IF EXISTS handle_updated_at ON projects;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON projects
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
+-- Add updated_at trigger for projects
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON projects 
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
 
-
--- 3. Alter the 'company_users' table
--- Add a nullable 'project_id' to associate users with a specific project.
+-- Add project_id to company_users
 ALTER TABLE company_users
-ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+ADD COLUMN project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
 
-
--- 4. Alter the 'company_hr_assignments' table
--- Add a 'project_access' column to control which projects an HR manager can access.
--- Also adds a 'projectManagement' permission to the 'permissions' JSONB.
+-- Add project_access to company_hr_assignments
 ALTER TABLE company_hr_assignments
-ADD COLUMN IF NOT EXISTS project_access JSONB DEFAULT '["all"]'::jsonb;
+ADD COLUMN project_access JSONB DEFAULT '["all"]'::jsonb;
 
--- Note: Updating the permissions JSONB for existing rows must be done carefully.
--- This example adds 'projectManagement: "write"' if it doesn't exist.
--- You may need to adjust this logic based on your specific requirements.
-UPDATE company_hr_assignments
-SET permissions = permissions || '{"projectManagement": "write"}'::jsonb
-WHERE permissions->>'projectManagement' IS NULL;
+-- Add project management permission to company_hr_assignments
+-- Note: This requires a manual update of existing rows if you want to grant this permission.
+-- For new assignments, the application logic should handle adding this permission.
 
-
--- 5. Alter the 'company_question_configs' table
--- Add a 'project_configs' column to store project-specific question visibility and answer hiding.
-ALTER TABLE company_question_configs
-ADD COLUMN IF NOT EXISTS project_configs JSONB;
-
-
--- 6. Alter the 'company_resources' table
--- Add a 'project_ids' column to control which projects a resource is visible to.
+-- Add project_ids to company_resources
 ALTER TABLE company_resources
-ADD COLUMN IF NOT EXISTS project_ids JSONB DEFAULT '[]'::jsonb;
+ADD COLUMN project_ids JSONB DEFAULT '[]'::jsonb;
 
--- This command sets existing resources to be visible to all projects by default.
-UPDATE company_resources SET project_ids = '[]'::jsonb WHERE project_ids IS NULL;
+-- Add project_configs to company_question_configs
+ALTER TABLE company_question_configs
+ADD COLUMN project_configs JSONB;
 
-
--- 7. Add 'updated_at' triggers to existing tables if they don't have them.
--- This ensures consistency across the schema.
-
--- companies
-DROP TRIGGER IF EXISTS handle_updated_at ON companies;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON companies
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- platform_users
-DROP TRIGGER IF EXISTS handle_updated_at ON platform_users;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON platform_users
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- company_hr_assignments
+-- Add trigger for company_hr_assignments
 DROP TRIGGER IF EXISTS handle_updated_at ON company_hr_assignments;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON company_hr_assignments
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- company_users
-DROP TRIGGER IF EXISTS handle_updated_at ON company_users;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON company_users
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- user_profiles
-DROP TRIGGER IF EXISTS handle_updated_at ON user_profiles;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON user_profiles
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- user_assessments
-DROP TRIGGER IF EXISTS handle_updated_at ON user_assessments;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON user_assessments
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- master_questions
-DROP TRIGGER IF EXISTS handle_updated_at ON master_questions;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON master_questions
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- master_question_configs
-DROP TRIGGER IF EXISTS handle_updated_at ON master_question_configs;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON master_question_configs
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- company_question_configs
-DROP TRIGGER IF EXISTS handle_updated_at ON company_question_configs;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON company_question_configs
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- master_tasks
-DROP TRIGGER IF EXISTS handle_updated_at ON master_tasks;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON master_tasks
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- master_tips
-DROP TRIGGER IF EXISTS handle_updated_at ON master_tips;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON master_tips
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- company_resources
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON company_hr_assignments
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
+  
+-- Add trigger for company_resources
 DROP TRIGGER IF EXISTS handle_updated_at ON company_resources;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON company_resources
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON company_resources
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
 
--- external_resources
-DROP TRIGGER IF EXISTS handle_updated_at ON external_resources;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON external_resources
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
--- guidance_rules
+-- Add trigger for company_question_configs
+DROP TRIGGER IF EXISTS handle_updated_at ON company_question_configs;
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON company_question_configs
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
+  
+-- Add trigger for guidance_rules
 DROP TRIGGER IF EXISTS handle_updated_at ON guidance_rules;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON guidance_rules
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON guidance_rules
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
+  
+-- Add trigger for external_resources
+DROP TRIGGER IF EXISTS handle_updated_at ON external_resources;
+CREATE TRIGGER handle_updated_at BEFORE UPDATE ON external_resources
+  FOR EACH ROW EXECUTE PROCEDURE moddatetime();
 
--- review_queue
-DROP TRIGGER IF EXISTS handle_updated_at ON review_queue;
-CREATE TRIGGER handle_updated_at
-    BEFORE UPDATE ON review_queue
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime();
-
----
---- End of Migration
----
+    
