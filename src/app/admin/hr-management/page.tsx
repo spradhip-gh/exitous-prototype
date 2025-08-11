@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MultiSelectPopover } from "@/components/admin/forms/GuidanceRuleForm";
 
 const permissionLabels: Record<string, string> = {
     'read': 'Read',
@@ -83,10 +84,10 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                         return {
                             ...hr,
                             isPrimary: isNewPrimary,
-                            // Grant full permissions to new primary, demote old primary's company settings
                             permissions: isNewPrimary
                                 ? fullPermissions
-                                : { ...hr.permissions, companySettings: 'read' as const }
+                                : { ...hr.permissions, companySettings: 'read' as const },
+                            projectAccess: isNewPrimary ? ['all'] : hr.projectAccess,
                         };
                     });
                     return { ...a, hrManagers: newManagers };
@@ -126,7 +127,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
     const handleAddAccess = (companyName: string) => {
         setLocalAssignments(prev => prev.map(a => {
             if (a.companyName === companyName) {
-                return { ...a, hrManagers: [...a.hrManagers, { email: managerEmail, isPrimary: false, permissions: defaultPermissions }] };
+                return { ...a, hrManagers: [...a.hrManagers, { email: managerEmail, isPrimary: false, permissions: defaultPermissions, projectAccess: ['all'] }] };
             }
             return a;
         }));
@@ -138,6 +139,21 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                 const updatedManagers = a.hrManagers.map(hr => {
                     if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
                         return { ...hr, permissions: { ...hr.permissions, [key]: value } };
+                    }
+                    return hr;
+                });
+                return { ...a, hrManagers: updatedManagers };
+            }
+            return a;
+        }));
+    };
+    
+     const handleProjectAccessChange = (companyName: string, projectIds: string[]) => {
+        setLocalAssignments(prev => prev.map(a => {
+            if (a.companyName === companyName) {
+                const updatedManagers = a.hrManagers.map(hr => {
+                    if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
+                        return { ...hr, projectAccess: projectIds };
                     }
                     return hr;
                 });
@@ -171,6 +187,9 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const isPrimaryInThisCompany = manager.isPrimary;
                                 const isLastManager = assignment.hrManagers.length <= 1;
                                 const currentPrimaryEmail = assignment.hrManagers.find(m => m.isPrimary)?.email;
+                                const projectOptions = assignment.projects?.map(p => ({ id: p.id, name: p.name, category: 'Projects' })) || [];
+                                const hasProjectScope = manager.projectAccess && !manager.projectAccess.includes('all');
+
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -207,7 +226,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                         <AlertDialogTrigger asChild>
                                                             <Switch
                                                                 checked={isPrimaryInThisCompany}
-                                                                onCheckedChange={() => {}} // dummy to allow trigger
+                                                                onCheckedChange={() => {}}
                                                                 disabled={!canEditThisCompany || isPrimaryInThisCompany}
                                                             />
                                                         </AlertDialogTrigger>
@@ -276,6 +295,16 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                                 <SelectItem value="write">Write</SelectItem>
                                                             </SelectContent>
                                                         </Select>
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <MultiSelectPopover 
+                                                            label="Project Access"
+                                                            items={[{id: 'all', name: 'All Projects', category: 'General'}, ...projectOptions]}
+                                                            selectedIds={manager.projectAccess || ['all']}
+                                                            onSelectionChange={(ids) => handleProjectAccessChange(assignment.companyName, ids)}
+                                                            onAddNew={() => {}}
+                                                            categories={[]}
+                                                        />
                                                     </div>
                                                 </fieldset>
                                             )}
@@ -408,7 +437,8 @@ function AddHrManagerDialog({ open, onOpenChange, managedCompanies, onSave, allA
                 company.hrManagers.push({
                     email,
                     isPrimary: newAssignment.isPrimary,
-                    permissions: newAssignment.permissions
+                    permissions: newAssignment.permissions,
+                    projectAccess: ['all'],
                 });
             }
         });
@@ -568,15 +598,15 @@ export default function HrManagementPage() {
         
         const companiesToScan = companyAssignments.filter(a => companiesWherePrimary.includes(a.companyName));
         
-        const managers = new Map<string, { email: string, companies: string[] }>();
+        const managers = new Map<string, { email: string, companies: { name: string, projectAccess?: string[] }[] }>();
         companiesToScan.forEach(assignment => {
             assignment.hrManagers.forEach(hr => {
                 if (!managers.has(hr.email)) {
                     managers.set(hr.email, { email: hr.email, companies: [] });
                 }
                 const managerData = managers.get(hr.email)!;
-                if (!managerData.companies.includes(assignment.companyName)) {
-                     managerData.companies.push(assignment.companyName);
+                if (!managerData.companies.some(c => c.name === assignment.companyName)) {
+                     managerData.companies.push({name: assignment.companyName, projectAccess: hr.projectAccess});
                 }
             });
         });
@@ -596,7 +626,6 @@ export default function HrManagementPage() {
         saveCompanyAssignments(updatedAssignments);
         toast({ title: "HR Assignments Updated", description: `Access for ${email} has been saved.`});
 
-        // If the current user's primary status for the current company has changed, refresh auth.
         if (auth?.email && auth.companyName) {
             const currentAssignment = updatedAssignments.find(a => a.companyName === auth.companyName);
             const isNowPrimary = currentAssignment?.hrManagers.some(hr => hr.email.toLowerCase() === auth.email!.toLowerCase() && hr.isPrimary);
@@ -644,22 +673,53 @@ export default function HrManagementPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Email</TableHead>
-                                    <TableHead>Company Assignments</TableHead>
+                                    <TableHead>Assignments</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {manageableHrs.map(manager => (
+                                {manageableHrs.map(manager => {
+                                    const projectsByCompany: Record<string, string[]> = {};
+                                    assignmentsForDialog.forEach(company => {
+                                        const hr = company.hrManagers.find(h => h.email === manager.email);
+                                        if (hr && hr.projectAccess && !hr.projectAccess.includes('all')) {
+                                            projectsByCompany[company.companyName] = hr.projectAccess.map(pId => company.projects?.find(p => p.id === pId)?.name || 'Unknown Project');
+                                        }
+                                    });
+
+                                    return (
                                     <TableRow key={manager.email}>
                                         <TableCell className="font-medium">{manager.email}</TableCell>
-                                        <TableCell>{manager.companies.length}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                            {manager.companies.map(c => (
+                                                <div key={c.name} className="flex items-center gap-2">
+                                                    <span className="font-medium">{c.name}</span>
+                                                    {projectsByCompany[c.name] ? (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Badge variant="outline">{projectsByCompany[c.name].length} Projects</Badge>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{projectsByCompany[c.name].join(', ')}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    ) : (
+                                                        <Badge variant="secondary">All Projects</Badge>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                              <Button variant="ghost" size="icon" onClick={() => handleManageClick(manager.email)}>
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )})}
                             </TableBody>
                         </Table>
                     </CardContent>
