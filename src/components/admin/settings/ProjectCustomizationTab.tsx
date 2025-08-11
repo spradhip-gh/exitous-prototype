@@ -1,7 +1,7 @@
 
 'use client';
 import * as React from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project, Question } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,36 +19,45 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     canWrite: boolean;
 }) {
     const { saveCompanyConfig } = useUserData();
+    const [localCompanyConfig, setLocalCompanyConfig] = useState(companyConfig);
 
-    const allCustomContent = useMemo(() => {
-        const questions = Object.values(companyConfig?.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label }));
-        const tasks = (companyConfig?.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const }));
-        const tips = (companyConfig?.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text }));
-        const resources = (companyConfig?.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title }));
-        return [...questions, ...tasks, ...tips, ...resources];
+    useEffect(() => {
+        setLocalCompanyConfig(companyConfig);
     }, [companyConfig]);
 
-    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', newProjectIds: string[]) => {
-        const newConfig = JSON.parse(JSON.stringify(companyConfig));
+    const allCustomContent = useMemo(() => {
+        const config = localCompanyConfig || { customQuestions: {}, companyTasks: [], companyTips: [], resources: [] };
+        const questions = Object.values(config.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label }));
+        const tasks = (config.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const }));
+        const tips = (config.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text }));
+        const resources = (config.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title }));
+        return [...questions, ...tasks, ...tips, ...resources];
+    }, [localCompanyConfig]);
 
+    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', newProjectIds: string[]) => {
+        const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
+
+        let item: any = null;
         switch (itemType) {
             case 'Question':
-                if (newConfig.customQuestions?.[itemId]) newConfig.customQuestions[itemId].projectIds = newProjectIds;
+                item = newConfig.customQuestions?.[itemId];
                 break;
             case 'Task':
-                const task = newConfig.companyTasks?.find((t: MasterTask) => t.id === itemId);
-                if (task) task.projectIds = newProjectIds;
+                item = newConfig.companyTasks?.find((t: MasterTask) => t.id === itemId);
                 break;
             case 'Tip':
-                const tip = newConfig.companyTips?.find((t: MasterTip) => t.id === itemId);
-                if (tip) tip.projectIds = newProjectIds;
+                item = newConfig.companyTips?.find((t: MasterTip) => t.id === itemId);
                 break;
             case 'Resource':
-                const resource = newConfig.resources?.find((r: Resource) => r.id === itemId);
-                if (resource) resource.projectIds = newProjectIds;
+                item = newConfig.resources?.find((r: Resource) => r.id === itemId);
                 break;
         }
+        
+        if (item) {
+            item.projectIds = newProjectIds;
+        }
 
+        setLocalCompanyConfig(newConfig); // Optimistically update local state for instant UI feedback
         saveCompanyConfig(companyName, newConfig);
     };
 
