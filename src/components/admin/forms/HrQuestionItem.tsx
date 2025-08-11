@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 
 function HrSubQuestionItem({ question, parentId, level, onToggleActive, onEdit, onDelete, onAddSub, canWrite }: { question: Question, parentId: string, level: number, onToggleActive: (id: string, parentId?: string) => void, onEdit: (q: Question) => void, onDelete: (id: string) => void, onAddSub: (parentId: string) => void, canWrite: boolean }) {
@@ -132,9 +133,9 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     };
 
     const initialProjectIds = useMemo(() => {
-        const hiddenInProjects: string[] = [];
-        if (override?.isActive === false) return ['all'];
+        if (!override?.isActive) return ['all'];
         
+        const hiddenInProjects: string[] = [];
         projects.forEach(p => {
             if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(question.id)) {
                 hiddenInProjects.push(p.id);
