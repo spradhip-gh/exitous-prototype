@@ -57,7 +57,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
             item.projectIds = newProjectIds;
         }
 
-        setLocalCompanyConfig(newConfig); // Optimistically update local state for instant UI feedback
+        setLocalCompanyConfig(newConfig);
         saveCompanyConfig(companyName, newConfig);
     };
 
@@ -84,9 +84,10 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                             const handleCheckboxChange = (projectId: string, isChecked: boolean) => {
                                 let newProjectIds: string[];
                                 if (projectId === 'all') {
-                                    newProjectIds = [];
+                                    newProjectIds = []; // Empty array means "All Projects"
                                 } else {
-                                    let currentIds = isAllSelected ? projects.map(p => p.id).concat('__none__') : [...currentProjectIds];
+                                    // Start with the current IDs, but remove 'all' if it exists
+                                    let currentIds = isAllSelected ? [] : [...currentProjectIds];
                                     if (isChecked) {
                                         newProjectIds = [...currentIds, projectId];
                                     } else {
