@@ -1,5 +1,6 @@
 
 'use client';
+import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { useUserData, CompanyConfig, MasterTask, MasterTip, Resource, Project, Question } from '@/hooks/use-user-data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,13 +42,25 @@ function ManageVisibilityDialog({
 
     const handleCheckboxChange = (projectId: string, isChecked: boolean) => {
         setSelectedProjectIds(prev => {
+            const currentIds = prev.filter(id => id !== '__none__' && id !== 'all');
+            let newProjectIds: string[];
+
             if (isChecked) {
-                return [...prev, projectId];
+                newProjectIds = [...currentIds, projectId];
             } else {
-                return prev.filter(id => id !== projectId);
+                newProjectIds = currentIds.filter(id => id !== projectId);
             }
+            return newProjectIds;
         });
     };
+    
+    const handleSelectAll = (isChecked: boolean) => {
+        if (isChecked) {
+             setSelectedProjectIds([]);
+        }
+    };
+    
+    const isAllSelected = selectedProjectIds.length === 0;
 
     if (!item) return null;
 
@@ -56,23 +69,33 @@ function ManageVisibilityDialog({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Manage Visibility for "{item.name}"</DialogTitle>
-                    <DialogDescription>Select which projects this {item.typeLabel.toLowerCase()} should be visible to. Leave all unchecked to make it visible to all users.</DialogDescription>
+                    <DialogDescription>Select which projects this {item.typeLabel.toLowerCase()} should be visible to. Leave all unchecked to make it visible to all users, including unassigned.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-2">
                     <div className="flex items-center space-x-2">
                         <Checkbox
-                            id="__none__-checkbox"
-                            checked={selectedProjectIds.includes('__none__')}
-                            onCheckedChange={(checked) => handleCheckboxChange('__none__', !!checked)}
+                            id="all-projects-checkbox"
+                            checked={isAllSelected}
+                            onCheckedChange={handleSelectAll}
                         />
-                        <Label htmlFor="__none__-checkbox" className="font-normal italic">Unassigned Users</Label>
+                        <Label htmlFor="all-projects-checkbox" className="font-normal">All Projects &amp; Users</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="__none__-checkbox"
+                            checked={!isAllSelected && selectedProjectIds.includes('__none__')}
+                            onCheckedChange={(checked) => handleCheckboxChange('__none__', !!checked)}
+                            disabled={isAllSelected}
+                        />
+                        <Label htmlFor="__none__-checkbox" className="font-normal italic">Unassigned Users Only</Label>
                     </div>
                     {projects.map(p => (
                          <div key={p.id} className="flex items-center space-x-2">
                             <Checkbox
                                 id={p.id}
-                                checked={selectedProjectIds.includes(p.id)}
+                                checked={!isAllSelected && selectedProjectIds.includes(p.id)}
                                 onCheckedChange={(checked) => handleCheckboxChange(p.id, !!checked)}
+                                disabled={isAllSelected}
                             />
                             <Label htmlFor={p.id} className="font-normal">{p.name}</Label>
                         </div>
@@ -85,6 +108,7 @@ function ManageVisibilityDialog({
                             item: {id: item.id, name: item.name},
                             projects: projects.map(p => p.name),
                             selectedIds: selectedProjectIds,
+                            isAllSelected: isAllSelected,
                         }, null, 2)}
                     </pre>
                 </div>
@@ -96,6 +120,7 @@ function ManageVisibilityDialog({
         </Dialog>
     );
 }
+
 
 export default function ProjectCustomizationTab({ companyConfig, companyName, projects, canWrite }: {
     companyConfig: CompanyConfig;
