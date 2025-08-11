@@ -27,6 +27,7 @@ import TaskForm from '../tasks/TaskForm';
 import TipForm from '../tips/TipForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { ProjectAssignmentPopover } from "../settings/ProjectAssignmentPopover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const taskCategories = ['Financial', 'Career', 'Health', 'Basics'];
 const tipCategories = ['Financial', 'Career', 'Health', 'Basics'];
@@ -204,17 +205,18 @@ function AnswerGuidanceDialog({
                 <div className="space-y-4 py-4">
                      <div className="space-y-2">
                         <Label>Apply Guidance To Project</Label>
-                        <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a project..."/>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Projects (Company Default)</SelectItem>
-                                {projects.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <RadioGroup value={selectedProjectId} onValueChange={setSelectedProjectId} className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="all" id="guidance-all-projects" />
+                                <Label htmlFor="guidance-all-projects">All Projects (Company Default)</Label>
+                            </div>
+                            {projects.map(p => (
+                                <div key={p.id} className="flex items-center space-x-2">
+                                    <RadioGroupItem value={p.id} id={`guidance-project-${p.id}`} />
+                                    <Label htmlFor={`guidance-project-${p.id}`}>{p.name}</Label>
+                                </div>
+                            ))}
+                        </RadioGroup>
                          <p className="text-xs text-muted-foreground">Selecting a specific project will override the company default guidance for users in that project.</p>
                      </div>
                      <Separator />
@@ -398,6 +400,8 @@ export default function EditQuestionDialog({
             newGuidance[answer] = { tasks: taskIds, tips: tipIds, noGuidanceRequired };
              if(projectId && projectId !== 'all') {
                 newGuidance[answer].projectId = projectId;
+            } else {
+                delete newGuidance[answer].projectId;
             }
             return { ...prev, answerGuidance: newGuidance };
         });
@@ -408,10 +412,12 @@ export default function EditQuestionDialog({
         setIsGuidanceDialogOpen(true);
     }, []);
 
-    const isGuidanceSetForAnswer = useCallback((answer: string): boolean => {
-        const guidance = currentQuestion?.answerGuidance?.[answer];
-        if (!guidance) return false;
-        return guidance.noGuidanceRequired || (guidance.tasks && guidance.tasks.length > 0) || (guidance.tips && guidance.tips.length > 0);
+    const getGuidanceSummaryForAnswer = useCallback((answer: string) => {
+        const allGuidance = Object.entries(currentQuestion?.answerGuidance || {})
+            .filter(([key]) => key === answer)
+            .flatMap(([, value]) => Array.isArray(value) ? value : [value]);
+        
+        return allGuidance;
     }, [currentQuestion?.answerGuidance]);
 
     const handleAddNewOption = () => {
@@ -670,6 +676,7 @@ export default function EditQuestionDialog({
                             const isMasterOption = !!masterQuestionForEdit?.options?.includes(option);
                             const isRemovalSuggested = suggestedRemovals.includes(option);
                             const isCompanyAddition = companyAddedOptions.has(option);
+                            const guidanceSummary = getGuidanceSummaryForAnswer(option);
                             return (
                                 <div key={option} className="flex items-center justify-between">
                                     <Label htmlFor={`guidance-${option}`} className={cn("font-normal flex items-center gap-2", isRemovalSuggested && "line-through text-destructive")}>
@@ -677,9 +684,30 @@ export default function EditQuestionDialog({
                                         {option}
                                     </Label>
                                     <div className="flex items-center gap-2">
-                                        <Button variant={isGuidanceSetForAnswer(option) ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
-                                            <Settings className="mr-2"/> Manage Guidance {isGuidanceSetForAnswer(option) && <span className="ml-2 h-2 w-2 rounded-full bg-green-500"></span>}
-                                        </Button>
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant={guidanceSummary.length > 0 ? 'secondary' : 'outline'} size="sm" onClick={() => openGuidanceDialog(option)}>
+                                                        <Settings className="mr-2"/> Manage Guidance {guidanceSummary.length > 0 && <Badge variant="default" className="ml-2">{guidanceSummary.length}</Badge>}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                {guidanceSummary.length > 0 && (
+                                                <TooltipContent className="p-2">
+                                                    <div className="space-y-2 text-xs">
+                                                        <p className="font-bold">Mapped Guidance:</p>
+                                                        {guidanceSummary.map((g, i) => (
+                                                            <div key={i} className="border-t pt-2">
+                                                                <p className="font-semibold text-blue-600">{g.projectId ? projects.find(p=>p.id === g.projectId)?.name : 'Company Default'}</p>
+                                                                {g.tasks && g.tasks.length > 0 && <div><strong>Tasks:</strong> {g.tasks.map(t => allCompanyTasks.find(ct => ct.id === t)?.name || t).join(', ')}</div>}
+                                                                {g.tips && g.tips.length > 0 && <div><strong>Tips:</strong> {g.tips.map(t => allCompanyTips.find(ct => ct.id === t)?.text || t).join(', ')}</div>}
+                                                                {g.noGuidanceRequired && <div className="italic">No guidance required.</div>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </TooltipContent>
+                                                )}
+                                            </Tooltip>
+                                        </TooltipProvider>
                                         {isSuggestionMode && isMasterOption && (
                                              <Button variant="ghost" size="icon" className={cn("h-8 w-8", isRemovalSuggested ? "text-primary" : "text-destructive")} onClick={() => handleToggleRemovalSuggestion(option)}>
                                                 <Trash2 />
