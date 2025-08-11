@@ -51,7 +51,6 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         
         saveCompanyConfig(companyName, newConfig);
         
-        // Also update the local state for the dialog
         setEditingItem(prev => prev ? { ...prev, projectIds } : null);
     };
 
@@ -84,8 +83,8 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                     </TableCell>
                                     <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
                                     <TableCell className="text-right">
-                                         <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)} disabled={!canWrite}>
-                                            <Pencil className="h-4 w-4" />
+                                         <Button variant="outline" size="sm" onClick={() => setEditingItem(item)} disabled={!canWrite}>
+                                            <Pencil className="mr-2 h-4 w-4" /> Manage
                                          </Button>
                                     </TableCell>
                                 </TableRow>
@@ -109,6 +108,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                 disabled={!canWrite}
                                 includeUnassignedOption={true}
                                 popoverContentWidth='w-full'
+                                initialProjectIds={editingItem.projectIds}
                             />
                         )}
                     </div>

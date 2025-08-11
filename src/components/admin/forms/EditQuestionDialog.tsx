@@ -407,6 +407,20 @@ export default function EditQuestionDialog({
             }
         });
     };
+
+    const handleProjectSelectionChange = useCallback((projectId: string, isChecked: boolean) => {
+        setCurrentQuestion(prev => {
+            if (!prev) return null;
+            const currentProjectIds = prev.projectIds || [];
+            let newProjectIds: string[];
+            if (isChecked) {
+                newProjectIds = [...currentProjectIds, projectId];
+            } else {
+                newProjectIds = currentProjectIds.filter(id => id !== projectId);
+            }
+            return { ...prev, projectIds: newProjectIds };
+        });
+    }, []);
     
     if (!currentQuestion) {
         return null;
@@ -551,19 +565,30 @@ export default function EditQuestionDialog({
                 {currentQuestion.isCustom && (
                     <div className="space-y-2 py-4">
                         <Label>Project Visibility</Label>
-                        <ProjectAssignmentPopover
-                            item={{ ...(currentQuestion as Question), typeLabel: 'Question', name: currentQuestion.label || 'New Question' }}
-                            projects={activeProjects}
-                            initialProjectIds={currentQuestion.projectIds}
-                            onSave={(itemId, itemType, projectIds) => {
-                                setCurrentQuestion(prev => prev ? { ...prev, projectIds } : null);
-                            }}
-                            includeUnassignedOption={true}
-                            popoverContentWidth='w-full'
-                        />
-                        <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave blank for All Projects.</p>
+                        <p className="text-xs text-muted-foreground">Select which projects this custom question should appear in. Leave all unchecked for All Projects.</p>
+                        <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
+                           <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="project-unassigned"
+                                    checked={(currentQuestion.projectIds || []).includes('__none__')}
+                                    onCheckedChange={(checked) => handleProjectSelectionChange('__none__', !!checked)}
+                                />
+                                <Label htmlFor="project-unassigned" className="font-normal italic">Unassigned Users</Label>
+                            </div>
+                            {activeProjects.map(project => (
+                                <div key={project.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`project-${project.id}`}
+                                        checked={(currentQuestion.projectIds || []).includes(project.id)}
+                                        onCheckedChange={(checked) => handleProjectSelectionChange(project.id, !!checked)}
+                                    />
+                                    <Label htmlFor={`project-${project.id}`} className="font-normal">{project.name}</Label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
+
 
                 {/* The rest of the form elements (options, guidance, etc.) */}
                 {(currentQuestion.type === 'select' || currentQuestion.type === 'radio' || currentQuestion.type === 'checkbox') && (
@@ -771,3 +796,4 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
