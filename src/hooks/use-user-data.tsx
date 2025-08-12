@@ -246,12 +246,14 @@ export function applyQuestionOverrides(masterQ: Question, override: QuestionOver
         if (override.description) finalQuestion.description = override.description;
         if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
         if (override.optionOverrides) {
-            const baseOptions = masterQ.options || [];
+            const baseOptions = new Set(masterQ.options || []);
             const toRemove = new Set(override.optionOverrides.remove || []);
             const toAdd = override.optionOverrides.add || [];
-            let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
-            newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
-            finalQuestion.options = newOptions;
+            
+            toRemove.forEach(opt => baseOptions.delete(opt));
+            toAdd.forEach(opt => baseOptions.add(opt));
+            
+            finalQuestion.options = Array.from(baseOptions);
         }
     }
     
