@@ -8,20 +8,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CompanyConfig, Project } from '@/hooks/use-user-data';
+import { CompanyConfig, Project, Question } from '@/hooks/use-user-data';
 import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function ProjectAssignmentPopover({
-  questionId,
+  question,
   projects,
   companyConfig,
   onVisibilityChange,
   disabled,
   itemType = 'Question'
 }: {
-  questionId: string;
+  question: Question,
   projects: Project[];
   companyConfig?: CompanyConfig;
   onVisibilityChange: (hiddenIds: string[]) => void;
@@ -33,37 +33,19 @@ export function ProjectAssignmentPopover({
   
   useEffect(() => {
     let initialHiddenIds: string[] = [];
-    const itemKey = itemType.toLowerCase() as 'question' | 'task' | 'tip' | 'resource';
     
-    // This logic determines the initial hidden state based on different config structures
-    switch(itemKey) {
-        case 'question':
-            const override = companyConfig?.questions?.[questionId];
-            if (override?.isActive === false) {
-                initialHiddenIds = ['all'];
-            }
-            break;
-        case 'task':
-        case 'tip':
-        case 'resource':
-            const item = (companyConfig as any)?.[`${itemKey}s` as 'companyTasks' | 'companyTips' | 'resources']?.find((i: any) => i.id === questionId);
-            if(item?.projectIds && item.projectIds.length > 0) {
-                 const allProjectIds = new Set(projects.map(p => p.id));
-                 allProjectIds.add('__none__');
-                 initialHiddenIds = [...allProjectIds].filter(id => !item.projectIds.includes(id));
-            }
-            break;
-    }
-    
-    // If not hidden for all, check project-specific configs (only for questions)
-    if (initialHiddenIds[0] !== 'all' && itemKey === 'question') {
+    // Check master override first
+    if(companyConfig?.questions?.[question.id]?.isActive === false) {
+      initialHiddenIds = ['all'];
+    } else {
+        // If not hidden for all, check project-specific configs
         const hiddenInProjects: string[] = [];
         projects.forEach(p => {
-            if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(questionId)) {
+            if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(question.id)) {
                 hiddenInProjects.push(p.id);
             }
         });
-        if (companyConfig?.projectConfigs?.__none__?.hiddenQuestions?.includes(questionId)) {
+        if (companyConfig?.projectConfigs?.__none__?.hiddenQuestions?.includes(question.id)) {
             hiddenInProjects.push('__none__');
         }
         initialHiddenIds = hiddenInProjects;
@@ -71,26 +53,18 @@ export function ProjectAssignmentPopover({
 
     setHiddenProjectIds(initialHiddenIds);
 
-  }, [companyConfig, questionId, projects, itemType]);
+  }, [companyConfig, question.id, projects]);
+
 
   const { isHiddenForAny, tooltipText } = useMemo(() => {
-    if (!auth || !projects) return { isHiddenForAny: false, tooltipText: '' };
-
-    const hrProjectAccess = auth?.permissions?.projectAccess || ['all'];
-    const canSeeAllProjects = hrProjectAccess.includes('all');
-
-    const managerVisibleProjects = canSeeAllProjects 
-        ? new Set(projects.map(p => p.id).concat(['__none__'])) 
-        : new Set(hrProjectAccess);
-
-    const hiddenInMyScope = hiddenProjectIds.some(id => id === 'all' || managerVisibleProjects.has(id));
-
-    if (!hiddenInMyScope) {
-        return { isHiddenForAny: false, tooltipText: `Visible to all projects in your scope.` };
+    if (hiddenProjectIds.includes('all')) {
+      return { isHiddenForAny: true, tooltipText: `Visible to no projects.` };
+    }
+    if (hiddenProjectIds.length === 0) {
+      return { isHiddenForAny: false, tooltipText: `Visible to all projects.` };
     }
     
     const hiddenNames = hiddenProjectIds.map(id => {
-        if (id === 'all') return 'All Projects';
         if (id === '__none__') return 'Unassigned Users';
         return projects.find(p => p.id === id)?.name;
     }).filter(Boolean);
@@ -100,7 +74,7 @@ export function ProjectAssignmentPopover({
         tooltipText: `Hidden from: ${hiddenNames.join(', ')}`
     };
 
-  }, [hiddenProjectIds, projects, auth]);
+  }, [hiddenProjectIds, projects]);
   
   const Icon = isHiddenForAny ? EyeOff : Eye;
   

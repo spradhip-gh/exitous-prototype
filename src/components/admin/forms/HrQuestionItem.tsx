@@ -96,46 +96,64 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
 
-    const handleProjectVisibilityChange = (hiddenIds: string[]) => {
-        if (!companyConfig) return;
+    const handleProjectVisibilityChange = (hiddenProjectIds: string[]) => {
+        if (!companyConfig || !auth?.companyName) return;
         
         const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        
-        const isHidingForAll = hiddenIds.includes('all');
-
-        if (!newConfig.questions) newConfig.questions = {};
-        if (!newConfig.questions[question.id]) newConfig.questions[question.id] = {};
-        
-        newConfig.questions[question.id].isActive = !isHidingForAll;
-
         if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
-        
-        projects.forEach(p => {
-            if (!newConfig.projectConfigs[p.id]) newConfig.projectConfigs[p.id] = {};
-            const currentHidden = new Set(newConfig.projectConfigs[p.id].hiddenQuestions || []);
-            const shouldBeHidden = isHidingForAll || hiddenIds.includes(p.id);
 
-            if (shouldBeHidden) {
-                currentHidden.add(question.id);
-            } else {
-                currentHidden.delete(question.id);
+        const allSubQuestionIds: string[] = [];
+        const findSubIds = (q: Question) => {
+            if (q.subQuestions) {
+                q.subQuestions.forEach(sub => {
+                    allSubQuestionIds.push(sub.id);
+                    findSubIds(sub);
+                });
             }
-            newConfig.projectConfigs[p.id].hiddenQuestions = Array.from(currentHidden);
-        });
+        };
+        findSubIds(question);
         
-        const unassignedProjectId = '__none__';
-        if (!newConfig.projectConfigs[unassignedProjectId]) newConfig.projectConfigs[unassignedProjectId] = {};
-        const unassignedHidden = new Set(newConfig.projectConfigs[unassignedProjectId].hiddenQuestions || []);
-        if (isHidingForAll || hiddenIds.includes(unassignedProjectId)) {
-            unassignedHidden.add(question.id);
-        } else {
-            unassignedHidden.delete(question.id);
+        const allQuestionIdsToToggle = [question.id, ...allSubQuestionIds];
+
+        // Reset all project configs for these questions first to handle toggling back to visible
+        Object.keys(newConfig.projectConfigs).forEach(projId => {
+            if (newConfig.projectConfigs[projId].hiddenQuestions) {
+                 newConfig.projectConfigs[projId].hiddenQuestions = newConfig.projectConfigs[projId].hiddenQuestions.filter((id: string) => !allQuestionIdsToToggle.includes(id));
+            }
+        });
+
+        // Now, apply the new hidden projects
+        hiddenProjectIds.forEach(projIdToHide => {
+            if (projIdToHide === 'all') {
+                // If hiding for all, we need to toggle the main isActive flag on the question override
+                if (!newConfig.questions) newConfig.questions = {};
+                if (!newConfig.questions[question.id]) newConfig.questions[question.id] = {};
+                newConfig.questions[question.id].isActive = false;
+            } else {
+                 if (!newConfig.projectConfigs[projIdToHide]) {
+                    newConfig.projectConfigs[projIdToHide] = {};
+                }
+                if (!newConfig.projectConfigs[projIdToHide].hiddenQuestions) {
+                    newConfig.projectConfigs[projIdToHide].hiddenQuestions = [];
+                }
+                const hiddenSet = new Set(newConfig.projectConfigs[projIdToHide].hiddenQuestions);
+                allQuestionIdsToToggle.forEach(id => hiddenSet.add(id));
+                newConfig.projectConfigs[projIdToHide].hiddenQuestions = Array.from(hiddenSet);
+            }
+        });
+
+        // Special case: if we are un-hiding from all projects, ensure the master override is active
+        if (hiddenProjectIds.length === 0) {
+            if (newConfig.questions?.[question.id]) {
+                newConfig.questions[question.id].isActive = true;
+            }
         }
-        newConfig.projectConfigs[unassignedProjectId].hiddenQuestions = Array.from(unassignedHidden);
-
-
-        saveCompanyConfig(companyName, newConfig);
-        toast({ title: 'Project visibility updated.' });
+        
+        saveCompanyConfig(auth?.companyName, newConfig);
+        toast({ 
+            title: "Project Visibility Updated", 
+            description: `Configuration saved for ${allQuestionIdsToToggle.length} question(s).`
+        });
     };
 
     const SuggestionTooltipContent = () => {
@@ -237,7 +255,7 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                     )}
                     {!question.isCustom && (
                          <ProjectAssignmentPopover
-                            questionId={question.id}
+                            question={question}
                             projects={projects}
                             companyConfig={companyConfig}
                             onVisibilityChange={handleProjectVisibilityChange}

@@ -1,5 +1,4 @@
 
-
 'use client';
 import * as React from 'react';
 import { useMemo, useState, useEffect } from 'react';
@@ -22,7 +21,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     canWrite: boolean;
 }) {
     const { auth } = useAuth();
-    const { saveCompanyConfig, companyAssignmentForHr } = useUserData();
+    const { saveCompanyConfig, companyAssignmentForHr, masterQuestions, masterProfileQuestions } = useUserData();
     const [localCompanyConfig, setLocalCompanyConfig] = useState(companyConfig);
 
     useEffect(() => {
@@ -43,13 +42,28 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     }, [projects, hrManager, auth?.role]);
 
     const allCustomContent = useMemo(() => {
-        const config = localCompanyConfig || { customQuestions: {}, companyTasks: [], companyTips: [], resources: [] };
-        const questions = Object.values(config.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label }));
-        const tasks = (config.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const }));
-        const tips = (config.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text }));
-        const resources = (config.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title }));
+        const config = localCompanyConfig || { customQuestions: {}, companyTasks: [], companyTips: [], resources: [], projectConfigs: {} };
+        const allMaster = { ...masterQuestions, ...masterProfileQuestions };
         
-        const allContent = [...questions, ...tasks, ...tips, ...resources];
+        // 1. All custom content
+        const customQuestions = Object.values(config.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label, isMaster: false }));
+        const tasks = (config.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const, isMaster: false }));
+        const tips = (config.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text, isMaster: false }));
+        const resources = (config.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title, isMaster: false }));
+        
+        // 2. Master questions with project-specific visibility
+        const customizedMasterQuestions: (Question & {typeLabel: 'Question', isMaster: boolean})[] = [];
+        if (config.projectConfigs) {
+            Object.values(config.projectConfigs).forEach(pConfig => {
+                (pConfig.hiddenQuestions || []).forEach(qId => {
+                    if (allMaster[qId] && !customizedMasterQuestions.some(q => q.id === qId)) {
+                         customizedMasterQuestions.push({ ...allMaster[qId], typeLabel: 'Question', isMaster: true });
+                    }
+                });
+            });
+        }
+        
+        const allContent = [...customQuestions, ...tasks, ...tips, ...resources, ...customizedMasterQuestions];
 
         if (auth?.role === 'admin' || !hrManager || !hrManager.projectAccess || hrManager.projectAccess.includes('all')) {
             return allContent;
@@ -62,61 +76,45 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
             if (itemProjectIds.length === 0) {
                 return true; // Visible to all, so HR can see it.
             }
-            // Check if there is at least one intersection between the item's projects and the HR's accessible projects.
             return itemProjectIds.some(id => accessibleProjectIds.has(id));
         });
 
-    }, [localCompanyConfig, auth?.role, hrManager]);
+    }, [localCompanyConfig, auth?.role, hrManager, masterQuestions, masterProfileQuestions]);
 
-    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', projectId: string, isChecked: boolean) => {
+    const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', isMaster: boolean, projectId: string, isChecked: boolean) => {
         const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
         
-        let item: any = null;
+        if(isMaster) { // Handle visibility for master questions
+            if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
+            if (!newConfig.projectConfigs[projectId]) newConfig.projectConfigs[projectId] = {};
+            if (!newConfig.projectConfigs[projectId].hiddenQuestions) newConfig.projectConfigs[projectId].hiddenQuestions = [];
+            
+            const hiddenSet = new Set(newConfig.projectConfigs[projectId].hiddenQuestions);
+            if(isChecked) { // if checked, it means it's VISIBLE, so REMOVE from hidden list
+                hiddenSet.delete(itemId);
+            } else { // if unchecked, it means it's HIDDEN, so ADD to hidden list
+                hiddenSet.add(itemId);
+            }
+            newConfig.projectConfigs[projectId].hiddenQuestions = Array.from(hiddenSet);
+        } else { // Handle project assignment for custom content
+             let item: any = null;
+            switch (itemType) {
+                case 'Question': item = newConfig.customQuestions?.[itemId]; break;
+                case 'Task': item = (newConfig.companyTasks || []).find((t: MasterTask) => t.id === itemId); break;
+                case 'Tip': item = (newConfig.companyTips || []).find((t: MasterTip) => t.id === itemId); break;
+                case 'Resource': item = (newConfig.resources || []).find((r: Resource) => r.id === itemId); break;
+            }
 
-        switch (itemType) {
-            case 'Question': item = newConfig.customQuestions?.[itemId]; break;
-            case 'Task': item = (newConfig.companyTasks || []).find((t: MasterTask) => t.id === itemId); break;
-            case 'Tip': item = (newConfig.companyTips || []).find((t: MasterTip) => t.id === itemId); break;
-            case 'Resource': item = (newConfig.resources || []).find((r: Resource) => r.id === itemId); break;
-        }
-
-        if (item) {
-            const currentIds = new Set(item.projectIds || []);
-            const wasVisibleToAll = currentIds.size === 0;
-
-            if (isChecked) {
-                if (wasVisibleToAll) {
+            if (item) {
+                let currentIds = new Set(item.projectIds || []);
+                if (isChecked) {
                     currentIds.add(projectId);
-                } else {
-                    currentIds.add(projectId);
-                }
-            } else {
-                if (wasVisibleToAll) {
-                    // Unchecking from "All Projects" means selecting all OTHER projects
-                    projects.forEach(p => {
-                        if (p.id !== projectId) currentIds.add(p.id);
-                    });
-                    if (projects.some(p => p.id === '__none__')) currentIds.add('__none__');
-
                 } else {
                     currentIds.delete(projectId);
                 }
-            }
-
-            const newProjectIds = Array.from(currentIds);
-
-            // If all projects are selected, revert to an empty array (meaning "All")
-            const allProjectIds = new Set(projects.map(p => p.id));
-            if (projects.some(p => p.id === '__none__')) allProjectIds.add('__none__');
-            
-            if (newProjectIds.length === allProjectIds.size) {
-                 item.projectIds = [];
-            } else {
-                 item.projectIds = newProjectIds;
+                item.projectIds = Array.from(currentIds);
             }
         }
-
-
         setLocalCompanyConfig(newConfig);
         saveCompanyConfig(companyName, newConfig);
     };
@@ -125,7 +123,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         <Card>
             <CardHeader>
                 <CardTitle>Project Customization</CardTitle>
-                <CardDescription>Manage which custom questions, tasks, tips, and resources are visible to each project. Unchecking all boxes makes the item visible to all projects.</CardDescription>
+                <CardDescription>Manage which custom content and master questions are visible to each project. Unchecking all boxes makes an item visible to all projects by default.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="w-full overflow-x-auto">
@@ -156,8 +154,26 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                         </TableHeader>
                         <TableBody>
                             {allCustomContent.map(item => {
-                                const projectIds = item.projectIds || [];
-                                const isVisibleToAll = projectIds.length === 0;
+                                let isVisibleToAll: boolean;
+                                let visibleProjectIds: Set<string>;
+
+                                if (item.isMaster) {
+                                    // For master questions, visibility is determined by absence from hidden lists
+                                    visibleProjectIds = new Set(projects.map(p => p.id).concat('__none__'));
+                                    Object.entries(localCompanyConfig.projectConfigs || {}).forEach(([projId, pConfig]) => {
+                                        if (pConfig.hiddenQuestions?.includes(item.id)) {
+                                            visibleProjectIds.delete(projId);
+                                        }
+                                    });
+                                    isVisibleToAll = visibleProjectIds.size === (projects.length + 1);
+                                } else {
+                                    // For custom content, visibility is determined by presence in projectIds list
+                                    const itemProjectIds = item.projectIds || [];
+                                    isVisibleToAll = itemProjectIds.length === 0;
+                                    visibleProjectIds = new Set(itemProjectIds);
+                                }
+                                
+                                const unassignedProjectId = '__none__';
 
                                 return (
                                     <TableRow key={`${item.typeLabel}-${item.id}`}>
@@ -169,19 +185,19 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </TableCell>
-                                        <TableCell><Badge variant="secondary">{item.typeLabel}</Badge></TableCell>
+                                        <TableCell><Badge variant={item.isMaster ? 'default' : 'secondary'}>{item.isMaster ? 'Master Question' : `Custom ${item.typeLabel}`}</Badge></TableCell>
                                         <TableCell className="text-center">
                                             <Checkbox
-                                                checked={isVisibleToAll || projectIds.includes('__none__')}
-                                                onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel, '__none__', !!checked)}
+                                                checked={isVisibleToAll || visibleProjectIds.has(unassignedProjectId)}
+                                                onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel as any, item.isMaster, unassignedProjectId, !!checked)}
                                                 disabled={!canWrite}
                                             />
                                         </TableCell>
                                         {visibleProjects.map(p => (
                                             <TableCell key={p.id} className="text-center">
                                                 <Checkbox
-                                                    checked={isVisibleToAll || projectIds.includes(p.id)}
-                                                    onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel, p.id, !!checked)}
+                                                    checked={isVisibleToAll || visibleProjectIds.has(p.id)}
+                                                    onCheckedChange={(checked) => handleProjectAssignmentChange(item.id, item.typeLabel as any, item.isMaster, p.id, !!checked)}
                                                     disabled={!canWrite}
                                                 />
                                             </TableCell>
@@ -198,12 +214,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
-                             {JSON.stringify({
-                                customQuestions: localCompanyConfig?.customQuestions,
-                                companyTasks: localCompanyConfig?.companyTasks,
-                                companyTips: localCompanyConfig?.companyTips,
-                                resources: localCompanyConfig?.resources,
-                            }, null, 2)}
+                             {JSON.stringify(localCompanyConfig, null, 2)}
                         </pre>
                     </CollapsibleContent>
                 </Collapsible>

@@ -1023,61 +1023,52 @@ export function useUserData() {
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         
         let finalQuestions: Question[] = [];
-    
+        
+        // Determine the user's project ID if they are an end-user
+        const companyUser = forEndUser && auth?.role === 'end-user' ? getCompanyUser(auth?.email)?.user : null;
+        const targetProjectId = auth?.isPreview ? auth.previewProjectId : companyUser?.project_id;
+
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (!masterQ.isActive) continue; // Skip inactive master questions
+            if (!masterQ.isActive) continue; 
             if (masterQ.formType !== formType) continue;
             
             const override = companyConfig?.questions?.[id];
-            let isCompanyActive = override?.isActive === undefined ? true : override.isActive;
+            
+            // Start with master visibility, then check company-level override
+            let isVisible = masterQ.isActive;
+            if (override?.isActive === false) {
+                isVisible = false;
+            }
 
-            // In preview mode, check project-specific hidden questions
-            if (auth?.isPreview && auth.previewProjectId) {
-                const projectConfig = companyConfig?.projectConfigs?.[auth.previewProjectId];
+            // For end-users, check project-specific overrides, which have the highest precedence
+            if (forEndUser) {
+                const projectConfig = companyConfig?.projectConfigs?.[targetProjectId || '__none__'];
                 if (projectConfig?.hiddenQuestions?.includes(id)) {
-                    isCompanyActive = false;
-                }
-            } else if (forEndUser && auth?.role === 'end-user' && auth?.email) { // For real end-users
-                const companyUser = getCompanyUser(auth?.email)?.user;
-                if (companyUser?.project_id) {
-                    const projectConfig = companyConfig?.projectConfigs?.[companyUser.project_id];
-                    if (projectConfig?.hiddenQuestions?.includes(id)) {
-                        isCompanyActive = false;
-                    }
-                } else {
-                    // Handle unassigned users
-                    const projectConfig = companyConfig?.projectConfigs?.['__none__'];
-                     if (projectConfig?.hiddenQuestions?.includes(id)) {
-                        isCompanyActive = false;
-                    }
+                    isVisible = false;
                 }
             }
     
-            if (!forEndUser || isCompanyActive) {
-                let finalQuestion: Question = { ...masterQ };
+            if (forEndUser && !isVisible) continue;
+            
+            let finalQuestion: Question = { ...masterQ };
+            if (override) {
+                finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
+                if (override.label) finalQuestion.label = override.label;
+                if (override.description) finalQuestion.description = override.description;
+                if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
                 
-                if (override) {
-                    finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
-                    if (override.label) finalQuestion.label = override.label;
-                    if (override.description) finalQuestion.description = override.description;
-                    
-                    if (override.optionOverrides) {
-                        const baseOptions = masterQ.options || [];
-                        const toRemove = new Set(override.optionOverrides.remove || []);
-                        const toAdd = override.optionOverrides.add || [];
-                        
-                        let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
-                        newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
-                        finalQuestion.options = newOptions;
-                    }
-    
-                    if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
+                if (override.optionOverrides) {
+                    const baseOptions = masterQ.options || [];
+                    const toRemove = new Set(override.optionOverrides.remove || []);
+                    const toAdd = override.optionOverrides.add || [];
+                    let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
+                    newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+                    finalQuestion.options = newOptions;
                 }
-                
-                finalQuestion.isActive = forEndUser ? (masterQ.isActive && isCompanyActive) : isCompanyActive;
-                finalQuestions.push(finalQuestion);
             }
+            finalQuestion.isActive = isVisible;
+            finalQuestions.push(finalQuestion);
         }
         
         const companyCustomQuestions = companyConfig?.customQuestions || {};
@@ -1089,25 +1080,16 @@ export function useUserData() {
                 const projectIds = customQ.projectIds || [];
 
                 if (projectIds.length > 0) {
-                    let targetProjectId: string | undefined | null = null;
-                    if(auth?.isPreview) {
-                        targetProjectId = auth.previewProjectId;
-                    } else if (forEndUser) {
-                        const companyUser = getCompanyUser(auth?.email)?.user;
-                        targetProjectId = companyUser?.project_id;
-                    }
-
-                    if (targetProjectId) {
+                     if (targetProjectId) {
                         isVisibleForProject = projectIds.includes(targetProjectId);
                     } else {
-                        // User is unassigned, check if __none__ is in the list
                         isVisibleForProject = projectIds.includes('__none__');
                     }
                 }
 
-                if(isVisibleForProject) {
-                    finalQuestions.push({ ...customQ, isCustom: true });
-                }
+                if(forEndUser && !isVisibleForProject) continue;
+
+                finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
     
