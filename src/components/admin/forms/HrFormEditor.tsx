@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -162,7 +161,7 @@ function QuestionEditor({
         isLoading,
         getCompanyConfig,
         addReviewQueueItem,
-        getMasterQuestionConfig,
+        masterQuestionConfigs,
         reviewQueue,
         companyAssignments,
     } = useUserData();
@@ -197,7 +196,7 @@ function QuestionEditor({
         const questionTree = getCompanyConfig(companyName, false, questionType);
         
         const sectionsMap: Record<string, Question[]> = {};
-        const masterConfig = getMasterQuestionConfig(questionType);
+        const masterConfig = masterQuestionConfigs.find(c => c.form_type === questionType);
         const sectionOrder = masterConfig?.section_order || [];
         
         questionTree.forEach(q => {
@@ -232,7 +231,7 @@ function QuestionEditor({
 
         setOrderedSections(sections);
 
-    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, getMasterQuestionConfig]);
+    }, [companyName, isLoading, companyConfig, questionType, getCompanyConfig, masterQuestionConfigs]);
 
 
     const handleToggleQuestion = (questionId: string) => {
