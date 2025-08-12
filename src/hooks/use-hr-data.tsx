@@ -27,6 +27,7 @@ import {
     UpdateCompanyAssignmentPayload,
     MasterQuestionConfig,
     QuestionOverride,
+    applyQuestionOverrides,
 } from './use-user-data';
 import { buildQuestionTreeFromMap } from './use-end-user-data';
 
@@ -201,37 +202,17 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (!masterQ.isActive || masterQ.formType !== formType) continue; 
+            if (!masterQ.isActive || masterQ.formType !== formType) continue;
 
             const override = config?.questions?.[id];
-            let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+            const companyGuidance = config?.answerGuidanceOverrides?.[id];
             
-            if (forEndUser && !isVisible) {
+            const finalQuestion = applyQuestionOverrides(masterQ, override, companyGuidance);
+
+            if (forEndUser && !finalQuestion.isActive) {
                 continue;
             }
             
-            let finalQuestion: Question = { ...masterQ, isActive: isVisible };
-
-            if (override) {
-                finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
-                if (override.label) finalQuestion.label = override.label;
-                if (override.description) finalQuestion.description = override.description;
-                if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
-                if (override.optionOverrides) {
-                    const baseOptions = masterQ.options || [];
-                    const toRemove = new Set(override.optionOverrides.remove || []);
-                    const toAdd = override.optionOverrides.add || [];
-                    let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
-                    newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
-                    finalQuestion.options = newOptions;
-                }
-            }
-
-            // Correctly merge answer guidance
-            const companyGuidance = config?.answerGuidanceOverrides?.[id];
-            finalQuestion.answerGuidance = { ...masterQ.answerGuidance, ...companyGuidance };
-
-
             finalQuestions.push(finalQuestion);
         }
         
@@ -359,5 +340,6 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 

@@ -236,6 +236,39 @@ export interface MasterQuestionConfig {
     section_order: string[];
 }
 
+export function applyQuestionOverrides(masterQ: Question, override: QuestionOverride | undefined, companyGuidance: Record<string, AnswerGuidance> | undefined): Question {
+    let finalQuestion: Question = { ...masterQ };
+
+    if (override) {
+        finalQuestion.isActive = override.isActive === undefined ? masterQ.isActive : override.isActive;
+        finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
+        if (override.label) finalQuestion.label = override.label;
+        if (override.description) finalQuestion.description = override.description;
+        if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
+        if (override.optionOverrides) {
+            const baseOptions = masterQ.options || [];
+            const toRemove = new Set(override.optionOverrides.remove || []);
+            const toAdd = override.optionOverrides.add || [];
+            let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
+            newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+            finalQuestion.options = newOptions;
+        }
+    }
+    
+    if(companyGuidance) {
+        const newAnswerGuidance = { ...(finalQuestion.answerGuidance || {}) };
+        for (const answer in companyGuidance) {
+            newAnswerGuidance[answer] = {
+                ...(newAnswerGuidance[answer] || {}),
+                ...companyGuidance[answer]
+            }
+        }
+        finalQuestion.answerGuidance = newAnswerGuidance;
+    }
+
+    return finalQuestion;
+}
+
 // Re-export common types
 export type { Question } from '@/lib/questions';
 export type { ExternalResource } from '../lib/external-resources';
