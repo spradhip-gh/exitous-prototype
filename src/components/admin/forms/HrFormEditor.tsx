@@ -270,13 +270,14 @@ function QuestionEditor({
         const allMasterQuestions = question.formType === 'profile' ? masterProfileQuestions : masterQuestions;
         const masterVersion = allMasterQuestions[question.id];
         
+        // Correctly merge guidance for the dialog
         const companyGuidance = companyConfig?.answerGuidanceOverrides?.[question.id];
         const masterGuidance = masterVersion?.answerGuidance;
-        const finalGuidance = { ...masterGuidance, ...companyGuidance };
+        const finalDefaultGuidance = { ...masterGuidance, ...companyGuidance };
     
         setCurrentQuestion({ 
             ...question,
-            answerGuidance: finalGuidance,
+            answerGuidance: finalDefaultGuidance,
         });
         setIsNewCustom(false);
         setIsEditing(true);
