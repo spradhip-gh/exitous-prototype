@@ -85,13 +85,15 @@ export function HrProvider({ children }: { children: React.ReactNode }) {
                 .eq('company_id', auth.companyId)
                 .single();
             if (configError) console.error("Error fetching company config", configError);
-            setCompanyConfig(configData || {});
             
             const { data: usersData, error: usersError } = await supabase
                 .from('company_users')
                 .select('*')
                 .eq('company_id', auth.companyId);
             if(usersError) console.error("Error fetching company users", usersError);
+            
+            const finalConfig = { ...(configData || {}), users: usersData || [] };
+            setCompanyConfig(finalConfig as CompanyConfig);
             setCompanyUsers(usersData || []);
 
 

@@ -58,7 +58,12 @@ export default function HrUserManagement() {
     const canUpload = permissions?.userManagement === 'write-upload';
     const canInvite = canWrite || permissions?.userManagement === 'invite-only';
     
-    const [users, setUsers] = useState<CompanyUser[]>([]);
+    const allUsers = useMemo(() => {
+        if (!companyName || !companyConfigs) return [];
+        return companyConfigs[companyName]?.users || [];
+    }, [companyName, companyConfigs]);
+
+    const [users, setUsers] = useState<CompanyUser[]>(allUsers);
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -73,16 +78,9 @@ export default function HrUserManagement() {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
 
     useEffect(() => {
-        const loadData = () => {
-            if (companyName && !isUserDataLoading) {
-                setIsLoading(true);
-                const companyData = companyConfigs[companyName];
-                setUsers(companyData?.users || []);
-                setIsLoading(false);
-            }
-        };
-        loadData();
-    }, [companyName, companyConfigs, isUserDataLoading]);
+        setUsers(allUsers);
+        setIsLoading(isUserDataLoading);
+    }, [allUsers, isUserDataLoading]);
     
     const hrProjectAccess = useMemo(() => {
         if (!auth?.email || !companyAssignmentForHr) return null;
