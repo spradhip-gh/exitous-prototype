@@ -3,7 +3,8 @@
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
-import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, buildQuestionTreeFromMap, Condition, Question, MasterTip, CompanyAssignment } from '@/hooks/use-user-data';
+import { useUserData, ReviewQueueItem, GuidanceRule, MasterTask, Condition, Question, MasterTip, CompanyAssignment } from '@/hooks/use-user-data';
+import { buildQuestionTreeFromMap } from '@/hooks/use-end-user-data';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,7 +108,7 @@ function GuidanceRulesTab() {
                                     </ul>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{masterTasks.find(t => t.id === rule.assignments?.taskIds?.[0])?.name || rule.assignments?.taskIds?.[0]}</Badge>
+                                    <Badge variant="outline">{(masterTasks || []).find(t => t.id === rule.assignments?.taskIds?.[0])?.name || rule.assignments?.taskIds?.[0]}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                      <AlertDialog>
@@ -151,7 +152,7 @@ export default function ReviewQueuePage() {
     const [currentItemForRejection, setCurrentItemForRejection] = useState<ReviewQueueItem | null>(null);
     
     const companyMap = useMemo(() => {
-        return new Map(companyAssignments.map(c => [c.companyId, c.companyName]));
+        return new Map((companyAssignments || []).map(c => [c.companyId, c.companyName]));
     }, [companyAssignments]);
 
     const handleRejectClick = (item: ReviewQueueItem) => {
@@ -176,8 +177,8 @@ export default function ReviewQueuePage() {
        }
     };
     
-    const pendingActionItems = reviewQueue.filter(item => item.status === 'pending');
-    const reviewedItems = reviewQueue.filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
+    const pendingActionItems = (reviewQueue || []).filter(item => item.status === 'pending');
+    const reviewedItems = (reviewQueue || []).filter(item => item.status !== 'pending').sort((a,b) => parseISO(b.created_at).getTime() - parseISO(a.created_at).getTime());
 
     return (
         <div className="p-4 md:p-8">
@@ -376,8 +377,8 @@ function ReviewItemCard({ item, companyName, onStatusChange, onRejectClick, mast
                                 {question.options.filter(Boolean).map((option: string) => {
                                     const guidance = question.answerGuidance?.[option];
                                     if (!guidance) return null;
-                                    const assignedTasks = guidance.tasks?.map((taskId: string) => masterTasks.find(t => t.id === taskId)?.name).filter(Boolean);
-                                    const assignedTips = guidance.tips?.map((tipId: string) => masterTips.find(t => t.id === tipId)?.text).filter(Boolean);
+                                    const assignedTasks = (guidance.tasks || []).map((taskId: string) => (masterTasks || []).find(t => t.id === taskId)?.name).filter(Boolean);
+                                    const assignedTips = (guidance.tips || []).map((tipId: string) => (masterTips || []).find(t => t.id === tipId)?.text).filter(Boolean);
                                     
                                     if ((assignedTasks?.length || 0) === 0 && (assignedTips?.length || 0) === 0 && !guidance.noGuidanceRequired) return null;
 
