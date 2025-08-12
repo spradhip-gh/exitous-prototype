@@ -151,35 +151,73 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         fetchHrData();
     }, [email, auth?.companyId]);
     
+    const saveCompanyConfig = useCallback(async (companyName: string, config: CompanyConfig) => {
+        if (!companyName) {
+            toast({ title: 'Error', description: 'Company name is missing.', variant: 'destructive' });
+            return;
+        }
+        
+        const companyId = companyAssignments.find(a => a.companyName === companyName)?.companyId;
+        if (!companyId) {
+            toast({ title: 'Error', description: 'Could not find company ID.', variant: 'destructive' });
+            return;
+        }
+
+        const { question_overrides, custom_questions, question_order_by_section, answer_guidance_overrides, company_tasks, company_tips, project_configs } = {
+            question_overrides: config.questions,
+            custom_questions: config.customQuestions,
+            question_order_by_section: config.questionOrderBySection,
+            answer_guidance_overrides: config.answerGuidanceOverrides,
+            company_tasks: config.companyTasks,
+            company_tips: config.companyTips,
+            project_configs: config.projectConfigs,
+        };
+        
+        const { error } = await supabase.from('company_question_configs').upsert({
+            company_id: companyId,
+            question_overrides,
+            custom_questions,
+            question_order_by_section,
+            answer_guidance_overrides,
+            company_tasks,
+            company_tips,
+            project_configs,
+        }, { onConflict: 'company_id' });
+        
+        if (error) {
+            toast({ title: 'Save Failed', description: error.message, variant: 'destructive' });
+        } else {
+            setCompanyConfigs(prev => ({ ...prev, [companyName]: { ...prev[companyName], ...config }}));
+        }
+    }, [companyAssignments, toast]);
+    
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser: boolean, formType: 'profile' | 'assessment' = 'assessment'): Question[] => {
         if (!companyName || !companyConfigs[companyName]) return [];
         const config = companyConfigs[companyName];
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         let finalQuestions: Question[] = [];
         
-        const targetProjectId = auth?.isPreview ? auth.previewProjectId : undefined;
+        const targetProjectId = auth?.isPreview ? auth.previewProjectId : undefined; // This needs companyUser from the caller. For now, assume HR preview.
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
 
-            if (masterQ.formType !== formType) continue; 
-            if (forEndUser && !masterQ.isActive) continue; // For users, always filter inactive master questions
+            if (!masterQ.isActive || masterQ.formType !== formType) continue; 
 
             const override = config?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
             
-            // For HR view, don't apply project-specific visibility, just show if it's active at the company level
+            // For HR view, just show if it's active at the company level, unless it's an end-user preview
             if (!forEndUser && !isVisible) {
                 continue;
             }
 
-            // For end-user view, check project-specific visibility
             if (forEndUser) {
-                const projectConfig = targetProjectId ? config?.projectConfigs?.[targetProjectId] : null;
+                const projectConfig = targetProjectId ? config?.projectConfigs?.[targetProjectId] : config?.projectConfigs?.['__none__'];
                 if (projectConfig?.hiddenQuestions?.includes(id)) {
                     isVisible = false;
                 }
-                if(!isVisible) continue; // If not visible for any reason, skip
+                if (!isVisible) continue;
             }
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
@@ -211,6 +249,8 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                          const hasAccess = targetProjectId ? projectIds.includes(targetProjectId) : projectIds.includes('__none__');
                          if(!hasAccess) continue;
                      }
+                } else {
+                     if (!customQ.isActive) continue;
                 }
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
@@ -252,6 +292,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         reviewQueue,
         // Getters and other utils
         getCompanyConfig,
+        saveCompanyConfig,
         getUnsureAnswers,
         // Dummy/empty values for data not needed by HR
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
@@ -265,3 +306,5 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
+    
