@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -340,34 +339,29 @@ export default function CompanySettingsPage() {
   };
   
   const handleAssignManagers = (projectId: string, selectedManagerEmails: string[]) => {
-      if (!companyAssignmentForHr) return;
+    if (!companyAssignmentForHr) return;
 
-      const allOtherProjectIds = (companyAssignmentForHr.projects || [])
-          .map(p => p.id)
-          .filter(id => id !== projectId);
+    const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
+        const isSelected = selectedManagerEmails.includes(hr.email);
+        const hadAllAccess = !hr.projectAccess || hr.projectAccess.length === 0 || hr.projectAccess.includes('all');
+        const isPrimary = hr.isPrimary;
 
-      const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
-          const isSelected = selectedManagerEmails.includes(hr.email);
-          const hadAllAccess = !hr.projectAccess || hr.projectAccess.length === 0 || hr.projectAccess.includes('all');
+        // Primary managers and those with 'all' access always retain 'all' access.
+        if (isPrimary || hadAllAccess) {
+            return { ...hr, projectAccess: ['all'] };
+        }
 
-          if (isSelected) {
-              // If they are selected and had specific access, add the new project.
-              // If they had "all access", no change is needed as they already have access.
-              if (!hadAllAccess && !hr.projectAccess?.includes(projectId)) {
-                  return { ...hr, projectAccess: [...(hr.projectAccess || []), projectId] };
-              }
-          } else {
-              // If they were unselected and previously had "all access", we must now restrict them.
-              if (hadAllAccess) {
-                  return { ...hr, projectAccess: allOtherProjectIds };
-              }
-          }
-          // If unselected and already had specific access, no change is needed.
-          return hr;
-      });
+        const currentAccess = new Set(hr.projectAccess);
+        if (isSelected) {
+            currentAccess.add(projectId);
+        } else {
+            currentAccess.delete(projectId);
+        }
+        return { ...hr, projectAccess: Array.from(currentAccess) };
+    });
 
-      saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
-      toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
+    saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
+    toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
   };
 
   const handleEditProjectClick = (project: Project) => {

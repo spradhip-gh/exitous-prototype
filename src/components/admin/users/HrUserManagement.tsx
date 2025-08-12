@@ -83,27 +83,28 @@ export default function HrUserManagement() {
         setIsLoading(isUserDataLoading);
     }, [allUsers, isUserDataLoading]);
     
-    const hrProjectAccess = useMemo(() => {
+    const hrManager = useMemo(() => {
         if (!auth?.email || !companyAssignmentForHr) return null;
-        return companyAssignmentForHr.hrManagers.find(hr => hr.email === auth.email)?.projectAccess;
+        return companyAssignmentForHr.hrManagers.find(hr => hr.email === auth.email);
     }, [auth?.email, companyAssignmentForHr]);
-    
+
     const hasScopedProjectAccess = useMemo(() => {
-        if (!hrProjectAccess) return false; // Default to no scoped access if undefined
-        if (hrProjectAccess.includes('all')) return false; // 'all' means no scoping
-        if (hrProjectAccess.length === 0) return false; // an empty array is treated as 'all' access
-        return true; // Any other array of IDs is scoped
-    }, [hrProjectAccess]);
+        if (hrManager?.isPrimary) return false; // Primary manager has no scope restrictions
+        if (!hrManager?.projectAccess) return false;
+        if (hrManager.projectAccess.includes('all')) return false;
+        if (hrManager.projectAccess.length === 0) return false;
+        return true;
+    }, [hrManager]);
 
 
     const visibleUsers = useMemo(() => {
         if (!users) return [];
-        if (!hasScopedProjectAccess || !hrProjectAccess) {
+        if (!hasScopedProjectAccess || !hrManager?.projectAccess) {
             return users; // No scoping (is primary or has "all"), show all users
         }
 
-        const canSeeUnassigned = hrProjectAccess.includes('__none__');
-        const accessibleProjects = new Set(hrProjectAccess);
+        const canSeeUnassigned = hrManager.projectAccess.includes('__none__');
+        const accessibleProjects = new Set(hrManager.projectAccess);
 
         return users.filter(user => {
             if (!user.project_id) {
@@ -111,7 +112,7 @@ export default function HrUserManagement() {
             }
             return accessibleProjects.has(user.project_id);
         });
-    }, [users, hasScopedProjectAccess, hrProjectAccess]);
+    }, [users, hasScopedProjectAccess, hrManager?.projectAccess]);
     
     const visibleUserCountText = useMemo(() => {
         return `You are managing ${visibleUsers.length} users. The company has a limit of ${companyAssignmentForHr?.maxUsers ?? 'N/A'} users.`;
@@ -407,12 +408,12 @@ export default function HrUserManagement() {
     
     const visibleProjectsForAdd = useMemo(() => {
         const allProjects = companyAssignmentForHr?.projects || [];
-        if (!hrProjectAccess || hrProjectAccess.includes('all')) {
+        if (!hrManager?.projectAccess || hrManager.projectAccess.includes('all')) {
             return allProjects;
         }
-        const accessibleProjects = new Set(hrProjectAccess);
+        const accessibleProjects = new Set(hrManager.projectAccess);
         return allProjects.filter(p => accessibleProjects.has(p.id));
-    }, [companyAssignmentForHr?.projects, hrProjectAccess]);
+    }, [companyAssignmentForHr?.projects, hrManager?.projectAccess]);
 
 
     if (isUserDataLoading) {
@@ -532,7 +533,7 @@ export default function HrUserManagement() {
                             <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
                                 {JSON.stringify({
                                     authEmail: auth?.email,
-                                    hrProjectAccess: hrProjectAccess,
+                                    hrProjectAccess: hrManager?.projectAccess,
                                     hasScopedProjectAccess: hasScopedProjectAccess,
                                     totalUsersInCompany: allUsers.length,
                                     visibleUsersCount: visibleUsers.length,
@@ -545,3 +546,4 @@ export default function HrUserManagement() {
         </div>
     );
 }
+
