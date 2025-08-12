@@ -254,85 +254,6 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
   )
 }
 
-function AdminLayoutContent({ children }: { children: React.ReactNode }) {
-  const { auth } = useAuth();
-  const { isLoading, companyAssignmentForHr, reviewQueue } = useUserData();
-
-  const pendingReviewCount = useMemo(() => {
-    if (!reviewQueue) return 0;
-    return reviewQueue.filter(item => item.status === 'pending' && item.type === 'question_edit_suggestion').length;
-  }, [reviewQueue]);
-
-  if (isLoading || !auth || (auth.role !== 'hr' && auth.role !== 'consultant' && auth.role !== 'admin')) {
-    return (
-      <div className="flex min-h-screen w-full flex-col">
-        <Header />
-        <main className="flex-1 p-4 md:p-8">
-          <div className="mx-auto max-w-4xl space-y-8">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  const companySettingsComplete = !!(companyAssignmentForHr?.preEndDateContactAlias && companyAssignmentForHr?.postEndDateContactAlias);
-  
-  const navContent = <AdminNav role={auth.role} companyName={auth.companyName} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
-
-  return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header>
-        <div className="md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle Navigation</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0">
-              <SheetHeader>
-                <SheetTitle className="sr-only">Admin Menu</SheetTitle>
-              </SheetHeader>
-              {navContent}
-            </SheetContent>
-          </Sheet>
-        </div>
-      </Header>
-      <div className="flex flex-1">
-        <aside className="hidden w-64 flex-col border-r bg-background md:flex">
-          {navContent}
-        </aside>
-        <main className="flex-1">
-           {auth.role === 'admin' && pendingReviewCount > 0 && (
-            <div className="border-b border-blue-300 bg-blue-50 p-4">
-              <Alert variant="default" className="border-blue-300 bg-transparent">
-                <CheckSquare className="h-4 w-4 !text-blue-600" />
-                <AlertTitle className="text-blue-800">Action Required</AlertTitle>
-                <AlertDescription className="text-blue-700">
-                  There are {pendingReviewCount} new item(s) in the <Link href="/admin/review-queue" className="font-semibold underline">Guidance & Review</Link> queue that need your attention.
-                </AlertDescription>
-              </Alert>
-            </div>
-           )}
-           <div className="border-b border-orange-200 bg-orange-50 p-4">
-            <Alert variant="default" className="border-orange-300 bg-transparent">
-              <TriangleAlert className="h-4 w-4 !text-orange-600" />
-              <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
-            </Alert>
-          </div>
-          {children}
-        </main>
-      </div>
-      <Footer />
-    </div>
-  );
-}
-
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { auth, loading } = useAuth();
   const router = useRouter();
@@ -343,7 +264,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [auth, loading, router]);
   
-  if (loading) {
+  if (loading || !auth) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -358,5 +279,83 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  return <AdminLayoutContent>{children}</AdminLayoutContent>
+  return <AdminLayoutWithData auth={auth}>{children}</AdminLayoutWithData>
 }
+
+
+function AdminLayoutWithData({ children, auth }: { children: React.ReactNode, auth: any }) {
+    const { isLoading, companyAssignmentForHr, reviewQueue } = useUserData();
+
+    const pendingReviewCount = useMemo(() => {
+        if (!reviewQueue) return 0;
+        return reviewQueue.filter(item => item.status === 'pending' && item.type === 'question_edit_suggestion').length;
+    }, [reviewQueue]);
+
+    if (isLoading) {
+        return (
+          <div className="flex min-h-screen w-full flex-col">
+            <Header />
+            <main className="flex-1 p-4 md:p-8">
+              <div className="mx-auto max-w-4xl space-y-8">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            </main>
+            <Footer />
+          </div>
+        );
+    }
+
+    const companySettingsComplete = !!(companyAssignmentForHr?.preEndDateContactAlias && companyAssignmentForHr?.postEndDateContactAlias);
+    const navContent = <AdminNav role={auth.role} companyName={auth.companyName} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
+
+    return (
+        <div className="flex min-h-screen w-full flex-col">
+          <Header>
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Toggle Navigation</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0">
+                  <SheetHeader>
+                    <SheetTitle className="sr-only">Admin Menu</SheetTitle>
+                  </SheetHeader>
+                  {navContent}
+                </SheetContent>
+              </Sheet>
+            </div>
+          </Header>
+          <div className="flex flex-1">
+            <aside className="hidden w-64 flex-col border-r bg-background md:flex">
+              {navContent}
+            </aside>
+            <main className="flex-1">
+               {auth.role === 'admin' && pendingReviewCount > 0 && (
+                <div className="border-b border-blue-300 bg-blue-50 p-4">
+                  <Alert variant="default" className="border-blue-300 bg-transparent">
+                    <CheckSquare className="h-4 w-4 !text-blue-600" />
+                    <AlertTitle className="text-blue-800">Action Required</AlertTitle>
+                    <AlertDescription className="text-blue-700">
+                      There are {pendingReviewCount} new item(s) in the <Link href="/admin/review-queue" className="font-semibold underline">Guidance & Review</Link> queue that need your attention.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+               )}
+               <div className="border-b border-orange-200 bg-orange-50 p-4">
+                <Alert variant="default" className="border-orange-300 bg-transparent">
+                  <TriangleAlert className="h-4 w-4 !text-orange-600" />
+                  <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
+                </Alert>
+              </div>
+              {children}
+            </main>
+          </div>
+          <Footer />
+        </div>
+    );
+}
+
