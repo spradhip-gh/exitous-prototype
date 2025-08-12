@@ -10,17 +10,10 @@ import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { auth, loading: authLoading } = useAuth();
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { isLoading: dataLoading } = useUserData();
 
-  const isLoading = authLoading || dataLoading;
-
-  if (isLoading) {
+  if (dataLoading) {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <Header />
@@ -38,7 +31,7 @@ export default function DashboardLayout({
       </div>
     );
   }
-  
+
   return (
     <FormStateProvider>
        <div className="flex min-h-screen w-full flex-col">
@@ -61,4 +54,33 @@ export default function DashboardLayout({
       </div>
     </FormStateProvider>
   );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { auth, loading: authLoading } = useAuth();
+  
+  if (authLoading || !auth) {
+     return (
+      <div className="flex min-h-screen w-full flex-col">
+        <Header />
+        <div className="flex flex-1">
+          <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          </aside>
+          <main className="flex-1 p-4 md:p-8">
+            <Skeleton className="h-full w-full" />
+          </main>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+  
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>;
 }
