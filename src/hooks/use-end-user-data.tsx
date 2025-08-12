@@ -754,7 +754,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         saveCompanyResources: async () => {},
         saveCompanyProjects: async () => {},
         saveReviewQueue: async () => {},
-        getAllCompanyConfigs: () => ({}),
+        getAllCompanyConfigs: () => companyConfig ? { [companyAssignment?.companyName || '']: companyConfig } : {},
         setCompanyConfigs: () => {},
         setReviewQueue: () => {},
         deleteCompanyAssignment: async () => {},
@@ -768,6 +768,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 
 
