@@ -36,54 +36,6 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
-const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profileDataForDeps: ProfileData | null): Question[] => {
-    const applicable: Question[] = [];
-
-    const traverse = (questions: Question[], parentIsActive: boolean = true) => {
-        for (const q of questions) {
-            if (!q.isActive || !parentIsActive) continue;
-
-            let isDependencyMet = true;
-            if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
-                const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
-                let isTriggered = false;
-                if (Array.isArray(q.dependsOnValue)) {
-                    isTriggered = q.dependsOnValue.includes(dependencyValue as string);
-                } else {
-                    isTriggered = dependencyValue === q.dependsOnValue;
-                }
-                if (!isTriggered) continue;
-            }
-            
-            applicable.push(q);
-
-            if (q.subQuestions) {
-                const parentValue = allAnswers[q.id];
-                q.subQuestions.forEach(subQ => {
-                    let isSubTriggered = false;
-                    if (q.type === 'checkbox') {
-                        if (subQ.triggerValue === 'NOT_NONE') {
-                            isSubTriggered = Array.isArray(parentValue) && parentValue.length > 0 && !parentValue.includes('None of the above');
-                        } else {
-                            isSubTriggered = Array.isArray(parentValue) && parentValue.includes(subQ.triggerValue);
-                        }
-                    } else {
-                        isSubTriggered = parentValue === subQ.triggerValue;
-                    }
-
-                    if(isSubTriggered && subQ.isActive) {
-                        traverse([subQ], true);
-                    }
-                });
-            }
-        }
-    };
-    
-    traverse(allQuestions);
-    return applicable;
-};
-
-
 export function HrProvider({ children, email }: { children: React.ReactNode, email: string }) {
     const { auth, setPermissions: setAuthPermissions } = useAuth();
     const { toast } = useToast();
@@ -125,7 +77,11 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                     severanceDeadlineTimezone: company.severance_deadline_timezone,
                     preEndDateContactAlias: company.pre_end_date_contact_alias,
                     postEndDateContactAlias: company.post_end_date_contact_alias,
-                    projects: company.projects,
+                    projects: company.projects.map((p: any) => ({
+                        id: p.id, name: p.name, isArchived: p.is_archived, severanceDeadlineTime: p.severance_deadline_time,
+                        severanceDeadlineTimezone: p.severance_deadline_timezone, preEndDateContactAlias: p.pre_end_date_contact_alias,
+                        postEndDateContactAlias: p.post_end_date_contact_alias
+                    })),
                 };
             });
             
@@ -149,7 +105,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             // Fetch configs for all assigned companies
             const { data: allConfigsData, error: allConfigsError } = await supabase.from('company_question_configs').select('*').in('company_id', companyIds);
             const { data: allUsersData, error: allUsersError } = await supabase.from('company_users').select('*').in('company_id', companyIds);
-             const { data: allResourcesData, error: allResourcesError } = await supabase.from('company_resources').select('*').in('company_id', companyIds);
+            const { data: allResourcesData, error: allResourcesError } = await supabase.from('company_resources').select('*').in('company_id', companyIds);
 
             const configs: Record<string, CompanyConfig> = {};
             assignments.forEach(a => {
@@ -159,7 +115,12 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                 configs[a.companyName] = {
                     ...(configDb || {}),
                     users: users || [],
-                    resources: (resources || []).map(r => ({ ...r, fileName: r.file_name })),
+                    resources: (resources || []).map(r => ({ ...r, fileName: r.file_name, projectIds: r.project_ids || [] })),
+                    questions: configDb?.question_overrides || {},
+                    customQuestions: configDb?.custom_questions || {},
+                    companyTasks: configDb?.company_tasks || [],
+                    companyTips: configDb?.company_tips || [],
+                    projectConfigs: configDb?.project_configs || {},
                 };
             });
             setCompanyConfigs(configs);
@@ -190,17 +151,20 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     }, [email, auth?.companyId]);
     
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser: boolean, formType: 'profile' | 'assessment' = 'assessment'): Question[] => {
-        if (!companyName) return [];
+        if (!companyName || !companyConfigs[companyName]) return [];
         const config = companyConfigs[companyName];
-        if (!config) return [];
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         let finalQuestions: Question[] = [];
         
-        const targetProjectId = auth?.isPreview ? auth.previewProjectId : undefined; // For HR, we don't scope by user project
+        const targetProjectId = auth?.isPreview ? auth.previewProjectId : undefined;
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (masterQ.formType !== formType || !masterQ.isActive) continue; 
+
+            if (masterQ.formType !== formType) continue; 
+
+            // For HR, we show all questions. For end-users, only active ones.
+            if (forEndUser && !masterQ.isActive) continue;
 
             const override = config?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
@@ -241,7 +205,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                 if (forEndUser && projectIds.length > 0 && targetProjectId) {
                      isVisibleForProject = projectIds.includes(targetProjectId);
                 }
-                if(forEndUser && !isVisibleForProject) continue;
+                if(forEndUser && !isVisibleForProject && customQ.isActive) continue;
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }

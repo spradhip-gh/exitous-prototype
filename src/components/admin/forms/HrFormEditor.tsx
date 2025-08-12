@@ -839,7 +839,7 @@ export default function HrFormEditor() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                         <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
-                            {JSON.stringify({
+                             {JSON.stringify({
                                 isLoading,
                                 companyAssignmentForHr,
                                 companyConfig,
