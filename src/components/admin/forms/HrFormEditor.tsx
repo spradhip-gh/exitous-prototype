@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug, ArchiveRestore, Trash2 } from "lucide-react";
+import { PlusCircle, ShieldAlert, Star, FilePenLine, History, Edit, Bug, ArchiveRestore, Trash2, ChevronDown } from "lucide-react";
 import HrQuestionItem from "./HrQuestionItem";
 import EditQuestionDialog from "./EditQuestionDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +24,7 @@ import TaskForm from "../tasks/TaskForm";
 import TipForm from "../tips/TipForm";
 import { Pencil } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface HrOrderedSection {
     id: string;
@@ -208,6 +209,7 @@ function QuestionEditor({
             sectionsMap[sectionName].push(q);
         });
         
+        // Add custom sections to the order if they don't exist
         const masterSectionSet = new Set(sectionOrder);
         Object.keys(sectionsMap).forEach(sectionName => {
             if (!masterSectionSet.has(sectionName)) {
@@ -830,6 +832,21 @@ export default function HrFormEditor() {
                     tip={editingTip}
                     onSave={handleSaveTip}
                 />
+
+                <Collapsible>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm" className="mt-4"><Bug className="mr-2"/> Show Debug Info <ChevronDown className="ml-2"/></Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
+                            {JSON.stringify({
+                                isLoading,
+                                companyAssignmentForHr,
+                                companyConfig,
+                            }, null, 2)}
+                        </pre>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
         </div>
     );
