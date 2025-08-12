@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useUserData, CompanyUser, Project } from "@/hooks/use-user-data";
-import { PlusCircle, Download, Upload, VenetianMask } from "lucide-react";
+import { PlusCircle, Download, Upload, VenetianMask, Bug, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,7 @@ import HrUserTable from "./HrUserTable";
 import BulkActions from "./BulkActions";
 import { supabase } from "@/lib/supabase-client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 export type SortConfig = {
     key: keyof CompanyUser | 'profileStatus' | 'assessmentStatus';
@@ -88,9 +89,10 @@ export default function HrUserManagement() {
     }, [auth?.email, companyAssignmentForHr]);
     
     const hasScopedProjectAccess = useMemo(() => {
-        if (!hrProjectAccess) return false;
-        if (hrProjectAccess.includes('all') || hrProjectAccess.length === 0) return false;
-        return true;
+        if (!hrProjectAccess) return false; // Default to no scoped access if undefined
+        if (hrProjectAccess.includes('all')) return false; // 'all' means no scoping
+        if (hrProjectAccess.length === 0) return false; // an empty array is treated as 'all' access
+        return true; // Any other array of IDs is scoped
     }, [hrProjectAccess]);
 
 
@@ -511,6 +513,35 @@ export default function HrUserManagement() {
                    <HrUserTable isLoading={isLoading} users={sortedUsers} setUsers={setUsers} selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} sortConfig={sortConfig} requestSort={requestSort} canWrite={canWrite} canInvite={canInvite}/>
                 </CardContent>
             </Card>
+
+             <Collapsible>
+                <Card className="border-destructive">
+                    <CollapsibleTrigger asChild>
+                        <CardHeader className="cursor-pointer">
+                            <CardTitle className="flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                    <Bug className="text-destructive" />
+                                    Developer Debug Info
+                                </span>
+                                <ChevronDown className="h-4 w-4" />
+                            </CardTitle>
+                        </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <CardContent>
+                            <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
+                                {JSON.stringify({
+                                    authEmail: auth?.email,
+                                    hrProjectAccess: hrProjectAccess,
+                                    hasScopedProjectAccess: hasScopedProjectAccess,
+                                    totalUsersInCompany: allUsers.length,
+                                    visibleUsersCount: visibleUsers.length,
+                                }, null, 2)}
+                            </pre>
+                        </CardContent>
+                    </CollapsibleContent>
+                </Card>
+            </Collapsible>
         </div>
     );
 }
