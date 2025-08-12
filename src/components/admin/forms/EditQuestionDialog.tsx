@@ -305,7 +305,7 @@ function AnswerGuidanceDialog({
                                 <Server className="h-4 w-4" />
                                 <CardTitle className="text-base">Company Default</CardTitle>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance(localDefaultGuidance)}>
+                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance({ ...localDefaultGuidance, projectId: undefined })}>
                                 <Pencil className="mr-2" /> Edit
                             </Button>
                         </CardHeader>
@@ -978,3 +978,4 @@ export default function EditQuestionDialog({
         </>
     );
 }
+
