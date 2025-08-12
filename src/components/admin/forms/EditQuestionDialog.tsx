@@ -309,7 +309,7 @@ function AnswerGuidanceDialog({
                             </Button>
                         </CardHeader>
                         <CardContent>
-                             <p className="text-xs text-muted-foreground">{localDefaultGuidance.tasks?.length || 0} tasks, {localDefaultGuidance.tips?.length || 0} tips</p>
+                             <p className="text-xs text-muted-foreground">{localDefaultGuidance?.tasks?.length || 0} tasks, {localDefaultGuidance?.tips?.length || 0} tips</p>
                         </CardContent>
                     </Card>
 
@@ -562,9 +562,14 @@ export default function EditQuestionDialog({
     }, []);
     
     const openGuidanceDialog = useCallback((answer: string) => {
+        if (!currentQuestion) return;
+
+        const defaultGuidance = currentQuestion.answerGuidance?.[answer] || {};
+        const projectGuidance = currentQuestion.projectAnswerGuidance?.[answer] || {};
+
         setCurrentAnswerForGuidance(answer);
         setIsGuidanceDialogOpen(true);
-    }, []);
+    }, [currentQuestion]);
 
     const getGuidanceSummaryForAnswer = useCallback((answer: string) => {
         const summary: {scope: string, tasks: number, tips: number}[] = [];
