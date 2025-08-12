@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -22,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 function AdminNav({ role, companyName, version, companySettingsComplete }: { role: 'hr' | 'consultant' | 'admin', companyName?: string, version?: 'basic' | 'pro', companySettingsComplete: boolean }) {
   const pathname = usePathname();
   const { auth } = useAuth();
-  const { companyAssignments, reviewQueue } = useUserData();
+  const { reviewQueue } = useUserData();
   
   const isFormEditorDisabled = role === 'hr' && version === 'basic';
   
@@ -46,6 +47,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
       }
   }
 
+  const { companyAssignments } = useUserData();
   const isHrPrimaryOfAnyCompany = useMemo(() => {
     if (role !== 'hr' || !auth?.email || !companyAssignments) return false;
     return companyAssignments.some(c => c.hrManagers.some(hr => hr.email === auth.email && hr.isPrimary));
@@ -255,7 +257,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { auth, loading } = useAuth();
-  const { companyAssignments, reviewQueue } = useUserData();
+  const { companyAssignmentForHr, reviewQueue } = useUserData();
   const router = useRouter();
 
   useEffect(() => {
@@ -284,10 +286,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
   
-  const companyAssignment = auth.companyName && companyAssignments ? companyAssignments.find(a => a.companyName === auth.companyName) : null;
-  const companySettingsComplete = !!(companyAssignment?.preEndDateContactAlias && companyAssignment?.postEndDateContactAlias);
+  const companySettingsComplete = !!(companyAssignmentForHr?.preEndDateContactAlias && companyAssignmentForHr?.postEndDateContactAlias);
   
-  const navContent = <AdminNav role={auth.role} companyName={auth.companyName} version={companyAssignment?.version} companySettingsComplete={companySettingsComplete} />;
+  const navContent = <AdminNav role={auth.role} companyName={auth.companyName} version={companyAssignmentForHr?.version} companySettingsComplete={companySettingsComplete} />;
 
   return (
     <div className="flex min-h-screen w-full flex-col">

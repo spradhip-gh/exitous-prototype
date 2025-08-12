@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/hooks/use-auth.tsx';
+import { DataProvider } from '@/hooks/DataProvider';
 
 export const metadata: Metadata = {
   title: 'ExitBetter',
@@ -33,8 +34,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          {children}
-          <Toaster />
+          <DataProvider>
+            {children}
+            <Toaster />
+          </DataProvider>
         </AuthProvider>
       </body>
     </html>
