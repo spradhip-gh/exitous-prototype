@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -186,7 +187,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         getCompanyUser: () => null, getProfileCompletion: () => ({ percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
         getAssessmentCompletion: () => ({ percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
         getUnsureAnswers: () => ({ count: 0, firstSection: null }), getTargetTimezone: () => 'UTC',
-        updateCompanyUserContact: () => {}, buildQuestionTreeFromMap: () => [],
+        updateCompanyUserContact: () => {},
+        // Deprecated/ToBeRemoved
+        clearData: () => {},
+        taskMappings: [],
+        tipMappings: [],
+        getAllCompanyConfigs: () => ({}),
+        setCompanyConfigs: () => {},
+        setReviewQueue: () => {},
+        deleteCompanyAssignment: async () => {},
+        getCompaniesForHr: () => [],
+        getPlatformUserRole: () => null,
+        saveTaskMappings: async () => {},
+        saveTipMappings: async () => {},
     };
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;

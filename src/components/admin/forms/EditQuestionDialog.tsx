@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle,
 import { useToast } from "@/hooks/use-toast";
 import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project, QuestionOverride } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
-import { buildQuestionTreeFromMap } from "@/hooks/use-user-data";
+import { buildQuestionTreeFromMap } from "@/hooks/use-end-user-data";
 import { useAuth } from "@/hooks/use-auth";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from 'uuid';
@@ -389,12 +390,12 @@ interface EditQuestionDialogProps {
     allCompanyTasks: MasterTask[];
     allCompanyTips: MasterTip[];
     formType?: 'profile' | 'assessment';
-    projects: Project[];
+    projects?: Project[];
 }
 
 export default function EditQuestionDialog({
     isNew, question, existingSections, onSave, onClose, masterQuestionForEdit,
-    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType, projects
+    onAddNewTask, onAddNewTip, allCompanyTasks, allCompanyTips, formType, projects = []
 }: EditQuestionDialogProps) {
     
     const { toast } = useToast();

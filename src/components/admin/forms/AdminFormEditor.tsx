@@ -4,7 +4,8 @@
 import * as React from 'react';
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, Question, buildQuestionTreeFromMap, GuidanceRule, MasterTask, MasterTip, ExternalResource, MasterQuestionConfig } from "@/hooks/use-user-data";
+import { useUserData, Question, GuidanceRule, MasterTask, MasterTip, ExternalResource, MasterQuestionConfig } from "@/hooks/use-user-data";
+import { buildQuestionTreeFromMap } from '@/hooks/use-end-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

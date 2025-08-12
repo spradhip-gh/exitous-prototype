@@ -287,7 +287,7 @@ export interface UserDataContextType {
     saveMasterTips: (tips: MasterTip[]) => void;
     addPlatformUser: (user: Omit<PlatformUser, 'id'>) => void;
     deletePlatformUser: (email: string) => void;
-    saveCompanyAssignments: (assignmentsToSave: CompanyAssignment[]) => void;
+    saveCompanyAssignments: (assignmentsToSave: CompanyAssignment[]) => Promise<void>;
     addReviewQueueItem: (item: Omit<ReviewQueueItem, 'id' | 'created_at' | 'company_id'> & { companyName?: string }) => void;
     processReviewQueueItem: (item: ReviewQueueItem, status: 'approved' | 'rejected' | 'reviewed', rejectionReason?: string) => Promise<boolean>;
     saveExternalResources: (resources: ExternalResource[]) => void;
@@ -305,7 +305,6 @@ export interface UserDataContextType {
     getUnsureAnswers: () => { count: number; firstSection: string | null };
     getTargetTimezone: () => string;
     updateCompanyUserContact: (userId: string, contactInfo: { personal_email?: string; phone?: string; }) => void;
-    buildQuestionTreeFromMap: (flatQuestionMap: Record<string, Question>) => Question[];
     // Deprecated/ToBeRemoved
     clearData: () => void;
     taskMappings: TaskMapping[];

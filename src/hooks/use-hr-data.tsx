@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -195,6 +196,8 @@ export function HrProvider({ children }: { children: React.ReactNode }) {
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false, companyAssignments: [], guidanceRules: [],
         masterTasks: [], masterTips: [], platformUsers: [], externalResources: [],
+        profileCompletions: {},
+        assessmentCompletions: {},
         // Dummy actions for non-HR roles
         addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {}, /* etc. */
     };
