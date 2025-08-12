@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -166,7 +167,7 @@ export default function CompanySettingsPage() {
   const { 
     companyAssignmentForHr, 
     updateCompanyAssignment, 
-    getAllCompanyConfigs,
+    companyConfigs,
     isLoading,
     saveCompanyProjects,
   } = useUserData();
@@ -180,7 +181,7 @@ export default function CompanySettingsPage() {
   
   const canWrite = auth?.permissions?.companySettings === 'write';
   const companyName = auth?.companyName || '';
-  const companyConfig = companyName ? getAllCompanyConfigs()[companyName] : null;
+  const companyConfig = companyName ? companyConfigs[companyName] : null;
 
   const userCount = companyConfig?.users?.length ?? 0;
   const maxUsers = companyAssignmentForHr?.maxUsers ?? 0;
