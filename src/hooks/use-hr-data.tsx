@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -162,21 +163,24 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             const masterQ = { ...masterSource[id] };
 
             if (masterQ.formType !== formType) continue; 
-
-            // For HR, we show all questions. For end-users, only active ones.
-            if (forEndUser && !masterQ.isActive) continue;
+            if (forEndUser && !masterQ.isActive) continue; // For users, always filter inactive master questions
 
             const override = config?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+            
+            // For HR view, don't apply project-specific visibility, just show if it's active at the company level
+            if (!forEndUser && !isVisible) {
+                continue;
+            }
 
+            // For end-user view, check project-specific visibility
             if (forEndUser) {
                 const projectConfig = targetProjectId ? config?.projectConfigs?.[targetProjectId] : null;
                 if (projectConfig?.hiddenQuestions?.includes(id)) {
                     isVisible = false;
                 }
+                if(!isVisible) continue; // If not visible for any reason, skip
             }
-    
-            if (forEndUser && !isVisible) continue;
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
             if (override) {
@@ -200,12 +204,14 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         for(const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
             if(customQ.formType === formType) {
-                let isVisibleForProject = true;
-                const projectIds = customQ.projectIds || [];
-                if (forEndUser && projectIds.length > 0 && targetProjectId) {
-                     isVisibleForProject = projectIds.includes(targetProjectId);
+                if (forEndUser) {
+                     if (!customQ.isActive) continue;
+                     const projectIds = customQ.projectIds || [];
+                     if (projectIds.length > 0) {
+                         const hasAccess = targetProjectId ? projectIds.includes(targetProjectId) : projectIds.includes('__none__');
+                         if(!hasAccess) continue;
+                     }
                 }
-                if(forEndUser && !isVisibleForProject && customQ.isActive) continue;
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
