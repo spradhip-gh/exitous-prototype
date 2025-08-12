@@ -211,7 +211,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         fetchAllData();
     }, []);
 
-    const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions }[] }) => {
+    const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions, projectAccess: string[] }[] }) => {
         clearAdminCache();
         const { data: companyData, error: companyError } = await supabase.from('companies').insert({
             name: newAssignment.companyName, version: newAssignment.version, max_users: newAssignment.maxUsers,
@@ -221,7 +221,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (companyError || !companyData) { console.error("Error creating company", companyError); return; }
 
         const hrAssignments = newAssignment.hrManagers.map(hr => ({
-            company_id: companyData.id, hr_email: hr.email, is_primary: hr.isPrimary, permissions: hr.permissions,
+            company_id: companyData.id,
+            hr_email: hr.email,
+            is_primary: hr.isPrimary,
+            permissions: hr.permissions,
+            project_access: hr.projectAccess,
         }));
         const { error: hrError } = await supabase.from('company_hr_assignments').insert(hrAssignments);
         if (hrError) { console.error("Error assigning HR manager", hrError); return; }
