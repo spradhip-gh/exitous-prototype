@@ -258,7 +258,17 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
                 .eq('company_id', company.id)
                 .single();
             if (configError) console.error("Could not fetch company config:", configError);
-            setCompanyConfig(companyConfigData || {});
+            
+            const finalCompanyConfig: CompanyConfig = {
+                questions: companyConfigData?.question_overrides || {},
+                customQuestions: companyConfigData?.custom_questions || {},
+                questionOrderBySection: companyConfigData?.question_order_by_section || {},
+                answerGuidanceOverrides: companyConfigData?.answer_guidance_overrides || {},
+                companyTasks: companyConfigData?.company_tasks || [],
+                companyTips: companyConfigData?.company_tips || [],
+                projectConfigs: companyConfigData?.project_configs || {},
+            };
+            setCompanyConfig(finalCompanyConfig);
 
             // Fetch all master data (could be optimized further with caching)
             const [
@@ -436,21 +446,24 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         const companyCustomQuestions = companyConfig?.customQuestions || {};
         for (const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
-            if (customQ.formType === formType && customQ.isActive) {
-                const projectIds = customQ.projectIds || [];
-                let isVisible = false;
-                if (projectIds.length === 0) {
-                    // Visible to all if no specific projects are assigned
-                    isVisible = true;
-                } else if (targetProjectId) {
-                    // Visible if user's project is in the list
-                    isVisible = projectIds.includes(targetProjectId);
-                } else {
-                    // Visible if user has no project and it's marked for unassigned
-                    isVisible = projectIds.includes('__none__');
-                }
+            if (customQ.formType === formType) {
+                 if (forEndUser) {
+                    if (!customQ.isActive) continue;
+                    const projectIds = customQ.projectIds || [];
+                    let isVisible = false;
+
+                    if (projectIds.length === 0) { // Visible to all projects
+                        isVisible = true;
+                    } else if (targetProjectId) { // User has a project
+                        isVisible = projectIds.includes(targetProjectId);
+                    } else { // User has no project, check for __none__
+                        isVisible = projectIds.includes('__none__');
+                    }
     
-                if (isVisible) {
+                    if (isVisible) {
+                        finalQuestions.push({ ...customQ, isCustom: true });
+                    }
+                } else {
                     finalQuestions.push({ ...customQ, isCustom: true });
                 }
             }
@@ -755,5 +768,6 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 
