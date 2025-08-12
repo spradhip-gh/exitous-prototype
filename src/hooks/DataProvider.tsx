@@ -27,7 +27,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (auth?.role === 'hr') {
-        return <HrProvider>{children}</HrProvider>;
+        return <HrProvider email={auth.email!}>{children}</HrProvider>;
     }
 
     if (auth?.role === 'end-user') {
