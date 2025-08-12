@@ -212,14 +212,12 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             }
 
             if (forEndUser) {
-                const projectConfig = targetProjectId ? config?.projectConfigs?.[targetProjectId] : config?.projectConfigs?.['__none__'];
-                if (projectConfig?.hiddenQuestions?.includes(id)) {
-                    isVisible = false;
-                }
+                // Project-level visibility for master questions is disabled for now.
                 if (!isVisible) continue;
             }
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
+
             if (override) {
                 finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
                 if (override.label) finalQuestion.label = override.label;
@@ -234,6 +232,12 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                     finalQuestion.options = newOptions;
                 }
             }
+
+            // Correctly merge answer guidance
+            const companyGuidance = config?.answerGuidanceOverrides?.[id];
+            finalQuestion.answerGuidance = { ...masterQ.answerGuidance, ...companyGuidance };
+
+
             finalQuestions.push(finalQuestion);
         }
         
@@ -361,3 +365,4 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
