@@ -540,19 +540,25 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
     }, [assessmentData, profileData, guidanceRules, masterTasks, masterTips, companyConfig, masterProfileQuestions, masterQuestions, auth, companyUser]);
     
     const getProfileCompletion = useCallback(() => {
-        if (!profileData) return { percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
-        
         const allQuestions = getCompanyConfig(auth?.companyName, true, 'profile');
         const applicableQuestions = getApplicableQuestions(allQuestions, profileData, profileData);
         if (applicableQuestions.length === 0) return { percentage: 100, isComplete: true, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
 
         const answeredQuestions = applicableQuestions.filter(q => {
-            const value = profileData[q.id as keyof ProfileData];
+            let value: any;
+            if (q.id === 'personalEmail') value = companyUser?.personal_email;
+            else if (q.id === 'phone') value = companyUser?.phone;
+            else value = profileData?.[q.id as keyof ProfileData];
+            
             return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
         });
         
         const incompleteQuestions = applicableQuestions.filter(q => {
-             const value = profileData[q.id as keyof ProfileData];
+             let value: any;
+             if (q.id === 'personalEmail') value = companyUser?.personal_email;
+             else if (q.id === 'phone') value = companyUser?.phone;
+             else value = profileData?.[q.id as keyof ProfileData];
+             
              return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
         });
 
@@ -564,7 +570,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
             completed: answeredQuestions.length,
             incompleteQuestions
         };
-    }, [profileData, getCompanyConfig, auth?.companyName]);
+    }, [profileData, companyUser, getCompanyConfig, auth?.companyName]);
 
     const getAssessmentCompletion = useCallback(() => {
         if (!assessmentData) return { percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] };
