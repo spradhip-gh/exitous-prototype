@@ -1,5 +1,3 @@
-
-
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks, Pencil, Edit, Server } from "lucide-react";
+import { BellDot, Copy, Link, Wand2, Lock, PlusCircle, Trash2, Star, HelpCircle, Lightbulb, ListChecks, Settings, ChevronsUpDown, Blocks, Pencil, Edit, Server, Bug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Question, MasterTask, MasterTip, CompanyConfig, AnswerGuidance, ReviewQueueItem, ExternalResource, GuidanceRule, Project, QuestionOverride } from "@/hooks/use-user-data";
 import { useUserData } from "@/hooks/use-user-data";
@@ -376,6 +374,26 @@ function AnswerGuidanceDialog({
                         />
                     )}
                 </div>
+                 <Collapsible>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline" size="sm" className="mt-4"><Bug className="mr-2"/> Show Debug Info <ChevronsUpDown className="ml-2"/></Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <pre className="mt-4 text-xs bg-muted p-4 rounded-md overflow-x-auto max-h-96">
+                            {JSON.stringify({
+                                props: {
+                                  currentDefaultGuidance,
+                                  currentProjectGuidance,
+                                },
+                                state: {
+                                    localDefaultGuidance,
+                                    localProjectGuidance,
+                                    editingGuidance,
+                                }
+                            }, null, 2)}
+                        </pre>
+                    </CollapsibleContent>
+                </Collapsible>
                 <DialogFooter className="border-t pt-4">
                      {!editingGuidance && !isAdding && (
                         <Button variant="outline" onClick={() => setIsAdding(true)}><PlusCircle className="mr-2" /> Add Project Override</Button>
@@ -978,4 +996,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
