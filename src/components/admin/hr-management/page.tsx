@@ -184,7 +184,18 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
     };
 
     const handleSave = () => {
-        onSave(managerEmail, localAssignments);
+        // Before saving, ensure any primary manager in the local state has 'all' project access.
+        const correctedAssignments = localAssignments.map(assignment => {
+            const updatedManagers = assignment.hrManagers.map(manager => {
+                if (manager.isPrimary) {
+                    return { ...manager, projectAccess: ['all'] };
+                }
+                return manager;
+            });
+            return { ...assignment, hrManagers: updatedManagers };
+        });
+
+        onSave(managerEmail, correctedAssignments);
         onOpenChange(false);
     };
 
