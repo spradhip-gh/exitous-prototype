@@ -29,8 +29,6 @@ export default function AdminUserManagement() {
     const { toast } = useToast();
     const { 
         companyAssignments, 
-        profileCompletions, 
-        assessmentCompletions, 
         isLoading: isUserDataLoading,
         companyConfigs,
         setCompanyConfigs,
@@ -231,10 +229,10 @@ export default function AdminUserManagement() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <StatusBadge isComplete={!!profileCompletions[user.email]} />
+                                            <StatusBadge isComplete={!!user.profile_completed_at} />
                                         </TableCell>
                                         <TableCell>
-                                            <StatusBadge isComplete={!!assessmentCompletions[user.email]} />
+                                            <StatusBadge isComplete={!!user.assessment_completed_at} />
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user)}>
