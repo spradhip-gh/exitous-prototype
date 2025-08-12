@@ -1,5 +1,4 @@
 
-
 'use client';
 import Header from '@/components/common/Header';
 import DashboardNav from '@/components/dashboard/DashboardNav';
@@ -9,9 +8,17 @@ import { TriangleAlert } from 'lucide-react';
 import { FormStateProvider } from '@/hooks/use-form-state';
 import { useUserData } from '@/hooks/use-user-data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
 
-function DashboardContent({ children }: { children: React.ReactNode }) {
-  const { isLoading } = useUserData();
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { auth, loading: authLoading } = useAuth();
+  const { isLoading: dataLoading } = useUserData();
+
+  const isLoading = authLoading || dataLoading;
 
   if (isLoading) {
     return (
@@ -31,37 +38,27 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  return (
-    <div className="flex min-h-screen w-full flex-col">
-      <Header />
-      <div className="flex flex-1">
-        <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
-          <DashboardNav />
-        </aside>
-        <main className="flex-1">
-          <div className="border-b border-orange-200 bg-orange-50 p-4">
-            <Alert variant="default" className="border-orange-300 bg-transparent">
-              <TriangleAlert className="h-4 w-4 !text-orange-600" />
-              <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
-            </Alert>
-          </div>
-          {children}
-        </main>
-      </div>
-      <Footer />
-    </div>
-  );
-}
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+  
   return (
     <FormStateProvider>
-      <DashboardContent>{children}</DashboardContent>
+       <div className="flex min-h-screen w-full flex-col">
+        <Header />
+        <div className="flex flex-1">
+          <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
+            <DashboardNav />
+          </aside>
+          <main className="flex-1">
+            <div className="border-b border-orange-200 bg-orange-50 p-4">
+              <Alert variant="default" className="border-orange-300 bg-transparent">
+                <TriangleAlert className="h-4 w-4 !text-orange-600" />
+                <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
+              </Alert>
+            </div>
+            {children}
+          </main>
+        </div>
+        <Footer />
+      </div>
     </FormStateProvider>
   );
 }
