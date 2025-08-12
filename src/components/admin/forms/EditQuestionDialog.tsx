@@ -241,25 +241,35 @@ function AnswerGuidanceDialog({
 
     const [editingGuidance, setEditingGuidance] = useState<(AnswerGuidance & { projectId?: string }) | null>(null);
     const [isAdding, setIsAdding] = useState(false);
+    
+    // Local state to hold all guidance configs for this answer
+    const [localDefaultGuidance, setLocalDefaultGuidance] = useState(currentDefaultGuidance);
+    const [localProjectGuidance, setLocalProjectGuidance] = useState(currentProjectGuidance);
 
     useEffect(() => {
-        if (!isOpen) {
+        if (isOpen) {
+            setLocalDefaultGuidance(currentDefaultGuidance);
+            setLocalProjectGuidance(currentProjectGuidance);
+        } else {
             setEditingGuidance(null);
             setIsAdding(false);
         }
-    }, [isOpen]);
+    }, [isOpen, currentDefaultGuidance, currentProjectGuidance]);
 
     const handleSave = (guidanceToSave: AnswerGuidance & { projectId?: string }) => {
         const { projectId, ...restOfGuidance } = guidanceToSave;
         
-        let newDefault = currentDefaultGuidance;
-        let newProjectOverrides = { ...currentProjectGuidance };
+        let newDefault = localDefaultGuidance;
+        let newProjectOverrides = { ...localProjectGuidance };
 
         if (projectId) {
             newProjectOverrides[projectId] = restOfGuidance;
         } else {
             newDefault = restOfGuidance;
         }
+        
+        setLocalDefaultGuidance(newDefault);
+        setLocalProjectGuidance(newProjectOverrides);
 
         onSaveAllGuidance(answer, { default: newDefault, projects: newProjectOverrides });
         setEditingGuidance(null);
@@ -267,14 +277,15 @@ function AnswerGuidanceDialog({
     }
     
     const handleDeleteOverride = (projectId: string) => {
-        const newProjectOverrides = { ...currentProjectGuidance };
+        const newProjectOverrides = { ...localProjectGuidance };
         delete newProjectOverrides[projectId];
-        onSaveAllGuidance(answer, { default: currentDefaultGuidance, projects: newProjectOverrides });
+        setLocalProjectGuidance(newProjectOverrides);
+        onSaveAllGuidance(answer, { default: localDefaultGuidance, projects: newProjectOverrides });
     }
 
     if (!isOpen) return null;
 
-    const existingProjectIds = Object.keys(currentProjectGuidance);
+    const existingProjectIds = Object.keys(localProjectGuidance);
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -294,16 +305,16 @@ function AnswerGuidanceDialog({
                                 <Server className="h-4 w-4" />
                                 <CardTitle className="text-base">Company Default</CardTitle>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance(currentDefaultGuidance)}>
+                            <Button variant="outline" size="sm" onClick={() => setEditingGuidance(localDefaultGuidance)}>
                                 <Pencil className="mr-2" /> Edit
                             </Button>
                         </CardHeader>
                         <CardContent>
-                             <p className="text-xs text-muted-foreground">{currentDefaultGuidance.tasks?.length || 0} tasks, {currentDefaultGuidance.tips?.length || 0} tips</p>
+                             <p className="text-xs text-muted-foreground">{localDefaultGuidance.tasks?.length || 0} tasks, {localDefaultGuidance.tips?.length || 0} tips</p>
                         </CardContent>
                     </Card>
 
-                    {Object.entries(currentProjectGuidance).map(([projectId, guidance]) => {
+                    {Object.entries(localProjectGuidance).map(([projectId, guidance]) => {
                         const project = projects.find(p => p.id === projectId);
                         return (
                              <Card key={projectId}>
@@ -967,4 +978,3 @@ export default function EditQuestionDialog({
         </>
     );
 }
-
