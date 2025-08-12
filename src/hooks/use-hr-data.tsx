@@ -201,7 +201,6 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-
             if (!masterQ.isActive || masterQ.formType !== formType) continue; 
 
             const override = config?.questions?.[id];
@@ -279,6 +278,58 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
 
         return { count: totalUnsure, firstSection: firstUnsureSection };
     }, [companyConfigs, auth?.companyName, masterQuestions, masterProfileQuestions]);
+    
+     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        if (!assignmentsToSave || assignmentsToSave.length === 0) return;
+
+        const companyIdsToUpdate = assignmentsToSave.map(a => a.companyId);
+
+        // Delete all existing assignments for the affected companies
+        const { error: deleteError } = await supabase
+            .from('company_hr_assignments')
+            .delete()
+            .in('company_id', companyIdsToUpdate);
+
+        if (deleteError) {
+            toast({ title: 'Save Failed', description: `Error clearing old assignments: ${deleteError.message}`, variant: 'destructive' });
+            return;
+        }
+
+        // Prepare all new assignments for insertion
+        const newDbAssignments = assignmentsToSave.flatMap(a =>
+            a.hrManagers.map(hr => ({
+                company_id: a.companyId,
+                hr_email: hr.email,
+                is_primary: hr.isPrimary,
+                permissions: hr.permissions,
+                project_access: hr.projectAccess,
+            }))
+        );
+
+        if (newDbAssignments.length === 0) {
+            setCompanyAssignments(prev => prev.filter(a => !companyIdsToUpdate.includes(a.companyId)));
+            return;
+        }
+
+        // Insert all new assignments
+        const { error: insertError } = await supabase
+            .from('company_hr_assignments')
+            .insert(newDbAssignments);
+
+        if (insertError) {
+            toast({ title: 'Save Failed', description: `Error inserting new assignments: ${insertError.message}`, variant: 'destructive' });
+            return;
+        }
+
+        // Update local state
+        setCompanyAssignments(prev =>
+            prev.map(existingAssignment => {
+                const updated = assignmentsToSave.find(a => a.companyId === existingAssignment.companyId);
+                return updated || existingAssignment;
+            })
+        );
+
+    }, [toast]);
 
 
     const contextValue = {
@@ -294,6 +345,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         getCompanyConfig,
         saveCompanyConfig,
         getUnsureAnswers,
+        saveCompanyAssignments,
         // Dummy/empty values for data not needed by HR
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false, guidanceRules: [],
@@ -306,5 +358,3 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
-
-    

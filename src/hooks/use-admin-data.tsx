@@ -163,6 +163,58 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         // A full implementation would require re-fetching data or carefully updating local state.
     }, []);
     
+    const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        if (!assignmentsToSave || assignmentsToSave.length === 0) return;
+
+        const companyIdsToUpdate = assignmentsToSave.map(a => a.companyId);
+
+        // Delete all existing assignments for the affected companies
+        const { error: deleteError } = await supabase
+            .from('company_hr_assignments')
+            .delete()
+            .in('company_id', companyIdsToUpdate);
+
+        if (deleteError) {
+            toast({ title: 'Save Failed', description: `Error clearing old assignments: ${deleteError.message}`, variant: 'destructive' });
+            return;
+        }
+
+        // Prepare all new assignments for insertion
+        const newDbAssignments = assignmentsToSave.flatMap(a =>
+            a.hrManagers.map(hr => ({
+                company_id: a.companyId,
+                hr_email: hr.email,
+                is_primary: hr.isPrimary,
+                permissions: hr.permissions,
+                project_access: hr.projectAccess,
+            }))
+        );
+
+        if (newDbAssignments.length === 0) {
+            setCompanyAssignments(prev => prev.filter(a => !companyIdsToUpdate.includes(a.companyId)));
+            return;
+        }
+
+        // Insert all new assignments
+        const { error: insertError } = await supabase
+            .from('company_hr_assignments')
+            .insert(newDbAssignments);
+
+        if (insertError) {
+            toast({ title: 'Save Failed', description: `Error inserting new assignments: ${insertError.message}`, variant: 'destructive' });
+            return;
+        }
+
+        // Update local state
+        setCompanyAssignments(prev =>
+            prev.map(existingAssignment => {
+                const updated = assignmentsToSave.find(a => a.companyId === existingAssignment.companyId);
+                return updated || existingAssignment;
+            })
+        );
+
+    }, [toast]);
+    
     // ... all other Admin/HR specific actions (saveMasterQuestions, saveGuidanceRules, etc.) would be defined here.
 
     const contextValue = {
@@ -180,7 +232,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         updateCompanyAssignment,
         saveMasterQuestions: async () => {}, saveMasterQuestionConfig: async () => {}, saveCompanyConfig: async () => {},
         saveGuidanceRules: async () => {}, saveMasterTasks: async () => {}, saveMasterTips: async () => {},
-        addPlatformUser: async () => {}, deletePlatformUser: async () => {}, saveCompanyAssignments: async () => {},
+        addPlatformUser: async () => {}, deletePlatformUser: async () => {}, saveCompanyAssignments,
         addReviewQueueItem: async () => {}, processReviewQueueItem: async () => false, saveExternalResources: async () => {},
         // Getters and other utils
         getCompanyConfig: () => [], getMasterQuestionConfig: () => undefined,
