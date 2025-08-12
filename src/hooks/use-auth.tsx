@@ -79,12 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (authData: Pick<AuthState, 'role' | 'email'>, companyIdentifier?: string): Promise<boolean> => {
     let finalAuthData: AuthState | null = null;
+    const email = authData.email?.trim();
 
-    if (authData.role === 'end-user' && authData.email && companyIdentifier) {
+    if (authData.role === 'end-user' && email && companyIdentifier) {
         const { data: userData, error } = await supabase
             .from('company_users')
             .select(`*`)
-            .eq('email', authData.email)
+            .ilike('email', email)
             .eq('company_user_id', companyIdentifier)
             .single();
 
@@ -113,11 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             companyName: companyData?.name
         };
 
-    } else if (authData.role === 'hr' && authData.email) {
+    } else if (authData.role === 'hr' && email) {
         const { data: hrAssignments, error } = await supabase
             .from('company_hr_assignments')
             .select(`*, companies(*)`)
-            .eq('hr_email', authData.email);
+            .ilike('hr_email', email);
 
         if (error || !hrAssignments || hrAssignments.length === 0) {
             console.error('HR login error:', error);
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         finalAuthData = {
             role: 'hr',
-            email: authData.email,
+            email: defaultAssignment.hr_email,
             companyId: defaultAssignment.company_id,
             companyName: defaultAssignment.companies.name,
             assignedCompanyNames: assignmentsWithCompany.map(a => a.companies?.name).filter(Boolean) as string[],
@@ -144,11 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 : defaultAssignment.permissions as HrPermissions
         };
 
-    } else if ((authData.role === 'admin' || authData.role === 'consultant') && authData.email) {
+    } else if ((authData.role === 'admin' || authData.role === 'consultant') && email) {
         const { data: platformUser, error } = await supabase
             .from('platform_users')
             .select('id, email, role')
-            .eq('email', authData.email)
+            .ilike('email', email)
             .eq('role', authData.role)
             .single();
         
