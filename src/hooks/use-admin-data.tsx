@@ -233,9 +233,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     const updateCompanyAssignment = useCallback(async (companyName: string, payload: UpdateCompanyAssignmentPayload) => {
         clearAdminCache();
+        const companyToUpdate = companyAssignments.find(a => a.companyName === companyName);
+        if (!companyToUpdate) {
+            toast({ title: "Company not found", variant: "destructive" });
+            return;
+        }
+
+        if (payload.delete) {
+            const { error } = await supabase.from('companies').delete().eq('id', companyToUpdate.companyId);
+            if (error) {
+                toast({ title: 'Delete Failed', description: error.message, variant: 'destructive' });
+            } else {
+                setCompanyAssignments(prev => prev.filter(a => a.companyName !== companyName));
+                const newConfigs = { ...companyConfigs };
+                delete newConfigs[companyName];
+                setCompanyConfigs(newConfigs);
+                toast({ title: 'Company Deleted', description: `${companyName} has been removed.` });
+            }
+            return;
+        }
+
         console.log("Updating company assignment for", companyName, "with payload", payload);
         toast({ title: "Action Received", description: "This action is being processed."});
-    }, [toast]);
+    }, [toast, companyAssignments, companyConfigs]);
     
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
         clearAdminCache();
