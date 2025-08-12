@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -267,18 +268,21 @@ function QuestionEditor({
     };
 
     const handleEditClick = (question: Question) => {
-        const allMasterQuestions = question.formType === 'profile' ? masterProfileQuestions : masterQuestions;
-        const masterVersion = allMasterQuestions[question.id];
+        if (question.isCustom) {
+            setCurrentQuestion({ ...question });
+        } else {
+            const allMasterQuestions = question.formType === 'profile' ? masterProfileQuestions : masterQuestions;
+            const masterVersion = allMasterQuestions[question.id];
+            
+            const companyGuidance = companyConfig?.answerGuidanceOverrides?.[question.id];
+            const finalDefaultGuidance = { ...(masterVersion?.answerGuidance || {}), ...(companyGuidance || {}) };
+
+            setCurrentQuestion({ 
+                ...question,
+                answerGuidance: finalDefaultGuidance,
+            });
+        }
         
-        // Correctly merge guidance for the dialog
-        const companyGuidance = companyConfig?.answerGuidanceOverrides?.[question.id];
-        const masterGuidance = masterVersion?.answerGuidance;
-        const finalDefaultGuidance = { ...masterGuidance, ...companyGuidance };
-    
-        setCurrentQuestion({ 
-            ...question,
-            answerGuidance: finalDefaultGuidance,
-        });
         setIsNewCustom(false);
         setIsEditing(true);
     };
