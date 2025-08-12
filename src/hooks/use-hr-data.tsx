@@ -313,6 +313,26 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         }
     }, [companyAssignments, toast]);
 
+    const profileCompletions = useMemo(() => {
+        const completions: Record<string, boolean> = {};
+        if (auth?.companyName && companyConfigs[auth.companyName]?.users) {
+            companyConfigs[auth.companyName]!.users!.forEach(user => {
+                completions[user.email] = !!user.profile_completed_at;
+            });
+        }
+        return completions;
+    }, [auth?.companyName, companyConfigs]);
+
+    const assessmentCompletions = useMemo(() => {
+        const completions: Record<string, boolean> = {};
+        if (auth?.companyName && companyConfigs[auth.companyName]?.users) {
+            companyConfigs[auth.companyName]!.users!.forEach(user => {
+                completions[user.email] = !!user.assessment_completed_at;
+            });
+        }
+        return completions;
+    }, [auth?.companyName, companyConfigs]);
+
 
     const contextValue = {
         isLoading,
@@ -328,18 +348,19 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         saveCompanyConfig,
         getUnsureAnswers,
         saveCompanyAssignments,
+        profileCompletions,
+        assessmentCompletions,
         // Dummy/empty values for data not needed by HR
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false, guidanceRules: [],
         masterTasks: [], masterTips: [], platformUsers: [], externalResources: [],
-        profileCompletions: {},
-        assessmentCompletions: {},
         // Dummy actions for non-HR roles
         addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {},
     };
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 
 
