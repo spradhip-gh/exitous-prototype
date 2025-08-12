@@ -254,36 +254,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
   )
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { auth, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && auth?.role !== 'hr' && auth?.role !== 'consultant' && auth?.role !== 'admin') {
-      router.push('/');
-    }
-  }, [auth, loading, router]);
-  
-  if (loading || !auth) {
-    return (
-      <div className="flex min-h-screen w-full flex-col">
-        <Header />
-        <main className="flex-1 p-4 md:p-8">
-          <div className="mx-auto max-w-4xl space-y-8">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
-  return <AdminLayoutWithData auth={auth}>{children}</AdminLayoutWithData>
-}
-
-
-function AdminLayoutWithData({ children, auth }: { children: React.ReactNode, auth: any }) {
+function AdminLayoutContent({ children, auth }: { children: React.ReactNode, auth: any }) {
     const { isLoading, companyAssignmentForHr, reviewQueue } = useUserData();
 
     const pendingReviewCount = useMemo(() => {
@@ -359,3 +330,23 @@ function AdminLayoutWithData({ children, auth }: { children: React.ReactNode, au
     );
 }
 
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { auth, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && auth?.role !== 'hr' && auth?.role !== 'consultant' && auth?.role !== 'admin') {
+      router.push('/');
+    }
+  }, [auth, loading, router]);
+  
+  if (loading || !auth) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
+        <Skeleton className="h-32 w-full max-w-lg" />
+      </div>
+    );
+  }
+
+  return <AdminLayoutContent auth={auth}>{children}</AdminLayoutContent>;
+}
