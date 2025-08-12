@@ -410,13 +410,15 @@ export default function CompanyManagementPage() {
         const usersInvited = users.filter(u => u.is_invited).length;
         const assessmentsCompleted = 0; // This needs profile/assessment completion data
         const modifiedQuestionCount = Object.keys(companyConfig?.questions || {}).length + Object.keys(companyConfig?.customQuestions || {}).length;
+        const projectCount = assignment.projects?.length || 0;
 
         return {
             ...assignment,
             usersAdded,
             usersInvited,
             assessmentsCompleted,
-            modifiedQuestionCount
+            modifiedQuestionCount,
+            projectCount
         };
     });
   }, [companyAssignments, allConfigs]);
@@ -433,6 +435,7 @@ export default function CompanyManagementPage() {
         "Max Users": c.maxUsers,
         "Users Added": c.usersAdded,
         "Users Invited": c.usersInvited,
+        "Projects": c.projectCount,
         "Assessments Completed": c.assessmentsCompleted,
         "Custom Questions": c.modifiedQuestionCount,
         "Deadline Time": c.severanceDeadlineTime || '17:00',
@@ -629,6 +632,7 @@ export default function CompanyManagementPage() {
                             <TableHead>Version</TableHead>
                             <TableHead>Users Added/Invited</TableHead>
                             <TableHead>Max Users</TableHead>
+                            <TableHead>Projects</TableHead>
                             <TableHead>Assessments Done</TableHead>
                             <TableHead>Custom Qs</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -653,6 +657,7 @@ export default function CompanyManagementPage() {
                                     </TableCell>
                                     <TableCell className="text-center">{assignment.usersAdded} / {assignment.usersInvited}</TableCell>
                                     <TableCell className="text-center">{assignment.maxUsers ?? '—'}</TableCell>
+                                    <TableCell className="text-center">{assignment.projectCount}</TableCell>
                                     <TableCell className="text-center">{assignment.assessmentsCompleted}</TableCell>
                                     <TableCell className="text-center">{assignment.modifiedQuestionCount}</TableCell>
                                     <TableCell className="text-right">
@@ -689,7 +694,7 @@ export default function CompanyManagementPage() {
                             )
                         }) : (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
+                                <TableCell colSpan={9} className="text-center text-muted-foreground">No companies have been created yet.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
