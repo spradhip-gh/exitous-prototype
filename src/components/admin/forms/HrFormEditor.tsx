@@ -267,7 +267,17 @@ function QuestionEditor({
     };
 
     const handleEditClick = (question: Question) => {
-        setCurrentQuestion({ ...question });
+        const allMasterQuestions = question.formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        const masterVersion = allMasterQuestions[question.id];
+        
+        const companyGuidance = companyConfig?.answerGuidanceOverrides?.[question.id];
+        const masterGuidance = masterVersion?.answerGuidance;
+        const finalGuidance = { ...masterGuidance, ...companyGuidance };
+    
+        setCurrentQuestion({ 
+            ...question,
+            answerGuidance: finalGuidance,
+        });
         setIsNewCustom(false);
         setIsEditing(true);
     };
