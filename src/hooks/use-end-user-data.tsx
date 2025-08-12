@@ -386,6 +386,65 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         if (saveError) console.error("Error saving assessment:", saveError);
     }, [auth?.userId, auth?.isPreview, saveDataToLocalStorage, ASSESSMENT_KEY]);
     
+    const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser = true, formType: 'profile' | 'assessment' = 'assessment'): Question[] => {
+        if (!companyName || !companyConfig) return [];
+        const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        let finalQuestions: Question[] = [];
+        
+        const targetProjectId = auth?.isPreview ? auth.previewProjectId : companyUser?.project_id;
+
+        for (const id in masterSource) {
+            const masterQ = { ...masterSource[id] };
+            if (!masterQ.isActive || masterQ.formType !== formType) continue; 
+
+            const override = companyConfig?.questions?.[id];
+            let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+
+            if (forEndUser) {
+                const projectConfig = companyConfig?.projectConfigs?.[targetProjectId || '__none__'];
+                if (projectConfig?.hiddenQuestions?.includes(id)) {
+                    isVisible = false;
+                }
+            }
+    
+            if (forEndUser && !isVisible) continue;
+            
+            let finalQuestion: Question = { ...masterQ, isActive: isVisible };
+            if (override) {
+                finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
+                if (override.label) finalQuestion.label = override.label;
+                if (override.description) finalQuestion.description = override.description;
+                if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
+                if (override.optionOverrides) {
+                    const baseOptions = masterQ.options || [];
+                    const toRemove = new Set(override.optionOverrides.remove || []);
+                    const toAdd = override.optionOverrides.add || [];
+                    let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
+                    newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+                    finalQuestion.options = newOptions;
+                }
+            }
+            finalQuestions.push(finalQuestion);
+        }
+        
+        const companyCustomQuestions = companyConfig?.customQuestions || {};
+        for(const id in companyCustomQuestions) {
+            const customQ = companyCustomQuestions[id];
+            if(customQ.formType === formType && customQ.isActive) {
+                let isVisibleForProject = true;
+                const projectIds = customQ.projectIds || [];
+                if (forEndUser && projectIds.length > 0) {
+                     if (targetProjectId) isVisibleForProject = projectIds.includes(targetProjectId);
+                     else isVisibleForProject = projectIds.includes('__none__');
+                }
+                if(forEndUser && !isVisibleForProject) continue;
+                finalQuestions.push({ ...customQ, isCustom: true });
+            }
+        }
+    
+        return buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
+    }, [companyConfig, masterQuestions, masterProfileQuestions, auth, companyUser]);
+    
     const getMappedRecommendations = useCallback(() => {
         if (!assessmentData || !profileData || !companyConfig) {
             return { tasks: [], tips: [] };
@@ -479,6 +538,82 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         };
     
     }, [assessmentData, profileData, guidanceRules, masterTasks, masterTips, companyConfig, masterProfileQuestions, masterQuestions, auth, companyUser]);
+    
+    const getProfileCompletion = useCallback(() => {
+        if (!profileData) return { percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+        
+        const allQuestions = getCompanyConfig(auth?.companyName, true, 'profile');
+        const applicableQuestions = getApplicableQuestions(allQuestions, profileData, profileData);
+        if (applicableQuestions.length === 0) return { percentage: 100, isComplete: true, totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+
+        const answeredQuestions = applicableQuestions.filter(q => {
+            const value = profileData[q.id as keyof ProfileData];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+        });
+        
+        const incompleteQuestions = applicableQuestions.filter(q => {
+             const value = profileData[q.id as keyof ProfileData];
+             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+        });
+
+        const percentage = (answeredQuestions.length / applicableQuestions.length) * 100;
+        return {
+            percentage: isNaN(percentage) ? 0 : percentage,
+            isComplete: percentage === 100,
+            totalApplicable: applicableQuestions.length,
+            completed: answeredQuestions.length,
+            incompleteQuestions
+        };
+    }, [profileData, getCompanyConfig, auth?.companyName]);
+
+    const getAssessmentCompletion = useCallback(() => {
+        if (!assessmentData) return { percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+
+        const allQuestions = getCompanyConfig(auth?.companyName, true, 'assessment');
+        const applicableQuestions = getApplicableQuestions(allQuestions, assessmentData, profileData);
+        if (applicableQuestions.length === 0) return { percentage: 100, isComplete: true, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] };
+
+        const answeredQuestions = applicableQuestions.filter(q => {
+            const value = assessmentData[q.id as keyof AssessmentData];
+            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0) && value !== 'Unsure';
+        });
+
+        const incompleteQuestions = applicableQuestions.filter(q => {
+            const value = assessmentData[q.id as keyof AssessmentData];
+             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0) || value === 'Unsure';
+        });
+        
+        const sectionMap: Record<string, { total: number, completed: number }> = {};
+        applicableQuestions.forEach(q => {
+            if (!sectionMap[q.section]) {
+                sectionMap[q.section] = { total: 0, completed: 0 };
+            }
+            sectionMap[q.section].total++;
+            const value = assessmentData[q.id as keyof AssessmentData];
+            if (value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0) && value !== 'Unsure') {
+                sectionMap[q.section].completed++;
+            }
+        });
+        
+        const sections = Object.entries(sectionMap).map(([name, counts]) => ({
+            name,
+            total: counts.total,
+            completed: counts.completed,
+            percentage: counts.total > 0 ? (counts.completed / counts.total) * 100 : 100,
+        }));
+        
+        const totalPercentage = (answeredQuestions.length / applicableQuestions.length) * 100;
+
+        return {
+            percentage: isNaN(totalPercentage) ? 0 : totalPercentage,
+            isComplete: totalPercentage === 100,
+            sections,
+            totalApplicable: applicableQuestions.length,
+            completed: answeredQuestions.length,
+            incompleteQuestions
+        };
+    }, [assessmentData, profileData, getCompanyConfig, auth?.companyName]);
+
 
     const contextValue = {
         // Provide all necessary state and functions
@@ -549,11 +684,11 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem(RECOMMENDATIONS_KEY);
         },
         // Getters and utils
-        getCompanyConfig: () => [], // Simplified for end-user, full logic in Admin/HR hooks
+        getCompanyConfig,
         getCompanyUser: () => companyUser ? { companyName: companyAssignment?.companyName || '', user: companyUser } : null,
         getMasterQuestionConfig: (formType: 'profile' | 'assessment') => masterQuestionConfigs.find(c => c.form_type === formType),
-        getProfileCompletion: () => ({ percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
-        getAssessmentCompletion: () => ({ percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
+        getProfileCompletion,
+        getAssessmentCompletion,
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
         getMappedRecommendations,
         getTargetTimezone: () => {
