@@ -260,10 +260,16 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const { output } = await prompt({
-            ...input,
-            externalResources,
-            masterTips,
+        const { output } = await ai.generate({
+            model: 'googleai/gemini-2.0-flash',
+            prompt: {
+                ...input,
+                externalResources,
+                masterTips,
+            },
+            output: {
+                schema: PersonalizedRecommendationsOutputSchema
+            }
         });
 
         return output!;
