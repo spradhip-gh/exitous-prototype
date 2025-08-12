@@ -427,8 +427,11 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
                 let isVisibleForProject = true;
                 const projectIds = customQ.projectIds || [];
                 if (projectIds.length > 0) {
-                     if (targetProjectId) isVisibleForProject = projectIds.includes(targetProjectId);
-                     else isVisibleForProject = projectIds.includes('__none__');
+                     if (targetProjectId) {
+                        isVisibleForProject = projectIds.includes(targetProjectId);
+                     } else {
+                        isVisibleForProject = projectIds.includes('__none__');
+                     }
                 }
                 if(!isVisibleForProject) continue;
                 finalQuestions.push({ ...customQ, isCustom: true });
