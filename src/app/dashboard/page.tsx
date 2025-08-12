@@ -456,7 +456,7 @@ export default function DashboardPage() {
           <ProgressTracker />
         )}
         
-        <DebugCard />
+        {process.env.NODE_ENV !== 'production' && <DebugCard />}
       </div>
     </main>
   )

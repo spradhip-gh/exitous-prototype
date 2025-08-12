@@ -375,7 +375,7 @@ function AnswerGuidanceDialog({
                         />
                     )}
                 </div>
-                 <Collapsible>
+                 {process.env.NODE_ENV !== 'production' && <Collapsible>
                     <CollapsibleTrigger asChild>
                         <Button variant="outline" size="sm" className="mt-4"><Bug className="mr-2"/> Show Debug Info <ChevronsUpDown className="ml-2"/></Button>
                     </CollapsibleTrigger>
@@ -394,7 +394,7 @@ function AnswerGuidanceDialog({
                             }, null, 2)}
                         </pre>
                     </CollapsibleContent>
-                </Collapsible>
+                </Collapsible>}
                 <DialogFooter className="border-t pt-4">
                      {!editingGuidance && !isAdding && (
                         <Button variant="outline" onClick={() => setIsAdding(true)}><PlusCircle className="mr-2" /> Add Project Override</Button>

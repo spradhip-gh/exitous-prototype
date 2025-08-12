@@ -614,4 +614,3 @@ export default function AssessmentFormWrapper() {
 
     return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} companyConfig={companyConfig} />;
 }
-

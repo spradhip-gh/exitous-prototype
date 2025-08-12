@@ -515,7 +515,7 @@ export default function HrUserManagement() {
                 </CardContent>
             </Card>
 
-             <Collapsible>
+             {process.env.NODE_ENV !== 'production' && <Collapsible>
                 <Card className="border-destructive">
                     <CollapsibleTrigger asChild>
                         <CardHeader className="cursor-pointer">
@@ -542,8 +542,7 @@ export default function HrUserManagement() {
                         </CardContent>
                     </CollapsibleContent>
                 </Card>
-            </Collapsible>
+            </Collapsible>}
         </div>
     );
 }
-
