@@ -152,6 +152,11 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
             if (a.companyName === companyName) {
                 const updatedManagers = a.hrManagers.map(hr => {
                     if (hr.email.toLowerCase() === managerEmail.toLowerCase()) {
+                        // If the manager being edited is the primary manager, always keep 'all' access.
+                        if (hr.isPrimary) {
+                            return { ...hr, projectAccess: ['all'] };
+                        }
+
                         const currentAccess = hr.projectAccess || [];
                         const allProjectIds = a.projects?.map(p => p.id).concat(['__none__']) || ['__none__'];
                         
@@ -313,7 +318,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                             </Select>
                                                         </div>
                                                     </fieldset>
-                                                    <fieldset disabled={!canEditThisCompany}>
+                                                    <fieldset disabled={!canEditThisCompany || manager.isPrimary}>
                                                         <Label>Project Access</Label>
                                                         <div className="space-y-2 rounded-md border p-4 max-h-40 overflow-y-auto">
                                                             {projectOptions.map(p => (
@@ -327,6 +332,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                                 <Label htmlFor="edit-project-unassigned" className="font-normal flex items-center gap-1.5">Unassigned Users <TooltipProvider><Tooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground"/></TooltipTrigger><TooltipContent><p>Users not in a specific project.</p></TooltipContent></Tooltip></TooltipProvider></Label>
                                                             </div>
                                                         </div>
+                                                         {manager.isPrimary && <p className="text-xs text-muted-foreground mt-1">Primary Managers always have access to all projects.</p>}
                                                     </fieldset>
                                                 </>
                                             )}
