@@ -30,6 +30,13 @@ import {
 } from './use-user-data';
 import { buildQuestionTreeFromMap } from './use-end-user-data';
 
+const fullPermissions: HrPermissions = {
+    userManagement: 'write-upload',
+    formEditor: 'write',
+    resources: 'write',
+    companySettings: 'write',
+};
+
 export function HrProvider({ children }: { children: React.ReactNode }) {
     const { auth, setPermissions: setAuthPermissions } = useAuth();
     const { toast } = useToast();
@@ -76,8 +83,10 @@ export function HrProvider({ children }: { children: React.ReactNode }) {
             };
             setCompanyAssignmentForHr(assignment);
 
-            const hrPerms = assignment.hrManagers.find(hr => hr.email === auth.email)?.permissions;
-            if (hrPerms) setAuthPermissions(hrPerms);
+            const hrManager = assignment.hrManagers.find(hr => hr.email === auth.email);
+            if (hrManager) {
+                 setAuthPermissions(hrManager.isPrimary ? fullPermissions : hrManager.permissions);
+            }
 
             const { data: configData, error: configError } = await supabase
                 .from('company_question_configs')
@@ -206,3 +215,5 @@ export function HrProvider({ children }: { children: React.ReactNode }) {
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
+    
