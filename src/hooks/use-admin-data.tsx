@@ -230,7 +230,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const { error: hrError } = await supabase.from('company_hr_assignments').insert(hrAssignments);
         if (hrError) { console.error("Error assigning HR manager", hrError); return; }
         
-        const finalAssignment: CompanyAssignment = { ...newAssignment, companyId: companyData.id };
+        const finalAssignment: CompanyAssignment = { ...newAssignment, companyId: companyData.id, projects: [] };
         setCompanyAssignments(prev => [...prev, finalAssignment]);
         setCompanyConfigs(prev => ({...prev, [finalAssignment.companyName]: { users: [] }}));
     }, []);
@@ -323,11 +323,31 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         return await fn(...args);
     };
 
+    const profileCompletions = useMemo(() => {
+        const completions: Record<string, boolean> = {};
+        Object.values(companyConfigs).forEach(config => {
+            config.users?.forEach(user => {
+                completions[user.email] = !!user.profile_completed_at;
+            });
+        });
+        return completions;
+    }, [companyConfigs]);
+
+    const assessmentCompletions = useMemo(() => {
+        const completions: Record<string, boolean> = {};
+         Object.values(companyConfigs).forEach(config => {
+            config.users?.forEach(user => {
+                completions[user.email] = !!user.assessment_completed_at;
+            });
+        });
+        return completions;
+    }, [companyConfigs]);
+
     const contextValue = {
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false,
         isLoading, companyAssignments, companyConfigs, masterQuestions, masterProfileQuestions, masterQuestionConfigs, guidanceRules,
-        masterTasks, masterTips, platformUsers, reviewQueue, externalResources,
+        masterTasks, masterTips, platformUsers, reviewQueue, externalResources, profileCompletions, assessmentCompletions,
         saveProfileData: () => {}, saveAssessmentData: () => {}, clearRecommendations: () => {}, saveRecommendations: () => {},
         toggleTaskCompletion: () => {}, updateTaskDate: () => {}, addCustomDeadline: () => {},
         addCompanyAssignment,
