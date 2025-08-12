@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -228,7 +229,7 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                               <ProjectAssignmentPopover
                                 questionId={formData.id || ''}
                                 projects={activeProjects}
-                                companyConfig={{ customQuestions: { [formData.id!]: formData as MasterTip } }}
+                                companyConfig={{ customQuestions: { [formData.id!]: { ...formData, projectIds: formData.projectIds || [] } as MasterTip } } as any }
                                 onVisibilityChange={handleProjectVisibilityChange}
                                 disabled={!isHr}
                                 itemType="Tip"

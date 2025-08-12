@@ -4,7 +4,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useUserData, CompanyConfig, Question, ReviewQueueItem, buildQuestionTreeFromMap, MasterTask, MasterTip, ExternalResource, CompanyAssignment } from "@/hooks/use-user-data";
+import { useUserData, CompanyConfig, Question, ReviewQueueItem, MasterTask, MasterTip, ExternalResource, CompanyAssignment } from "@/hooks/use-user-data";
+import { buildQuestionTreeFromMap } from '@/hooks/use-end-user-data';
 import { getDefaultQuestions, getDefaultProfileQuestions } from "@/lib/questions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -154,7 +155,7 @@ function QuestionEditor({
     const { toast } = useToast();
     const { auth } = useAuth();
     const {
-        getAllCompanyConfigs,
+        companyConfigs,
         saveCompanyConfig,
         masterQuestions,
         masterProfileQuestions,
@@ -291,8 +292,8 @@ function QuestionEditor({
     const handleSaveEdit = (questionToSave: Partial<Question>, newSectionName?: string) => {
         if (!questionToSave || !companyName) return;
     
-        const companyConfig = getAllCompanyConfigs()[companyName] || {};
-        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(companyConfig));
+        const currentCompanyConfig = companyConfigs[companyName] || {};
+        let finalConfig: CompanyConfig = JSON.parse(JSON.stringify(currentCompanyConfig));
     
         const allMasterQuestions = { ...masterQuestions, ...masterProfileQuestions };
         const masterQuestion = allMasterQuestions[questionToSave.id!];
@@ -330,7 +331,7 @@ function QuestionEditor({
             if (finalQuestion.isCustom) {
                  if (isNewCustom) {
                     finalQuestion.id = finalQuestion.id || `custom-${uuidv4()}`;
-                    const customQuestionsInSection = Object.values(companyConfig.customQuestions || {}).filter(q => q.section === finalQuestion.section && q.position === finalQuestion.position);
+                    const customQuestionsInSection = Object.values(currentCompanyConfig.customQuestions || {}).filter(q => q.section === finalQuestion.section && q.position === finalQuestion.position);
                     finalQuestion.sortOrder = (customQuestionsInSection.length > 0 ? Math.max(...customQuestionsInSection.map(q => q.sortOrder || 0)) : 0) + 1;
                 }
                 if (newSectionName) {
@@ -612,7 +613,7 @@ function CompanyContentTabs({ companyConfig, canWrite, onTaskEdit, onTipEdit, on
 
 export default function HrFormEditor() {
     const { auth } = useAuth();
-    const { companyAssignmentForHr, isLoading, getAllCompanyConfigs, saveCompanyConfig, externalResources, masterQuestions, masterProfileQuestions } = useUserData();
+    const { companyAssignmentForHr, isLoading, companyConfigs, saveCompanyConfig, externalResources, masterQuestions, masterProfileQuestions } = useUserData();
     const { toast } = useToast();
     
     const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -627,8 +628,8 @@ export default function HrFormEditor() {
     const canWrite = auth?.permissions?.formEditor === 'write';
 
     const companyConfig = useMemo(() => {
-        return companyName ? getAllCompanyConfigs()[companyName] : undefined;
-    }, [companyName, getAllCompanyConfigs]);
+        return companyName ? companyConfigs[companyName] : undefined;
+    }, [companyName, companyConfigs]);
 
     const handleAddNewTask = useCallback((callback: (newTask: MasterTask) => void) => {
         setEditingTask(null);
@@ -834,4 +835,3 @@ export default function HrFormEditor() {
         </div>
     );
 }
-

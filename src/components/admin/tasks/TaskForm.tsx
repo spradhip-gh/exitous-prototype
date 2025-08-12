@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -265,7 +266,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                              <ProjectAssignmentPopover
                                 questionId={formData.id || ''}
                                 projects={activeProjects}
-                                companyConfig={{ customQuestions: { [formData.id!]: formData as MasterTask } }}
+                                companyConfig={ { customQuestions: { [formData.id!]: { ...formData, projectIds: formData.projectIds || [] } as MasterTask } } as any }
                                 onVisibilityChange={handleProjectVisibilityChange}
                                 disabled={!isHr}
                                 itemType="Task"
