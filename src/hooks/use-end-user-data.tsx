@@ -391,47 +391,34 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         if (!companyName || !companyConfig) return [];
         const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
         let finalQuestions: Question[] = [];
-        
+    
         const targetProjectId = auth?.isPreview ? auth.previewProjectId : companyUser?.project_id;
         const projectConfig = targetProjectId ? companyConfig.projectConfigs?.[targetProjectId] : null;
-
+    
+        // Process Master Questions
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (!masterQ.isActive || masterQ.formType !== formType) continue; 
-
-            // Check project-level visibility first
-            if (projectConfig?.hiddenQuestions?.includes(id)) {
-                continue; // Skip if hidden for this project
-            }
-            
+            if (!masterQ.isActive || masterQ.formType !== formType) continue;
+    
             const companyOverride = companyConfig?.questions?.[id];
-            
-            // Start with company-level active status, fallback to master
+            let finalQuestion: Question = applyQuestionOverrides(masterQ, companyOverride, companyConfig.answerGuidanceOverrides?.[id]);
+    
+            // Determine visibility based on company and then project overrides
             let isVisible = companyOverride?.isActive === undefined ? masterQ.isActive : companyOverride.isActive;
-
-            // If question is active at company level, check project level (project can only hide, not show)
             if (isVisible && projectConfig?.hiddenQuestions?.includes(id)) {
                 isVisible = false;
             }
-            
             if (!isVisible) continue;
-            
-            let finalQuestion: Question = { ...masterQ, isActive: isVisible };
-
-            // Apply company overrides
-            if (companyOverride) {
-                finalQuestion = applyQuestionOverrides(finalQuestion, companyOverride, companyConfig.answerGuidanceOverrides?.[id]);
-            }
-
+    
             // Apply project-specific answer-level overrides
             if (projectConfig) {
-                 if (projectConfig.hiddenAnswers?.[id]) {
+                if (projectConfig.hiddenAnswers?.[id]) {
                     const hiddenAnswers = new Set(projectConfig.hiddenAnswers[id]);
                     finalQuestion.options = (finalQuestion.options || []).filter(opt => !hiddenAnswers.has(opt));
                 }
                 const projectAnswerGuidance = projectConfig.answerGuidanceOverrides?.[id];
                 if (projectAnswerGuidance) {
-                     const newAnswerGuidance = { ...(finalQuestion.answerGuidance || {}) };
+                    const newAnswerGuidance = { ...(finalQuestion.answerGuidance || {}) };
                     for (const answer in projectAnswerGuidance) {
                         newAnswerGuidance[answer] = {
                             ...(newAnswerGuidance[answer] || {}),
@@ -441,29 +428,30 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
                     finalQuestion.answerGuidance = newAnswerGuidance;
                 }
             }
-
+    
             finalQuestions.push(finalQuestion);
         }
-        
+    
+        // Process Custom Questions
         const companyCustomQuestions = companyConfig?.customQuestions || {};
-        for(const id in companyCustomQuestions) {
+        for (const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
-            if(customQ.formType === formType && customQ.isActive) {
+            if (customQ.formType === formType && customQ.isActive) {
                 const projectIds = customQ.projectIds || [];
-                // If projectIds is empty, it's for all projects.
+                let isVisible = false;
                 if (projectIds.length === 0) {
-                    finalQuestions.push({ ...customQ, isCustom: true });
-                    continue;
+                    // Visible to all if no specific projects are assigned
+                    isVisible = true;
+                } else if (targetProjectId) {
+                    // Visible if user's project is in the list
+                    isVisible = projectIds.includes(targetProjectId);
+                } else {
+                    // Visible if user has no project and it's marked for unassigned
+                    isVisible = projectIds.includes('__none__');
                 }
-                // If user has a project, check if it's included.
-                if (targetProjectId && projectIds.includes(targetProjectId)) {
+    
+                if (isVisible) {
                     finalQuestions.push({ ...customQ, isCustom: true });
-                    continue;
-                }
-                // If user has NO project, check if it's for unassigned users.
-                if (!targetProjectId && projectIds.includes('__none__')) {
-                    finalQuestions.push({ ...customQ, isCustom: true });
-                    continue;
                 }
             }
         }
@@ -767,4 +755,5 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
