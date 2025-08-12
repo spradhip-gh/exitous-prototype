@@ -46,25 +46,13 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         const config = localCompanyConfig || { customQuestions: {}, companyTasks: [], companyTips: [], resources: [], projectConfigs: {} };
         const allMaster = { ...masterQuestions, ...masterProfileQuestions };
         
-        // 1. All custom content
+        // Only get custom content
         const customQuestions = Object.values(config.customQuestions || {}).map(q => ({ ...q, typeLabel: 'Question' as const, name: q.label, isMaster: false }));
         const tasks = (config.companyTasks || []).map(t => ({ ...t, typeLabel: 'Task' as const, isMaster: false }));
         const tips = (config.companyTips || []).map(t => ({ ...t, typeLabel: 'Tip' as const, name: t.text, isMaster: false }));
         const resources = (config.resources || []).map(r => ({ ...r, typeLabel: 'Resource' as const, name: r.title, isMaster: false }));
         
-        // 2. Master questions with project-specific visibility
-        const customizedMasterQuestions: (Question & {typeLabel: 'Question', isMaster: boolean})[] = [];
-        if (config.projectConfigs) {
-            Object.values(config.projectConfigs).forEach(pConfig => {
-                (pConfig.hiddenQuestions || []).forEach(qId => {
-                    if (allMaster[qId] && !customizedMasterQuestions.some(q => q.id === qId)) {
-                         customizedMasterQuestions.push({ ...allMaster[qId], typeLabel: 'Question', isMaster: true });
-                    }
-                });
-            });
-        }
-        
-        const allContent = [...customQuestions, ...tasks, ...tips, ...resources, ...customizedMasterQuestions];
+        const allContent = [...customQuestions, ...tasks, ...tips, ...resources];
 
         if (auth?.role === 'admin' || !hrManager || !hrManager.projectAccess || hrManager.projectAccess.includes('all')) {
             return allContent;
@@ -85,15 +73,15 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
     const handleProjectAssignmentChange = (itemId: string, itemType: 'Question' | 'Task' | 'Tip' | 'Resource', isMaster: boolean, projectId: string, isChecked: boolean) => {
         const newConfig = JSON.parse(JSON.stringify(localCompanyConfig));
         
-        if(isMaster) { // Handle visibility for master questions
+        if(isMaster) { // This block is now unused for master questions but kept for safety
             if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
             if (!newConfig.projectConfigs[projectId]) newConfig.projectConfigs[projectId] = {};
             if (!newConfig.projectConfigs[projectId].hiddenQuestions) newConfig.projectConfigs[projectId].hiddenQuestions = [];
             
             const hiddenSet = new Set(newConfig.projectConfigs[projectId].hiddenQuestions);
-            if(isChecked) { // if checked, it means it's VISIBLE, so REMOVE from hidden list
+            if(isChecked) { 
                 hiddenSet.delete(itemId);
-            } else { // if unchecked, it means it's HIDDEN, so ADD to hidden list
+            } else { 
                 hiddenSet.add(itemId);
             }
             newConfig.projectConfigs[projectId].hiddenQuestions = Array.from(hiddenSet);
@@ -124,7 +112,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
         <Card>
             <CardHeader>
                 <CardTitle>Project Customization</CardTitle>
-                <CardDescription>Manage which custom content and master questions are visible to each project. Unchecking all boxes makes an item visible to all projects by default.</CardDescription>
+                <CardDescription>Manage which custom content is visible to each project. Unchecking all boxes makes an item visible to all projects by default.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="w-full overflow-x-auto">
@@ -158,21 +146,9 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                 let isVisibleToAll: boolean;
                                 let visibleProjectIds: Set<string>;
 
-                                if (item.isMaster) {
-                                    // For master questions, visibility is determined by absence from hidden lists
-                                    visibleProjectIds = new Set(projects.map(p => p.id).concat('__none__'));
-                                    Object.entries(localCompanyConfig.projectConfigs || {}).forEach(([projId, pConfig]) => {
-                                        if (pConfig.hiddenQuestions?.includes(item.id)) {
-                                            visibleProjectIds.delete(projId);
-                                        }
-                                    });
-                                    isVisibleToAll = visibleProjectIds.size === (projects.length + 1);
-                                } else {
-                                    // For custom content, visibility is determined by presence in projectIds list
-                                    const itemProjectIds = item.projectIds || [];
-                                    isVisibleToAll = itemProjectIds.length === 0;
-                                    visibleProjectIds = new Set(itemProjectIds);
-                                }
+                                const itemProjectIds = item.projectIds || [];
+                                isVisibleToAll = itemProjectIds.length === 0;
+                                visibleProjectIds = new Set(itemProjectIds);
                                 
                                 const unassignedProjectId = '__none__';
 
@@ -186,7 +162,7 @@ export default function ProjectCustomizationTab({ companyConfig, companyName, pr
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </TableCell>
-                                        <TableCell><Badge variant={item.isMaster ? 'default' : 'secondary'}>{item.isMaster ? 'Master Question' : `Custom ${item.typeLabel}`}</Badge></TableCell>
+                                        <TableCell><Badge variant='secondary'>{`Custom ${item.typeLabel}`}</Badge></TableCell>
                                         <TableCell className="text-center">
                                             <Checkbox
                                                 checked={isVisibleToAll || visibleProjectIds.has(unassignedProjectId)}

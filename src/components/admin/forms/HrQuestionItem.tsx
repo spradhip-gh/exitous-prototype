@@ -89,72 +89,9 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
 }) {
     const canHaveSubquestions = ['radio', 'select', 'checkbox'].includes(question.type);
     const isLocked = !!question.isLocked;
-    const { saveCompanyConfig, auth } = useUserData();
-    const { toast } = useToast();
-    const companyName = auth?.companyName || '';
 
     const override = companyConfig?.questions?.[question.id];
     const isModified = !!(override?.label || override?.description || override?.optionOverrides);
-
-    const handleProjectVisibilityChange = (hiddenProjectIds: string[]) => {
-        if (!companyConfig || !auth?.companyName) return;
-        
-        const newConfig = JSON.parse(JSON.stringify(companyConfig));
-        if (!newConfig.projectConfigs) newConfig.projectConfigs = {};
-
-        const allSubQuestionIds: string[] = [];
-        const findSubIds = (q: Question) => {
-            if (q.subQuestions) {
-                q.subQuestions.forEach(sub => {
-                    allSubQuestionIds.push(sub.id);
-                    findSubIds(sub);
-                });
-            }
-        };
-        findSubIds(question);
-        
-        const allQuestionIdsToToggle = [question.id, ...allSubQuestionIds];
-
-        // Reset all project configs for these questions first to handle toggling back to visible
-        Object.keys(newConfig.projectConfigs).forEach(projId => {
-            if (newConfig.projectConfigs[projId].hiddenQuestions) {
-                 newConfig.projectConfigs[projId].hiddenQuestions = newConfig.projectConfigs[projId].hiddenQuestions.filter((id: string) => !allQuestionIdsToToggle.includes(id));
-            }
-        });
-
-        // Now, apply the new hidden projects
-        hiddenProjectIds.forEach(projIdToHide => {
-            if (projIdToHide === 'all') {
-                // If hiding for all, we need to toggle the main isActive flag on the question override
-                if (!newConfig.questions) newConfig.questions = {};
-                if (!newConfig.questions[question.id]) newConfig.questions[question.id] = {};
-                newConfig.questions[question.id].isActive = false;
-            } else {
-                 if (!newConfig.projectConfigs[projIdToHide]) {
-                    newConfig.projectConfigs[projIdToHide] = {};
-                }
-                if (!newConfig.projectConfigs[projIdToHide].hiddenQuestions) {
-                    newConfig.projectConfigs[projIdToHide].hiddenQuestions = [];
-                }
-                const hiddenSet = new Set(newConfig.projectConfigs[projIdToHide].hiddenQuestions);
-                allQuestionIdsToToggle.forEach(id => hiddenSet.add(id));
-                newConfig.projectConfigs[projIdToHide].hiddenQuestions = Array.from(hiddenSet);
-            }
-        });
-
-        // Special case: if we are un-hiding from all projects, ensure the master override is active
-        if (hiddenProjectIds.length === 0) {
-            if (newConfig.questions?.[question.id]) {
-                newConfig.questions[question.id].isActive = true;
-            }
-        }
-        
-        saveCompanyConfig(auth?.companyName, newConfig);
-        toast({ 
-            title: "Project Visibility Updated", 
-            description: `Configuration saved for ${allQuestionIdsToToggle.length} question(s).`
-        });
-    };
 
     const SuggestionTooltipContent = () => {
         if (!pendingSuggestion || !pendingSuggestion.change_details) return null;
@@ -252,15 +189,6 @@ export default function HrQuestionItem({ question, onToggleActive, onEdit, onDel
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                    )}
-                    {!question.isCustom && (
-                         <ProjectAssignmentPopover
-                            question={question}
-                            projects={projects}
-                            companyConfig={companyConfig}
-                            onVisibilityChange={handleProjectVisibilityChange}
-                            disabled={!canWrite}
-                        />
                     )}
                     {question.isCustom && (
                         <div className="flex items-center border rounded-md mr-2">

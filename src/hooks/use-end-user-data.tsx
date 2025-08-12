@@ -399,15 +399,8 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
             const override = companyConfig?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
-
-            if (forEndUser) {
-                const projectConfig = companyConfig?.projectConfigs?.[targetProjectId || '__none__'];
-                if (projectConfig?.hiddenQuestions?.includes(id)) {
-                    isVisible = false;
-                }
-            }
-    
-            if (forEndUser && !isVisible) continue;
+            
+            if (!isVisible) continue;
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
             if (override) {
@@ -433,11 +426,11 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
             if(customQ.formType === formType && customQ.isActive) {
                 let isVisibleForProject = true;
                 const projectIds = customQ.projectIds || [];
-                if (forEndUser && projectIds.length > 0) {
+                if (projectIds.length > 0) {
                      if (targetProjectId) isVisibleForProject = projectIds.includes(targetProjectId);
                      else isVisibleForProject = projectIds.includes('__none__');
                 }
-                if(forEndUser && !isVisibleForProject) continue;
+                if(!isVisibleForProject) continue;
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
         }
