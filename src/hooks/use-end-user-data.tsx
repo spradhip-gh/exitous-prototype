@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './use-auth';
 import type { Question } from '@/lib/questions';
 import { buildAssessmentSchema, buildProfileSchema, ProfileData, AssessmentData } from '@/lib/schemas';
-import { PersonalizedRecommendationsOutput } from '@/ai/flows/personalized-recommendations';
+import { PersonalizedRecommendationsOutput, RecommendationItem, TipItem } from '@/ai/flows/personalized-recommendations';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears } from 'date-fns';
 import { supabase } from '@/lib/supabase-client';
@@ -385,6 +386,100 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         if (saveError) console.error("Error saving assessment:", saveError);
     }, [auth?.userId, auth?.isPreview, saveDataToLocalStorage, ASSESSMENT_KEY]);
     
+    const getMappedRecommendations = useCallback(() => {
+        if (!assessmentData || !profileData || !companyConfig) {
+            return { tasks: [], tips: [] };
+        }
+    
+        const tasks = new Set<string>();
+        const tips = new Set<string>();
+        const allAnswers = { ...profileData, ...assessmentData };
+        const allQuestions = { ...masterProfileQuestions, ...masterQuestions };
+        
+        const projectId = auth?.isPreview ? auth.previewProjectId : companyUser?.project_id;
+    
+        guidanceRules.forEach(rule => {
+            let isTriggered = false;
+            
+            if (rule.type === 'direct' && rule.conditions.length > 0) {
+                isTriggered = rule.conditions.every(cond => {
+                    const answer = allAnswers[cond.questionId as keyof typeof allAnswers];
+                    if (Array.isArray(answer)) {
+                        return answer.includes(cond.answer!);
+                    }
+                    return answer === cond.answer;
+                });
+            } else if (rule.type === 'calculated' && rule.calculation && rule.ranges) {
+                let calculatedValue: number | null = null;
+                const { type, unit, startDateQuestionId, endDateQuestionId } = rule.calculation;
+                if (type === 'age' && profileData.birthYear) {
+                    calculatedValue = differenceInYears(new Date(), new Date(profileData.birthYear, 0, 1));
+                } else if (type === 'tenure' && startDateQuestionId && endDateQuestionId) {
+                    const start = allAnswers[startDateQuestionId];
+                    const end = allAnswers[endDateQuestionId];
+                    if (start instanceof Date && end instanceof Date) {
+                        calculatedValue = differenceInYears(end, start);
+                    }
+                }
+                
+                if (calculatedValue !== null) {
+                    const range = rule.ranges.find(r => calculatedValue! >= r.from && calculatedValue! < r.to);
+                    if (range) {
+                        range.assignments.taskIds.forEach(id => tasks.add(id));
+                        range.assignments.tipIds.forEach(id => tips.add(id));
+                    }
+                }
+                // Stop further processing for calculated rule
+                return;
+            }
+    
+            if (isTriggered) {
+                rule.assignments.taskIds.forEach(id => tasks.add(id));
+                rule.assignments.tipIds.forEach(id => tips.add(id));
+            }
+        });
+        
+        // Handle company-specific overrides
+        const allGuidanceOverrides = { ...companyConfig.answerGuidanceOverrides };
+        const projectGuidanceOverrides = projectId ? companyConfig.projectConfigs?.[projectId]?.answerGuidanceOverrides : null;
+        if(projectGuidanceOverrides) {
+             Object.assign(allGuidanceOverrides, projectGuidanceOverrides);
+        }
+
+        Object.entries(allGuidanceOverrides).forEach(([questionId, answerMap]) => {
+            const answer = allAnswers[questionId as keyof typeof allAnswers];
+            if (answer && answerMap[answer as string]) {
+                const guidance = answerMap[answer as string];
+                guidance.tasks?.forEach(id => tasks.add(id));
+                guidance.tips?.forEach(id => tips.add(id));
+            }
+        });
+        
+        const allMasterAndCompanyTasks = [...masterTasks, ...(companyConfig.companyTasks || [])];
+        const allMasterAndCompanyTips = [...masterTips, ...(companyConfig.companyTips || [])];
+
+        return {
+            tasks: Array.from(tasks).map(id => allMasterAndCompanyTasks.find(t => t.id === id)).filter((t): t is MasterTask => !!t).map(task => ({
+                taskId: task.id,
+                task: task.name,
+                category: task.category,
+                timeline: `Within ${task.deadlineDays || 7} days`,
+                details: task.detail,
+                endDate: '',
+                isGoal: true,
+                isCompanySpecific: task.isCompanySpecific,
+            })),
+            tips: Array.from(tips).map(id => allMasterAndCompanyTips.find(t => t.id === id)).filter((t): t is MasterTip => !!t).map(tip => ({
+                tipId: tip.id,
+                text: tip.text,
+                category: tip.category,
+                priority: tip.priority,
+                isCompanySpecific: tip.isCompanySpecific,
+            })),
+        };
+    
+    }, [assessmentData, profileData, guidanceRules, masterTasks, masterTips, companyConfig, masterProfileQuestions, masterQuestions, auth, companyUser]);
+
     const contextValue = {
         // Provide all necessary state and functions
         // Most admin/HR functions will be dummy functions for end-users
@@ -460,6 +555,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         getProfileCompletion: () => ({ percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
         getAssessmentCompletion: () => ({ percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
         getUnsureAnswers: () => ({ count: 0, firstSection: null }),
+        getMappedRecommendations,
         getTargetTimezone: () => {
             try {
                 const tz = localStorage.getItem(USER_TIMEZONE_KEY) || companyAssignment?.severanceDeadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
