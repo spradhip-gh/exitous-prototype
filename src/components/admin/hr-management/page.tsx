@@ -54,12 +54,10 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
     const { toast } = useToast();
     const { auth } = useAuth();
     const [localAssignments, setLocalAssignments] = useState<CompanyAssignment[]>([]);
-    const [forceRestoreAccess, setForceRestoreAccess] = useState(false);
 
     useEffect(() => {
         if (open) {
             setLocalAssignments(JSON.parse(JSON.stringify(assignments))); // Deep copy
-            setForceRestoreAccess(false);
         }
     }, [open, assignments]);
 
@@ -201,8 +199,6 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
         onOpenChange(false);
     };
 
-    const isSaveDisabled = JSON.stringify(assignments) === JSON.stringify(localAssignments) && !forceRestoreAccess;
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl">
@@ -225,7 +221,6 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                 const projectOptions = assignment.projects?.filter(p => !p.isArchived) || [];
                                 const hasProjectAccess = manager.projectAccess;
                                 const isAllProjects = !hasProjectAccess || hasProjectAccess.length === 0 || hasProjectAccess.includes('all');
-                                const needsPermissionFix = isPrimaryInThisCompany && !isAllProjects;
 
                                 return (
                                     <Card key={assignment.companyName} className={cn("transition-all", isPrimaryInThisCompany && "border-primary")}>
@@ -288,7 +283,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                     </AlertDialog>
                                                 </div>
                                             </div>
-                                            {!isPrimaryInThisCompany ? (
+                                            {!isPrimaryInThisCompany && (
                                                 <>
                                                     <fieldset disabled={!canEditThisCompany} className="grid grid-cols-2 gap-4">
                                                         <div>
@@ -351,13 +346,6 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                                                          {manager.isPrimary && <p className="text-xs text-muted-foreground mt-1">Primary Managers always have access to all projects.</p>}
                                                     </fieldset>
                                                 </>
-                                            ) : (
-                                                needsPermissionFix && (
-                                                     <div className="flex items-center space-x-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-                                                        <Checkbox id="force-restore-access" onCheckedChange={setForceRestoreAccess} />
-                                                        <Label htmlFor="force-restore-access" className="text-sm text-destructive font-medium">Permissions mismatch detected. Check to restore 'All Projects' access.</Label>
-                                                    </div>
-                                                )
                                             )}
                                         </CardContent>
                                     </Card>
@@ -388,7 +376,7 @@ function ManageAccessDialog({ managerEmail, assignments, open, onOpenChange, onS
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={isSaveDisabled}>Save All Changes</Button>
+                    <Button onClick={handleSave}>Save All Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
