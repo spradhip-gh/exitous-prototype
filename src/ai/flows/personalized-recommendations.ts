@@ -123,7 +123,7 @@ export type PersonalizedRecommendationsOutput = z.infer<
 
 const prompt = ai.definePrompt({
     name: 'personalizedRecommendationsPrompt',
-    input: { schema: PersonalizedRecommendationsInputSchema },
+    input: { schema: z.any() },
     output: { schema: PersonalizedRecommendationsOutputSchema },
     prompt: `You are a compassionate and expert panel of advisors consisting of a seasoned HR Executive, a career coach, a lawyer, and an expert in COBRA and other healthcare. Your primary goal is to provide a structured, empathetic, and actionable list of recommendations and helpful tips for an individual navigating a job exit.
 
@@ -260,16 +260,10 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const { output } = await ai.generate({
-            model: 'googleai/gemini-2.0-flash',
-            prompt: {
-                ...input,
-                externalResources,
-                masterTips,
-            },
-            output: {
-                schema: PersonalizedRecommendationsOutputSchema
-            }
+        const { output } = await prompt({
+            ...input,
+            externalResources,
+            masterTips,
         });
 
         return output!;
@@ -291,3 +285,5 @@ const personalizedRecommendationsFlow = ai.defineFlow(
     throw new Error('Failed to generate recommendations after multiple retries.');
   }
 );
+
+    
