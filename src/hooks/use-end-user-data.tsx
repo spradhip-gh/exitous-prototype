@@ -559,7 +559,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
              else if (q.id === 'phone') value = companyUser?.phone;
              else value = profileData?.[q.id as keyof ProfileData];
              
-             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length > 0);
         });
 
         const percentage = (answeredQuestions.length / applicableQuestions.length) * 100;
@@ -586,7 +586,7 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
         const incompleteQuestions = applicableQuestions.filter(q => {
             const value = assessmentData[q.id as keyof AssessmentData];
-             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0) || value === 'Unsure';
+             return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length > 0) || value === 'Unsure';
         });
         
         const sectionMap: Record<string, { total: number, completed: number }> = {};
