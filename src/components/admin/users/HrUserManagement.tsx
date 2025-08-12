@@ -88,14 +88,16 @@ export default function HrUserManagement() {
     }, [auth?.email, companyAssignmentForHr]);
     
     const hasScopedProjectAccess = useMemo(() => {
-        return hrProjectAccess && !hrProjectAccess.includes('all');
+        if (!hrProjectAccess) return false;
+        if (hrProjectAccess.includes('all') || hrProjectAccess.length === 0) return false;
+        return true;
     }, [hrProjectAccess]);
 
 
     const visibleUsers = useMemo(() => {
         if (!users) return [];
         if (!hasScopedProjectAccess || !hrProjectAccess) {
-            return users; // No scoping, show all
+            return users; // No scoping (is primary or has "all"), show all users
         }
 
         const canSeeUnassigned = hrProjectAccess.includes('__none__');
