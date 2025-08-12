@@ -449,17 +449,22 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         for(const id in companyCustomQuestions) {
             const customQ = companyCustomQuestions[id];
             if(customQ.formType === formType && customQ.isActive) {
-                let isVisibleForProject = true;
                 const projectIds = customQ.projectIds || [];
-                if (projectIds.length > 0) {
-                     if (targetProjectId) {
-                        isVisibleForProject = projectIds.includes(targetProjectId);
-                     } else {
-                        isVisibleForProject = projectIds.includes('__none__');
-                     }
+                // If projectIds is empty, it's for all projects.
+                if (projectIds.length === 0) {
+                    finalQuestions.push({ ...customQ, isCustom: true });
+                    continue;
                 }
-                if(!isVisibleForProject) continue;
-                finalQuestions.push({ ...customQ, isCustom: true });
+                // If user has a project, check if it's included.
+                if (targetProjectId && projectIds.includes(targetProjectId)) {
+                    finalQuestions.push({ ...customQ, isCustom: true });
+                    continue;
+                }
+                // If user has NO project, check if it's for unassigned users.
+                if (!targetProjectId && projectIds.includes('__none__')) {
+                    finalQuestions.push({ ...customQ, isCustom: true });
+                    continue;
+                }
             }
         }
     
@@ -762,3 +767,4 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
 
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
