@@ -272,7 +272,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig, clearRecommendations } = useUserData();
+    const { saveAssessmentData, companyAssignments, getTargetTimezone, getMasterQuestionConfig, clearRecommendations, getCompanyUser } = useUserData();
     const { auth } = useAuth();
     const { toast } = useToast();
     const { setIsDirty } = useFormState();
@@ -301,6 +301,7 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
     }, [auth?.companyName, companyAssignments]);
     
     const userTimezone = getTargetTimezone();
+    const companyUser = auth?.email ? getCompanyUser(auth.email)?.user : null;
 
     const companyDeadlineTooltip = useMemo(() => {
         if (!companyDetails) return undefined;
@@ -530,16 +531,23 @@ function AssessmentFormRenderer({ questions, dynamicSchema, initialData, profile
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                                 <CardContent>
+                                    <div className="text-xs">
+                                        <p><strong>User's Project ID:</strong> {companyUser?.project_id || 'None'}</p>
+                                    </div>
                                      <Collapsible className="mt-2">
                                         <CollapsibleTrigger asChild>
                                             <Button variant="link" className="p-0 h-auto">
-                                                Show Custom Questions from Config <ChevronDown className="ml-1 h-4 w-4"/>
+                                                Show Custom Questions from Config ({Object.keys(companyConfig?.customQuestions || {}).length}) <ChevronDown className="ml-1 h-4 w-4"/>
                                             </Button>
                                         </CollapsibleTrigger>
                                         <CollapsibleContent>
-                                            <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
-                                                {JSON.stringify(companyConfig?.customQuestions, null, 2)}
-                                            </pre>
+                                            <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                                {Object.values(companyConfig?.customQuestions || {}).map(q => (
+                                                    <li key={q.id}>
+                                                        {q.label} ({q.id}) - Projects: {q.projectIds?.join(', ') || 'All'}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </CollapsibleContent>
                                     </Collapsible>
                                      <Collapsible className="mt-2">
@@ -606,3 +614,4 @@ export default function AssessmentFormWrapper() {
 
     return <AssessmentFormRenderer key={JSON.stringify(initialData)} questions={questions} dynamicSchema={dynamicSchema} initialData={initialData} profileData={profileData} companyConfig={companyConfig} />;
 }
+
