@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -35,6 +36,54 @@ const fullPermissions: HrPermissions = {
     resources: 'write',
     companySettings: 'write',
 };
+
+const getApplicableQuestions = (allQuestions: Question[], allAnswers: any, profileDataForDeps: ProfileData | null): Question[] => {
+    const applicable: Question[] = [];
+
+    const traverse = (questions: Question[], parentIsActive: boolean = true) => {
+        for (const q of questions) {
+            if (!q.isActive || !parentIsActive) continue;
+
+            let isDependencyMet = true;
+            if (q.dependsOn && q.dependencySource === 'profile' && profileDataForDeps) {
+                const dependencyValue = profileDataForDeps[q.dependsOn as keyof typeof profileDataForDeps];
+                let isTriggered = false;
+                if (Array.isArray(q.dependsOnValue)) {
+                    isTriggered = q.dependsOnValue.includes(dependencyValue as string);
+                } else {
+                    isTriggered = dependencyValue === q.dependsOnValue;
+                }
+                if (!isTriggered) continue;
+            }
+            
+            applicable.push(q);
+
+            if (q.subQuestions) {
+                const parentValue = allAnswers[q.id];
+                q.subQuestions.forEach(subQ => {
+                    let isSubTriggered = false;
+                    if (q.type === 'checkbox') {
+                        if (subQ.triggerValue === 'NOT_NONE') {
+                            isSubTriggered = Array.isArray(parentValue) && parentValue.length > 0 && !parentValue.includes('None of the above');
+                        } else {
+                            isSubTriggered = Array.isArray(parentValue) && parentValue.includes(subQ.triggerValue);
+                        }
+                    } else {
+                        isSubTriggered = parentValue === subQ.triggerValue;
+                    }
+
+                    if(isSubTriggered && subQ.isActive) {
+                        traverse([subQ], true);
+                    }
+                });
+            }
+        }
+    };
+    
+    traverse(allQuestions);
+    return applicable;
+};
+
 
 export function HrProvider({ children, email }: { children: React.ReactNode, email: string }) {
     const { auth, setPermissions: setAuthPermissions } = useAuth();
@@ -101,14 +150,17 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             // Fetch configs for all assigned companies
             const { data: allConfigsData, error: allConfigsError } = await supabase.from('company_question_configs').select('*').in('company_id', companyIds);
             const { data: allUsersData, error: allUsersError } = await supabase.from('company_users').select('*').in('company_id', companyIds);
+             const { data: allResourcesData, error: allResourcesError } = await supabase.from('company_resources').select('*').in('company_id', companyIds);
 
             const configs: Record<string, CompanyConfig> = {};
             assignments.forEach(a => {
                 const configDb = allConfigsData?.find(c => c.company_id === a.companyId);
                 const users = allUsersData?.filter(u => u.company_id === a.companyId);
+                const resources = allResourcesData?.filter(r => r.company_id === a.companyId);
                 configs[a.companyName] = {
                     ...(configDb || {}),
                     users: users || [],
+                    resources: (resources || []).map(r => ({ ...r, fileName: r.file_name })),
                 };
             });
             setCompanyConfigs(configs);
@@ -138,7 +190,87 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         fetchHrData();
     }, [email, auth?.companyId]);
     
-    // ... all other Admin/HR specific actions (saveMasterQuestions, saveGuidanceRules, etc.) would be defined here.
+    const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser: boolean, formType: 'profile' | 'assessment' = 'assessment'): Question[] => {
+        if (!companyName) return [];
+        const config = companyConfigs[companyName];
+        if (!config) return [];
+        const masterSource = formType === 'profile' ? masterProfileQuestions : masterQuestions;
+        let finalQuestions: Question[] = [];
+        
+        const targetProjectId = auth?.isPreview ? auth.previewProjectId : undefined; // For HR, we don't scope by user project
+
+        for (const id in masterSource) {
+            const masterQ = { ...masterSource[id] };
+            if (masterQ.formType !== formType) continue; 
+
+            const override = config?.questions?.[id];
+            let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+
+            if (forEndUser) {
+                const projectConfig = targetProjectId ? config?.projectConfigs?.[targetProjectId] : null;
+                if (projectConfig?.hiddenQuestions?.includes(id)) {
+                    isVisible = false;
+                }
+            }
+    
+            if (forEndUser && !isVisible) continue;
+            
+            let finalQuestion: Question = { ...masterQ, isActive: isVisible };
+            if (override) {
+                finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
+                if (override.label) finalQuestion.label = override.label;
+                if (override.description) finalQuestion.description = override.description;
+                if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
+                if (override.optionOverrides) {
+                    const baseOptions = masterQ.options || [];
+                    const toRemove = new Set(override.optionOverrides.remove || []);
+                    const toAdd = override.optionOverrides.add || [];
+                    let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
+                    newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
+                    finalQuestion.options = newOptions;
+                }
+            }
+            finalQuestions.push(finalQuestion);
+        }
+        
+        const companyCustomQuestions = config?.customQuestions || {};
+        for(const id in companyCustomQuestions) {
+            const customQ = companyCustomQuestions[id];
+            if(customQ.formType === formType) {
+                let isVisibleForProject = true;
+                const projectIds = customQ.projectIds || [];
+                if (forEndUser && projectIds.length > 0 && targetProjectId) {
+                     isVisibleForProject = projectIds.includes(targetProjectId);
+                }
+                if(forEndUser && !isVisibleForProject) continue;
+                finalQuestions.push({ ...customQ, isCustom: true });
+            }
+        }
+    
+        return buildQuestionTreeFromMap(finalQuestions.reduce((acc, q) => { acc[q.id] = q; return acc; }, {} as Record<string, Question>));
+    }, [companyConfigs, masterQuestions, masterProfileQuestions, auth]);
+    
+    const getUnsureAnswers = useCallback(() => {
+        const companyConfig = auth?.companyName ? companyConfigs[auth.companyName] : null;
+        if (!companyConfig || !companyConfig.users) return { count: 0, firstSection: null };
+
+        let totalUnsure = 0;
+        let firstUnsureSection: string | null = null;
+        const allQuestions = { ...masterQuestions, ...masterProfileQuestions };
+
+        companyConfig.users.forEach(user => {
+            if (user.initial_unsure_answers) {
+                totalUnsure += user.initial_unsure_answers.length;
+                if (!firstUnsureSection && user.initial_unsure_answers.length > 0) {
+                    const questionId = user.initial_unsure_answers[0];
+                    firstUnsureSection = allQuestions[questionId]?.section || null;
+                }
+            }
+        });
+
+        return { count: totalUnsure, firstSection: firstUnsureSection };
+    }, [companyConfigs, auth?.companyName, masterQuestions, masterProfileQuestions]);
+
 
     const contextValue = {
         isLoading,
@@ -150,14 +282,15 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         masterQuestionConfigs,
         reviewQueue,
         // Getters and other utils
-        getCompanyConfig: () => [],
+        getCompanyConfig,
+        getUnsureAnswers,
         // Dummy/empty values for data not needed by HR
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false, guidanceRules: [],
         masterTasks: [], masterTips: [], platformUsers: [], externalResources: [],
         profileCompletions: {}, assessmentCompletions: {},
         // Dummy actions for non-HR roles
-        addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {}, /* etc. */
+        addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {},
     };
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
