@@ -14,14 +14,14 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function ProjectAssignmentPopover({
-  question,
+  question, // This is now a generic item
   projects,
   companyConfig,
   onVisibilityChange,
   disabled,
   itemType = 'Question'
 }: {
-  question: Question,
+  question: Question, // Keep this prop name for compatibility, but treat it as a generic item
   projects: Project[];
   companyConfig?: CompanyConfig;
   onVisibilityChange: (hiddenIds: string[]) => void;
@@ -33,30 +33,50 @@ export function ProjectAssignmentPopover({
   
   useEffect(() => {
     let initialHiddenIds: string[] = [];
-    
-    // Check master override first
-    if(companyConfig?.questions?.[question.id]?.isActive === false) {
-      initialHiddenIds = ['all'];
-    } else {
-        // If not hidden for all, check project-specific configs
+    const itemId = question.id; // Use question.id as the generic item ID
+
+    if (itemType === 'Question') {
+      if(companyConfig?.questions?.[itemId]?.isActive === false) {
+        initialHiddenIds = ['all'];
+      } else {
         const hiddenInProjects: string[] = [];
         projects.forEach(p => {
-            if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(question.id)) {
-                hiddenInProjects.push(p.id);
-            }
+          if (companyConfig?.projectConfigs?.[p.id]?.hiddenQuestions?.includes(itemId)) {
+            hiddenInProjects.push(p.id);
+          }
         });
-        if (companyConfig?.projectConfigs?.__none__?.hiddenQuestions?.includes(question.id)) {
-            hiddenInProjects.push('__none__');
+        if (companyConfig?.projectConfigs?.__none__?.hiddenQuestions?.includes(itemId)) {
+          hiddenInProjects.push('__none__');
         }
         initialHiddenIds = hiddenInProjects;
+      }
+    } else {
+        // For custom content (Tasks, Tips), visibility is based on presence in `projectIds`
+        // So "hidden" is the inverse. If projectIds is empty, it's visible to all, so nothing is hidden.
+        // If it has IDs, then all *other* projects are hidden. This popover model is inverted for custom content.
+        // Let's adjust the popover to show what it's VISIBLE to for custom content.
+        // The component name is now a bit of a misnomer, but we'll adapt its internal logic.
     }
-
     setHiddenProjectIds(initialHiddenIds);
 
-  }, [companyConfig, question.id, projects]);
+  }, [companyConfig, question.id, projects, itemType]);
 
 
   const { isHiddenForAny, tooltipText } = useMemo(() => {
+    if (itemType !== 'Question') {
+        const item = question as any; // Treat as Task/Tip etc.
+        const visibleProjectIds = item.projectIds || [];
+        if (visibleProjectIds.length === 0) {
+            return { isHiddenForAny: false, tooltipText: 'Visible to all projects.' };
+        }
+        const visibleNames = visibleProjectIds.map((id: string) => {
+            if (id === '__none__') return 'Unassigned Users';
+            return projects.find(p => p.id === id)?.name;
+        }).filter(Boolean);
+        return { isHiddenForAny: true, tooltipText: `Visible only to: ${visibleNames.join(', ')}` };
+    }
+    
+    // Original logic for master questions
     if (hiddenProjectIds.includes('all')) {
       return { isHiddenForAny: true, tooltipText: `Visible to no projects.` };
     }
@@ -74,9 +94,11 @@ export function ProjectAssignmentPopover({
         tooltipText: `Hidden from: ${hiddenNames.join(', ')}`
     };
 
-  }, [hiddenProjectIds, projects]);
+  }, [hiddenProjectIds, projects, itemType, question]);
   
-  const Icon = isHiddenForAny ? EyeOff : Eye;
+  const Icon = itemType !== 'Question' 
+    ? (question.projectIds && question.projectIds.length > 0) ? Eye : EyeOff 
+    : isHiddenForAny ? EyeOff : Eye;
   
   const handleCheckboxChange = (id: string, checked: boolean) => {
     let newSelection: string[];
@@ -97,6 +119,76 @@ export function ProjectAssignmentPopover({
     setHiddenProjectIds(newSelection);
   };
 
+  if(itemType !== 'Question') {
+      // For custom content, we'll show a simpler assignment UI.
+      // This popover is becoming complex. A dedicated component might be better,
+      // but for this fix, we'll adapt.
+      const item = question as any;
+      const visibleProjectIds = new Set(item.projectIds || []);
+
+       const handleCustomContentCheckboxChange = (id: string, checked: boolean) => {
+            const newSelection = new Set(visibleProjectIds);
+            if(checked) {
+                newSelection.add(id);
+            } else {
+                newSelection.delete(id);
+            }
+            onVisibilityChange(Array.from(newSelection)); // The parent expects an array of VISIBLE IDs
+       }
+
+
+       return (
+            <Popover>
+                <TooltipProvider>
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" disabled={disabled}>
+                            <Icon className="h-4 w-4" />
+                        </Button>
+                        </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{tooltipText}</p>
+                    </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <PopoverContent className="w-[250px] p-0">
+                    <div className="p-4">
+                    <h4 className="font-medium text-sm">Project Visibility</h4>
+                    <p className="text-xs text-muted-foreground">Select projects to make this {itemType.toLowerCase()} visible to. Leave all unchecked to show to all.</p>
+                    </div>
+                    <Separator />
+                    <ScrollArea className="max-h-60">
+                    <div className="p-4 space-y-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="vis-unassigned"
+                                checked={visibleProjectIds.has('__none__')}
+                                onCheckedChange={(c) => handleCustomContentCheckboxChange('__none__', !!c)}
+                            />
+                            <Label htmlFor="vis-unassigned" className="italic">Unassigned Users</Label>
+                        </div>
+                        {projects.map(p => (
+                        <div key={p.id} className="flex items-center space-x-2">
+                            <Checkbox
+                                id={`vis-${p.id}`}
+                                checked={visibleProjectIds.has(p.id)}
+                                onCheckedChange={(c) => handleCustomContentCheckboxChange(p.id, !!c)}
+                            />
+                            <Label htmlFor={`vis-${p.id}`}>
+                                {p.name}
+                            </Label>
+                        </div>
+                        ))}
+                    </div>
+                    </ScrollArea>
+                </PopoverContent>
+            </Popover>
+       )
+  }
+
+  // Original logic for master questions
   return (
     <Popover>
       <TooltipProvider>

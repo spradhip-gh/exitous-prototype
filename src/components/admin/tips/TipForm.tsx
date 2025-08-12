@@ -227,9 +227,9 @@ export default function TipForm({ isOpen, onOpenChange, onSave, tip, masterTips 
                         <div className="space-y-2 md:col-span-2">
                              <Label>Project Visibility</Label>
                               <ProjectAssignmentPopover
-                                questionId={formData.id || ''}
+                                question={formData as any}
                                 projects={activeProjects}
-                                companyConfig={{ customQuestions: { [formData.id!]: { ...formData, projectIds: formData.projectIds || [] } as MasterTip } } as any }
+                                companyConfig={{ companyTips: [formData as MasterTip] } as any}
                                 onVisibilityChange={handleProjectVisibilityChange}
                                 disabled={!isHr}
                                 itemType="Tip"

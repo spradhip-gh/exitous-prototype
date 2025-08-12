@@ -30,7 +30,7 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
     onOpenChange: (open: boolean) => void;
     onSave: (task: MasterTask) => void;
     task: Partial<MasterTask> | null;
-    allResources: ExternalResource[];
+    allResources?: ExternalResource[];
     masterTasks?: MasterTask[];
 }) {
     const { toast } = useToast();
@@ -264,9 +264,9 @@ export default function TaskForm({ isOpen, onOpenChange, onSave, task, allResour
                         <div className="space-y-2">
                             <Label>Project Visibility</Label>
                              <ProjectAssignmentPopover
-                                questionId={formData.id || ''}
+                                question={formData as any}
                                 projects={activeProjects}
-                                companyConfig={ { customQuestions: { [formData.id!]: { ...formData, projectIds: formData.projectIds || [] } as MasterTask } } as any }
+                                companyConfig={ { companyTasks: [formData as MasterTask] } as any }
                                 onVisibilityChange={handleProjectVisibilityChange}
                                 disabled={!isHr}
                                 itemType="Task"
