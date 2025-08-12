@@ -3,12 +3,10 @@
 import Header from '@/components/common/Header';
 import DashboardNav from '@/components/dashboard/DashboardNav';
 import Footer from '@/components/common/Footer';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { TriangleAlert } from 'lucide-react';
 import { FormStateProvider } from '@/hooks/use-form-state';
 import { useUserData } from '@/hooks/use-user-data';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { isLoading: dataLoading } = useUserData();
@@ -41,12 +39,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <DashboardNav />
           </aside>
           <main className="flex-1">
-            <div className="border-b border-orange-200 bg-orange-50 p-4">
-              <Alert variant="default" className="border-orange-300 bg-transparent">
-                <TriangleAlert className="h-4 w-4 !text-orange-600" />
-                <AlertTitle className="text-orange-800">Exitous Prototype</AlertTitle>
-              </Alert>
-            </div>
             {children}
           </main>
         </div>
@@ -65,10 +57,8 @@ export default function DashboardLayout({
   
   if (authLoading || !auth) {
      return (
-      <div className="flex min-h-screen w-full flex-col">
-        <div className="flex flex-1 items-center justify-center">
-            <Skeleton className="h-64 w-full max-w-lg" />
-        </div>
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
+        <Skeleton className="h-32 w-full max-w-lg" />
       </div>
     );
   }
