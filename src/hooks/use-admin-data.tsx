@@ -247,7 +247,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         clearData: () => {},
         taskMappings: [],
         tipMappings: [],
-        getAllCompanyConfigs: () => ({}),
+        getAllCompanyConfigs: () => companyConfigs,
         setCompanyConfigs: () => {},
         setReviewQueue: () => {},
         deleteCompanyAssignment: async () => {},

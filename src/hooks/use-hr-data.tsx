@@ -202,7 +202,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (!masterQ.isActive || masterQ.formType !== formType) continue;
+            if (!masterQ.isActive || masterQ.formType !== formType) continue; 
 
             const override = config?.questions?.[id];
             const companyGuidance = config?.answerGuidanceOverrides?.[id];
@@ -356,10 +356,12 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         masterTasks: [], masterTips: [], platformUsers: [], externalResources: [],
         // Dummy actions for non-HR roles
         addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {},
+        getAllCompanyConfigs: () => companyConfigs,
     };
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 
 
