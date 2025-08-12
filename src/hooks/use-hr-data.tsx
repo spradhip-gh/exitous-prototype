@@ -38,6 +38,8 @@ const fullPermissions: HrPermissions = {
     companySettings: 'write',
 };
 
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
 export function HrProvider({ children, email }: { children: React.ReactNode, email: string }) {
     const { auth, setPermissions: setAuthPermissions } = useAuth();
     const { toast } = useToast();
@@ -51,9 +53,50 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     const [masterQuestionConfigs, setMasterQuestionConfigs] = useState<MasterQuestionConfig[]>([]);
     const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
 
+    const cacheKeyPrefix = `hr-data-${email}`;
+    const hrDataKeys = [
+        `${cacheKeyPrefix}-companyAssignments`, `${cacheKeyPrefix}-companyConfigs`, `${cacheKeyPrefix}-masterQuestions`,
+        `${cacheKeyPrefix}-masterProfileQuestions`, `${cacheKeyPrefix}-masterQuestionConfigs`, `${cacheKeyPrefix}-reviewQueue`,
+        `${cacheKeyPrefix}-lastFetch`
+    ];
+
+    const clearHrCache = useCallback(() => {
+        hrDataKeys.forEach(key => localStorage.removeItem(key));
+    }, [hrDataKeys]);
+
     useEffect(() => {
         const fetchHrData = async () => {
             setIsLoading(true);
+
+             // Check for cached data first
+            const lastFetchStr = localStorage.getItem(`${cacheKeyPrefix}-lastFetch`);
+            const lastFetch = lastFetchStr ? parseInt(lastFetchStr, 10) : 0;
+            if (Date.now() - lastFetch < CACHE_DURATION_MS) {
+                try {
+                    const cachedAssignments = localStorage.getItem(`${cacheKeyPrefix}-companyAssignments`);
+                    const cachedConfigs = localStorage.getItem(`${cacheKeyPrefix}-companyConfigs`);
+                    const cachedMasterQuestions = localStorage.getItem(`${cacheKeyPrefix}-masterQuestions`);
+                    const cachedMasterProfileQuestions = localStorage.getItem(`${cacheKeyPrefix}-masterProfileQuestions`);
+                    const cachedMasterQuestionConfigs = localStorage.getItem(`${cacheKeyPrefix}-masterQuestionConfigs`);
+                    const cachedReviewQueue = localStorage.getItem(`${cacheKeyPrefix}-reviewQueue`);
+                    
+                    if (cachedAssignments && cachedConfigs && cachedMasterQuestions && cachedMasterProfileQuestions && cachedMasterQuestionConfigs && cachedReviewQueue) {
+                        const parsedAssignments = JSON.parse(cachedAssignments);
+                        setCompanyAssignments(parsedAssignments);
+                        setCompanyConfigs(JSON.parse(cachedConfigs));
+                        setMasterQuestions(JSON.parse(cachedMasterQuestions));
+                        setMasterProfileQuestions(JSON.parse(cachedMasterProfileQuestions));
+                        setMasterQuestionConfigs(JSON.parse(cachedMasterQuestionConfigs));
+                        setReviewQueue(JSON.parse(cachedReviewQueue));
+                        setCompanyAssignmentForHr(parsedAssignments.find((a: CompanyAssignment) => a.companyId === auth?.companyId));
+                        setIsLoading(false);
+                        return; // Exit if cache is successfully loaded
+                    }
+                } catch(e) {
+                    console.error("Failed to load HR data from cache, re-fetching.", e);
+                    clearHrCache();
+                }
+            }
             
             const { data: hrAssignmentsData, error: assignmentsError } = await supabase
                 .from('company_hr_assignments')
@@ -147,12 +190,22 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             setMasterQuestionConfigs(masterConfigsData as MasterQuestionConfig[] || []);
             setReviewQueue(reviewQueueData as ReviewQueueItem[] || []);
 
+            // Save to cache
+            localStorage.setItem(`${cacheKeyPrefix}-lastFetch`, Date.now().toString());
+            localStorage.setItem(`${cacheKeyPrefix}-companyAssignments`, JSON.stringify(assignments));
+            localStorage.setItem(`${cacheKeyPrefix}-companyConfigs`, JSON.stringify(configs));
+            localStorage.setItem(`${cacheKeyPrefix}-masterQuestions`, JSON.stringify(assessmentQuestionsMap));
+            localStorage.setItem(`${cacheKeyPrefix}-masterProfileQuestions`, JSON.stringify(profileQuestionsMap));
+            localStorage.setItem(`${cacheKeyPrefix}-masterQuestionConfigs`, JSON.stringify(masterConfigsData || []));
+            localStorage.setItem(`${cacheKeyPrefix}-reviewQueue`, JSON.stringify(reviewQueueData || []));
+
             setIsLoading(false);
         };
         fetchHrData();
-    }, [email, auth?.companyId]);
+    }, [email, auth?.companyId, cacheKeyPrefix, clearHrCache]);
     
     const saveCompanyConfig = useCallback(async (companyName: string, config: CompanyConfig) => {
+        clearHrCache();
         if (!companyName) {
             toast({ title: 'Error', description: 'Company name is missing.', variant: 'destructive' });
             return;
@@ -190,7 +243,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         } else {
             setCompanyConfigs(prev => ({ ...prev, [companyName]: { ...prev[companyName], ...config }}));
         }
-    }, [companyAssignments, toast]);
+    }, [companyAssignments, toast, clearHrCache]);
     
     const getCompanyConfig = useCallback((companyName: string | undefined, forEndUser: boolean, formType: 'profile' | 'assessment' = 'assessment'): Question[] => {
         if (!companyName || !companyConfigs[companyName]) return [];
@@ -259,6 +312,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     }, [companyConfigs, auth?.companyName, masterQuestions, masterProfileQuestions]);
     
      const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
+        clearHrCache();
         const allPromises: Promise<any>[] = [];
 
         for (const updatedAssignment of assignmentsToSave) {
@@ -311,7 +365,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                 })
             );
         }
-    }, [companyAssignments, toast]);
+    }, [companyAssignments, toast, clearHrCache]);
 
     const profileCompletions = useMemo(() => {
         const completions: Record<string, boolean> = {};
@@ -361,6 +415,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 
 
 
