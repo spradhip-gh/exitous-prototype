@@ -280,56 +280,59 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     }, [companyConfigs, auth?.companyName, masterQuestions, masterProfileQuestions]);
     
      const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
-        if (!assignmentsToSave || assignmentsToSave.length === 0) return;
+        const allPromises: Promise<any>[] = [];
 
-        const companyIdsToUpdate = assignmentsToSave.map(a => a.companyId);
+        for (const updatedAssignment of assignmentsToSave) {
+            const originalAssignment = companyAssignments.find(a => a.companyId === updatedAssignment.companyId);
+            if (!originalAssignment) continue;
 
-        // Delete all existing assignments for the affected companies
-        const { error: deleteError } = await supabase
-            .from('company_hr_assignments')
-            .delete()
-            .in('company_id', companyIdsToUpdate);
+            const originalEmails = new Set(originalAssignment.hrManagers.map(hr => hr.email));
+            const updatedEmails = new Set(updatedAssignment.hrManagers.map(hr => hr.email));
 
-        if (deleteError) {
-            toast({ title: 'Save Failed', description: `Error clearing old assignments: ${deleteError.message}`, variant: 'destructive' });
-            return;
-        }
-
-        // Prepare all new assignments for insertion
-        const newDbAssignments = assignmentsToSave.flatMap(a =>
-            a.hrManagers.map(hr => ({
-                company_id: a.companyId,
+            const emailsToDelete = [...originalEmails].filter(email => !updatedEmails.has(email));
+            
+            const managersToUpsert = updatedAssignment.hrManagers.map(hr => ({
+                company_id: updatedAssignment.companyId,
                 hr_email: hr.email,
                 is_primary: hr.isPrimary,
                 permissions: hr.permissions,
                 project_access: hr.projectAccess,
-            }))
-        );
+            }));
 
-        if (newDbAssignments.length === 0) {
-            setCompanyAssignments(prev => prev.filter(a => !companyIdsToUpdate.includes(a.companyId)));
-            return;
+            if (emailsToDelete.length > 0) {
+                allPromises.push(
+                    supabase
+                        .from('company_hr_assignments')
+                        .delete()
+                        .eq('company_id', updatedAssignment.companyId)
+                        .in('hr_email', emailsToDelete)
+                );
+            }
+
+            if (managersToUpsert.length > 0) {
+                allPromises.push(
+                    supabase
+                        .from('company_hr_assignments')
+                        .upsert(managersToUpsert, { onConflict: 'company_id,hr_email' })
+                );
+            }
         }
 
-        // Insert all new assignments
-        const { error: insertError } = await supabase
-            .from('company_hr_assignments')
-            .insert(newDbAssignments);
+        const results = await Promise.all(allPromises);
+        const errors = results.filter(res => res && res.error);
 
-        if (insertError) {
-            toast({ title: 'Save Failed', description: `Error inserting new assignments: ${insertError.message}`, variant: 'destructive' });
-            return;
+        if (errors.length > 0) {
+            console.error("Errors saving assignments:", errors);
+            toast({ title: 'Save Failed', description: `Some assignments could not be saved: ${errors[0].error.message}`, variant: 'destructive' });
+        } else {
+            setCompanyAssignments(prev =>
+                prev.map(existingAssignment => {
+                    const updated = assignmentsToSave.find(a => a.companyId === existingAssignment.companyId);
+                    return updated || existingAssignment;
+                })
+            );
         }
-
-        // Update local state
-        setCompanyAssignments(prev =>
-            prev.map(existingAssignment => {
-                const updated = assignmentsToSave.find(a => a.companyId === existingAssignment.companyId);
-                return updated || existingAssignment;
-            })
-        );
-
-    }, [toast]);
+    }, [companyAssignments, toast]);
 
 
     const contextValue = {
