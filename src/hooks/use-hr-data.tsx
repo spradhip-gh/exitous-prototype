@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -176,7 +175,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             const assessmentQuestionsMap: Record<string, Question> = {};
             const profileQuestionsMap: Record<string, Question> = {};
             (questionsData || []).forEach(q => {
-                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type, sortOrder: q.sort_order } as Question;
+                const question = { ...(q.question_data as object), id: q.id, formType: q.form_type, sortOrder: q.sort_order, isActive: q.question_data?.isActive === undefined ? true : q.question_data.isActive } as Question;
                 if (question.formType === 'profile') profileQuestionsMap[q.id] = question;
                 else assessmentQuestionsMap[q.id] = question;
             });
@@ -201,7 +200,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
-            if (masterQ.formType !== formType) continue; 
+            if (masterQ.formType !== formType || !masterQ.isActive) continue; 
 
             const override = config?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
@@ -288,7 +287,8 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         profileData: null, assessmentData: null, completedTasks: new Set(), taskDateOverrides: {}, customDeadlines: {},
         recommendations: null, isAssessmentComplete: false, guidanceRules: [],
         masterTasks: [], masterTips: [], platformUsers: [], externalResources: [],
-        profileCompletions: {}, assessmentCompletions: {},
+        profileCompletions: {},
+        assessmentCompletions: {},
         // Dummy actions for non-HR roles
         addCompanyAssignment: () => {}, saveProfileData: () => {}, saveAssessmentData: () => {},
     };
