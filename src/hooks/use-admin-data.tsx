@@ -242,7 +242,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             toast({ title: "Company not found", variant: "destructive" });
             return;
         }
-
+    
+        // Handle deletion
         if (payload.delete) {
             const { error } = await supabase.from('companies').delete().eq('id', companyToUpdate.companyId);
             if (error) {
@@ -256,9 +257,47 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             }
             return;
         }
+    
+        // Handle HR manager addition
+        if (payload.hrManagerToAdd) {
+            const { hrManagerToAdd } = payload;
+            
+            // If the new manager is primary, demote the old primary first
+            if (hrManagerToAdd.isPrimary) {
+                const oldPrimary = companyToUpdate.hrManagers.find(hr => hr.isPrimary);
+                if (oldPrimary) {
+                    await supabase.from('company_hr_assignments')
+                        .update({ is_primary: false })
+                        .eq('company_id', companyToUpdate.companyId)
+                        .eq('hr_email', oldPrimary.email);
+                }
+            }
 
-        console.log("Updating company assignment for", companyName, "with payload", payload);
-        toast({ title: "Action Received", description: "This action is being processed."});
+            const { error } = await supabase.from('company_hr_assignments').insert({
+                company_id: companyToUpdate.companyId,
+                hr_email: hrManagerToAdd.email,
+                is_primary: hrManagerToAdd.isPrimary,
+                permissions: hrManagerToAdd.permissions,
+                project_access: hrManagerToAdd.projectAccess,
+            });
+    
+            if (error) {
+                toast({ title: 'Failed to add manager', description: error.message, variant: 'destructive' });
+            } else {
+                setCompanyAssignments(prev => prev.map(a => {
+                    if (a.companyName === companyName) {
+                        const updatedManagers = hrManagerToAdd.isPrimary
+                            ? a.hrManagers.map(hr => ({ ...hr, isPrimary: false }))
+                            : a.hrManagers;
+                        return { ...a, hrManagers: [...updatedManagers, hrManagerToAdd] };
+                    }
+                    return a;
+                }));
+                toast({ title: 'Manager Added', description: `${hrManagerToAdd.email} was added to ${companyName}.` });
+            }
+            return;
+        }
+    
     }, [toast, companyAssignments, companyConfigs]);
     
     const saveCompanyAssignments = useCallback(async (assignmentsToSave: CompanyAssignment[]) => {
