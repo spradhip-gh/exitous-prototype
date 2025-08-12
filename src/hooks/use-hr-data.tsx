@@ -206,14 +206,8 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
             const override = config?.questions?.[id];
             let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
             
-            // For HR view, just show if it's active at the company level, unless it's an end-user preview
-            if (!forEndUser && !isVisible) {
+            if (forEndUser && !isVisible) {
                 continue;
-            }
-
-            if (forEndUser) {
-                // Project-level visibility for master questions is disabled for now.
-                if (!isVisible) continue;
             }
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
@@ -253,7 +247,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
                          if(!hasAccess) continue;
                      }
                 } else {
-                     if (!customQ.isActive) continue;
+                     if (!customQ.isActive && !forEndUser) continue;
                 }
                 finalQuestions.push({ ...customQ, isCustom: true });
             }
@@ -365,4 +359,5 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
 

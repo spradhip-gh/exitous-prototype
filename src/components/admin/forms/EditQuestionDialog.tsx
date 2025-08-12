@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import { Button } from "@/components/ui/button";
@@ -550,8 +551,11 @@ export default function EditQuestionDialog({
             newAnswerGuidance[answer] = allGuidance.default;
 
             const newProjectGuidance = { ...(prev.projectAnswerGuidance || {}) };
-            if(!newProjectGuidance[answer]) newProjectGuidance[answer] = {};
-            newProjectGuidance[answer] = allGuidance.projects;
+            if (Object.keys(allGuidance.projects).length > 0) {
+                 newProjectGuidance[answer] = allGuidance.projects;
+            } else {
+                delete newProjectGuidance[answer]; // Clean up if no project overrides exist
+            }
 
             return { ...prev, answerGuidance: newAnswerGuidance, projectAnswerGuidance: newProjectGuidance };
         });
