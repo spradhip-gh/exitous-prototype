@@ -58,11 +58,13 @@ function AnswerDisplay({ label, value, subDetails }: { label: string; value: any
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-1 py-3">
             <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
             <dd className="text-sm col-span-2">
-                {displayValue && (
+                {displayValue ? (
                      <div className={cn("flex items-center gap-2", isUnsure && "text-amber-600 font-semibold")}>
                         {isUnsure && <AlertCircle className="h-4 w-4" />}
                         <span>{displayValue}</span>
                     </div>
+                ) : (
+                    <span className="italic text-muted-foreground">Not answered</span>
                 )}
                 {subDetails && subDetails.length > 0 && (
                     <dl className="mt-2 space-y-1">
@@ -133,16 +135,10 @@ export default function ProfileReview() {
         const masterConfig = getMasterQuestionConfig('profile');
         const sectionOrder = masterConfig?.section_order || [];
 
-        const allData = {
-            ...profileData,
-            personalEmail: companyUser?.personal_email,
-            phone: companyUser?.phone,
-        };
-
         const allQuestionsWithAnswers = questions.filter(q => {
             if (q.parentId) return false;
-            const value = (allData as any)[q.id];
-            return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0);
+            // Display all applicable questions, not just answered ones.
+            return true;
         });
 
         allQuestionsWithAnswers.forEach(q => {
@@ -159,7 +155,7 @@ export default function ProfileReview() {
                 questions: sectionsMap[sectionName] || [],
             }))
             .filter(section => section.questions.length > 0);
-    }, [questions, profileData, companyUser, getMasterQuestionConfig]);
+    }, [questions, getMasterQuestionConfig]);
     
     const handleEditClick = (sectionId: string) => {
         router.push(`/dashboard/profile?section=${encodeURIComponent(sectionId)}`);
