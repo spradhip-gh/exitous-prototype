@@ -22,6 +22,7 @@ import {
     MasterQuestionConfig,
     ReviewQueueItem,
     PlatformUser,
+    applyQuestionOverrides,
 } from './use-user-data';
 import { tenureOptions } from '@/lib/guidance-helpers';
 
@@ -392,31 +393,55 @@ export function EndUserProvider({ children }: { children: React.ReactNode }) {
         let finalQuestions: Question[] = [];
         
         const targetProjectId = auth?.isPreview ? auth.previewProjectId : companyUser?.project_id;
+        const projectConfig = targetProjectId ? companyConfig.projectConfigs?.[targetProjectId] : null;
 
         for (const id in masterSource) {
             const masterQ = { ...masterSource[id] };
             if (!masterQ.isActive || masterQ.formType !== formType) continue; 
 
-            const override = companyConfig?.questions?.[id];
-            let isVisible = override?.isActive === undefined ? masterQ.isActive : override.isActive;
+            // Check project-level visibility first
+            if (projectConfig?.hiddenQuestions?.includes(id)) {
+                continue; // Skip if hidden for this project
+            }
+            
+            const companyOverride = companyConfig?.questions?.[id];
+            
+            // Start with company-level active status, fallback to master
+            let isVisible = companyOverride?.isActive === undefined ? masterQ.isActive : companyOverride.isActive;
+
+            // If question is active at company level, check project level (project can only hide, not show)
+            if (isVisible && projectConfig?.hiddenQuestions?.includes(id)) {
+                isVisible = false;
+            }
             
             if (!isVisible) continue;
             
             let finalQuestion: Question = { ...masterQ, isActive: isVisible };
-            if (override) {
-                finalQuestion.isModified = !!(override.label || override.description || override.optionOverrides);
-                if (override.label) finalQuestion.label = override.label;
-                if (override.description) finalQuestion.description = override.description;
-                if (override.lastUpdated) finalQuestion.lastUpdated = override.lastUpdated;
-                if (override.optionOverrides) {
-                    const baseOptions = masterQ.options || [];
-                    const toRemove = new Set(override.optionOverrides.remove || []);
-                    const toAdd = override.optionOverrides.add || [];
-                    let newOptions = baseOptions.filter(opt => !toRemove.has(opt));
-                    newOptions = [...newOptions, ...toAdd.filter(opt => !newOptions.includes(opt))];
-                    finalQuestion.options = newOptions;
+
+            // Apply company overrides
+            if (companyOverride) {
+                finalQuestion = applyQuestionOverrides(finalQuestion, companyOverride, companyConfig.answerGuidanceOverrides?.[id]);
+            }
+
+            // Apply project-specific answer-level overrides
+            if (projectConfig) {
+                 if (projectConfig.hiddenAnswers?.[id]) {
+                    const hiddenAnswers = new Set(projectConfig.hiddenAnswers[id]);
+                    finalQuestion.options = (finalQuestion.options || []).filter(opt => !hiddenAnswers.has(opt));
+                }
+                const projectAnswerGuidance = projectConfig.answerGuidanceOverrides?.[id];
+                if (projectAnswerGuidance) {
+                     const newAnswerGuidance = { ...(finalQuestion.answerGuidance || {}) };
+                    for (const answer in projectAnswerGuidance) {
+                        newAnswerGuidance[answer] = {
+                            ...(newAnswerGuidance[answer] || {}),
+                            ...projectAnswerGuidance[answer]
+                        }
+                    }
+                    finalQuestion.answerGuidance = newAnswerGuidance;
                 }
             }
+
             finalQuestions.push(finalQuestion);
         }
         
