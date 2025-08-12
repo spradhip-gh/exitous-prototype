@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Download, Check, ChevronsUpDown, Crown, UserPlus, Settings, Shield, Info, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,15 +68,15 @@ function AddHrManagerDialog({ open, onOpenChange, companyName, onSave, currentMa
     const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [permissions, setPermissions] = useState<HrPermissions>(defaultPermissions);
-    const [isPrimary, setIsPrimary] = useState(false);
+    const [isPrimary, setIsPrimary] = useState(currentManagers.length === 0);
 
     useEffect(() => {
         if (!open) {
             setEmail('');
             setPermissions(defaultPermissions);
-            setIsPrimary(false);
         }
-    }, [open]);
+        setIsPrimary(currentManagers.length === 0);
+    }, [open, currentManagers]);
     
     useEffect(() => {
         if(isPrimary) {
@@ -120,7 +120,7 @@ function AddHrManagerDialog({ open, onOpenChange, companyName, onSave, currentMa
                             <Label>Primary Manager</Label>
                             <p className="text-xs text-muted-foreground">Grants full permissions and demotes the current primary.</p>
                         </div>
-                        <Switch checked={isPrimary} onCheckedChange={setIsPrimary} />
+                        <Switch checked={isPrimary} onCheckedChange={setIsPrimary} disabled={currentManagers.length === 0} />
                     </div>
                     {!isPrimary && (
                         <Card className="bg-muted/50">
@@ -649,6 +649,16 @@ export default function CompanyManagementPage() {
                                     <TableCell>
                                         {primaryHr && <div className="flex items-center gap-1 font-semibold"><Crown className="text-amber-500 h-4 w-4"/>{primaryHr.email}</div>}
                                         {otherHrs.map(hr => <div key={hr.email} className="text-xs text-muted-foreground pl-5">{hr.email}</div>)}
+                                        {assignment.hrManagers.length === 0 && (
+                                            <div className="flex items-center gap-2 text-destructive">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <span className="font-semibold">No managers assigned</span>
+                                                 <Button size="sm" variant="destructive" className="h-7" onClick={() => {
+                                                    setEditingCompany(assignment);
+                                                    setIsAddHrDialogOpen(true);
+                                                 }}><PlusCircle className="mr-1.5"/> Add</Button>
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant={version === 'pro' ? 'default' : 'secondary'} className={version === 'pro' ? 'bg-green-600' : ''}>
@@ -771,6 +781,15 @@ export default function CompanyManagementPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
+                                     {editingCompany.hrManagers.length === 0 && (
+                                        <Alert variant="destructive">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>No HR Manager Assigned</AlertTitle>
+                                            <AlertDescription>
+                                                Please add an HR Manager. The first manager added will automatically become the Primary Manager.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
                                     {editingCompany.hrManagers.map(hr => {
                                         const currentPrimaryEmail = editingCompany?.hrManagers.find(m => m.isPrimary)?.email;
                                         return (
@@ -876,3 +895,4 @@ export default function CompanyManagementPage() {
     </div>
   );
 }
+
