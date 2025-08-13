@@ -270,6 +270,7 @@ export default function CompanySettingsPage() {
     isLoading,
     saveCompanyProjects,
     saveCompanyAssignments,
+    setCompanyAssignments,
   } = useUserData();
 
   const [deadlineTime, setDeadlineTime] = useState('');
@@ -328,6 +329,12 @@ export default function CompanySettingsPage() {
         newProjects = [...projects, project];
     }
     saveCompanyProjects(auth.companyName, newProjects);
+    setCompanyAssignments(prev => prev.map(a => 
+        a.companyId === companyAssignmentForHr.companyId 
+            ? { ...a, projects: newProjects } 
+            : a
+    ));
+
 
     if (managerEmails) {
         const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {

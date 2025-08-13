@@ -52,7 +52,7 @@ const parseDateFromCsv = (dateStr: any): Date | null => {
 export default function HrUserManagement() {
     const { toast } = useToast();
     const { auth } = useAuth();
-    const { companyAssignmentForHr, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading, saveCompanyUsers, companyConfigs } = useUserData();
+    const { companyAssignmentForHr, profileCompletions, assessmentCompletions, isLoading: isUserDataLoading, saveCompanyUsers, companyConfigs, setCompanyConfigs } = useUserData();
     
     const companyName = auth?.companyName;
     const permissions = auth?.permissions;
@@ -80,12 +80,11 @@ export default function HrUserManagement() {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
 
     useEffect(() => {
-        // Deep compare to prevent infinite loops from parent re-renders creating new array references.
         if (JSON.stringify(users) !== JSON.stringify(allUsers)) {
             setUsers(allUsers);
         }
         setIsLoading(isUserDataLoading);
-    }, [allUsers, isUserDataLoading, users]);
+    }, [allUsers, isUserDataLoading]);
     
     const hrManager = useMemo(() => {
         if (!auth?.email || !companyAssignmentForHr) return null;
@@ -166,17 +165,17 @@ export default function HrUserManagement() {
         return [...sortedUninvited, ...sortedInvited];
     }, [visibleUsers, sortConfig, profileCompletions, assessmentCompletions, companyAssignmentForHr]);
 
-    const addUser = useCallback(async (userToAdd: Partial<CompanyUser>): Promise<boolean> => {
-        if (!companyName || !companyAssignmentForHr?.companyId) return false;
+    const addUser = useCallback(async (userToAdd: Partial<CompanyUser>): Promise<CompanyUser | null> => {
+        if (!companyName || !companyAssignmentForHr?.companyId) return null;
 
         if (companyAssignmentForHr && users.length >= companyAssignmentForHr.maxUsers) {
             toast({ title: "User Limit Reached", description: `Cannot add ${userToAdd.email}. Adding this user would exceed the maximum of ${companyAssignmentForHr.maxUsers} users.`, variant: "destructive" });
-            return false;
+            return null;
         }
 
         if (users.some(u => u.email.toLowerCase() === userToAdd.email?.toLowerCase())) {
             toast({ title: "User Exists", description: `A user with the email ${userToAdd.email} already exists for this company.`, variant: "destructive" });
-            return false;
+            return null;
         }
 
         const { data, error } = await supabase
@@ -187,11 +186,9 @@ export default function HrUserManagement() {
 
         if (error || !data) {
             toast({ title: "Error", description: "Could not add new user.", variant: "destructive" });
-            return false;
+            return null;
         }
-
-        setUsers(prev => [...prev, data as CompanyUser]);
-        return true;
+        return data as CompanyUser;
     }, [companyAssignmentForHr, companyName, users, toast]);
 
     const handleAddUser = useCallback(async () => {
@@ -209,8 +206,18 @@ export default function HrUserManagement() {
             is_invited: false,
         };
         
-        const success = await addUser(newUser);
-        if (success) {
+        const addedUser = await addUser(newUser);
+        if (addedUser && companyName) {
+            setCompanyConfigs(prev => {
+                const currentCompanyConfig = prev[companyName] || { users: [] };
+                return {
+                    ...prev,
+                    [companyName]: {
+                        ...currentCompanyConfig,
+                        users: [...(currentCompanyConfig.users || []), addedUser]
+                    }
+                }
+            });
             setNewUserEmail("");
             setNewCompanyId("");
             setNewPersonalEmail("");
@@ -218,7 +225,7 @@ export default function HrUserManagement() {
             setNewProjectId(undefined);
             toast({ title: "User Added", description: `${newUser.email} has been added.` });
         }
-    }, [newUserEmail, newCompanyId, newPersonalEmail, newProjectId, newNotificationDate, addUser, toast]);
+    }, [newUserEmail, newCompanyId, newPersonalEmail, newProjectId, newNotificationDate, addUser, toast, companyName, setCompanyConfigs]);
 
     const processCsvRow = useCallback((row: any, assignedProjectId: string | undefined): { userFromCsv?: Partial<CompanyUser>, error?: string } => {
         const email = String(row["email"] || '').trim();
