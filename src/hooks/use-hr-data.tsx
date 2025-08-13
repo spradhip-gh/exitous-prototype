@@ -54,11 +54,11 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
 
     const cacheKeyPrefix = `hr-data-${email}`;
-    const hrDataKeys = [
+    const hrDataKeys = useMemo(() => [
         `${cacheKeyPrefix}-companyAssignments`, `${cacheKeyPrefix}-companyConfigs`, `${cacheKeyPrefix}-masterQuestions`,
         `${cacheKeyPrefix}-masterProfileQuestions`, `${cacheKeyPrefix}-masterQuestionConfigs`, `${cacheKeyPrefix}-reviewQueue`,
         `${cacheKeyPrefix}-lastFetch`
-    ];
+    ], [cacheKeyPrefix]);
 
     const clearHrCache = useCallback(() => {
         hrDataKeys.forEach(key => localStorage.removeItem(key));
@@ -415,9 +415,3 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
-
-
-
-
-
-
