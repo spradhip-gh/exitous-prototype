@@ -208,8 +208,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
             setIsLoading(false);
         };
-        fetchAllData();
-    }, []);
+        if(auth?.role === 'admin' || auth?.role === 'consultant') {
+            fetchAllData();
+        }
+    }, [auth]);
 
     const addCompanyAssignment = useCallback(async (newAssignment: Omit<CompanyAssignment, 'companyId' | 'hrManagers'> & { hrManagers: { email: string, isPrimary: boolean, permissions: HrPermissions, projectAccess: string[] }[] }) => {
         clearAdminCache();
@@ -380,7 +382,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         } else {
             setCompanyAssignments(prev => prev.map(a => a.companyName === companyName ? { ...a, projects: newProjects } : a));
         }
-    }, [companyAssignments, toast, clearAdminCache]);
+    }, [companyAssignments, toast]);
+    
+    const saveMasterQuestionConfig = useCallback(async (formType: 'profile' | 'assessment', config: Partial<MasterQuestionConfig>) => {
+        clearAdminCache();
+        const { error } = await supabase.from('master_question_configs').upsert(
+            { form_type: formType, ...config },
+            { onConflict: 'form_type' }
+        );
+
+        if (error) {
+            toast({ title: 'Save Failed', description: error.message, variant: 'destructive' });
+        } else {
+            setMasterQuestionConfigs(prev => {
+                const existingIndex = prev.findIndex(c => c.form_type === formType);
+                if (existingIndex > -1) {
+                    const newConfigs = [...prev];
+                    newConfigs[existingIndex] = { ...newConfigs[existingIndex], ...config };
+                    return newConfigs;
+                }
+                return [...prev, { form_type: formType, ...config } as MasterQuestionConfig];
+            });
+        }
+    }, [toast]);
     
     // Wrap other save functions with clearAdminCache
     const wrapWithCacheClear = (fn: (...args: any[]) => Promise<any>) => async (...args: any[]) => {
@@ -418,7 +442,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         addCompanyAssignment,
         updateCompanyAssignment,
         saveMasterQuestions: wrapWithCacheClear(async () => {}), 
-        saveMasterQuestionConfig: wrapWithCacheClear(async () => {}), 
+        saveMasterQuestionConfig, 
         saveCompanyConfig: wrapWithCacheClear(async () => {}),
         saveGuidanceRules: wrapWithCacheClear(async () => {}), 
         saveMasterTasks: wrapWithCacheClear(async () => {}), 
@@ -430,7 +454,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         processReviewQueueItem: wrapWithCacheClear(async () => false), 
         saveExternalResources: wrapWithCacheClear(async () => {}),
         getCompanyConfig: () => [], 
-        getMasterQuestionConfig: () => undefined,
+        getMasterQuestionConfig: (formType: 'profile' | 'assessment') => masterQuestionConfigs.find(c => c.form_type === formType),
         getCompanyUser: () => null, 
         getProfileCompletion: () => ({ percentage: 0, isComplete: false, totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
         getAssessmentCompletion: () => ({ percentage: 0, isComplete: false, sections: [], totalApplicable: 0, completed: 0, incompleteQuestions: [] }),
@@ -453,4 +477,3 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
-

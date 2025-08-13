@@ -406,7 +406,7 @@ function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNew
             const defaultQuestionsFn = questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
             const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
             const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
-            const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
+            const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => q.parentId).map(q => q.section))];
             sectionOrder = [...defaultSectionOrder];
             masterQuestionOrder.forEach(s => {
                if (s && !sectionOrder!.includes(s)) sectionOrder!.push(s);
@@ -416,22 +416,26 @@ function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNew
         // Ensure all existing sections are in the order, even if new
         const allCurrentSections = [...new Set(Object.values(activeQuestions).map(q => q.section).filter(Boolean))];
         allCurrentSections.forEach(s => {
-            if (!sectionOrder!.includes(s)) {
-                sectionOrder!.push(s);
+            if (sectionOrder && !sectionOrder.includes(s)) {
+                sectionOrder.push(s);
             }
         });
 
-        sectionOrder.forEach(s => sectionsMap[s] = []);
+        if (sectionOrder) {
+            sectionOrder.forEach(s => sectionsMap[s] = []);
+        }
         rootQuestions.forEach(q => {
             const sectionName = q.section || 'Uncategorized';
             if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
             sectionsMap[sectionName].push(q);
         });
         
-        const sections = sectionOrder.map(sectionName => ({
-            id: sectionName,
-            questions: (sectionsMap[sectionName] || []).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        })).filter(s => s.questions.length > 0);
+        const sections = (sectionOrder || [])
+            .map(sectionName => ({
+                id: sectionName,
+                questions: (sectionsMap[sectionName] || []).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            }))
+            .filter(s => s.questions.length > 0);
         
         setOrderedSections(sections);
 
