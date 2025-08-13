@@ -186,14 +186,12 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="w-full">
-                      <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className={cn(isFormEditorDisabled && 'pointer-events-none')}>
+                      <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className={cn('w-full', isFormEditorDisabled && 'pointer-events-none')}>
                         <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
                           <FileText className="mr-2" />
                           Form Editor
                         </Button>
                       </Link>
-                    </div>
                   </TooltipTrigger>
                   {isFormEditorDisabled && (
                     <TooltipContent>
