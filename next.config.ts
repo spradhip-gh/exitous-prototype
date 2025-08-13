@@ -20,6 +20,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  async headers() {
+    return [
+      {
+        source: '/favicon.ico',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
   experimental: {
     // This is required to allow the Next.js dev server to accept requests from the
     // App Prototyper, which is served on a different port.

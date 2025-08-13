@@ -376,11 +376,7 @@ function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNew
     const sensors = useSensors(
         useSensor(PointerSensor)
     );
-    const defaultQuestionsFn = useMemo(() => {
-        return questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
-    }, [questionType]);
-
-
+    
     const activeQuestions = useMemo(() => {
         if (!questions) return {};
         const active: Record<string, Question> = {};
@@ -403,43 +399,43 @@ function QuestionEditor({ questionType, questions, saveMasterQuestions, onAddNew
         const sectionsMap: Record<string, Question[]> = {};
         
         const masterQuestionConfig = getMasterQuestionConfig(questionType);
-        const savedSectionOrder = masterQuestionConfig?.section_order;
+        let sectionOrder = masterQuestionConfig?.section_order;
         
-        let finalSectionOrder: string[];
-
-        if (savedSectionOrder) {
-            finalSectionOrder = [...savedSectionOrder];
-            const savedSet = new Set(savedSectionOrder);
+        // If no saved order, create a default one
+        if (!sectionOrder) {
+            const defaultQuestionsFn = questionType === 'profile' ? getDefaultProfileQuestions : getDefaultQuestions;
+            const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
+            const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
             const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
-             masterQuestionOrder.forEach(s => {
-                if (s && !savedSet.has(s)) finalSectionOrder.push(s);
-            });
-
-        } else {
-             const defaultQs = defaultQuestionsFn().filter(q => !q.parentId);
-             const defaultSectionOrder = [...new Set(defaultQs.map(q => q.section))];
-             const masterQuestionOrder = [...new Set(Object.values(questions).filter(q => !q.parentId).map(q => q.section))];
-             finalSectionOrder = [...defaultSectionOrder];
-             masterQuestionOrder.forEach(s => {
-                if (s && !finalSectionOrder.includes(s)) finalSectionOrder.push(s);
+            sectionOrder = [...defaultSectionOrder];
+            masterQuestionOrder.forEach(s => {
+               if (s && !sectionOrder!.includes(s)) sectionOrder!.push(s);
             });
         }
         
-        finalSectionOrder.forEach(s => sectionsMap[s] = []);
+        // Ensure all existing sections are in the order, even if new
+        const allCurrentSections = [...new Set(Object.values(activeQuestions).map(q => q.section).filter(Boolean))];
+        allCurrentSections.forEach(s => {
+            if (!sectionOrder!.includes(s)) {
+                sectionOrder!.push(s);
+            }
+        });
+
+        sectionOrder.forEach(s => sectionsMap[s] = []);
         rootQuestions.forEach(q => {
             const sectionName = q.section || 'Uncategorized';
             if (!sectionsMap[sectionName]) sectionsMap[sectionName] = [];
             sectionsMap[sectionName].push(q);
         });
         
-        const sections = finalSectionOrder.map(sectionName => ({
+        const sections = sectionOrder.map(sectionName => ({
             id: sectionName,
             questions: (sectionsMap[sectionName] || []).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         })).filter(s => s.questions.length > 0);
         
         setOrderedSections(sections);
 
-    }, [isLoading, activeQuestions, questions, defaultQuestionsFn, questionType, getMasterQuestionConfig]);
+    }, [isLoading, activeQuestions, questions, questionType, getMasterQuestionConfig]);
 
 
     const handleEditClick = (question: Question) => {
