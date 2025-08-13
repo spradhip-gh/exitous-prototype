@@ -1,29 +1,20 @@
 
 
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useUserData, CompanyUser } from "@/hooks/use-user-data";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PlusCircle, Trash2, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parse, isValid } from 'date-fns';
 import { supabase } from "@/lib/supabase-client";
-
-const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
-    isComplete ? (
-        <Badge variant="secondary" className="border-green-300 bg-green-100 text-green-800">Completed</Badge>
-    ) : (
-        <Badge variant="outline">Pending</Badge>
-    )
-);
-
+import HrUserTable from "./HrUserTable";
+import type { SortConfig } from './HrUserManagement';
 
 export default function AdminUserManagement() {
     const { toast } = useToast();
@@ -36,6 +27,9 @@ export default function AdminUserManagement() {
 
     const [selectedCompany, setSelectedCompany] = useState("");
     const [users, setUsers] = useState<CompanyUser[]>([]);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newCompanyId, setNewCompanyId] = useState("");
     const [newNotificationDate, setNewNotificationDate] = useState<string>("");
@@ -51,6 +45,29 @@ export default function AdminUserManagement() {
             setUsers([]);
         }
     }, [selectedCompany, companyConfigs]);
+
+    const sortedUsers = useMemo(() => {
+        const sorted = [...users].sort((a, b) => {
+            const aValue = a[sortConfig.key as keyof CompanyUser];
+            const bValue = b[sortConfig.key as keyof CompanyUser];
+            
+            if (aValue === undefined || aValue === null) return 1;
+            if (bValue === undefined || bValue === null) return -1;
+            
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [users, sortConfig]);
+
+    const requestSort = useCallback((key: SortConfig['key']) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    }, [sortConfig]);
     
     const handleAddUser = async () => {
         if (!newUserEmail || !newCompanyId || !newNotificationDate) {
@@ -92,7 +109,8 @@ export default function AdminUserManagement() {
             toast({ title: "Error Adding User", description: error?.message || "An unknown error occurred.", variant: "destructive" });
         } else {
             const addedUser = data as CompanyUser;
-            setUsers(prev => [...prev, addedUser].sort((a,b) => (a.email > b.email) ? 1 : -1));
+            setUsers(prev => [...prev, addedUser]);
+            // Update the global state
             setCompanyConfigs(prev => ({
                 ...prev,
                 [selectedCompany]: {
@@ -200,54 +218,15 @@ export default function AdminUserManagement() {
                         <CardDescription>Employees who can log in and complete the assessment for <span className="font-bold">{selectedCompany}</span>.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Email Address</TableHead>
-                                    <TableHead>Company ID</TableHead>
-                                    <TableHead>Notification Date</TableHead>
-                                    <TableHead>Profile</TableHead>
-                                    <TableHead>Assessment</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={6}><Skeleton className="h-20 w-full" /></TableCell></TableRow>
-                                ) : users.length > 0 ? users.map(user => (
-                                    <TableRow key={user.email}>
-                                        <TableCell className="font-medium">{user.email}</TableCell>
-                                        <TableCell>{user.company_user_id}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
-                                                {user.is_invited ? (
-                                                    <Badge className="bg-green-600 hover:bg-green-700 w-fit"><CheckCircle className="mr-1" /> Invited</Badge>
-                                                ) : (
-                                                    <Badge variant="secondary" className="w-fit">Pending</Badge>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatusBadge isComplete={!!user.profile_completed_at} />
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatusBadge isComplete={!!user.assessment_completed_at} />
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user)}>
-                                                <Trash2 className="h-4 w-4" />
-                                                <span className="sr-only">Delete</span>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground">No users added for this company yet.</TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                        <HrUserTable 
+                            users={sortedUsers} 
+                            onDeleteUser={handleDeleteUser}
+                            selectedUsers={selectedUsers} 
+                            setSelectedUsers={setSelectedUsers} 
+                            sortConfig={sortConfig} 
+                            requestSort={requestSort}
+                            isLoading={isLoading}
+                        />
                     </CardContent>
                 </Card>
                 </>
