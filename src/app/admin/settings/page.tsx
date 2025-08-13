@@ -29,15 +29,13 @@ function ProjectFormDialog({
     isOpen,
     onOpenChange,
     onSave,
-    onAssignManagers,
     project,
     companyDefaults,
     hrManagers,
 }: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (project: Project) => Project | null;
-    onAssignManagers: (projectId: string, managerEmails: string[]) => void;
+    onSave: (project: Project, managerEmails?: string[]) => Project | null;
     project: Partial<Project> | null;
     companyDefaults: Partial<CompanyAssignment>;
     hrManagers: HrManager[];
@@ -132,7 +130,7 @@ function ProjectFormDialog({
     
     const handleSaveManagerAssignments = () => {
         if (!createdProject) return;
-        onAssignManagers(createdProject.id, Array.from(selectedManagers));
+        onSave(createdProject, Array.from(selectedManagers));
         onOpenChange(false);
     };
 
@@ -318,8 +316,8 @@ export default function CompanySettingsPage() {
       toast({ title: "Company Upgraded!", description: `${auth.companyName} is now on the Pro version.` });
   }
 
-  const handleSaveProject = (project: Project): Project | null => {
-    if (!auth?.companyName) return null;
+  const handleSaveProject = (project: Project, managerEmails?: string[]): Project | null => {
+    if (!auth?.companyName || !companyAssignmentForHr) return null;
     const projects = companyAssignmentForHr?.projects || [];
     const existingIndex = projects.findIndex(p => p.id === project.id);
     let newProjects;
@@ -330,41 +328,29 @@ export default function CompanySettingsPage() {
         newProjects = [...projects, project];
     }
     saveCompanyProjects(auth.companyName, newProjects);
+
+    if (managerEmails) {
+        const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
+            const isSelected = managerEmails.includes(hr.email);
+            if (!isSelected || hr.isPrimary) return hr;
+
+            const currentAccess = new Set(hr.projectAccess?.filter(p => p !== 'all') || []);
+            currentAccess.add(project.id);
+            return { ...hr, projectAccess: Array.from(currentAccess) };
+        });
+        saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
+    }
+
+    toast({ title: project.id === editingProject?.id ? 'Project Updated' : 'Project Created' });
     return project;
   };
   
   const handleArchiveProject = (project: Project) => {
     const updatedProject = { ...project, isArchived: !project.isArchived };
-    const savedProject = handleSaveProject(updatedProject);
-    if(savedProject) toast({ title: `Project ${savedProject.isArchived ? 'archived' : 'restored'}.` });
+    handleSaveProject(updatedProject);
+    toast({ title: `Project ${updatedProject.isArchived ? 'archived' : 'restored'}.` });
   };
   
-  const handleAssignManagers = (projectId: string, selectedManagerEmails: string[]) => {
-    if (!companyAssignmentForHr) return;
-
-    const updatedManagers = companyAssignmentForHr.hrManagers.map(hr => {
-        const isSelected = selectedManagerEmails.includes(hr.email);
-        const hadAllAccess = !hr.projectAccess || hr.projectAccess.length === 0 || hr.projectAccess.includes('all');
-        const isPrimary = hr.isPrimary;
-
-        // Primary managers and those with 'all' access always retain 'all' access.
-        if (isPrimary || hadAllAccess) {
-            return { ...hr, projectAccess: ['all'] };
-        }
-
-        const currentAccess = new Set(hr.projectAccess);
-        if (isSelected) {
-            currentAccess.add(projectId);
-        } else {
-            currentAccess.delete(projectId);
-        }
-        return { ...hr, projectAccess: Array.from(currentAccess) };
-    });
-
-    saveCompanyAssignments([{ ...companyAssignmentForHr, hrManagers: updatedManagers }]);
-    toast({title: 'HR Managers Assigned', description: `Access to the new project has been updated.`});
-  };
-
   const handleEditProjectClick = (project: Project) => {
     setEditingProject(project);
     setIsProjectFormOpen(true);
@@ -603,7 +589,6 @@ export default function CompanySettingsPage() {
         isOpen={isProjectFormOpen}
         onOpenChange={setIsProjectFormOpen}
         onSave={handleSaveProject}
-        onAssignManagers={handleAssignManagers}
         project={editingProject}
         companyDefaults={companyAssignmentForHr}
         hrManagers={companyAssignmentForHr.hrManagers}

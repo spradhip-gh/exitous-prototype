@@ -367,6 +367,32 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         }
     }, [companyAssignments, toast, clearHrCache]);
 
+    const saveCompanyProjects = useCallback(async (companyName: string, newProjects: Project[]) => {
+        clearHrCache();
+        const assignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!assignment) return;
+
+        const { error } = await supabase
+            .from('projects')
+            .upsert(newProjects.map(p => ({
+                id: p.id,
+                name: p.name,
+                company_id: assignment.companyId,
+                is_archived: p.isArchived,
+                severance_deadline_time: p.severanceDeadlineTime,
+                severance_deadline_timezone: p.severanceDeadlineTimezone,
+                pre_end_date_contact_alias: p.preEndDateContactAlias,
+                post_end_date_contact_alias: p.postEndDateContactAlias,
+            })), { onConflict: 'id' });
+        
+        if (error) {
+            console.error("Error saving projects:", error);
+            toast({ title: 'Error saving projects', description: error.message, variant: 'destructive' });
+        } else {
+            setCompanyAssignments(prev => prev.map(a => a.companyName === companyName ? { ...a, projects: newProjects } : a));
+        }
+    }, [companyAssignments, toast, clearHrCache]);
+
     const profileCompletions = useMemo(() => {
         const completions: Record<string, boolean> = {};
         if (auth?.companyName && companyConfigs[auth.companyName]?.users) {
@@ -400,6 +426,7 @@ export function HrProvider({ children, email }: { children: React.ReactNode, ema
         // Getters and other utils
         getCompanyConfig,
         saveCompanyConfig,
+        saveCompanyProjects,
         getUnsureAnswers,
         saveCompanyAssignments,
         profileCompletions,

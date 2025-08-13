@@ -355,6 +355,32 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             );
         }
     }, [companyAssignments, toast]);
+
+    const saveCompanyProjects = useCallback(async (companyName: string, newProjects: Project[]) => {
+        clearAdminCache();
+        const assignment = companyAssignments.find(a => a.companyName === companyName);
+        if (!assignment) return;
+
+        const { error } = await supabase
+            .from('projects')
+            .upsert(newProjects.map(p => ({
+                id: p.id,
+                name: p.name,
+                company_id: assignment.companyId,
+                is_archived: p.isArchived,
+                severance_deadline_time: p.severanceDeadlineTime,
+                severance_deadline_timezone: p.severanceDeadlineTimezone,
+                pre_end_date_contact_alias: p.preEndDateContactAlias,
+                post_end_date_contact_alias: p.postEndDateContactAlias,
+            })), { onConflict: 'id' });
+        
+        if (error) {
+            console.error("Error saving projects:", error);
+            toast({ title: 'Error saving projects', description: error.message, variant: 'destructive' });
+        } else {
+            setCompanyAssignments(prev => prev.map(a => a.companyName === companyName ? { ...a, projects: newProjects } : a));
+        }
+    }, [companyAssignments, toast, clearAdminCache]);
     
     // Wrap other save functions with clearAdminCache
     const wrapWithCacheClear = (fn: (...args: any[]) => Promise<any>) => async (...args: any[]) => {
@@ -414,6 +440,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         clearData: () => {},
         taskMappings: [],
         tipMappings: [],
+        saveCompanyProjects,
         getAllCompanyConfigs: () => companyConfigs,
         setCompanyConfigs: () => {},
         setReviewQueue: () => {},
@@ -426,3 +453,4 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     
     return <UserDataContext.Provider value={contextValue as any}>{children}</UserDataContext.Provider>;
 }
+
