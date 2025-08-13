@@ -57,6 +57,34 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
     return reviewQueue.filter(item => item.status === 'pending').length;
   }, [reviewQueue]);
 
+  const FormEditorLink = () => {
+    const button = (
+        <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
+            <FileText className="mr-2" />
+            Form Editor
+        </Button>
+    );
+
+    if (isFormEditorDisabled) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="w-full" tabIndex={0}>
+                           {button}
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Upgrade to Pro to edit assessment questions.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+    
+    return <Link href="/admin/forms" className="w-full">{button}</Link>;
+};
+
   return (
     <nav className="grid items-start gap-1 text-sm font-medium">
        {role === 'admin' && (
@@ -183,25 +211,7 @@ function AdminNav({ role, companyName, version, companySettingsComplete }: { rol
                   User Management
                 </Button>
               </Link>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className={cn(isFormEditorDisabled && 'pointer-events-none', "w-full")}>
-                      <Link href="/admin/forms" aria-disabled={isFormEditorDisabled} className="w-full">
-                        <Button variant={getVariant('/admin/forms')} className="w-full justify-start" disabled={isFormEditorDisabled}>
-                          <FileText className="mr-2" />
-                          Form Editor
-                        </Button>
-                      </Link>
-                    </span>
-                  </TooltipTrigger>
-                  {isFormEditorDisabled && (
-                    <TooltipContent>
-                      <p>Upgrade to Pro to edit assessment questions.</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+                <FormEditorLink />
               <Link href="/admin/resources">
                 <Button variant={getVariant('/admin/resources')} className="w-full justify-start">
                   <Library className="mr-2" />
@@ -350,5 +360,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return <AdminLayoutContent auth={auth}>{children}</AdminLayoutContent>;
 }
-
-    
