@@ -79,9 +79,12 @@ export default function HrUserManagement() {
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'notification_date', direction: 'asc' });
 
     useEffect(() => {
-        setUsers(allUsers);
+        // Deep compare to prevent infinite loops from parent re-renders creating new array references.
+        if (JSON.stringify(users) !== JSON.stringify(allUsers)) {
+            setUsers(allUsers);
+        }
         setIsLoading(isUserDataLoading);
-    }, [allUsers, isUserDataLoading]);
+    }, [allUsers, isUserDataLoading, users]);
     
     const hrManager = useMemo(() => {
         if (!auth?.email || !companyAssignmentForHr) return null;
