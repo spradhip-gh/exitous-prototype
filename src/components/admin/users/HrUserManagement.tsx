@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -514,7 +515,7 @@ export default function HrUserManagement() {
                     />
                 </CardHeader>
                 <CardContent>
-                   <HrUserTable isLoading={isLoading} users={sortedUsers} setUsers={setUsers} selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} sortConfig={sortConfig} requestSort={requestSort} canWrite={canWrite} canInvite={canInvite}/>
+                   <HrUserTable isLoading={isLoading} users={sortedUsers} projects={companyAssignmentForHr?.projects || []} setUsers={setUsers} selectedUsers={selectedUsers} setSelectedUsers={setSelectedUsers} sortConfig={sortConfig} requestSort={requestSort} canWrite={canWrite} canInvite={canInvite}/>
                 </CardContent>
             </Card>
 

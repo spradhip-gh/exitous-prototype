@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useUserData, CompanyUser } from '@/hooks/use-user-data';
+import { useUserData, CompanyUser, Project } from '@/hooks/use-user-data';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { format, parse, isToday, isPast } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Send, CheckCircle, Pencil, Trash2, ArrowUpDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SortConfig } from './AdminUserManagement';
+import { SortConfig } from './HrUserManagement';
 
 const StatusBadge = ({ isComplete }: { isComplete: boolean }) => (
     isComplete ? (
@@ -48,7 +48,7 @@ const SortableHeader = ({
 };
 
 
-export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSelectedUsers, sortConfig, requestSort, isLoading }: {
+export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSelectedUsers, sortConfig, requestSort, isLoading, canWrite, canInvite, projects }: {
     users: CompanyUser[];
     onDeleteUser: (user: CompanyUser) => void;
     selectedUsers: Set<string>;
@@ -56,6 +56,9 @@ export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSel
     sortConfig: SortConfig;
     requestSort: (key: SortConfig['key']) => void;
     isLoading: boolean;
+    canWrite: boolean;
+    canInvite: boolean;
+    projects: Project[];
 }) {
     const { profileCompletions, assessmentCompletions } = useUserData();
 
@@ -88,6 +91,7 @@ export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSel
                         </TableHead>
                         <SortableHeader sortKey="email" sortConfig={sortConfig} requestSort={requestSort}>Email Address</SortableHeader>
                         <SortableHeader sortKey="company_user_id" sortConfig={sortConfig} requestSort={requestSort}>Company ID</SortableHeader>
+                        <SortableHeader sortKey="project_id" sortConfig={sortConfig} requestSort={requestSort}>Project</SortableHeader>
                         <SortableHeader sortKey="notification_date" sortConfig={sortConfig} requestSort={requestSort}>Notification Date</SortableHeader>
                         <SortableHeader sortKey="profileStatus" sortConfig={sortConfig} requestSort={requestSort}>Profile</SortableHeader>
                         <SortableHeader sortKey="assessmentStatus" sortConfig={sortConfig} requestSort={requestSort}>Assessment</SortableHeader>
@@ -97,15 +101,17 @@ export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSel
                 <TableBody>
                     {isLoading ? (
                         [...Array(5)].map((_, i) => (
-                           <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
+                           <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
                         ))
                     ) : users.length > 0 ? users.map(user => {
                         const isSelectionDisabled = user.is_invited;
+                        const projectName = user.project_id ? projects.find(p => p.id === user.project_id)?.name : null;
                         return (
                             <TableRow key={user.id} data-selected={selectedUsers.has(user.email)} className={cn(user.is_invited && "bg-muted/50 text-muted-foreground")}>
                                 <TableCell><Checkbox checked={selectedUsers.has(user.email)} onCheckedChange={() => handleToggleSelection(user.email)} aria-label={`Select ${user.email}`} disabled={isSelectionDisabled}/></TableCell>
                                 <TableCell className="font-medium">{user.email}</TableCell>
                                 <TableCell>{user.company_user_id}</TableCell>
+                                <TableCell>{projectName ? <Badge variant="outline">{projectName}</Badge> : <span className="text-muted-foreground/80 italic">None</span>}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
                                         <span>{user.notification_date ? format(parse(user.notification_date, 'yyyy-MM-dd', new Date()), 'PPP') : 'N/A'}</span>
@@ -117,7 +123,7 @@ export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSel
                                 <TableCell className="text-right">
                                     <div className="flex justify-end items-center gap-1">
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" disabled={!canWrite}><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -134,7 +140,7 @@ export default function HrUserTable({ users, onDeleteUser, selectedUsers, setSel
                             </TableRow>
                         );
                     }) : (
-                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users added for this company yet.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No users added for this company yet.</TableCell></TableRow>
                     )}
                 </TableBody>
             </Table>

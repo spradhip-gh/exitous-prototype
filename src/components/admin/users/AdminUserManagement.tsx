@@ -226,6 +226,9 @@ export default function AdminUserManagement() {
                             sortConfig={sortConfig} 
                             requestSort={requestSort}
                             isLoading={isLoading}
+                            canWrite={true}
+                            canInvite={true}
+                            projects={currentCompanyAssignment?.projects || []}
                         />
                     </CardContent>
                 </Card>
