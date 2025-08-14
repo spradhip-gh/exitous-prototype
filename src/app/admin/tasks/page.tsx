@@ -277,9 +277,15 @@ export default function TaskManagementPage() {
                             <CardContent>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2"/> Download Template</Button>
+<<<<<<< HEAD
                                     <input type="file" accept=".xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                                     <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with Excel</Button>
                                     <input type="file" accept=".xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+=======
+                                    <input type="file" accept=".csv,.xlsx" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2"/> Merge with Excel</Button>
+                                    <input type="file" accept=".csv,.xlsx" ref={replaceFileInputRef} onChange={handleReplaceUpload} className="hidden" />
+>>>>>>> bfcb76c (Lets make all exports xls files)
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="destructive"><Replace className="mr-2" /> Replace via Excel</Button>

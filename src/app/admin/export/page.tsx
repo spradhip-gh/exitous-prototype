@@ -46,6 +46,7 @@ export default function ExportUsersPage() {
 
     // 2. Add HR Managers
     companyAssignments.forEach(assignment => {
+<<<<<<< HEAD
       const primaryManager = assignment.hrManagers.find(hr => hr.isPrimary) || assignment.hrManagers[0];
       if (primaryManager && primaryManager.email) {
         users.push({
@@ -59,6 +60,18 @@ export default function ExportUsersPage() {
             assessmentStatus: 'N/A',
         });
       }
+=======
+      users.push({
+        email: assignment.hrManagers[0]?.email,
+        role: 'HR Manager',
+        company: assignment.companyName,
+        companyId: 'N/A',
+        notificationDate: 'N/A',
+        notified: 'N/A',
+        profileStatus: 'N/A',
+        assessmentStatus: 'N/A',
+      });
+>>>>>>> bfcb76c (Lets make all exports xls files)
     });
 
     // 3. Add End-Users
